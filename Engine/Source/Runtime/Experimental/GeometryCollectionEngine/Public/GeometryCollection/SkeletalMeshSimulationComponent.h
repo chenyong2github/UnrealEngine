@@ -172,7 +172,7 @@ private:
 
 private:
 #if INCLUDE_CHAOS
-	FSkeletalMeshPhysicsObject* PhysicsObject;
+	FSkeletalMeshPhysicsProxy* PhysicsProxy;
 
 	//@todo(mlentine): Don't have one per static mesh
 	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;

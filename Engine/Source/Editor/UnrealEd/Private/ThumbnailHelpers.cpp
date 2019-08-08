@@ -361,7 +361,7 @@ void FMaterialThumbnailScene::SetMaterialInterface(UMaterialInterface* InMateria
 
 bool FMaterialThumbnailScene::ShouldSetSeparateTranslucency(class UMaterialInterface* InMaterial) const
 {
-	return InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->IsTranslucencyAfterDOFEnabled();
+	return InMaterial->GetMaterialResource(GMaxRHIFeatureLevel) != nullptr ? InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->IsTranslucencyAfterDOFEnabled() : false;
 }
 
 void FMaterialThumbnailScene::GetViewMatrixParameters(const float InFOVDegrees, FVector& OutOrigin, float& OutOrbitPitch, float& OutOrbitYaw, float& OutOrbitZoom) const

@@ -1173,7 +1173,7 @@ void UTakeRecorderActorSource::PostProcessCreatedObjectTemplateImpl(AActor* Obje
 	 	SkeletalMeshComponent->SetAnimationMode(EAnimationMode::AnimationSingleNode);
 	 	SkeletalMeshComponent->bEnableUpdateRateOptimizations = false;
 	 	SkeletalMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
-	 	SkeletalMeshComponent->ForcedLodModel = 1;
+	 	SkeletalMeshComponent->SetForcedLOD(1);
 	 }
 
 	// Disable auto-possession on recorded Pawns so that when the Spawnable is spawned it doesn't auto-possess the player
@@ -1439,7 +1439,7 @@ bool UTakeRecorderActorSource::IsOtherActorBeingRecorded(AActor* OtherActor) con
 	{
 		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
 		{
-			if (ActorSource->Target.Get() == OtherActor)
+			if (ActorSource->bEnabled && ActorSource->Target.Get() == OtherActor)
 			{
 				return true;
 			}
@@ -1467,6 +1467,30 @@ FGuid UTakeRecorderActorSource::GetRecordedActorGuid(class AActor* OtherActor) c
 	}
 
 	return FGuid();
+}
+
+FTransform UTakeRecorderActorSource::GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const
+{
+	UTakeRecorderSources* OwningSources = CastChecked<UTakeRecorderSources>(GetOuter());
+	for (UTakeRecorderSource* Source : OwningSources->GetSources())
+	{
+		if (UTakeRecorderActorSource* ActorSource = Cast<UTakeRecorderActorSource>(Source))
+		{
+			AActor* OtherTarget = ActorSource->Target.Get();
+			if (OtherTarget && OtherActor && (OtherTarget == OtherActor || OtherTarget->GetName() == OtherActor->GetName()))
+			{
+				for (UMovieSceneTrackRecorder* TrackRecorder : ActorSource->TrackRecorders)
+				{
+					if (TrackRecorder->IsA<UMovieSceneAnimationTrackRecorder>())
+					{
+						return Cast<UMovieSceneAnimationTrackRecorder>(TrackRecorder)->GetInitialRootTransform();
+					}
+				}
+
+			}
+		}
+	}
+	return FTransform::Identity;
 }
 
 FMovieSceneSequenceID UTakeRecorderActorSource::GetLevelSequenceID(class AActor* OtherActor)

@@ -30,7 +30,7 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 		// Renderer icon
 		SNew(SHorizontalBox)
 		+ SHorizontalBox::Slot()
-		.Padding(5, 0, 0, 0)
+		.Padding(2, 0, 0, 0)
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
@@ -42,12 +42,8 @@ void SNiagaraStackRendererItem::Construct(const FArguments& InArgs, UNiagaraStac
 		.Padding(5, 0, 0, 0)
 		.VAlign(VAlign_Center)
 		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(RendererItem, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(RendererItem, &UNiagaraStackEntry::GetDisplayName)
-			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackRendererItem::GetTextColorForSearch)
+			SNew(SNiagaraStackDisplayName, InRendererItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
 		]
 		// Stack issues icon
 		+ SHorizontalBox::Slot()

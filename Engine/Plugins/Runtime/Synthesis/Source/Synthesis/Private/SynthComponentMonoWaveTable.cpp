@@ -23,7 +23,6 @@ UMonoWaveTableSynthPreset::UMonoWaveTableSynthPreset() : PresetName(TEXT("Defaul
 	DefaultCurvePointer->AddKey(1.0f, 0.0f);
 
 	bWasLockedToGrid = bLockKeyframesToGridBool;
-	bWasSingleTable = true;
 
 	CacheAssetData();
 }
@@ -48,15 +47,12 @@ void UMonoWaveTableSynthPreset::PostEditChangeChainProperty(FPropertyChangedChai
 void UMonoWaveTableSynthPreset::EditChangeInternal()
 {
 	AssetChangeInfo ChangeInfo;
+	
 
-	// Adding the first table
-	if (!WaveTable.Num() && !bWasSingleTable)
+	if (!WaveTable.Num())
 	{
-		WaveTable.Add(DefaultCurve);
 		ChangeInfo.bNeedsFullRebuild = true;
 	}
-
-	bWasSingleTable = (WaveTable.Num() == 1);
 
 	// resize tangent data if array length increased
 	if (CurveBiDirTangents.Num() < WaveTable.Num())
@@ -330,7 +326,6 @@ void UMonoWaveTableSynthPreset::CacheAssetData()
 		bCachedNormalizationSetting = bNormalizeWaveTables;
 		CachedWaveTable = WaveTable;
 		CachedTableResolution = WaveTableResolution;
-		bWasSingleTable = (WaveTable.Num() == 1);
 }
 
 bool UMonoWaveTableSynthPreset::IsCachedTableEntryStillValid(Audio::DefaultWaveTableIndexType Index)
@@ -406,31 +401,44 @@ void USynthComponentMonoWaveTable::RefreshWaveTable(int32 Index)
 	double CurrTime = 0.0;
 
 	// for (optional) normalization
-	float MaxAbsValue = 0.0f;
+	float MaxValue = 0.0f;
+	float MinValue = 0.0f;
 
-	// Normalize audio when we sample
+	for (Audio::DefaultWaveTableIndexType i = 0; i < TableRes; ++i)
+	{
+		DestinationTable[i] = RichCurveToProcess.Eval(CurrTime);
+		const float CurrSample = DestinationTable[i];
+
+		MaxValue = CurrSample > MaxValue ? CurrSample : MaxValue;
+		MinValue = CurrSample < MinValue ? CurrSample : MinValue;
+		CurrTime += SamplePeriod;
+	}
+
+	const float DCShift = -0.5f * (FMath::Abs(MaxValue) - FMath::Abs(MinValue));
+	MaxValue += DCShift;
+	MinValue += DCShift;
+
+	// Remove DC offset
+	if (!FMath::IsNearlyZero(DCShift))
+	{
+		Audio::AddConstantToBufferInplace(DestinationTable.GetData(), TableRes, DCShift);
+	}
+
 	if (CachedPreset->bNormalizeWaveTables)
 	{
-		for (Audio::DefaultWaveTableIndexType i = 0; i < TableRes; ++i)
-		{
-			DestinationTable[i] = RichCurveToProcess.Eval(CurrTime);
-			MaxAbsValue = FMath::Abs(DestinationTable[i]) > MaxAbsValue ? DestinationTable[i] : MaxAbsValue;
-			CurrTime += SamplePeriod;
-		}
+		const float MaxAbsValue = FMath::Max(FMath::Abs(MaxValue), FMath::Abs(MinValue));
+		const float NormalizationScalar = 1.0f / MaxAbsValue;
 
-		float NormalizationScalar = 1.0f / MaxAbsValue;
 		Audio::MultiplyBufferByConstantInPlace(DestinationTable.GetData(), TableRes, NormalizationScalar);
 	}
-	// clip audio while we sample
-	else
+	else // clip the values since we aren't normalizing
 	{
-		for (Audio::DefaultWaveTableIndexType i = 0; i < TableRes; ++i)
+		for (auto& Sample : DestinationTable)
 		{
-			const float CurrSample = RichCurveToProcess.Eval(CurrTime);
-			DestinationTable[i] = FMath::Clamp(CurrSample, -1.0f, 1.0f);
-			CurrTime += SamplePeriod;
+			Sample = FMath::Clamp(Sample, -1.0f, 1.0f);
 		}
 	}
+
 
 	// push sampled data to synth
 	// (Note: only performs simple memcopy in pump)

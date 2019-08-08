@@ -32,7 +32,6 @@ enum class EDefaultGraphicsRHI : uint8
 	DefaultGraphicsRHI_DX11 = 1 UMETA(DisplayName = "DirectX 11"),
 	DefaultGraphicsRHI_DX12 = 2 UMETA(DisplayName = "DirectX 12"),
 	DefaultGraphicsRHI_Vulkan = 3 UMETA(DisplayName = "Vulkan"),
-	DefaultGraphicsRHI_OpenGL = 4 UMETA(DisplayName = "OpenGL"),
 };
 
 

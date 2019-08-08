@@ -50,6 +50,12 @@ void FNiagaraParameterMapHistory::GetValidNamespacesForReading(ENiagaraScriptUsa
 	OutputNamespaces.Add(PARAM_MAP_SYSTEM_STR);
 	OutputNamespaces.Add(PARAM_MAP_EMITTER_STR);
 
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	if (UseShaderStagesCVar->GetInt() == 1)
+	{
+		OutputNamespaces.Add(PARAM_MAP_INDICES_STR);
+	}
+
 	for (ENiagaraScriptUsage Usage : SupportedContexts)
 	{
 		if (UNiagaraScript::IsParticleScript(Usage))
@@ -90,6 +96,12 @@ bool FNiagaraParameterMapHistory::IsValidNamespaceForReading(ENiagaraScriptUsage
 	ConcernedNamespaces.Add(PARAM_MAP_SYSTEM_STR);
 	ConcernedNamespaces.Add(PARAM_MAP_EMITTER_STR);
 	ConcernedNamespaces.Add(PARAM_MAP_ATTRIBUTE_STR);
+
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	if (UseShaderStagesCVar->GetInt() == 1)
+	{
+		ConcernedNamespaces.Add(PARAM_MAP_INDICES_STR);
+	}
 	
 	if (!Namespace.EndsWith(TEXT(".")))
 	{
@@ -564,6 +576,15 @@ bool FNiagaraParameterMapHistory::IsExternalConstantNamespace(const FNiagaraVari
 	if (IsInNamespace(InVar, PARAM_MAP_USER_STR))
 	{
 		return true;
+	}
+
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	if (UseShaderStagesCVar->GetInt() == 1)
+	{
+		if (IsInNamespace(InVar, PARAM_MAP_INDICES_STR))
+		{
+			return true;
+		}
 	}
 
 	// Modules and functions need to act as if they are within the script types that they 

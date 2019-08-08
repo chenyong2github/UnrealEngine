@@ -171,22 +171,24 @@ FLinkerSave::FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSa
 #endif // USE_STABLE_LOCALIZATION_KEYS
 	}
 }
-/**
- * Detaches file saver and hence file handle.
- */
-void FLinkerSave::Detach()
+
+bool FLinkerSave::CloseAndDestroySaver()
 {
+	bool bSuccess = true;
 	if (Saver)
 	{
+		// first, do an explicit close to check for archive errors
+		bSuccess = Saver->Close();
+		// then, destroy it
 		delete Saver;
 	}
 	Saver = nullptr;
+	return bSuccess;
 }
 
 FLinkerSave::~FLinkerSave()
 {
-	// Detach file saver/ handle.
-	Detach();
+	CloseAndDestroySaver();
 }
 
 int32 FLinkerSave::MapName(FNameEntryId Id) const

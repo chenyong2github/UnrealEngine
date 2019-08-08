@@ -471,15 +471,15 @@ FAutoConsoleVariableRef CVarRequireFocusForGamepadInput(
 
 #if !UE_BUILD_SHIPPING
 
-static void HandleGlobalInvalidate(const TArray<FString>& Args)
+static void HandleGlobalInvalidateCVarTriggered(const TArray<FString>& Args)
 {
-	FSlateApplication::Get().InvalidateAllWidgets();
+	FSlateApplication::Get().InvalidateAllWidgets(false);
 }
 
 static FAutoConsoleCommand GlobalInvalidateCommand(
 	TEXT("Slate.TriggerInvalidate"),
 	TEXT("Triggers a global invalidate of all widgets"),
-	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidate)
+	FConsoleCommandWithArgsDelegate::CreateStatic(&HandleGlobalInvalidateCVarTriggered)
 );
 #endif
 
@@ -2614,6 +2614,8 @@ void FSlateApplication::UnregisterVirtualWindow(TSharedRef<SWindow> InWindow)
 
 void FSlateApplication::FlushRenderState()
 {
+	InvalidateAllWidgets(true);
+
 	if ( Renderer.IsValid() )
 	{
 		// Release any temporary material or texture resources we may have cached and are reporting to prevent
@@ -3136,9 +3138,12 @@ void FSlateApplication::CloseAllWindowsImmediately()
 		ToolTipWindow.Reset();
 	}
 
-	for (int32 WindowIndex = 0; WindowIndex < SlateWindows.Num(); ++WindowIndex)
+	// Destroy all top level windows.  
+	// ::RequestDestroyWindow will remove the window from the TArray SlateWindows so we
+	// should iterate over it backwards to make sure that the WindowIndex is still correct.
+	for (int32 WindowIndex = SlateWindows.Num() -1; WindowIndex >= 0; --WindowIndex)
 	{
-		// Destroy all top level windows.  This will also request that all children of each window be destroyed
+		// This will also request that all children of each window be destroyed
 		RequestDestroyWindow(SlateWindows[WindowIndex]);
 	}
 
@@ -3531,16 +3536,19 @@ void FSlateApplication::ProcessReply( const FWidgetPath& CurrentEventPath, const
 			}
 			else
 			{
+				TSharedRef<SWindow> NavigationWindow = NavigationSource.GetDeepestWindow();
+
 				FNavigationEvent NavigationEvent(PlatformApplication->GetModifierKeys(), UserIndex, TheReply.GetNavigationType(), TheReply.GetNavigationGenesis());
 
 				FNavigationReply NavigationReply = FNavigationReply::Escape();
+
 				for (int32 WidgetIndex = NavigationSource.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
 				{
 					FArrangedWidget& SomeWidgetGettingEvent = NavigationSource.Widgets[WidgetIndex];
 					if (SomeWidgetGettingEvent.Widget->IsEnabled())
 					{
 						NavigationReply = SomeWidgetGettingEvent.Widget->OnNavigation(SomeWidgetGettingEvent.Geometry, NavigationEvent).SetHandler(SomeWidgetGettingEvent.Widget);
-						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || WidgetIndex == 0)
+						if (NavigationReply.GetBoundaryRule() != EUINavigationRule::Escape || SomeWidgetGettingEvent.Widget == NavigationWindow || WidgetIndex == 0)
 						{
 							AttemptNavigation(NavigationSource, NavigationEvent, NavigationReply, SomeWidgetGettingEvent);
 							break;
@@ -4375,6 +4383,11 @@ bool FSlateApplication::RegisterInputPreProcessor(TSharedPtr<IInputProcessor> In
 void FSlateApplication::UnregisterInputPreProcessor(TSharedPtr<IInputProcessor> InputProcessor)
 {
 	InputPreProcessors.Remove(InputProcessor);
+}
+
+int32 FSlateApplication::FindInputPreProcessor(TSharedPtr<class IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessors.Find(InputProcessor);
 }
 
 void FSlateApplication::SetCursorRadius(float NewRadius)
@@ -6568,7 +6581,7 @@ bool FSlateApplication::AttemptNavigation(const FWidgetPath& NavigationSource, c
 			// Switch worlds for widgets in the current path 
 			FScopedSwitchWorldHack SwitchWorld(NavigationSource);
 
-			DestinationWidget = NavigationSource.GetWindow()->GetHittestGrid().FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
+			DestinationWidget = NavigationSource.GetDeepestWindow()->GetHittestGrid().FindNextFocusableWidget(FocusedArrangedWidget, NavigationType, NavigationReply, BoundaryWidget);
 
 #if WITH_SLATE_DEBUGGING
 			NavigationMethod = ESlateDebuggingNavigationMethod::HitTestGrid;
@@ -7597,8 +7610,11 @@ void FSlateApplication::NavigateFromWidgetUnderCursor(const uint32 InUserIndex, 
 
 void FSlateApplication::InputPreProcessorsHelper::Tick(const float DeltaTime, FSlateApplication& SlateApp, TSharedRef<ICursor> Cursor)
 {
-	for (TSharedPtr<IInputProcessor> InputPreProcessor : InputPreProcessorList)
+	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
+
+	for (int32 ProcessorIndex = 0; ProcessorIndex < InputPreProcessorList.Num(); ProcessorIndex++)
 	{
+		TSharedPtr<IInputProcessor> InputPreProcessor = InputPreProcessorList[ProcessorIndex];
 		InputPreProcessor->Tick(DeltaTime, SlateApp, Cursor);
 	}
 }
@@ -7663,6 +7679,11 @@ bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor
 		bResult = true;
 	}
 
+	if (bResult)
+	{
+		ProcessorsPendingRemoval.Remove(InputProcessor);
+	}
+
 	return bResult;
 }
 
@@ -7691,6 +7712,11 @@ void FSlateApplication::InputPreProcessorsHelper::RemoveAll()
 }
 
 
+int32 FSlateApplication::InputPreProcessorsHelper::Find(TSharedPtr<IInputProcessor> InputProcessor) const
+{
+	return InputPreProcessorList.Find(InputProcessor);
+}
+
 bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<bool(TSharedPtr<IInputProcessor>)> ToRun)
 {
 	TGuardValue<bool> IteratingGuard(bIsIteratingPreProcessors, true);
@@ -7705,7 +7731,7 @@ bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<b
 		}
 	}
 
-	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor){ return ProcessorsPendingRemoval.Contains(Processor); });
+	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor) { return ProcessorsPendingRemoval.Contains(Processor); });
 	ProcessorsPendingRemoval.Reset();
 
 	return bShouldExit;

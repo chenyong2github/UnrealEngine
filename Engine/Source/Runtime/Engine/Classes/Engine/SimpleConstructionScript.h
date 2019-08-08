@@ -61,6 +61,9 @@ class USimpleConstructionScript : public UObject
 	/** Return the Blueprint associated with this SCS instance */
 	ENGINE_API class UClass* GetOwnerClass() const;
 
+	/** Return the parent class of the SCS owner class */
+	ENGINE_API class UClass* GetParentClass() const;
+
 #if WITH_EDITOR
 	/** Return all nodes in tree as a flat list */
 	ENGINE_API const TArray<USCS_Node*>& GetAllNodes() const;
@@ -99,6 +102,11 @@ class USimpleConstructionScript : public UObject
 
 	/** Checks the root node set for scene components and ensures that it is valid (e.g. after a removal) */
 	ENGINE_API void ValidateSceneRootNodes();
+
+#if WITH_EDITOR
+	/** Returns Valid if this object has data validation rules set up for it and the data for this object is valid. Returns Invalid if it does not pass the rules. Returns NotValidated if no rules are set for this object. */
+	virtual EDataValidationResult IsDataValid(TArray<FText>& ValidationErrors) override;
+#endif // WITH_EDITOR
 
 private:
 	/** Root nodes of the construction script */

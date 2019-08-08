@@ -13,7 +13,7 @@ class FAssetTypeActions_MonoWaveTableSynthPreset : public FAssetTypeActions_Base
 {
 public:
 	virtual FText GetName() const override { return NSLOCTEXT("AssetTypeActions", "AssetTypeActions_MonoWaveTableSynthPreset", "Mono Wave Table Synth Preset Bank"); }
-	virtual FColor GetTypeColor() const override { return FColor(175, 100, 155); }
+	virtual FColor GetTypeColor() const override { return FColor(0, 255, 0); }
 	virtual UClass* GetSupportedClass() const override;
 	virtual uint32 GetCategories() override { return EAssetTypeCategories::Sounds; }
 };

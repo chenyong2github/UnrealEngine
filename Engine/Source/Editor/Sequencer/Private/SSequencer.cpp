@@ -1933,10 +1933,16 @@ TSharedRef<SWidget> SSequencer::MakeSnapMenu()
 	}
 	MenuBuilder.EndSection();
 
-	MenuBuilder.BeginSection( "SectionSnapping", LOCTEXT( "SnappingMenuSectionHeader", "Section Snapping" ) );
+	MenuBuilder.BeginSection("SectionSnapping", LOCTEXT("SnappingMenuSectionHeader", "Section Snapping"));
 	{
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleSnapSectionTimesToInterval );
-		MenuBuilder.AddMenuEntry( FSequencerCommands::Get().ToggleSnapSectionTimesToSections );
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapSectionTimesToInterval);
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapSectionTimesToSections);
+	}
+	MenuBuilder.EndSection();
+
+	MenuBuilder.BeginSection("KeyAndSectionSnapping", LOCTEXT("SnappingMenuKeysAndSectionHeader", "Keys and Sections Snapping"));
+	{
+		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleSnapKeysAndSectionsToPlayRange);
 	}
 	MenuBuilder.EndSection();
 

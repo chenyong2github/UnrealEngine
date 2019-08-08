@@ -101,34 +101,85 @@ namespace Chaos
 	class CHAOSSOLVERS_API FSolverCollisionEventFilter
 	{
 	public:
+		FSolverCollisionEventFilter() {}
 		FSolverCollisionEventFilter(const FSolverCollisionFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TCollisionData<float, 3>& InData);
-		bool Enabled() { return Settings.FilterEnabled; }
+		bool Pass(const Chaos::TCollisionData<float, 3>& InData) const;
+		bool Enabled() const { return Settings.FilterEnabled; }
+		void UpdateFilterSettings(const FSolverCollisionFilterSettings& InSettings) { Settings = InSettings; }
 
-		const FSolverCollisionFilterSettings& Settings;
+		FSolverCollisionFilterSettings Settings;
 	};
 
 	class CHAOSSOLVERS_API FSolverTrailingEventFilter
 	{
 	public:
+		FSolverTrailingEventFilter() {}
 		FSolverTrailingEventFilter(const FSolverTrailingFilterSettings &InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TTrailingData<float, 3>& InData);
-		bool Enabled() { return Settings.FilterEnabled; }
+		bool Pass(const Chaos::TTrailingData<float, 3>& InData) const;
+		bool Enabled() const { return Settings.FilterEnabled; }
+		void UpdateFilterSettings(const FSolverTrailingFilterSettings& InSettings) { Settings = InSettings; }
 
-		const FSolverTrailingFilterSettings& Settings;
+		FSolverTrailingFilterSettings Settings;
 	};
 
 	class CHAOSSOLVERS_API FSolverBreakingEventFilter
 	{
 	public:
+		FSolverBreakingEventFilter() {}
 		FSolverBreakingEventFilter(const FSolverBreakingFilterSettings& InSettings) : Settings(InSettings) {}
 
-		bool Pass(const Chaos::TBreakingData<float, 3>& InData);
-		bool Enabled() { return Settings.FilterEnabled; }
+		bool Pass(const Chaos::TBreakingData<float, 3>& InData) const;
+		bool Enabled() const { return Settings.FilterEnabled; }
+		void UpdateFilterSettings(const FSolverBreakingFilterSettings& InSettings) { Settings = InSettings; }
 
-		const FSolverBreakingFilterSettings& Settings;
+		FSolverBreakingFilterSettings Settings;
+	};
+
+
+	/**
+	 * Container for the Solver Event Filters that have settings exposed through the Solver Actor
+	 */
+	class FSolverEventFilters
+	{
+	public:
+		FSolverEventFilters()
+			: CollisionFilter(new FSolverCollisionEventFilter())
+			, BreakingFilter(new FSolverBreakingEventFilter())
+			, TrailingFilter(new FSolverTrailingEventFilter())
+			, CollisionEventsEnabled(false)
+			, BreakingEventsEnabled(false)
+			, TrailingEventsEnabled(false)
+		{}
+
+		void SetGenerateCollisionEvents(bool bDoGenerate) { CollisionEventsEnabled = bDoGenerate; }
+		void SetGenerateBreakingEvents(bool bDoGenerate) { BreakingEventsEnabled = bDoGenerate; }
+		void SetGenerateTrailingEvents(bool bDoGenerate) { TrailingEventsEnabled = bDoGenerate; }
+
+		/* Const access */
+		FSolverCollisionEventFilter* GetCollisionFilter() const { return CollisionFilter.Get(); }
+		FSolverBreakingEventFilter* GetBreakingFilter() const { return BreakingFilter.Get(); }
+		FSolverTrailingEventFilter* GetTrailingFilter() const { return TrailingFilter.Get(); }
+
+		/* non-const access */
+		FSolverCollisionEventFilter* GetCollisionFilter() { return CollisionFilter.Get(); }
+		FSolverBreakingEventFilter* GetBreakingFilter() { return BreakingFilter.Get(); }
+		FSolverTrailingEventFilter* GetTrailingFilter() { return TrailingFilter.Get(); }
+
+		bool IsCollisionEventEnabled() const { return CollisionEventsEnabled; }
+		bool IsBreakingEventEnabled() const { return BreakingEventsEnabled; }
+		bool IsTrailingEventEnabled() const { return TrailingEventsEnabled; }
+
+	private:
+
+		TUniquePtr<FSolverCollisionEventFilter> CollisionFilter;
+		TUniquePtr<FSolverBreakingEventFilter> BreakingFilter;
+		TUniquePtr<FSolverTrailingEventFilter> TrailingFilter;
+
+		bool CollisionEventsEnabled;
+		bool BreakingEventsEnabled;
+		bool TrailingEventsEnabled;
 	};
 
 

@@ -4,22 +4,24 @@
 
 #if WITH_CHAOS
 
+#include "ChaosInterfaceWrapper.h"
 #include "Engine/Engine.h"
-#include "Physics/PhysicsInterfaceDeclares.h"
-#include "Physics/PhysicsInterfaceTypes.h"
-#include "PhysicsEngine/ConstraintDrives.h"
-#include "PhysicsEngine/ConstraintTypes.h"
-#include "PhysicsPublic.h"
-#include "PhysicsReplication.h"
 #include "Chaos/ArrayCollection.h"
 #include "Chaos/ArrayCollectionArray.h"
+#include "Chaos/Declares.h"
 #include "Chaos/Capsule.h"
 #include "Chaos/ImplicitObject.h"
 #include "Chaos/Pair.h"
 #include "Chaos/Transform.h"
-#include "Physics/GenericPhysicsInterface.h"
+#include "PhysicsEngine/ConstraintDrives.h"
+#include "PhysicsEngine/ConstraintTypes.h"
+#include "PhysicsPublic.h"
+#include "PhysicsReplication.h"
 #include "PhysicsInterfaceWrapperShared.h"
-#include "ChaosInterfaceWrapper.h"
+#include "Physics/PhysicsInterfaceDeclares.h"
+#include "Physics/PhysicsInterfaceTypes.h"
+#include "Physics/GenericPhysicsInterface.h"
+#include "Physics/Experimental/PhysicsUserData_Chaos.h"
 
 //NOTE: Do not include Chaos headers directly as it means recompiling all of engine. This should be reworked to avoid allocations
 
@@ -31,12 +33,12 @@ struct FBodyInstance;
 struct FPhysxUserData;
 class IPhysicsReplicationFactory;
 
-class FBodyInstancePhysicsObject;
-
 class AWorldSettings;
 
 namespace Chaos
 {
+	class IDispatcher;
+
 	template <typename T, int>
 	class TBVHParticles;
 
@@ -51,40 +53,10 @@ namespace Chaos
 
 	template <typename T, int>
 	class TPBDSpringConstraints;
+
+	template <typename T, int>
+	class TConvex;
 }
-
-class FPhysicsActorReference_Chaos 
-{
-public:
-
-	FPhysicsActorReference_Chaos( 
-		FBodyInstance * InBodyInstance = nullptr,
-		FPhysScene_ChaosInterface* InScene = nullptr, 
-		FBodyInstancePhysicsObject* InPhysicsObject = nullptr)
-		: BodyInstance(InBodyInstance)
-		, Scene(InScene)
-		, PhysicsObject(InPhysicsObject){}
-
-	bool IsValid() const { return PhysicsObject != nullptr; }
-	bool Equals(const FPhysicsActorReference_Chaos& Handle) const { return PhysicsObject == Handle.PhysicsObject; }
-
-	FPhysScene_ChaosInterface* GetScene() { return Scene; }
-	const FPhysScene_ChaosInterface* GetScene() const { return Scene; }
-	void SetScene(FPhysScene_ChaosInterface* InScene) { Scene = InScene; }
-
-	FBodyInstancePhysicsObject* GetPhysicsObject() { return PhysicsObject; }
-	/*const*/ FBodyInstancePhysicsObject* GetPhysicsObject() const { return PhysicsObject; }
-	void SetPhysicsObject(FBodyInstancePhysicsObject* InPhysicsObject) { PhysicsObject = InPhysicsObject; }
-
-	FBodyInstance* GetBodyInstance() { return BodyInstance; }
-	const FBodyInstance* GetBodyInstance() const { return BodyInstance; }
-	void SetBodyInstance(FBodyInstance * InBodyInstance) { BodyInstance = InBodyInstance; }
-
-private:
-	FBodyInstance* BodyInstance;
-	FPhysScene_ChaosInterface* Scene;
-	FBodyInstancePhysicsObject* PhysicsObject;
-};
 
 class FPhysicsConstraintReference_Chaos
 {
@@ -101,34 +73,80 @@ public:
 class FPhysicsShapeReference_Chaos
 {
 public:
-	typedef Chaos::TImplicitObject<float, 3> Internal;
-
-
+	
 	FPhysicsShapeReference_Chaos()
-		: Object(nullptr), bSimulation(false), bQuery(false), ActorRef() {}
-	FPhysicsShapeReference_Chaos(Internal* ObjectIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorReference_Chaos ActorRefIn)
-		: Object(ObjectIn),bSimulation(bSimulationIn),bQuery(bQueryIn),ActorRef(ActorRefIn){}
+		: Shape(nullptr), bSimulation(false), bQuery(false), ActorRef() {}
+	FPhysicsShapeReference_Chaos(Chaos::TPerShapeData<float, 3>* ShapeIn, bool bSimulationIn, bool bQueryIn, FPhysicsActorHandle ActorRefIn)
+		: Shape(ShapeIn),bSimulation(bSimulationIn),bQuery(bQueryIn),ActorRef(ActorRefIn){}
 	FPhysicsShapeReference_Chaos(const FPhysicsShapeReference_Chaos& Other)
-		: Object(Other.Object)
+		: Shape(Other.Shape)
 		, bSimulation(Other.bSimulation)
 		, bQuery(Other.bQuery)
 		, ActorRef(Other.ActorRef){}
 
 
-	bool IsValid() const { return (Object != nullptr); }
-	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Object == Other.Object; }
+	bool IsValid() const { return (Shape != nullptr); }
+	bool Equals(const FPhysicsShapeReference_Chaos& Other) const { return Shape == Other.Shape; }
     bool operator==(const FPhysicsShapeReference_Chaos& Other) const { return Equals(Other); }
+	
+	const Chaos::TImplicitObject<float, 3>& GetGeometry() const { check(IsValid()); return *Shape->Geometry; }
 
-	Internal* Object;
+
+	Chaos::TPerShapeData<float, 3>* Shape;
 	bool bSimulation;
 	bool bQuery;
-    FPhysicsActorReference_Chaos ActorRef;
+    FPhysicsActorHandle ActorRef;
+};
+
+class FPhysicsShapeAdapter_Chaos
+{
+public:
+	FPhysicsShapeAdapter_Chaos(const FQuat& Rot, const FCollisionShape& CollisionShape);
+
+	const FPhysicsGeometry& GetGeometry() const;
+	FTransform GetGeometryPose(const FVector& Pos) const;
+	const FQuat& GetGeomOrientation() const;
+
+private:
+	TUniquePtr<FPhysicsGeometry> Geometry;
+	FQuat GeometryRotation;
 };
 
 FORCEINLINE uint32 GetTypeHash(const FPhysicsShapeReference_Chaos& InShapeReference)
 {
-    return PointerHash(InShapeReference.Object);
+    return PointerHash(InShapeReference.Shape);
 }
+
+/**
+ Wrapper around geometry. This is really just needed to make the physx chaos abstraction easier
+ */
+struct ENGINE_API FPhysicsGeometryCollection_Chaos
+{
+	// Delete default constructor, want only construction by interface (private constructor below)
+	FPhysicsGeometryCollection_Chaos() = delete;
+	// No copying or assignment, move construction only, these are defaulted in the source file as they need
+	// to be able to delete physx::PxGeometryHolder which is incomplete here
+	FPhysicsGeometryCollection_Chaos(const FPhysicsGeometryCollection_Chaos& Copy) = delete;
+	FPhysicsGeometryCollection_Chaos& operator=(const FPhysicsGeometryCollection_Chaos& Copy) = delete;
+	FPhysicsGeometryCollection_Chaos(FPhysicsGeometryCollection_Chaos&& Steal);
+	FPhysicsGeometryCollection_Chaos& operator=(FPhysicsGeometryCollection_Chaos&& Steal) = delete;
+	~FPhysicsGeometryCollection_Chaos();
+
+	ECollisionShapeType GetType() const;
+	const Chaos::TImplicitObject<float, 3>& GetGeometry() const;
+	const Chaos::TBox<float, 3>& GetBoxGeometry() const;
+	const Chaos::TSphere<float, 3>&  GetSphereGeometry() const;
+	const Chaos::TCapsule<float>&  GetCapsuleGeometry() const;
+	const Chaos::TConvex<float, 3>& GetConvexGeometry() const;
+	const Chaos::TTriangleMeshImplicitObject<float>& GetTriMeshGeometry() const;
+
+private:
+	friend class FPhysInterface_Chaos;
+	explicit FPhysicsGeometryCollection_Chaos(const FPhysicsShapeReference_Chaos& InShape);
+
+	const Chaos::TImplicitObject<float, 3>& Geom;
+};
+
 
 // Temp interface
 namespace physx
@@ -144,20 +162,24 @@ namespace physx
 struct FContactModifyCallback;
 class ULineBatchComponent;
 
-class FPhysInterface_Chaos : public FGenericPhysicsInterface
+class ENGINE_API FPhysInterface_Chaos : public FGenericPhysicsInterface
 {
 public:
-    ENGINE_API FPhysInterface_Chaos(const AWorldSettings* Settings=nullptr);
-    ENGINE_API ~FPhysInterface_Chaos();
+    FPhysInterface_Chaos(const AWorldSettings* Settings=nullptr);
+    ~FPhysInterface_Chaos();
 
     // Interface needed for interface
-	static ENGINE_API void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
-	static ENGINE_API void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
+	static void CreateActor(const FActorCreationParams& InParams, FPhysicsActorHandle& Handle);
+	static void ReleaseActor(FPhysicsActorHandle& InActorReference, FPhysScene* InScene = nullptr, bool bNeverDeferRelease=false);
+	static bool IsValid(const FPhysicsActorHandle& Handle) { return Handle != nullptr; }
+	static void AddActorToSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
+	static void RemoveActorFromSolver(FPhysicsActorHandle& Handle, Chaos::FPhysicsSolver* Solver, Chaos::IDispatcher* Dispatcher);
+	static const FBodyInstance* ShapeToOriginalBodyInstance(const FBodyInstance* InCurrentInstance, const Chaos::TPerShapeData<float, 3>* InShape);
 
-	static ENGINE_API FPhysicsAggregateReference_Chaos CreateAggregate(int32 MaxBodies);
-	static ENGINE_API void ReleaseAggregate(FPhysicsAggregateReference_Chaos& InAggregate);
-	static ENGINE_API int32 GetNumActorsInAggregate(const FPhysicsAggregateReference_Chaos& InAggregate);
-	static ENGINE_API void AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate, const FPhysicsActorReference_Chaos& InActor);
+	static FPhysicsAggregateReference_Chaos CreateAggregate(int32 MaxBodies);
+	static void ReleaseAggregate(FPhysicsAggregateReference_Chaos& InAggregate);
+	static int32 GetNumActorsInAggregate(const FPhysicsAggregateReference_Chaos& InAggregate);
+	static void AddActorToAggregate_AssumesLocked(const FPhysicsAggregateReference_Chaos& InAggregate, const FPhysicsActorHandle& InActor);
 
 	// Material interface functions
     // @todo(mlentine): How do we set material on the solver?
@@ -168,7 +190,7 @@ public:
 
 	// Actor interface functions
 	template<typename AllocatorType>
-	static ENGINE_API int32 GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorReference, TArray<FPhysicsShapeHandle, AllocatorType>& OutShapes);
+	static int32 GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorReference, TArray<FPhysicsShapeHandle, AllocatorType>& OutShapes);
 	static int32 GetNumShapes(const FPhysicsActorHandle& InHandle);
 
 	static void ReleaseShape(const FPhysicsShapeHandle& InShape);
@@ -176,167 +198,159 @@ public:
 	static void AttachShape(const FPhysicsActorHandle& InActor, const FPhysicsShapeHandle& InNewShape);
 	static void DetachShape(const FPhysicsActorHandle& InActor, FPhysicsShapeHandle& InShape, bool bWakeTouching = true);
 
-	static ENGINE_API void SetActorUserData_AssumesLocked(FPhysicsActorReference_Chaos& InActorReference, FPhysxUserData* InUserData);
+	static void SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference, FPhysicsUserData* InUserData);
 
-	static ENGINE_API bool IsRigidBody(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API bool IsDynamic(const FPhysicsActorReference_Chaos& InActorReference)
+	static bool IsRigidBody(const FPhysicsActorHandle& InActorReference);
+	static bool IsDynamic(const FPhysicsActorHandle& InActorReference)
     {
         return !IsStatic(InActorReference);
     }
-    static ENGINE_API bool IsStatic(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API bool IsKinematic_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API bool IsSleeping(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API bool IsCcdEnabled(const FPhysicsActorReference_Chaos& InActorReference);
+    static bool IsStatic(const FPhysicsActorHandle& InActorReference);
+    static bool IsKinematic(const FPhysicsActorHandle& InActorReference);
+	static bool IsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static bool IsSleeping(const FPhysicsActorHandle& InActorReference);
+	static bool IsCcdEnabled(const FPhysicsActorHandle& InActorReference);
     // @todo(mlentine): We don't have a notion of sync vs async and are a bit of both. Does this work?
-    static bool HasSyncSceneData(const FPhysicsActorReference_Chaos& InHandle) { return true; }
-    static bool HasAsyncSceneData(const FPhysicsActorReference_Chaos& InHandle) { return false; }
-	static ENGINE_API bool IsInScene(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API bool CanSimulate_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API float GetMass_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
+    static bool HasSyncSceneData(const FPhysicsActorHandle& InHandle) { return true; }
+    static bool HasAsyncSceneData(const FPhysicsActorHandle& InHandle) { return false; }
+	static bool IsInScene(const FPhysicsActorHandle& InActorReference);
+	static FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InHandle);
+	static bool CanSimulate_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static float GetMass_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
-	static ENGINE_API void SetSendsSleepNotifies_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, bool bSendSleepNotifies);
-	static ENGINE_API void PutToSleep_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void WakeUp_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
+	static void SetSendsSleepNotifies_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bSendSleepNotifies);
+	static void PutToSleep_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void WakeUp_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
-	static ENGINE_API void SetIsKinematic_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, bool bIsKinematic);
-	static ENGINE_API void SetCcdEnabled_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, bool bIsCcdEnabled);
+	static void SetIsKinematic_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIsKinematic);
+	static void SetCcdEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bIsCcdEnabled);
 
-	static ENGINE_API FTransform GetGlobalPose_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetGlobalPose_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FTransform& InNewPose, bool bAutoWake = true);
+	static FTransform GetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetGlobalPose_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FTransform& InNewPose, bool bAutoWake = true);
 
-    static ENGINE_API FTransform GetTransform_AssumesLocked(const FPhysicsActorHandle& InRef, bool bForceGlobalPose = false);
+    static FTransform GetTransform_AssumesLocked(const FPhysicsActorHandle& InRef, bool bForceGlobalPose = false);
 
-	static ENGINE_API bool HasKinematicTarget_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API FTransform GetKinematicTarget_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetKinematicTarget_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FTransform& InNewTarget);
+	static bool HasKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static FTransform GetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetKinematicTarget_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FTransform& InNewTarget);
 
-	static ENGINE_API FVector GetLinearVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetLinearVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InNewVelocity, bool bAutoWake = true);
+	static FVector GetLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetLinearVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InNewVelocity, bool bAutoWake = true);
 
-	static ENGINE_API FVector GetAngularVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetAngularVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InNewVelocity, bool bAutoWake = true);
-	static ENGINE_API float GetMaxAngularVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InMaxAngularVelocity);
+	static FVector GetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InNewVelocity, bool bAutoWake = true);
+	static float GetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetMaxAngularVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMaxAngularVelocity);
 
-	static ENGINE_API float GetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InMaxDepenetrationVelocity);
+	static float GetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetMaxDepenetrationVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InMaxDepenetrationVelocity);
 
-	static ENGINE_API FVector GetWorldVelocityAtPoint_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InPoint);
+	static FVector GetWorldVelocityAtPoint_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InPoint);
 
-	static ENGINE_API FTransform GetComTransform_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API FTransform GetComTransformLocal_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
+	static FTransform GetComTransform_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static FTransform GetComTransformLocal_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
-	static ENGINE_API FVector GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API FBox GetBounds_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
+	static FVector GetLocalInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static FBox GetBounds_AssumesLocked(const FPhysicsActorHandle& InActorReference);
 
-	static ENGINE_API void SetLinearDamping_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InDamping);
-	static ENGINE_API void SetAngularDamping_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InDamping);
+	static void SetLinearDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping);
+	static void SetAngularDamping_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InDamping);
 
-	static ENGINE_API void AddImpulse_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
-	static ENGINE_API void AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
-	static ENGINE_API void AddVelocity_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InForce);
-	static ENGINE_API void AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InTorque);
-	static ENGINE_API void AddImpulseAtLocation_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InImpulse, const FVector& InLocation);
-	static ENGINE_API void AddRadialImpulse_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange);
+	static void AddImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce);
+	static void AddAngularImpulseInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque);
+	static void AddVelocity_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InForce);
+	static void AddAngularVelocityInRadians_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InTorque);
+	static void AddImpulseAtLocation_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InImpulse, const FVector& InLocation);
+	static void AddRadialImpulse_AssumesLocked(const FPhysicsActorHandle& InActorReference, const FVector& InOrigin, float InRadius, float InStrength, ERadialImpulseFalloff InFalloff, bool bInVelChange);
 
-	static ENGINE_API bool IsGravityEnabled_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetGravityEnabled_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, bool bEnabled);
+	static bool IsGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetGravityEnabled_AssumesLocked(const FPhysicsActorHandle& InActorReference, bool bEnabled);
 
-	static ENGINE_API float GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference);
-	static ENGINE_API void SetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorReference_Chaos& InActorReference, float InEnergyThreshold);
+	static float GetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference);
+	static void SetSleepEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InActorReference, float InEnergyThreshold);
 
-	static void SetMass_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, float InMass);
-	static void SetMassSpaceInertiaTensor_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, const FVector& InTensor);
-	static void SetComLocalPose_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, const FTransform& InComLocalPose);
+	static void SetMass_AssumesLocked(const FPhysicsActorHandle& InHandle, float InMass);
+	static void SetMassSpaceInertiaTensor_AssumesLocked(const FPhysicsActorHandle& InHandle, const FVector& InTensor);
+	static void SetComLocalPose_AssumesLocked(const FPhysicsActorHandle& InHandle, const FTransform& InComLocalPose);
 
-	static ENGINE_API float GetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle);
-	static ENGINE_API void SetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, float InThreshold);
-	static ENGINE_API uint32 GetSolverPositionIterationCount_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle);
-	static ENGINE_API void SetSolverPositionIterationCount_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, uint32 InSolverIterationCount);
-	static ENGINE_API uint32 GetSolverVelocityIterationCount_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle);
-	static ENGINE_API void SetSolverVelocityIterationCount_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, uint32 InSolverIterationCount);
-	static ENGINE_API float GetWakeCounter_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle);
-	static ENGINE_API void SetWakeCounter_AssumesLocked(const FPhysicsActorReference_Chaos& InHandle, float InWakeCounter);
+	static float GetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InHandle);
+	static void SetStabilizationEnergyThreshold_AssumesLocked(const FPhysicsActorHandle& InHandle, float InThreshold);
+	static uint32 GetSolverPositionIterationCount_AssumesLocked(const FPhysicsActorHandle& InHandle);
+	static void SetSolverPositionIterationCount_AssumesLocked(const FPhysicsActorHandle& InHandle, uint32 InSolverIterationCount);
+	static uint32 GetSolverVelocityIterationCount_AssumesLocked(const FPhysicsActorHandle& InHandle);
+	static void SetSolverVelocityIterationCount_AssumesLocked(const FPhysicsActorHandle& InHandle, uint32 InSolverIterationCount);
+	static float GetWakeCounter_AssumesLocked(const FPhysicsActorHandle& InHandle);
+	static void SetWakeCounter_AssumesLocked(const FPhysicsActorHandle& InHandle, float InWakeCounter);
 
-	static ENGINE_API SIZE_T GetResourceSizeEx(const FPhysicsActorReference_Chaos& InActorRef);
+	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 	
-    static ENGINE_API FPhysicsConstraintReference_Chaos CreateConstraint(const FPhysicsActorReference_Chaos& InActorRef1, const FPhysicsActorReference_Chaos& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2);
-	static ENGINE_API void SetConstraintUserData(const FPhysicsConstraintReference_Chaos& InConstraintRef, void* InUserData);
-	static ENGINE_API void ReleaseConstraint(FPhysicsConstraintReference_Chaos& InConstraintRef);
+    static FPhysicsConstraintReference_Chaos CreateConstraint(const FPhysicsActorHandle& InActorRef1, const FPhysicsActorHandle& InActorRef2, const FTransform& InLocalFrame1, const FTransform& InLocalFrame2);
+	static void SetConstraintUserData(const FPhysicsConstraintReference_Chaos& InConstraintRef, void* InUserData);
+	static void ReleaseConstraint(FPhysicsConstraintReference_Chaos& InConstraintRef);
 
-	static ENGINE_API FTransform GetLocalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, EConstraintFrame::Type InFrame);
-	static ENGINE_API FTransform GetGlobalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, EConstraintFrame::Type InFrame);
-	static ENGINE_API FVector GetLocation(const FPhysicsConstraintReference_Chaos& InConstraintRef);
-	static ENGINE_API void GetForce(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutLinForce, FVector& OutAngForce);
-	static ENGINE_API void GetDriveLinearVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutLinVelocity);
-	static ENGINE_API void GetDriveAngularVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutAngVelocity);
+	static FTransform GetLocalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, EConstraintFrame::Type InFrame);
+	static FTransform GetGlobalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, EConstraintFrame::Type InFrame);
+	static FVector GetLocation(const FPhysicsConstraintReference_Chaos& InConstraintRef);
+	static void GetForce(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutLinForce, FVector& OutAngForce);
+	static void GetDriveLinearVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutLinVelocity);
+	static void GetDriveAngularVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, FVector& OutAngVelocity);
 
-	static ENGINE_API float GetCurrentSwing1(const FPhysicsConstraintReference_Chaos& InConstraintRef);
-	static ENGINE_API float GetCurrentSwing2(const FPhysicsConstraintReference_Chaos& InConstraintRef);
-	static ENGINE_API float GetCurrentTwist(const FPhysicsConstraintReference_Chaos& InConstraintRef);
+	static float GetCurrentSwing1(const FPhysicsConstraintReference_Chaos& InConstraintRef);
+	static float GetCurrentSwing2(const FPhysicsConstraintReference_Chaos& InConstraintRef);
+	static float GetCurrentTwist(const FPhysicsConstraintReference_Chaos& InConstraintRef);
 
-	static ENGINE_API void SetCanVisualize(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInCanVisualize);
-	static ENGINE_API void SetCollisionEnabled(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInCollisionEnabled);
-	static ENGINE_API void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInProjectionEnabled, float InLinearTolerance = 0.0f, float InAngularToleranceDegrees = 0.0f);
-	static ENGINE_API void SetParentDominates_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInParentDominates);
-	static ENGINE_API void SetBreakForces_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLinearBreakForce, float InAngularBreakForce);
-	static ENGINE_API void SetLocalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame);
+	static void SetCanVisualize(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInCanVisualize);
+	static void SetCollisionEnabled(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInCollisionEnabled);
+	static void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInProjectionEnabled, float InLinearTolerance = 0.0f, float InAngularToleranceDegrees = 0.0f);
+	static void SetParentDominates_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, bool bInParentDominates);
+	static void SetBreakForces_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLinearBreakForce, float InAngularBreakForce);
+	static void SetLocalPose(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FTransform& InPose, EConstraintFrame::Type InFrame);
 
-	static ENGINE_API void SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion);
-	static ENGINE_API void SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion);
+	static void SetLinearMotionLimitType_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, ELinearConstraintMotion InMotion);
+	static void SetAngularMotionLimitType_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, PhysicsInterfaceTypes::ELimitAxis InAxis, EAngularConstraintMotion InMotion);
 
-	static ENGINE_API void UpdateLinearLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLimit, float InAverageMass, const FLinearConstraint& InParams);
-	static ENGINE_API void UpdateConeLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InAverageMass, const FConeConstraint& InParams);
-	static ENGINE_API void UpdateTwistLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InAverageMass, const FTwistConstraint& InParams);
-	static ENGINE_API void UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FLinearDriveConstraint& InDriveParams);
-	static ENGINE_API void UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FAngularDriveConstraint& InDriveParams);
-	static ENGINE_API void UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive);
-	static ENGINE_API void SetDrivePosition(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InPosition);
-	static ENGINE_API void SetDriveOrientation(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FQuat& InOrientation);
-	static ENGINE_API void SetDriveLinearVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InLinVelocity);
-	static ENGINE_API void SetDriveAngularVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InAngVelocity);
+	static void UpdateLinearLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLimit, float InAverageMass, const FLinearConstraint& InParams);
+	static void UpdateConeLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InAverageMass, const FConeConstraint& InParams);
+	static void UpdateTwistLimitParams_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InAverageMass, const FTwistConstraint& InParams);
+	static void UpdateLinearDrive_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FLinearDriveConstraint& InDriveParams);
+	static void UpdateAngularDrive_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FAngularDriveConstraint& InDriveParams);
+	static void UpdateDriveTarget_AssumesLocked(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FLinearDriveConstraint& InLinDrive, const FAngularDriveConstraint& InAngDrive);
+	static void SetDrivePosition(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InPosition);
+	static void SetDriveOrientation(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FQuat& InOrientation);
+	static void SetDriveLinearVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InLinVelocity);
+	static void SetDriveAngularVelocity(const FPhysicsConstraintReference_Chaos& InConstraintRef, const FVector& InAngVelocity);
 
-	static ENGINE_API void SetTwistLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLowerLimit, float InUpperLimit, float InContactDistance);
-	static ENGINE_API void SetSwingLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InYLimit, float InZLimit, float InContactDistance);
-	static ENGINE_API void SetLinearLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLimit);
+	static void SetTwistLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLowerLimit, float InUpperLimit, float InContactDistance);
+	static void SetSwingLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InYLimit, float InZLimit, float InContactDistance);
+	static void SetLinearLimit(const FPhysicsConstraintReference_Chaos& InConstraintRef, float InLimit);
 
-	static ENGINE_API bool IsBroken(const FPhysicsConstraintReference_Chaos& InConstraintRef);
+	static bool IsBroken(const FPhysicsConstraintReference_Chaos& InConstraintRef);
 
-	static ENGINE_API bool ExecuteOnUnbrokenConstraintReadOnly(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos&)> Func);
-	static ENGINE_API bool ExecuteOnUnbrokenConstraintReadWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos&)> Func);
+	static bool ExecuteOnUnbrokenConstraintReadOnly(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos&)> Func);
+	static bool ExecuteOnUnbrokenConstraintReadWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos&)> Func);
 
     /////////////////////////////////////////////
 
     // Interface needed for cmd
-    static ENGINE_API bool ExecuteRead(const FPhysicsActorReference_Chaos& InActorReference, TFunctionRef<void(const FPhysicsActorReference_Chaos& Actor)> InCallable)
+    static bool ExecuteRead(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
     {
-		if(InActorReference.IsValid())
-		{
-			InCallable(InActorReference);
-			return true;
-		}
-
-		return false;
+		InCallable(InActorReference);
+		return true;
     }
 
-    static ENGINE_API bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
+    static bool ExecuteRead(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
     {
         InCallable();
         return true;
     }
 
-    static ENGINE_API bool ExecuteRead(const FPhysicsActorReference_Chaos& InActorReferenceA, const FPhysicsActorReference_Chaos& InActorReferenceB, TFunctionRef<void(const FPhysicsActorReference_Chaos& ActorA, const FPhysicsActorReference_Chaos& ActorB)> InCallable)
+    static bool ExecuteRead(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable)
     {
-		if(InActorReferenceA.IsValid() || InActorReferenceB.IsValid())
-		{
-			InCallable(InActorReferenceA, InActorReferenceB);
-			return true;
-		}
-
-		return false;
+		InCallable(InActorReferenceA, InActorReferenceB);
+		return true;
     }
 
-    static ENGINE_API bool ExecuteRead(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
+    static bool ExecuteRead(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
     {
 		if(InConstraintRef.IsValid())
 		{
@@ -347,7 +361,7 @@ public:
 		return false;
     }
 
-    static ENGINE_API bool ExecuteRead(FPhysScene* InScene, TFunctionRef<void()> InCallable)
+    static bool ExecuteRead(FPhysScene* InScene, TFunctionRef<void()> InCallable)
     {
 		if(InScene)
 		{
@@ -358,35 +372,25 @@ public:
 		return false;
     }
 
-    static ENGINE_API bool ExecuteWrite(const FPhysicsActorReference_Chaos& InActorReference, TFunctionRef<void(const FPhysicsActorReference_Chaos& Actor)> InCallable)
+    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReference, TFunctionRef<void(const FPhysicsActorHandle& Actor)> InCallable)
     {
-		if(InActorReference.IsValid())
-		{
-			InCallable(InActorReference);
-			return true;
-		}
-
-		return false;
+		InCallable(InActorReference);
+		return true;
     }
 
-    static ENGINE_API bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
+    static bool ExecuteWrite(USkeletalMeshComponent* InMeshComponent, TFunctionRef<void()> InCallable)
     {
         InCallable();
         return true;
     }
 
-    static ENGINE_API bool ExecuteWrite(const FPhysicsActorReference_Chaos& InActorReferenceA, const FPhysicsActorReference_Chaos& InActorReferenceB, TFunctionRef<void(const FPhysicsActorReference_Chaos& ActorA, const FPhysicsActorReference_Chaos& ActorB)> InCallable)
+    static bool ExecuteWrite(const FPhysicsActorHandle& InActorReferenceA, const FPhysicsActorHandle& InActorReferenceB, TFunctionRef<void(const FPhysicsActorHandle& ActorA, const FPhysicsActorHandle& ActorB)> InCallable)
     {
-		if(InActorReferenceA.IsValid() || InActorReferenceB.IsValid())
-		{
-			InCallable(InActorReferenceA, InActorReferenceB);
-			return true;
-		}
-
-		return false;
+		InCallable(InActorReferenceA, InActorReferenceB);
+		return true;
     }
 
-    static ENGINE_API bool ExecuteWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
+    static bool ExecuteWrite(const FPhysicsConstraintReference_Chaos& InConstraintRef, TFunctionRef<void(const FPhysicsConstraintReference_Chaos& Constraint)> InCallable)
     {
 		if(InConstraintRef.IsValid())
 		{
@@ -397,7 +401,7 @@ public:
 		return false;
     }
 	
-    static ENGINE_API bool ExecuteWrite(FPhysScene* InScene, TFunctionRef<void()> InCallable)
+    static bool ExecuteWrite(FPhysScene* InScene, TFunctionRef<void()> InCallable)
     {
 		if(InScene)
 		{
@@ -416,73 +420,9 @@ public:
 		}
     }
 
-	// Scene query interface functions
-
-	static ENGINE_API bool RaycastTest(const UWorld* World, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool RaycastSingle(const UWorld* World, struct FHitResult& OutHit, const FVector Start, const FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool RaycastMulti(const UWorld* World, TArray<struct FHitResult>& OutHits, const FVector& Start, const FVector& End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-
-    static ENGINE_API bool GeomOverlapBlockingTest(const UWorld* World, const FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool GeomOverlapAnyTest(const UWorld* World, const FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool GeomOverlapMulti(const UWorld* World, const FCollisionShape& CollisionShape, const FVector& Pos, const FQuat& Rot, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-
-	// GEOM SWEEP
-
-    static ENGINE_API bool GeomSweepTest(const UWorld* World, const FCollisionShape& CollisionShape, const FQuat& Rot, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool GeomSweepSingle(const UWorld* World, const FCollisionShape& CollisionShape, const FQuat& Rot, FHitResult& OutHit, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-    static ENGINE_API bool GeomSweepMulti(const UWorld* World, const FCollisionShape& CollisionShape, const FQuat& Rot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-
-	template<typename GeomType>
-    static bool GeomSweepMulti(const UWorld* World, const GeomType& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams = FCollisionObjectQueryParams::DefaultObjectQueryParam)
-    {
-        return false;
-    }
-	template<typename GeomType>
-    static bool GeomOverlapMulti(const UWorld* World, const GeomType& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams)
-    {
-        return false;
-    }
-
 	// Misc
 
-	static ENGINE_API bool ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld);
-
-	static ENGINE_API FPhysScene* GetCurrentScene(FPhysicsActorHandle& InActorReference)
-	{
-		return InActorReference.GetScene();
-	}
-
-	static ENGINE_API const FPhysScene* GetCurrentScene(const FPhysicsActorHandle& InActorReference)
-	{
-		return InActorReference.GetScene();
-	}
+	static bool ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld);
 
 #if WITH_PHYSX
     static void CalculateMassPropertiesFromShapeCollection(physx::PxMassProperties& OutProperties, const TArray<FPhysicsShapeHandle>& InShapes, float InDensityKGPerCM);
@@ -491,15 +431,16 @@ public:
 	// Shape interface functions
 	static FPhysicsShapeHandle CreateShape(physx::PxGeometry* InGeom, bool bSimulation = true, bool bQuery = true, UPhysicalMaterial* InSimpleMaterial = nullptr, TArray<UPhysicalMaterial*>* InComplexMaterials = nullptr);
 	
-	static void ENGINE_API AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
+	static void AddGeometry(FPhysicsActorHandle& InActor, const FGeometryAddParams& InParams, TArray<FPhysicsShapeHandle>* OutOptShapes = nullptr);
 	static FPhysicsShapeHandle CloneShape(const FPhysicsShapeHandle& InShape);
-
-	static ENGINE_API FCollisionFilterData GetSimulationFilter(const FPhysicsShapeHandle& InShape);
-	static ENGINE_API FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
+	static FPhysicsGeometryCollection_Chaos GetGeometryCollection(const FPhysicsShapeHandle& InShape);
+	
+	static FCollisionFilterData GetSimulationFilter(const FPhysicsShapeHandle& InShape);
+	static FCollisionFilterData GetQueryFilter(const FPhysicsShapeHandle& InShape);
 	static bool IsSimulationShape(const FPhysicsShapeHandle& InShape);
 	static bool IsQueryShape(const FPhysicsShapeHandle& InShape);
 	static bool IsShapeType(const FPhysicsShapeHandle& InShape, ECollisionShapeType InType);
-	static ENGINE_API ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
+	static ECollisionShapeType GetShapeType(const FPhysicsShapeHandle& InShape);
 	static FTransform GetLocalTransform(const FPhysicsShapeHandle& InShape);
     static void* GetUserData(const FPhysicsShapeHandle& InShape) { return nullptr; }
 
@@ -513,8 +454,8 @@ public:
     // @todo(mlentine): Which of these do we need to support?
 	// Set the mask filter of a shape, which is an extra level of filtering during collision detection / query for extra channels like "Blue Team" and "Red Team"
     static void SetMaskFilter(const FPhysicsShapeHandle& InShape, FMaskFilter InFilter) {}
-    static void SetSimulationFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter) {}
-    static void SetQueryFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter) {}
+	static void SetSimulationFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
+	static void SetQueryFilter(const FPhysicsShapeHandle& InShape, const FCollisionFilterData& InFilter);
     static void SetIsSimulationShape(const FPhysicsShapeHandle& InShape, bool bIsSimShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsSimShape; }
     static void SetIsQueryShape(const FPhysicsShapeHandle& InShape, bool bIsQueryShape) { const_cast<FPhysicsShapeHandle&>(InShape).bSimulation = bIsQueryShape; }
     static void SetUserData(const FPhysicsShapeHandle& InShape, void* InUserData) {}
@@ -541,9 +482,9 @@ FORCEINLINE ECollisionShapeType GetType(const Chaos::TImplicitObject<float, 3>& 
 	return ECollisionShapeType::None;
 }
 */
-FORCEINLINE ECollisionShapeType GetGeometryType(const Chaos::TImplicitObject<float, 3>& Geom)
+FORCEINLINE ECollisionShapeType GetGeometryType(const Chaos::TPerShapeData<float, 3>& Shape)
 {
-	return GetType(Geom);
+	return GetType(*Shape.Geometry);
 }
 
 /*
@@ -558,44 +499,24 @@ FORCEINLINE float GetHalfHeight(const Chaos::TCapsule<float>& Capsule)
 }
 */
 
-FORCEINLINE FVector FindBoxOpposingNormal(const FPhysTypeDummy& PHit, const FVector& TraceDirectionDenorm, const FVector InNormal)
+FVector FindBoxOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
+FVector FindHeightFieldOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
+FVector FindConvexMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
+FVector FindTriMeshOpposingNormal(const FLocationHit& PHit, const FVector& TraceDirectionDenorm, const FVector& InNormal);
+
+FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FLocationHit& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM)
 {
-	return FVector(0.0f, 0.0f, 1.0f);
+	//TODO_SQ_IMPLEMENTATION
 }
 
-FORCEINLINE FVector FindHeightFieldOpposingNormal(const FPhysTypeDummy& PHit, const FVector& TraceDirectionDenorm, const FVector InNormal)
+FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FLocationHit& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM, FHitResult& OutResult)
 {
-	return FVector(0.0f, 0.0f, 1.0f);
-}
-
-FORCEINLINE FVector FindConvexMeshOpposingNormal(const FPhysTypeDummy& PHit, const FVector& TraceDirectionDenorm, const FVector InNormal)
-{
-	return FVector(0.0f, 0.0f, 1.0f);
-}
-
-FORCEINLINE FVector FindTriMeshOpposingNormal(const FPhysTypeDummy& PHit, const FVector& TraceDirectionDenorm, const FVector InNormal)
-{
-	return FVector(0.0f, 0.0f, 1.0f);
-}
-
-FORCEINLINE void DrawOverlappingTris(const UWorld* World, const FPhysTypeDummy& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM)
-{
-
-}
-
-FORCEINLINE void ComputeZeroDistanceImpactNormalAndPenetration(const UWorld* World, const FPhysTypeDummy& Hit, const Chaos::TImplicitObject<float, 3>& Geom, const FTransform& QueryTM, FHitResult& OutResult)
-{
-
+	//TODO_SQ_IMPLEMENTATION
 }
 
 inline FPhysTypeDummy* GetMaterialFromInternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
 {
 	return nullptr;
-}
-
-inline FCollisionFilterData GetSimulationFilterData(const FPhysicsShape& Shape)
-{
-	return FCollisionFilterData();
 }
 
 inline uint32 GetTriangleMeshExternalFaceIndex(const FPhysicsShape& Shape, uint32 InternalFaceIndex)
@@ -616,8 +537,14 @@ inline void SetShape(FPhysTypeDummy& Hit, FPhysTypeDummy* Shape)
 bool IsBlocking(const FPhysicsShape& PShape, const FCollisionFilterData& QueryFilter);
 
 template <>
-ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorHandle, TArray<FPhysicsShapeReference_Chaos, FDefaultAllocator>& OutShapes);
+ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorHandle, TArray<FPhysicsShapeReference_Chaos, FDefaultAllocator>& OutShapes);
 template <>
-ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorReference_Chaos& InActorHandle, PhysicsInterfaceTypes::FInlineShapeArray& OutShapes);
+ENGINE_API int32 FPhysInterface_Chaos::GetAllShapes_AssumedLocked(const FPhysicsActorHandle& InActorHandle, PhysicsInterfaceTypes::FInlineShapeArray& OutShapes);
+
+template<>
+bool FGenericPhysicsInterface::GeomSweepMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FQuat& InGeomRot, TArray<FHitResult>& OutHits, FVector Start, FVector End, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams /*= FCollisionObjectQueryParams::DefaultObjectQueryParam*/);
+
+template<>
+bool FGenericPhysicsInterface::GeomOverlapMulti(const UWorld* World, const FPhysicsGeometryCollection& InGeom, const FVector& InPosition, const FQuat& InRotation, TArray<FOverlapResult>& OutOverlaps, ECollisionChannel TraceChannel, const FCollisionQueryParams& Params, const FCollisionResponseParams& ResponseParams, const FCollisionObjectQueryParams& ObjectParams);
 
 #endif

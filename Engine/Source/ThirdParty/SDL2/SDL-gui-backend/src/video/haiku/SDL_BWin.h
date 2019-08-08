@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -538,7 +538,7 @@ private:
         msg.AddInt32("key-state", keyState);
         msg.AddInt32("key-scancode", keyCode);
         if (keyUtf8 != NULL) {
-        	msg.AddData("key-utf8", B_INT8_TYPE, (const void*)keyUtf8, len);
+            msg.AddData("key-utf8", B_INT8_TYPE, (const void*)keyUtf8, len);
         }
         be_app->PostMessage(&msg);
     }

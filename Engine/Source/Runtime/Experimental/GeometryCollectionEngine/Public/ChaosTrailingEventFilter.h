@@ -3,9 +3,9 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
-#include "PBDRigidsSolver.h"
 #include "Chaos/ChaosSolver.h"
 #include "ChaosFilter.h"
+#include "EventsData.h"
 #include "ChaosTrailingEventFilter.generated.h"
 
 using namespace Chaos;
@@ -98,13 +98,14 @@ struct FChaosTrailingEventRequestSettings
 	}
 };
 
+#if INCLUDE_CHAOS
 class GEOMETRYCOLLECTIONENGINE_API FChaosTrailingEventFilter 
-	: public IChaosEventFilter<TArray<Chaos::TTrailingData<float, 3>>, TArray<FChaosTrailingEventData>, EChaosTrailingSortMethod>
+	: public IChaosEventFilter<Chaos::FTrailingDataArray, TArray<FChaosTrailingEventData>, EChaosTrailingSortMethod>
 {
 public:
 	FChaosTrailingEventFilter(FChaosTrailingEventRequestSettings* FilterSettingsIn) : TrailingEventRequestSettings(FilterSettingsIn) {}
 
-	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const TArray<Chaos::TTrailingData<float, 3>>& RawTrailingDataArray) override;
+	virtual void FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FTrailingDataArray& RawTrailingDataArray) override;
 
 	virtual void SortEvents(TArray<FChaosTrailingEventData>& InOutTrailingEvents, EChaosTrailingSortMethod SortMethod, const FTransform& InTransform) override;
 
@@ -112,3 +113,4 @@ private:
 	FChaosTrailingEventFilter() : TrailingEventRequestSettings(nullptr) {}
 	const FChaosTrailingEventRequestSettings* TrailingEventRequestSettings;
 };
+#endif

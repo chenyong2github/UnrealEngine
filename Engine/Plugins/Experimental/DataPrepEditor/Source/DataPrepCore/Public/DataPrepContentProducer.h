@@ -159,23 +159,7 @@ protected:
 			Context.LoggerPtr->LogError( Message, *this );
 		}
 	}
-
-	void ReportProgress(float Progress)
-	{
-		if ( Context.ProgressReporterPtr.IsValid() )
-		{
-			Context.ProgressReporterPtr->ReportProgress( Progress, *this );
-		}
-	}
-
-	void ReportProgressWithMessage( float Progress, const FText& Message )
-	{
-		if ( Context.ProgressReporterPtr.IsValid() )
-		{
-			Context.ProgressReporterPtr->ReportProgressWithMessage( Progress, Message, *this );
-		}
-	}
-	// End of helper functions to log messages and report progress
+	// End of helper functions to log messages
 
 	bool IsValid() { return Context.WorldPtr.IsValid() && Context.RootPackagePtr.IsValid(); }
 

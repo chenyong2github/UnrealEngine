@@ -7,8 +7,10 @@
 #include "XRTrackingSystemBase.h"
 #include "XRRenderTargetManager.h"
 #include "XRRenderBridge.h"
+#include "XRSwapChain.h"
 #include "SceneViewExtension.h"
 #include "DefaultSpectatorScreenController.h"
+#include "IHeadMountedDisplayVulkanExtensions.h"
 
 #include <openxr/openxr.h>
 
@@ -16,6 +18,7 @@ class APlayerController;
 class FSceneView;
 class FSceneViewFamily;
 class UCanvas;
+class FOpenXRRenderBridge;
 
 /**
  * Simple Head Mounted Display
@@ -23,43 +26,31 @@ class UCanvas;
 class FOpenXRHMD : public FHeadMountedDisplayBase, public FXRRenderTargetManager, public FSceneViewExtensionBase
 {
 public:
-	class FOpenXRSwapchain : public TSharedFromThis<FOpenXRSwapchain, ESPMode::ThreadSafe>
+	class FActionSpace
 	{
 	public:
-		FOpenXRSwapchain(XrSwapchain InSwapchain, FRHITexture2D* InRHITexture, const TArray<FTexture2DRHIRef>& InRHITextureSwapChain);
-		virtual ~FOpenXRSwapchain();
+		FActionSpace(XrAction InAction);
 
-		FRHITexture* GetTexture() const { return RHITexture.GetReference(); }
-		FRHITexture2D* GetTexture2D() const { return RHITexture->GetTexture2D(); }
-		FRHITextureCube* GetTextureCube() const { return RHITexture->GetTextureCube(); }
-		uint32 GetSwapchainLength() const { return (uint32)RHITextureSwapChain.Num(); }
+		bool CreateSpace(XrSession InSession);
+		void DestroySpace();
 
-		uint32 GetSwapchainIndex_RenderThread() { return SwapChainIndex_RenderThread; }
-		void IncrementSwapChainIndex_RenderThread(XrDuration Timeout);
-		void ReleaseSwapChainImage_RenderThread();
-		
-		XrSwapchain Handle;
-	protected:
-		void ReleaseResources_RenderThread();
-
-		FTextureRHIRef RHITexture;
-		TArray<FTexture2DRHIRef> RHITextureSwapChain;
-		uint32 SwapChainIndex_RenderThread;
-		bool IsAcquired;
+		XrAction Action;
+		XrSpace Space;
 	};
 
-	class D3D11Bridge : public FXRRenderBridge
+	class FVulkanExtensions : public IHeadMountedDisplayVulkanExtensions
 	{
 	public:
-		D3D11Bridge(FOpenXRHMD* HMD)
-			: OpenXRHMD(HMD)
-		{}
+		FVulkanExtensions(XrInstance InInstance, XrSystemId InSystem) : Instance(InInstance), System(InSystem) {}
+		virtual ~FVulkanExtensions() {}
 
-		/** FRHICustomPresent */
-		virtual bool Present(int32& InOutSyncInterval);
+		/** IHeadMountedDisplayVulkanExtensions */
+		virtual bool GetVulkanInstanceExtensionsRequired(TArray<const ANSICHAR*>& Out) override;
+		virtual bool GetVulkanDeviceExtensionsRequired(VkPhysicalDevice_T *pPhysicalDevice, TArray<const ANSICHAR*>& Out) override;
 
 	private:
-		FOpenXRHMD* OpenXRHMD;
+		XrInstance Instance;
+		XrSystemId System;
 	};
 
 	/** IXRTrackingSystem interface */
@@ -97,17 +88,22 @@ public:
 	}
 
 	virtual class IHeadMountedDisplay* GetHMDDevice() override
-	{ 
+	{
 		return this;
 	}
-
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override
 	{
 		return SharedThis(this);
 	}
+
 protected:
 	/** FXRTrackingSystemBase protected interface */
 	virtual float GetWorldToMetersScale() const override;
+
+	bool StartSession();
+	bool OnStereoStartup();
+	bool OnStereoTeardown();
+	bool ReadNextEvent(XrEventDataBuffer* buffer);
 
 public:
 	/** IHeadMountedDisplay interface */
@@ -153,6 +149,11 @@ public:
 	/** IStereoRenderTargetManager */
 	virtual bool ShouldUseSeparateRenderTarget() const override { return true; }
 	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+#if 0
+	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override final { return false; }
+	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override final;
+#endif
+
 	virtual FXRRenderBridge* GetActiveRenderBridge_GameThread(bool bUseSeparateRenderTarget) override;
 
 	/** IStereoRenderTargetManager */
@@ -161,7 +162,7 @@ public:
 
 public:
 	/** Constructor */
-	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem);
+	FOpenXRHMD(const FAutoRegister&, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge);
 
 	/** Destructor */
 	virtual ~FOpenXRHMD();
@@ -169,11 +170,15 @@ public:
 	/** @return	True if the HMD was initialized OK */
 	OPENXRHMD_API bool IsInitialized() const;
 	OPENXRHMD_API bool IsRunning() const;
+	OPENXRHMD_API bool IsFocused() const;
 	void FinishRendering();
 
 	OPENXRHMD_API int32 AddActionDevice(XrAction Action);
 
-	FOpenXRSwapchain* GetSwapchain() { return Swapchain.Get(); }
+	FXRSwapChain* GetSwapchain() { return Swapchain.Get(); }
+#if 0
+	FXRSwapChain* GetDepthSwapchain() { return DepthSwapchain.Get(); }
+#endif
 	XrInstance GetInstance() { return Instance; }
 	XrSystemId GetSystem() { return System; }
 	XrSession GetSession() { return Session; }
@@ -183,17 +188,23 @@ public:
 	}
 
 private:
+	bool					bStereoEnabled;
 	bool					bIsRunning;
+	bool					bIsReady;
+	bool					bIsRendering;
+	bool					bRunRequested;
+	
+	XrSessionState			CurrentSessionState;
 
 	FTransform				BaseTransform;
 	XrInstance				Instance;
 	XrSystemId				System;
 	XrSession				Session;
-	TArray<XrSpace>			DeviceSpaces;
 	XrSpace					LocalSpace;
 	XrSpace					StageSpace;
 	XrSpace					TrackingSpaceRHI;
 	XrReferenceSpaceType	TrackingSpaceType;
+	XrViewConfigurationType SelectedViewConfigurationType;
 
 	XrFrameState			FrameState;
 	XrFrameState			FrameStateRHI;
@@ -202,13 +213,17 @@ private:
 	TArray<XrViewConfigurationView> Configs;
 	TArray<XrView>			Views;
 	TArray<XrCompositionLayerProjectionView> ViewsRHI;
+	TArray<XrCompositionLayerDepthInfoKHR> DepthLayersRHI;
 #if 0
 	TArray<FHMDViewMesh>	HiddenAreaMeshes;
 #endif
+	TArray<FActionSpace>	ActionSpaces;
 
-	TRefCountPtr<FXRRenderBridge> RenderBridge;
+	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	IRendererModule*		RendererModule;
 
-	// TODO: Needs to be part of a custom present class
-	TSharedPtr<FOpenXRSwapchain, ESPMode::ThreadSafe> Swapchain;
+	FXRSwapChainPtr			Swapchain;
+#if 0
+	FXRSwapChainPtr			DepthSwapchain;
+#endif
 };

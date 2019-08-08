@@ -23,7 +23,7 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 	{
 	case FSQCapture::ESQType::Raycast:
 	{
-		TUniquePtr<FDynamicHitBuffer<PxRaycastHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxRaycastHit>>();
+		auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxRaycastHit>>();
 		Serializer.GetPhysXData()->raycast(U2PVector(CapturedSQ.StartPoint), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
 
 		bTestPassed &= SQ_REPLAY_TEST(PxHitBuffer->hasBlock == CapturedSQ.PhysXRaycastBuffer.hasBlock);
@@ -42,11 +42,11 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(PxHitBuffer->block.position.z, CapturedSQ.PhysXRaycastBuffer.block.position.z, DistanceTolerance));
 		}
 
-		TUniquePtr<FDynamicHitBuffer<FRaycastHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FRaycastHit>>();
+		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>>();
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
-		SQAccelerator.ChaosRaycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 
-		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->hasBlock == CapturedSQ.PhysXRaycastBuffer.hasBlock);
+		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXRaycastBuffer.hasBlock);
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXRaycastBuffer.GetNumHits());
 		for (int32 Idx = 0; Idx < ChaosHitBuffer->GetNumHits(); ++Idx)
 		{
@@ -56,22 +56,22 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 			//bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer.GetHits()[Idx].WorldNormal.Z, CapturedSQ.PhysXRaycastBuffer.GetHits()[Idx].normal.z));
 		}
 
-		if (ChaosHitBuffer->hasBlock)
+		if (ChaosHitBuffer->HasBlockingHit())
 		{
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldPosition.X, CapturedSQ.PhysXRaycastBuffer.block.position.x, DistanceTolerance));
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldPosition.Y, CapturedSQ.PhysXRaycastBuffer.block.position.y, DistanceTolerance));
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldPosition.Z, CapturedSQ.PhysXRaycastBuffer.block.position.z, DistanceTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldPosition.X, CapturedSQ.PhysXRaycastBuffer.block.position.x, DistanceTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldPosition.Y, CapturedSQ.PhysXRaycastBuffer.block.position.y, DistanceTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldPosition.Z, CapturedSQ.PhysXRaycastBuffer.block.position.z, DistanceTolerance));
 
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldNormal.X, CapturedSQ.PhysXRaycastBuffer.block.normal.x, NormalTolerance));
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldNormal.Y, CapturedSQ.PhysXRaycastBuffer.block.normal.y, NormalTolerance));
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.WorldNormal.Z, CapturedSQ.PhysXRaycastBuffer.block.normal.z, NormalTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldNormal.X, CapturedSQ.PhysXRaycastBuffer.block.normal.x, NormalTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldNormal.Y, CapturedSQ.PhysXRaycastBuffer.block.normal.y, NormalTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->WorldNormal.Z, CapturedSQ.PhysXRaycastBuffer.block.normal.z, NormalTolerance));
 		}
 		break;
 	}
 	case FSQCapture::ESQType::Sweep:
 	{
 		//For sweep there are many solutions (many contacts possible) so we only bother testing for Distance
-		TUniquePtr<FDynamicHitBuffer<PxSweepHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxSweepHit>>();
+		auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxSweepHit>>();
 		Serializer.GetPhysXData()->sweep(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
 
 		bTestPassed &= SQ_REPLAY_TEST(PxHitBuffer->hasBlock == CapturedSQ.PhysXSweepBuffer.hasBlock);
@@ -83,11 +83,11 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 			//bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(PxHitBuffer.GetHits()[Idx].normal.z, CapturedSQ.PhysXSweepBuffer.GetHits()[Idx].normal.z, DistanceTolerance));
 		}
 
-		TUniquePtr<FDynamicHitBuffer<FSweepHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FSweepHit>>();
+		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>>();
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
-		SQAccelerator.ChaosSweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 
-		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->hasBlock == CapturedSQ.PhysXSweepBuffer.hasBlock);
+		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXSweepBuffer.hasBlock);
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXSweepBuffer.GetNumHits());
 		for (int32 Idx = 0; Idx < ChaosHitBuffer->GetNumHits(); ++Idx)
 		{
@@ -97,22 +97,22 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 			//bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer.GetHits()[Idx].WorldNormal.Z, CapturedSQ.PhysXSweepBuffer.GetHits()[Idx].normal.z));
 		}
 
-		if (ChaosHitBuffer->hasBlock)
+		if (ChaosHitBuffer->HasBlockingHit())
 		{
-			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->block.Distance, CapturedSQ.PhysXSweepBuffer.block.distance, DistanceTolerance));
+			bTestPassed &= SQ_REPLAY_TEST(FMath::IsNearlyEqual(ChaosHitBuffer->GetBlock()->Distance, CapturedSQ.PhysXSweepBuffer.block.distance, DistanceTolerance));
 		}
 		break;
 	}
 	case FSQCapture::ESQType::Overlap:
 	{
-		TUniquePtr<FDynamicHitBuffer<PxOverlapHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxOverlapHit>>();
+		auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxOverlapHit>>();
 		Serializer.GetPhysXData()->overlap(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), *PxHitBuffer, CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
 
 		bTestPassed &= SQ_REPLAY_TEST(PxHitBuffer->GetNumHits() == CapturedSQ.PhysXOverlapBuffer.GetNumHits());
 
-		TUniquePtr<FDynamicHitBuffer<FOverlapHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FOverlapHit>>();
+		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>>();
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
-		SQAccelerator.ChaosOverlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+		SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->GetNumHits() == CapturedSQ.PhysXOverlapBuffer.GetNumHits());
 		break;
@@ -136,7 +136,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	{
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<PxRaycastHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxRaycastHit>>();
+			auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxRaycastHit>>();
 			FDurationTimer Timer(PhysXSum);
 			Timer.Start();
 			Serializer.GetPhysXData()->raycast(U2PVector(CapturedSQ.StartPoint), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
@@ -146,10 +146,10 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<FRaycastHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FRaycastHit>>();
+			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>>();
 			FDurationTimer Timer(ChaosSum);
 			Timer.Start();
-			SQAccelerator.ChaosRaycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+			SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
 
@@ -159,7 +159,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	{
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<PxSweepHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxSweepHit>>();
+			auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxSweepHit>>();
 			FDurationTimer Timer(PhysXSum);
 			Timer.Start();
 			Serializer.GetPhysXData()->sweep(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), U2PVector(CapturedSQ.Dir), CapturedSQ.DeltaMag, *PxHitBuffer, U2PHitFlags(CapturedSQ.OutputFlags.HitFlags), CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
@@ -169,10 +169,10 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<FSweepHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FSweepHit>>();
+			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>>();
 			FDurationTimer Timer(ChaosSum);
 			Timer.Start();
-			SQAccelerator.ChaosSweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+			SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
 
@@ -182,7 +182,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	{
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<PxOverlapHit>> PxHitBuffer = MakeUnique<FDynamicHitBuffer<PxOverlapHit>>();
+			auto PxHitBuffer = MakeUnique<PhysXInterface::FDynamicHitBuffer<PxOverlapHit>>();
 			FDurationTimer Timer(PhysXSum);
 			Timer.Start();
 			Serializer.GetPhysXData()->overlap(CapturedSQ.PhysXGeometry.any(), U2PTransform(CapturedSQ.StartTM), *PxHitBuffer, CapturedSQ.QueryFilterData, CapturedSQ.FilterCallback.Get());
@@ -192,10 +192,10 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 		FChaosSQAccelerator SQAccelerator(*Serializer.GetChaosData());
 		for (double i = 0; i < NumIterations; ++i)
 		{
-			TUniquePtr<FDynamicHitBuffer<FOverlapHit>> ChaosHitBuffer = MakeUnique<FDynamicHitBuffer<FOverlapHit>>();
+			auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>>();
 			FDurationTimer Timer(ChaosSum);
 			Timer.Start();
-			SQAccelerator.ChaosOverlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, FCollisionFilterData(), CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
+			SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			Timer.Stop();
 		}
 		break;

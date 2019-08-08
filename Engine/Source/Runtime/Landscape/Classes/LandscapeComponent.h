@@ -437,6 +437,9 @@ private:
 
 	UPROPERTY(Transient)
 	uint32 LayerUpdateFlagPerMode;
+
+	/** Dirtied collision height region when painting (only used by Landscape Layer System) */
+	FIntRect LayerDirtyCollisionHeightData;
 #endif // WITH_EDITORONLY_DATA
 
 	/** Heightmap texture reference */
@@ -843,6 +846,12 @@ public:
 	/** Updates collision component height data for the entire component, locking and unlocking heightmap textures
 	 */
 	void UpdateCollisionData(bool bInUpdateHeightfieldRegion = true);
+
+	/** Cumulates component's dirtied collision region that will need to be updated (used by Layer System)*/
+	void UpdateDirtyCollisionHeightData(FIntRect Region);
+
+	/** Clears component's dirtied collision region (used by Layer System)*/
+	void ClearDirtyCollisionHeightData();
 
 	/**
 	 * Update collision component dominant layer data

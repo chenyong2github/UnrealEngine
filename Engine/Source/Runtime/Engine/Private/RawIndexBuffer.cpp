@@ -373,6 +373,7 @@ void FRawStaticIndexBuffer16or32<INDEX_TYPE>::CacheOptimize()
 {
 #if WITH_EDITOR
 	CacheOptimizeIndexBuffer(Indices);
+	CachedNumIndices = Indices.Num();
 #endif
 }
 

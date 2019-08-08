@@ -134,6 +134,11 @@ void UVariantObjectBinding::AddCapturedProperties(const TArray<UPropertyValue*>&
 	TSet<UVariantObjectBinding*> ParentsModified;
 	for (UPropertyValue* NewProp : NewProperties)
 	{
+		if (NewProp == nullptr)
+		{
+			continue;
+		}
+
 		if (ExistingProperties.Contains(NewProp->GetFullDisplayString()))
 		{
 			continue;

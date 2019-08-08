@@ -359,7 +359,7 @@ void FConcertServerWorkspace::HandleTransactionSnapshotEvent(const FConcertSessi
 		// If the client has the lock, then forward the snapshot
 		TArray<FGuid> QueueClientEndpointIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 		QueueClientEndpointIds.Remove(InEventContext.SourceEndpointId);
-		LiveSession->GetSession().SendCustomEvent(InEvent, QueueClientEndpointIds, EConcertMessageFlags::None);
+		LiveSession->GetSession().SendCustomEvent(InEvent, QueueClientEndpointIds, EConcertMessageFlags::UniqueId);
 	}
 	// otherwise do nothing, we will reject the finalized transaction (TODO: send notification back?)
 }

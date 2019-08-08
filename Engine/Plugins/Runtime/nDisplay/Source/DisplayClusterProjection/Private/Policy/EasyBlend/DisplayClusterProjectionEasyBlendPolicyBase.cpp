@@ -57,9 +57,16 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::HandleAddViewport(const FIntP
 		return false;
 	}
 
+	FString FullFilePath = DisplayClusterHelpers::config::GetFullPath(File);
+	if (!FPaths::FileExists(FullFilePath))
+	{
+		//! Handle error: EasyBlend configuration file not found
+		return false;
+	}
+
 	// Create and store nDisplay-to-EasyBlend viewport adapter
 	TSharedPtr<FDisplayClusterProjectionEasyBlendViewAdapterBase> NewViewAdapter = CreateViewAdapter(FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams{ ViewportSize, ViewsAmount });
-	if (!NewViewAdapter->Initialize(File))
+	if (!NewViewAdapter->Initialize(FullFilePath))
 	{
 		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Couldn't initialize EasyBlend viewport adapter"));
 		return false;
@@ -98,7 +105,7 @@ bool FDisplayClusterProjectionEasyBlendPolicyBase::CalculateView(const uint32 Vi
 	// Calculate view location in origin space
 	const FVector LocalViewLoc = World2LocalTransform.InverseTransformPosition(InOutViewLocation);
 
-	// Prepare non-const variables to get output(
+	// Prepare non-const variables to get output
 	FVector  EasyBlendViewLocation = LocalViewLoc * EasyBlendScale;
 	FRotator EasyBlendViewRotation = FRotator::ZeroRotator;
 	if (!ViewAdapter->CalculateView(ViewIdx, EasyBlendViewLocation, EasyBlendViewRotation, ViewOffset, WorldScale, NCP, FCP))

@@ -145,8 +145,6 @@ public:
 
 		int32 GetCurElementIdx_ForDebuggingOnly() const { return CurrElementIndex; }
 
-	protected:
-
 		FORCEINLINE const UPrimitiveComponent* GetComponent() const { return State.Elements[CurrElementIndex].Component; }
 
 		const FRenderAssetInstanceView& State;

@@ -25,6 +25,15 @@ namespace UnrealBuildTool.Rules
             {
                 PublicDefinitions.Add("INCLUDE_CHAOS=0");
             }
+
+            if (Target.bUseChaosChecked == true)
+            {
+                PublicDefinitions.Add("CHAOS_CHECKED=1");
+            }
+            else
+            {
+                PublicDefinitions.Add("CHAOS_CHECKED=0");
+            }
         }
     }
 }

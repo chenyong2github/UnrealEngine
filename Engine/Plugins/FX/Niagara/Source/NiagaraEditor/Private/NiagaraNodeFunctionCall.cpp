@@ -17,6 +17,8 @@
 #include "NiagaraConstants.h"
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -119,9 +121,28 @@ void UNiagaraNodeFunctionCall::UpgradeDIFunctionCalls()
 	{
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgradeing Niagara Data Interface fuction call node. This may cause unnessessary recompiles. Please resave these assets if this occurs. Or use fx.UpgradeAllNiagaraAssets."));
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Node: %s"), *GetFullName());
-		UE_LOG(LogNiagaraEditor, Log, TEXT("Interface: %s"), *InterfaceCDO->GetFullName());
+		if (InterfaceCDO)
+		{
+			UE_LOG(LogNiagaraEditor, Log, TEXT("Interface: %s"), *InterfaceCDO->GetFullName());
+		}
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Function: %s"), *Signature.GetName());
 		UE_LOG(LogNiagaraEditor, Log, TEXT("Upgrade Note: %s"),* UpgradeNote);
+	}
+}
+
+TSharedPtr<SGraphNode> UNiagaraNodeFunctionCall::CreateVisualWidget()
+{
+	if (!FunctionScript && FunctionSpecifiers.Num() == 0)
+	{
+		FunctionSpecifiers = Signature.FunctionSpecifiers;
+	}
+	if (FunctionSpecifiers.Num() == 0)
+	{
+		return Super::CreateVisualWidget();
+	}
+	else
+	{
+		return SNew(SNiagaraGraphNodeFunctionCallWithSpecifiers, this);
 	}
 }
 
@@ -540,7 +561,7 @@ void UNiagaraNodeFunctionCall::Compile(class FHlslNiagaraTranslator* Translator,
 				}
 			}
 		}
-
+		Signature.FunctionSpecifiers = FunctionSpecifiers;
 		bError = CompileInputPins(Translator, Inputs);
 	}		
 	else
@@ -683,6 +704,12 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyIDs(ENiagaraScriptUsage I
 			}
 		}
 	}
+}
+
+void UNiagaraNodeFunctionCall::UpdateCompileHashForNode(FSHA1& HashState) const
+{
+	Super::UpdateCompileHashForNode(HashState);
+	HashState.UpdateWithString(*GetFunctionName(), GetFunctionName().Len());
 }
 
 bool UNiagaraNodeFunctionCall::ScriptIsValid() const

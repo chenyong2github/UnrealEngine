@@ -8,15 +8,16 @@
 #include "PhysicsEngine/PhysicsConstraintTemplate.h"
 #include "GameFramework/PawnMovementComponent.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "Physics/ImmediatePhysics/ImmediatePhysicsSimulation.h"
 #include "Physics/ImmediatePhysics/ImmediatePhysicsActorHandle.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsSimulation.h"
+#include "Physics/ImmediatePhysics/ImmediatePhysicsStats.h"
 #include "PhysicsEngine/PhysicsSettings.h"
 #include "Logging/MessageLog.h"
 
 //#pragma optimize("", off)
 
 /////////////////////////////////////////////////////
-// FAnimNode_Ragdoll
+// FAnimNode_RigidBody
 
 #define LOCTEXT_NAMESPACE "ImmediatePhysics"
 
@@ -216,7 +217,8 @@ void FAnimNode_RigidBody::InitializeNewBodyTransformsDuringSimulation(FComponent
 }
 
 DECLARE_CYCLE_STAT(TEXT("RigidBody_Eval"), STAT_RigidBody_Eval, STATGROUP_Anim);
-DECLARE_CYCLE_STAT(TEXT("FAnimNode_Ragdoll::EvaluateSkeletalControl_AnyThread"), STAT_ImmediateEvaluateSkeletalControl, STATGROUP_ImmediatePhysics);
+
+DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread"), STAT_ImmediateEvaluateSkeletalControl, STATGROUP_ImmediatePhysics);
 
 void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseContext& Output, TArray<FBoneTransform>& OutBoneTransforms)
 {
@@ -224,7 +226,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 	SCOPE_CYCLE_COUNTER(STAT_RigidBody_Eval);
 	FScopeCycleCounterUObject AdditionalScope(UsePhysicsAsset, GET_STATID(STAT_RigidBody_Eval));
 	SCOPE_CYCLE_COUNTER(STAT_ImmediateEvaluateSkeletalControl);
-	//SCOPED_NAMED_EVENT_TEXT("FAnimNode_Ragdoll::EvaluateSkeletalControl_AnyThread", FColor::Magenta);
+	//SCOPED_NAMED_EVENT_TEXT("FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread", FColor::Magenta);
 
 	// Update our eval counter, and decide whether we need to reset simulated bodies, if our anim instance hasn't updated in a while.
 	if(EvalCounter.HasEverBeenUpdated())
@@ -593,7 +595,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 	SkeletonBoneIndexToBodyIndex.Reset(NumSkeletonBones);
 	SkeletonBoneIndexToBodyIndex.Init(INDEX_NONE, NumSkeletonBones);
 
-	PreviousTransform = InAnimInstance->GetSkelMeshComponent()->GetComponentToWorld();
+	PreviousTransform = SkeletalMeshComp->GetComponentToWorld();
 
 	if (UPhysicsSettings* Settings = UPhysicsSettings::Get())
 	{
@@ -616,7 +618,8 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 		BodyAnimData.Reset(NumBodies);
 		BodyAnimData.AddDefaulted(NumBodies);
 		TotalMass = 0.f;
-		
+
+		// Instantiate a FBodyInstance/FConstraintInstance set that will be cloned into the Immediate Physics sim.
 		TArray<FBodyInstance*> HighLevelBodyInstances;
 		TArray<FConstraintInstance*> HighLevelConstraintInstances;
 		SkeletalMeshComp->InstantiatePhysicsAssetRefPose(*UsePhysicsAsset, SimulationSpace == ESimulationSpace::WorldSpace ? SkeletalMeshComp->GetComponentToWorld().GetScale3D() : FVector(1.f), HighLevelBodyInstances, HighLevelConstraintInstances);
@@ -643,63 +646,37 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			}
 		}
 
-		auto InsertBodiesHelper = [&](bool bSimulatedBodies)
+		// Create the immediate physics bodies
+		for (FBoneIndexType InsertBone : InsertionOrder)
 		{
-			for (FBoneIndexType InsertBone : InsertionOrder)
+			if (FBodyInstance* BodyInstance = BodiesSorted[InsertBone])
 			{
-				if (FBodyInstance* BodyInstance = BodiesSorted[InsertBone])
-				{
-					UBodySetup* BodySetup = UsePhysicsAsset->SkeletalBodySetups[BodyInstance->InstanceBodyIndex];
-					const bool bKinematic = BodySetup->PhysicsType != EPhysicsType::PhysType_Simulated;
-					const FTransform& LastTransform = SkeletalMeshComp->GetBoneTransform(InsertBone);	//This is out of date, but will still give our bodies an initial setup that matches the constraints (TODO: use refpose)
+				UBodySetup* BodySetup = UsePhysicsAsset->SkeletalBodySetups[BodyInstance->InstanceBodyIndex];
 
-					ImmediatePhysics::FActorHandle* NewBodyHandle = nullptr;
-					if (bSimulatedBodies && !bKinematic)
+				bool bSimulated = (BodySetup->PhysicsType == EPhysicsType::PhysType_Simulated);
+				ImmediatePhysics::EActorType ActorType = bSimulated ?  ImmediatePhysics::EActorType::DynamicActor : ImmediatePhysics::EActorType::KinematicActor;
+				ImmediatePhysics::FActorHandle* NewBodyHandle = PhysicsSimulation->CreateActor(ActorType, BodyInstance, BodyInstance->GetUnrealWorldTransform());
+				if (NewBodyHandle)
+				{
+					if (bSimulated)
 					{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-						PxRigidActor* PRigidActor = FPhysicsInterface::GetPxRigidActor_AssumesLocked(BodyInstance->GetPhysicsActorHandle());
-						if(PxRigidDynamic* PDynamic = PRigidActor->is<PxRigidDynamic>())
-						{
-							NewBodyHandle = PhysicsSimulation->CreateDynamicActor(PDynamic, LastTransform);
-						checkSlow(NewBodyHandle);
 						const float InvMass = NewBodyHandle->GetInverseMass();
 						TotalMass += InvMass > 0.f ? 1.f / InvMass : 0.f;
-						}
-#endif
 					}
-					else if (bSimulatedBodies && bKinematic)
+					const int32 BodyIndex = Bodies.Add(NewBodyHandle);
+					const int32 SkeletonBoneIndex = MeshToSkeletonBoneIndex[InsertBone];
+					SkeletonBoneIndexToBodyIndex[SkeletonBoneIndex] = BodyIndex;
+					BodyAnimData[BodyIndex].bIsSimulated = bSimulated;
+					NamesToHandles.Add(BodySetup->BoneName, NewBodyHandle);
+					BodyIndexToActorHandle[BodyInstance->InstanceBodyIndex] = NewBodyHandle;
+
+					if (BodySetup->CollisionReponse == EBodyCollisionResponse::BodyCollision_Disabled)
 					{
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
-						PxRigidActor* PRigidActor = FPhysicsInterface::GetPxRigidActor_AssumesLocked(BodyInstance->GetPhysicsActorHandle());
-						if(PxRigidBody* PRigidBody = PRigidActor->is<PxRigidBody>())
-						{
-							NewBodyHandle = PhysicsSimulation->CreateKinematicActor(PRigidBody, LastTransform);
-						}
-#endif
-					}
-
-					if (NewBodyHandle)
-					{
-						const int32 BodyIndex = Bodies.Add(NewBodyHandle);
-
-						const int32 SkeletonBoneIndex = MeshToSkeletonBoneIndex[InsertBone];
-						SkeletonBoneIndexToBodyIndex[SkeletonBoneIndex] = BodyIndex;
-						BodyAnimData[BodyIndex].bIsSimulated = !bKinematic;
-						NamesToHandles.Add(BodySetup->BoneName, NewBodyHandle);
-						BodyIndexToActorHandle[BodyInstance->InstanceBodyIndex] = NewBodyHandle;
-
-						if (BodySetup->CollisionReponse == EBodyCollisionResponse::BodyCollision_Disabled)
-						{
-							IgnoreCollisionActors.Add(NewBodyHandle);
-						}
+						IgnoreCollisionActors.Add(NewBodyHandle);
 					}
 				}
 			}
-		};
-
-		//Insert simulated bodies first to avoid any re-ordering
-		InsertBodiesHelper(/*bSimulated=*/true);
-		InsertBodiesHelper(/*bSimulated=*/false);
+		}
 
 		//Insert joints so that they coincide body order. That is, if we stop simulating all bodies past some index, we can simply ignore joints past a corresponding index without any re-order
 		//For this to work we consider the most last inserted bone in each joint
@@ -730,7 +707,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			return false;
 		});
 
-#if WITH_PHYSX
+
 		if(NamesToHandles.Num() > 0)
 		{
 			//constraints
@@ -744,12 +721,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 				{
 					if (Body1Handle->IsSimulated() || Body2Handle->IsSimulated())
 					{
-						FPhysicsConstraintHandle& ConstraintRef = CI->ConstraintHandle;
-
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX || PHYSICS_INTERFACE_LLIMMEDIATE
-                        ensure(false);
-#else
-						PhysicsSimulation->CreateJoint(ConstraintRef.ConstraintData, Body1Handle, Body2Handle);
+						PhysicsSimulation->CreateJoint(CI, Body1Handle, Body2Handle);
 						if (bForceDisableCollisionBetweenConstraintBodies)
 						{
 							int32 BodyIndex1 = UsePhysicsAsset->FindBodyIndex(CI->ConstraintBone1);
@@ -773,7 +745,6 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 							FTransform Body2Transform = Body2Handle->GetWorldTransform();
 							BodyAnimData[BodyIndex].RefPoseLength = Body1Transform.GetRelativeTransform(Body2Transform).GetLocation().Size();
 						}
-#endif
 					}
 				}
 
@@ -810,11 +781,10 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 
 		PhysicsSimulation->SetIgnoreCollisionPairTable(IgnorePairs);
 		PhysicsSimulation->SetIgnoreCollisionActors(IgnoreCollisionActors);
-#endif
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("FAnimNode_Ragdoll::UpdateWorldGeometry"), STAT_ImmediateUpdateWorldGeometry, STATGROUP_ImmediatePhysics);
+DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::UpdateWorldGeometry"), STAT_ImmediateUpdateWorldGeometry, STATGROUP_ImmediatePhysics);
 
 void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkeletalMeshComponent& SKC)
 {
@@ -847,7 +817,7 @@ void FAnimNode_RigidBody::UpdateWorldGeometry(const UWorld& World, const USkelet
 	}
 }
 
-DECLARE_CYCLE_STAT(TEXT("FAnimNode_Ragdoll::UpdateWorldForces"), STAT_ImmediateUpdateWorldForces, STATGROUP_ImmediatePhysics);
+DECLARE_CYCLE_STAT(TEXT("FAnimNode_RigidBody::UpdateWorldForces"), STAT_ImmediateUpdateWorldForces, STATGROUP_ImmediatePhysics);
 
 void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, const FTransform& BaseBoneTM)
 {
@@ -864,14 +834,14 @@ void FAnimNode_RigidBody::UpdateWorldForces(const FTransform& ComponentToWorld, 
 				if(InvMass > 0.f)
 				{
 					const float StrengthPerBody = PendingRadialForce.bIgnoreMass ? PendingRadialForce.Strength : PendingRadialForce.Strength / (TotalMass * InvMass);
-					ImmediatePhysics::FSimulation::EForceType ForceType;
+					ImmediatePhysics::EForceType ForceType;
 					if (PendingRadialForce.Type == USkeletalMeshComponent::FPendingRadialForces::AddImpulse)
 					{
-						ForceType = PendingRadialForce.bIgnoreMass ? ImmediatePhysics::FSimulation::EForceType::AddVelocity : ImmediatePhysics::FSimulation::EForceType::AddImpulse;
+						ForceType = PendingRadialForce.bIgnoreMass ? ImmediatePhysics::EForceType::AddVelocity : ImmediatePhysics::EForceType::AddImpulse;
 					}
 					else
 					{
-						ForceType = PendingRadialForce.bIgnoreMass ? ImmediatePhysics::FSimulation::EForceType::AddAcceleration : ImmediatePhysics::FSimulation::EForceType::AddForce;
+						ForceType = PendingRadialForce.bIgnoreMass ? ImmediatePhysics::EForceType::AddAcceleration : ImmediatePhysics::EForceType::AddForce;
 					}
 					
 					Body->AddRadialForce(RadialForceOrigin, StrengthPerBody, PendingRadialForce.Radius, PendingRadialForce.Falloff, ForceType);
@@ -976,23 +946,24 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 		return;
 	}
 
-	SCOPE_CYCLE_COUNTER(STAT_RigidBody_PreUpdate);
+	SCOPE_CYCLE_COUNTER(STAT_RigidBody_Update);
 
 	// Accumulate deltatime elapsed during update. To be used during evaluation.
 	AccumulatedDeltaTime += Context.AnimInstanceProxy->GetDeltaSeconds();
 
 	if (UnsafeWorld != nullptr)
 	{		
-
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 		// Node is valid to evaluate. Simulation is starting.
 		bSimulationStarted = true;
 
 		TArray<FOverlapResult> Overlaps;
 		UnsafeWorld->OverlapMultiByChannel(Overlaps, Bounds.Center, FQuat::Identity, OverlapChannel, FCollisionShape::MakeSphere(Bounds.W), QueryParams, FCollisionResponseParams(ECR_Overlap));
 
+		// @todo(ccaulfield): is there an engine-independent way to do this?
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
 		SCOPED_SCENE_READ_LOCK(PhysScene ? PhysScene->GetPxScene() : nullptr); //TODO: expose this part to the anim node
-	
+#endif
+
 		for (const FOverlapResult& Overlap : Overlaps)
 		{
 			if (UPrimitiveComponent* OverlapComp = Overlap.GetComponent())
@@ -1000,19 +971,10 @@ void FAnimNode_RigidBody::UpdateInternal(const FAnimationUpdateContext& Context)
 				if (ComponentsInSim.Contains(OverlapComp) == false)
 				{
 					ComponentsInSim.Add(OverlapComp);
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-                    check(false);
-#else
-					if (PxRigidActor* RigidActor = FPhysicsInterface_PhysX::GetPxRigidActor_AssumesLocked(OverlapComp->BodyInstance.ActorHandle))
-					{
-						PhysicsSimulation->CreateStaticActor(RigidActor, P2UTransform(RigidActor->getGlobalPose()));
-					}
-#endif
+					PhysicsSimulation->CreateActor(ImmediatePhysics::EActorType::StaticActor, &OverlapComp->BodyInstance, OverlapComp->BodyInstance.GetUnrealWorldTransform());
 				}
 			}
 		}
-#endif
-
 		UnsafeWorld = nullptr;
 		PhysScene = nullptr;
 	}
@@ -1080,7 +1042,7 @@ void FAnimNode_RigidBody::InitializeBoneReferences(const FBoneContainer& Require
 		}
 	}
 
-	// New bodies protentially introduced with new LOD
+	// New bodies potentially introduced with new LOD
 	// We'll have to initialize their transform.
 	bCheckForBodyTransformInit = true;
 

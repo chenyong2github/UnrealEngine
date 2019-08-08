@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Chaos/PBDConstraintRule.h"
 #include "Chaos/PBDCollisionTypes.h"
 #include "Chaos/PBDConstraintGraph.h"
 #include "Chaos/PBDConstraintColor.h"
@@ -39,13 +40,13 @@ namespace Chaos
 		virtual void BindToGraph(FConstraintGraph& InContactGraph, uint32 InContainerId) {}
 
 		/** Called once per tick to allow constraint containers to create/alter their constraints based on particle position */
-		virtual void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt) {}
+		virtual void UpdatePositionBasedState(const T Dt) {}
 
 		/** Apply all corrections for constraints in the specified island */
-		virtual void ApplyConstraints(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) {};
+		virtual void ApplyConstraints(const T Dt, int32 Island) {};
 
 		/** Apply push out for constraints in the specified island */
-		virtual void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) {};
+		virtual void ApplyPushOut(const T Dt, int32 Island) {};
 
 		/** Add all constraints to the connectivity graph */
 		virtual void AddToGraph() {}
@@ -54,12 +55,11 @@ namespace Chaos
 		virtual void InitializeAccelerationStructures() {}
 
 		/** Set up the perf-acceleration structures for the specified island. May be called in parallel for islands */
-		virtual void UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const int32 Island) {}
+		virtual void UpdateAccelerationStructures(const int32 Island) {}
 
 		/** Remove all constraints associated with the specified particles */
 		// @todo(ccaulfield): remove uint version
-		void RemoveConstraints(const TSet<int32>& RemovedParticles) { RemoveConstraints(reinterpret_cast<const TSet<uint32>&>(RemovedParticles)); }
-		virtual void RemoveConstraints(const TSet<uint32>& RemovedParticles) {}
+		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T,d>*>& RemovedParticles) { }
 
 		/** The number of constraints in the collection */
 		virtual int32 NumConstraints() const { return 0; }
@@ -89,9 +89,9 @@ namespace Chaos
 			ContainerId = InContainerId;
 		}
 
-		virtual void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt) override
+		virtual void UpdatePositionBasedState(const T Dt) override
 		{
-			Constraints.UpdatePositionBasedState(InParticles, InIndices, Dt);
+			Constraints.UpdatePositionBasedState(Dt);
 		}
 
 		virtual void AddToGraph() override
@@ -99,11 +99,11 @@ namespace Chaos
 			ConstraintGraph->ReserveConstraints(Constraints.NumConstraints());
 			for (int32 ConstraintIndex = 0; ConstraintIndex < Constraints.NumConstraints(); ++ConstraintIndex)
 			{
-				ConstraintGraph->AddConstraint(ContainerId, ConstraintIndex, Constraints.ConstraintParticleIndices(ConstraintIndex));
+				ConstraintGraph->AddConstraint(ContainerId, ConstraintIndex, Constraints.ConstraintParticles(ConstraintIndex));
 			}
 		}
 
-		virtual void RemoveConstraints(const TSet<uint32>& RemovedParticles) override
+		virtual void RemoveConstraints(const TSet<TGeometryParticleHandle<T,d>*>& RemovedParticles) override
 		{
 			// @todo(ccaulfield): should also remove graph edges here too. Currently the edges are rebuilt every tick so not a problem...
 			//ConstraintGraph->RemoveEdges(...)
@@ -135,19 +135,19 @@ namespace Chaos
 		{
 		}
 
-		virtual void ApplyConstraints(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) override
+		virtual void ApplyConstraints(const T Dt, int32 Island) override
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.Apply(InParticles, Dt, IslandConstraintLists[Island]);
+				Constraints.Apply(Dt, IslandConstraintLists[Island]);
 			}
 		}
 
-		virtual void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) override
+		virtual void ApplyPushOut(const T Dt, int32 Island) override
 		{
 			if (IslandConstraintLists[Island].Num())
 			{
-				Constraints.ApplyPushOut(InParticles, Dt, IslandConstraintLists[Island]);
+				Constraints.ApplyPushOut(Dt, IslandConstraintLists[Island]);
 			}
 		}
 
@@ -160,7 +160,7 @@ namespace Chaos
 			}
 		}
 		
-		virtual void UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const int32 Island) override
+		virtual void UpdateAccelerationStructures(const int32 Island) override
 		{
 			const TArray<int32>& ConstraintDataIndices = ConstraintGraph->GetIslandConstraintData(Island);
 			TArray<int32>& IslandConstraintList = IslandConstraintLists[Island];
@@ -209,12 +209,12 @@ namespace Chaos
 		}
 
 
-		virtual void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt) override
+		virtual void UpdatePositionBasedState(const T Dt) override
 		{
-			Constraints.UpdatePositionBasedState(InParticles, InIndices, Dt);
+			Constraints.UpdatePositionBasedState(Dt);
 		}
 
-		virtual void ApplyConstraints(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) override
+		virtual void ApplyConstraints(const T Dt, int32 Island) override
 		{
 			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
@@ -225,20 +225,20 @@ namespace Chaos
 				{
 					if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 					{
-						Constraints.Apply(InParticles, Dt, LevelToColorToConstraintListMap[Level][Color]);
+						Constraints.Apply(Dt, LevelToColorToConstraintListMap[Level][Color]);
 					}
 				}
 			}
 		}
 
-		virtual void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, int32 Island) override
+		virtual void ApplyPushOut(const T Dt, int32 Island) override
 		{
 			const typename FConstraintColor::FLevelToColorToConstraintListMap& LevelToColorToConstraintListMap = GraphColor.GetIslandLevelToColorToConstraintListMap(Island);
 			int32 MaxColor = GraphColor.GetIslandMaxColor(Island);
 			int32 MaxLevel = GraphColor.GetIslandMaxLevel(Island);
 
 			bool NeedsAnotherIteration = false;
-			TSet<int32> IsTemporarilyStatic;	// Also needs to be per-constraint type
+			TSet<TGeometryParticleHandle<T,d>*> IsTemporarilyStatic;	// Also needs to be per-constraint type
 			for (int32 Iteration = 0; (Iteration == 0 || NeedsAnotherIteration) && Iteration < PushOutIterations; ++Iteration)
 			{
 				NeedsAnotherIteration = false;
@@ -248,7 +248,7 @@ namespace Chaos
 					{
 						if (LevelToColorToConstraintListMap[Level].Contains(Color) && LevelToColorToConstraintListMap[Level][Color].Num())
 						{
-							NeedsAnotherIteration = Constraints.ApplyPushOut(InParticles, Dt, LevelToColorToConstraintListMap[Level][Color], IsTemporarilyStatic, Iteration, PushOutIterations);
+							NeedsAnotherIteration = Constraints.ApplyPushOut(Dt, LevelToColorToConstraintListMap[Level][Color], IsTemporarilyStatic, Iteration, PushOutIterations);
 						}
 					}
 #if USE_SHOCK_PROPOGATION
@@ -259,18 +259,16 @@ namespace Chaos
 							for (int32 Edge = 0; Edge < LevelToColorToConstraintListMap[Level][Color].Num(); ++Edge)
 							{
 								const int32 ConstraintIndex = LevelToColorToConstraintListMap[Level][Color][Edge];
-								const TVector<int32, 2> ParticleIndices = Constraints.ConstraintParticleIndices(ConstraintIndex);
-								const int32 ParticleIndex = ParticleIndices[0];
-								const int32 LevelsetIndex = ParticleIndices[1];
+								const TVector<TGeometryParticleHandle<T,d>*, 2> Particles = Constraints.ConstraintParticles(ConstraintIndex);
 								if (Iteration == PushOutIterations - 1)
 								{
-									if (!InParticles.InvM(ParticleIndex) || IsTemporarilyStatic.Contains(ParticleIndex))
+									if (Particles[0]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[0]))
 									{
-										IsTemporarilyStatic.Add(LevelsetIndex);
+										IsTemporarilyStatic.Add(Particles[1]);
 									}
-									else if (!InParticles.InvM(LevelsetIndex) || IsTemporarilyStatic.Contains(LevelsetIndex))
+									else if (Particles[1]->AsDynamic() == nullptr || IsTemporarilyStatic.Contains(Particles[1]))
 									{
-										IsTemporarilyStatic.Add(ParticleIndex);
+										IsTemporarilyStatic.Add(Particles[0]);
 									}
 								}
 							}
@@ -286,9 +284,9 @@ namespace Chaos
 			GraphColor.InitializeColor(*ConstraintGraph);
 		}
 
-		virtual void UpdateAccelerationStructures(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const int32 Island) override
+		virtual void UpdateAccelerationStructures(const int32 Island) override
 		{
-			GraphColor.ComputeColor(InParticles, InIndices, Island, *ConstraintGraph, ContainerId);
+			GraphColor.ComputeColor(Island, *ConstraintGraph, ContainerId);
 		}
 
 		void SetPushOutIterations(const int32 InPushOutIterations)
@@ -320,7 +318,7 @@ namespace Chaos
 	 * update loop and therefore know what algorithms should be applied.
 	 */
 	template<typename T, int d>
-	struct CHAOS_API FConstraintRuleFactory
+	struct CHAOS_API TConstraintRuleFactory
 	{
 	public:
 		typedef TPBDConstraintGraph<T, d> FConstraintGraph;

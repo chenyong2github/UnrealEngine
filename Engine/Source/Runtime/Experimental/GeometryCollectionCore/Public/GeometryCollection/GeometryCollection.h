@@ -24,8 +24,8 @@ public:
 	FGeometryCollection();
 	FGeometryCollection(FGeometryCollection &) = delete;
 	FGeometryCollection& operator=(const FGeometryCollection &) = delete;
-	FGeometryCollection(FGeometryCollection &&) = delete;
-	FGeometryCollection& operator=(FGeometryCollection &&) = delete;
+	FGeometryCollection(FGeometryCollection &&) = default;
+	FGeometryCollection& operator=(FGeometryCollection &&) = default;
 
 	typedef FTransformCollection Super;
 		/***
@@ -291,3 +291,9 @@ public:
 
 
 };
+
+FORCEINLINE Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FGeometryCollection& Value)
+{
+	Value.Serialize(Ar);
+	return Ar;
+}

@@ -44,7 +44,7 @@ public:
 	FMessageContext(
 		void* InMessage,
 		UScriptStruct* InTypeInfo,
-		const TMap<FName, FString> InAnnotations,
+		const TMap<FName, FString>& InAnnotations,
 		const TSharedPtr<IMessageAttachment, ESPMode::ThreadSafe>& InAttachment,
 		const FMessageAddress& InSender,
 		const TArray<FMessageAddress>& InRecipients,
@@ -114,6 +114,7 @@ public:
 	virtual EMessageScope GetScope() const override;
 	virtual EMessageFlags GetFlags() const override;
 	virtual const FMessageAddress& GetSender() const override;
+	virtual const FMessageAddress& GetForwarder() const override;
 	virtual ENamedThreads::Type GetSenderThread() const override;
 	virtual const FDateTime& GetTimeForwarded() const override;
 	virtual const FDateTime& GetTimeSent() const override;

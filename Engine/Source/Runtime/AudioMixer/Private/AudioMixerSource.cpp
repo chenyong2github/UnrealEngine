@@ -30,6 +30,7 @@ namespace Audio
 		, MixerSourceBuffer(nullptr)
 		, MixerSourceVoice(nullptr)
 		, PreviousAzimuth(-1.0f)
+		, PreviousPlaybackPercent(0.0f)
 		, InitializationState(EMixerSourceInitializationState::NotInitialized)
 		, bPlayedCachedBuffer(false)
 		, bPlaying(false)
@@ -719,19 +720,19 @@ namespace Audio
 	{
 		if (InitializationState != EMixerSourceInitializationState::Initialized)
 		{
-			return 0.f;
+			return PreviousPlaybackPercent;
 		}
 
 		if (MixerSourceVoice && NumTotalFrames > 0)
 		{
 			int64 NumFrames = MixerSourceVoice->GetNumFramesPlayed();
 			AUDIO_MIXER_CHECK(NumTotalFrames > 0);
-			float PlaybackPercent = (float)NumFrames / NumTotalFrames;
+			PreviousPlaybackPercent = (float)NumFrames / NumTotalFrames;
 			if (WaveInstance->LoopingMode == LOOP_Never)
 			{
-				PlaybackPercent = FMath::Min(PlaybackPercent, 1.0f);
+				PreviousPlaybackPercent = FMath::Min(PreviousPlaybackPercent, 1.0f);
 			}
-			return PlaybackPercent;
+			return PreviousPlaybackPercent;
 		}
 		else
 		{

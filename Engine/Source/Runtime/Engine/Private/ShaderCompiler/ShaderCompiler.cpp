@@ -1041,7 +1041,9 @@ int32 FShaderCompileThreadRunnable::PullTasksFromQueue()
 		FScopeLock Lock(&Manager->CompileQueueSection);
 
 		const int32 NumWorkersToFeed = Manager->bCompilingDuringGame ? Manager->NumShaderCompilingThreadsDuringGame : WorkerInfos.Num();
-
+		// Try to distribute the work evenly between the workers
+		const auto NumJobsPerWorker = (Manager->CompileQueue.Num() / NumWorkersToFeed) + 1;
+		
 		for (int32 WorkerIndex = 0; WorkerIndex < WorkerInfos.Num(); WorkerIndex++)
 		{
 			FShaderCompileWorkerInfo& CurrentWorkerInfo = *WorkerInfos[WorkerIndex];
@@ -1053,17 +1055,14 @@ int32 FShaderCompileThreadRunnable::PullTasksFromQueue()
 
 				if (Manager->CompileQueue.Num() > 0)
 				{
-					if (Manager->CompileQueue.Num() % 10 == 0)
-					{
-						UE_LOG(LogShaderCompilers, Display, TEXT("Shaders left to compile %i"), Manager->CompileQueue.Num());
-					}
+					UE_LOG(LogShaderCompilers, Display, TEXT("Worker (%d/%d): shaders left to compile %i"), WorkerIndex + 1, WorkerInfos.Num(), Manager->CompileQueue.Num());
 
 					bool bAddedLowLatencyTask = false;
+					const auto MaxNumJobs = FMath::Min3(NumJobsPerWorker, Manager->CompileQueue.Num(), Manager->MaxShaderJobBatchSize);
+					
 					int32 JobIndex = 0;
-
-					// Try to grab up to MaxShaderJobBatchSize jobs
 					// Don't put more than one low latency task into a batch
-					for (; JobIndex < Manager->MaxShaderJobBatchSize && JobIndex < Manager->CompileQueue.Num() && !bAddedLowLatencyTask; JobIndex++)
+					for (; JobIndex < MaxNumJobs && !bAddedLowLatencyTask; JobIndex++)
 					{
 						bAddedLowLatencyTask |= Manager->CompileQueue[JobIndex]->bOptimizeForLowLatency;
 						CurrentWorkerInfo.QueuedJobs.Add(Manager->CompileQueue[JobIndex]);
@@ -4462,6 +4461,12 @@ void RecompileShadersForRemote(
 			// Only compile for the desired platform if requested
 			if (ShaderPlatform == ShaderPlatformToCompile || ShaderPlatformToCompile == SP_NumPlatforms)
 			{
+				// These platforms are deprecated and we should warn about their use
+				if (ShaderPlatform == SP_OPENGL_SM5 || ShaderPlatform == SP_PCD3D_SM4)
+				{
+					UE_LOG(LogShaderCompilers, Warning, TEXT("You are compiling shaders for a deprecated platform '%s'"), *LegacyShaderPlatformToShaderFormat(ShaderPlatform).ToString());
+				}
+
 				if (bCompileChangedShaders)
 				{
 					// Kick off global shader recompiles

@@ -27,9 +27,11 @@ namespace Chaos
 			return GetGravityFunction<TPBDParticles<T, d>, TDynamicParticles<T, d>, T, d>(Direction, Magnitude);
 		}
 		template<class T, int d>
-		inline TFunction<void(TPBDRigidParticles<T, d>&, const T, const int32)> GetRigidsGravityFunction(const TVector<T, d>& Direction, const T Magnitude)
+		inline auto GetRigidsGravityFunction(const TVector<T, d>& Direction, const T Magnitude)
 		{
-			return GetGravityFunction<TPBDRigidParticles<T, d>, TRigidParticles<T, d>, T, d>(Direction, Magnitude);
+			return[Gravity = PerParticleGravity<T, d>(Direction, Magnitude)](TTransientPBDRigidParticleHandle<T,d>& Particle, const T Dt) {
+				Gravity.Apply(Particle, Dt);
+			};
 		}
 
 		// Take the factorial of \p Num, which should be of integral type.

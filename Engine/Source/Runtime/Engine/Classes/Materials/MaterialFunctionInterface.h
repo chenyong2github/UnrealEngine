@@ -20,7 +20,7 @@ struct FPropertyChangedEvent;
 
 /** Usage set on a material function determines feature compatibility and validation. */
 UENUM()
-enum EMaterialFunctionUsage
+enum class EMaterialFunctionUsage : uint8
 {
 	Default,
 	MaterialLayer,
@@ -46,7 +46,7 @@ class UMaterialFunctionInterface : public UObject
 protected:
 	/** The intended usage of this function, required for material layers. */
 	UPROPERTY(AssetRegistrySearchable)
-	TEnumAsByte<enum EMaterialFunctionUsage> MaterialFunctionUsage;
+	EMaterialFunctionUsage MaterialFunctionUsage;
 
 public:
 	virtual EMaterialFunctionUsage GetMaterialFunctionUsage()

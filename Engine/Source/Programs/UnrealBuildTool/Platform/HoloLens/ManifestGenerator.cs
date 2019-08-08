@@ -1915,8 +1915,10 @@ namespace UnrealBuildTool
 				ConfigPostfix = TargetConfig.ToString();
 			}
 
-			string MakeRelativeTo = IsGameSpecificExe ? ProjectPath : UnrealBuildTool.EngineDirectory.FullName;
-			string RelativeExePath = Path.Combine(RelativeProjectRootForStage, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
+			string MakeRelativeTo = IsGameSpecificExe ? Path.Combine(ProjectPath, "..") : UnrealBuildTool.EngineDirectory.FullName;
+			string RelativeExePath = IsGameSpecificExe ?
+				Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo) :
+				Path.Combine(RelativeProjectRootForStage, Utils.MakePathRelativeTo(ExecutablePath, MakeRelativeTo));
 
 			XmlAttribute Id = AppxManifestXmlDocument.CreateAttribute("Id");
 			Id.Value = "App" + PackageBaseName + ConfigPostfix;

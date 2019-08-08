@@ -12,11 +12,6 @@ public class DisplayCluster : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"DisplayCluster/Private",
-				"../../../../../Engine/Source/Runtime/Renderer/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private/Windows"
 			});
 
 		PublicDependencyModuleNames.AddRange(
@@ -26,8 +21,6 @@ public class DisplayCluster : ModuleRules
 				"CoreUObject",
 				"Engine",
 				"InputCore",
-				"Json",
-				"JsonUtilities"
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -40,6 +33,8 @@ public class DisplayCluster : ModuleRules
 				"Engine",
 				"HeadMountedDisplay",
 				"InputCore",
+				"Json",
+				"JsonUtilities",
 				"Networking",
 				"OpenGLDrv",
 				"RHI",
@@ -59,7 +54,7 @@ public class DisplayCluster : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAPI");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 
 		// 3rd party dependencies
@@ -67,10 +62,9 @@ public class DisplayCluster : ModuleRules
 	}
 
 
-	public bool AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
+	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
 	{
-		string ModulePath = Path.GetDirectoryName(UnrealBuildTool.RulesCompiler.GetFileNameFromType(GetType()));
-		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModulePath, "../../ThirdParty/"));
+		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/"));
 
 		string PathLib = string.Empty;
 		string PathInc = string.Empty;
@@ -81,7 +75,5 @@ public class DisplayCluster : ModuleRules
 		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "vrpn.lib"));
 		PublicAdditionalLibraries.Add(Path.Combine(PathLib, "quat.lib"));
 		PublicIncludePaths.Add(PathInc);
-
-		return true;
 	}
 }

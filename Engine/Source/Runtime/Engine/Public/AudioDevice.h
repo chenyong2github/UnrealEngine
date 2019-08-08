@@ -445,12 +445,12 @@ public:
 	}
 
 	/** Returns the quality settings used by the default audio settings. */
-	static FAudioQualitySettings GetQualityLevelSettings();
+	static const FAudioQualitySettings& GetQualityLevelSettings();
 
 	/**
 	 * Basic initialization of the platform agnostic layer of the audio system
 	 */
-	bool Init(int32 InMaxChannels);
+	bool Init(int32 InMaxSources);
 
 	/**
 	 * Tears down the audio device
@@ -552,6 +552,10 @@ public:
 
 	/** Returns the max channels used by the audio device. */
 	int32 GetMaxChannels() const;
+
+	/** Returns the maximum sources used by the audio device set on initialization,
+	  * including the number of stopping voices reserved. */
+	int32 GetMaxSources() const;
 
 	/**
 	* Stops any sound sources which are using the given buffer.
@@ -1208,6 +1212,11 @@ protected:
 	 */
 	void StartSources(TArray<FWaveInstance*>& WaveInstances, int32 FirstActiveIndex, bool bGameTicking);
 
+	/**
+	 * This is overridden in Audio::FMixerDevice to propogate listener information to the audio thread.
+	 */
+	virtual void OnListenerUpdated(const TArray<FListener>& InListeners) {};
+
 private:
 
 	/**
@@ -1215,6 +1224,11 @@ private:
 	 * loop system.
 	 */
 	void AddNewActiveSoundInternal(const FActiveSound& ActiveSound, FAudioVirtualLoop* VirtualLoop);
+
+	/**
+	 * Reports if a sound fails to start when attempting to create a new active sound.
+	 */
+	void ReportSoundFailedToStart(const uint64 AudioComponentID, FAudioVirtualLoop* VirtualLoop);
 
 	/**
 	* Initializes all plugin listeners belonging to this audio device.
@@ -1573,16 +1587,8 @@ public:
 
 public:
 
-	/** The maximum number of concurrent audible sounds */
-	int32 MaxChannels;
-	int32 MaxChannels_GameThread;
-
-	/** A scaler on the max channels. */
-	float MaxChannelsScale;
-	float MaxChannelsScale_GameThread;
-
 	/** The number of sources to reserve for stopping sounds. */
-	int32 NumStoppingVoices;
+	int32 NumStoppingSources;
 
 	/** The sample rate of all the audio devices */
 	int32 SampleRate;
@@ -1627,6 +1633,17 @@ public:
 	TArray<FTransform> ListenerTransforms;
 
 private:
+	/** The maximum number of sources.  Value cannot change after initialization. */
+	int32 MaxSources;
+
+	/** The maximum number of concurrent audible sounds. Value cannot exceed MaxSources. */
+	int32 MaxChannels;
+	int32 MaxChannels_GameThread;
+
+	/** Normalized (0.0f - 1.0f) scalar multiplier on max channels. */
+	float MaxChannelsScale;
+	float MaxChannelsScale_GameThread;
+
 	uint64 CurrentTick;
 
 	/** An AudioComponent to play test sounds on */

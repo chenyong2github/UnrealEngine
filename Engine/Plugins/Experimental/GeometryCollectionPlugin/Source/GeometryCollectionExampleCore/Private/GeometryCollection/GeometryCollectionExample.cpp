@@ -20,6 +20,7 @@ namespace GeometryCollectionExample
 {
 #define RUN_EXAMPLE(X) X<float>(RESPONSE());
 
+#if TODO_REIMPLEMENT_RIGID_CLUSTERING
 	template<class RESPONSE>
 	void ExecuteExamples()
 	{
@@ -117,4 +118,5 @@ namespace GeometryCollectionExample
 		
 	}
 	template void ExecuteExamples<ExampleResponse>();
+#endif
 }

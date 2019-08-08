@@ -49,6 +49,7 @@
 #include "Settings/GameMapsSettingsCustomization.h"
 #include "Settings/LevelEditorPlaySettingsCustomization.h"
 #include "Settings/ProjectPackagingSettingsCustomization.h"
+#include "Settings/LevelEditorPlayNetworkEmulationSettings.h"
 #include "StatsViewerModule.h"
 #include "SnappingUtils.h"
 #include "PackageAutoSaver.h"
@@ -152,6 +153,9 @@ void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 		PropertyModule.RegisterCustomClassLayout("GameMapsSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FGameMapsSettingsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout("LevelEditorPlaySettings", FOnGetDetailCustomizationInstance::CreateStatic(&FLevelEditorPlaySettingsCustomization::MakeInstance));
 		PropertyModule.RegisterCustomClassLayout("ProjectPackagingSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FProjectPackagingSettingsCustomization::MakeInstance));
+
+		PropertyModule.RegisterCustomPropertyTypeLayout("LevelEditorPlayNetworkEmulationSettings", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FLevelEditorPlayNetworkEmulationSettingsDetail::MakeInstance));
+		
 	}
 
 	if (!IsRunningCommandlet())

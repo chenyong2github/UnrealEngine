@@ -9,6 +9,7 @@
 #include "AudioMixerPlatformXAudio2.h"
 #include "AudioMixer.h"
 #include "AudioMixerDevice.h"
+#include "AudioPluginUtilities.h"
 #include "HAL/PlatformAffinity.h"
 
 #ifndef WITH_XMA2
@@ -985,6 +986,7 @@ namespace Audio
 
 	FAudioPlatformSettings FMixerPlatformXAudio2::GetPlatformSettings() const
 	{
+		const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
 		return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
 	}
 

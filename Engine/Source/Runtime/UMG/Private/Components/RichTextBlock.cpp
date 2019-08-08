@@ -302,7 +302,7 @@ void URichTextBlock::SetDefaultStrikeBrush(FSlateBrush& InStrikeBrush)
 
 void URichTextBlock::SetJustification(ETextJustify::Type InJustification)
 {
-	Justification = InJustification;
+	Super::SetJustification(InJustification);
 	if (MyRichTextBlock.IsValid())
 	{
 		MyRichTextBlock->SetJustification(InJustification);

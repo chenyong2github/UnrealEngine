@@ -12,10 +12,16 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IModuleInterface
 //////////////////////////////////////////////////////////////////////////////////////////////
+
+#define NDISPLAY_SHADERS_MAP TEXT("/Plugin/nDisplay")
+
 void FPicpMPCDIModule::StartupModule()
 {
-	//FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("nDisplay"))->GetBaseDir(), TEXT("Shaders"));
-	//AddShaderSourceDirectoryMapping(TEXT("/Plugin/nDisplay"), PluginShaderDir);
+	if (!AllShaderSourceDirectoryMappings().Contains(NDISPLAY_SHADERS_MAP))
+	{
+		FString PluginShaderDir = FPaths::Combine(IPluginManager::Get().FindPlugin(TEXT("nDisplay"))->GetBaseDir(), TEXT("Shaders"));
+		AddShaderSourceDirectoryMapping(NDISPLAY_SHADERS_MAP, PluginShaderDir);
+	}
 }
 
 void FPicpMPCDIModule::ShutdownModule()
@@ -41,6 +47,11 @@ void FPicpMPCDIModule::ApplyBlur(UTextureRenderTarget2D* InOutRenderTarget, UTex
 void FPicpMPCDIModule::ApplyCompose(UTexture* InputTexture, UTextureRenderTarget2D* OutputRenderTarget, UTextureRenderTarget2D* Result)
 {
 	FPicpBlurPostProcess::ApplyCompose(InputTexture, OutputRenderTarget, Result);
+}
+
+void FPicpMPCDIModule::ExecuteCompose()
+{
+	FPicpBlurPostProcess::ExecuteCompose();
 }
 
 IMPLEMENT_MODULE(FPicpMPCDIModule, PicpMPCDI);

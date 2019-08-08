@@ -277,7 +277,7 @@ struct FFBXUVs
 bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh* StaticMesh, TArray<FFbxMaterial>& MeshMaterials, int32 LODIndex,
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
-	check(StaticMesh->SourceModels.IsValidIndex(LODIndex));
+	check(StaticMesh->IsSourceModelValid(LODIndex));
 	FbxMesh* Mesh = Node->GetMesh();
 	FString FbxNodeName = UTF8_TO_TCHAR(Node->GetName());
 	
@@ -510,16 +510,16 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	bool bEnableCollision = bImportedCollision || (GBuildStaticMeshCollision && LODIndex == 0 && ImportOptions->bRemoveDegenerates);
 	for(int32 SectionIndex=MaterialIndexOffset; SectionIndex<MaterialIndexOffset+MaterialCount; SectionIndex++)
 	{
-		FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex);
+		FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
 		
 		Info.bEnableCollision = bEnableCollision;
 		//Make sure LOD greater then 0 copy the LOD 0 sections collision flags
 		if (LODIndex != 0)
 		{
 			//Match the material slot index
-			for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->SectionInfoMap.GetSectionNumber(0); ++LodZeroSectionIndex)
+			for (int32 LodZeroSectionIndex = 0; LodZeroSectionIndex < StaticMesh->GetSectionInfoMap().GetSectionNumber(0); ++LodZeroSectionIndex)
 			{
-				FMeshSectionInfo InfoLodZero = StaticMesh->SectionInfoMap.Get(0, LodZeroSectionIndex);
+				FMeshSectionInfo InfoLodZero = StaticMesh->GetSectionInfoMap().Get(0, LodZeroSectionIndex);
 				if (InfoLodZero.MaterialIndex == Info.MaterialIndex)
 				{
 					Info.bEnableCollision = InfoLodZero.bEnableCollision;
@@ -528,7 +528,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 				}
 			}
 		}
-		StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+		StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 	}
 
 	//
@@ -1001,9 +1001,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 						{
 							//For LOD we don't pass the ExistMeshDataPtr
 							ImportStaticMeshAsSingle(Mesh->GetOutermost(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, FirstBaseMesh, LODIndex, nullptr);
-							if (FirstBaseMesh->SourceModels.IsValidIndex(LODIndex))
+							if (FirstBaseMesh->IsSourceModelValid(LODIndex))
 							{
-								FirstBaseMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+								FirstBaseMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 							}
 						}
 					}
@@ -1050,24 +1050,27 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 void UnFbx::FFbxImporter::AddStaticMeshSourceModelGeneratedLOD(UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	//Add a Lod generated model
-	while (StaticMesh->SourceModels.Num() <= LODIndex)
+	while (StaticMesh->GetNumSourceModels() <= LODIndex)
 	{
 		StaticMesh->AddSourceModel();
 	}
+
+	FStaticMeshSourceModel& ThisSourceModel = StaticMesh->GetSourceModel(LODIndex);
 	if (LODIndex - 1 > 0 && StaticMesh->IsReductionActive(LODIndex - 1))
 	{
-		if (StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles < 1.0f)
+		const FStaticMeshSourceModel& PrevSourceModel = StaticMesh->GetSourceModel(LODIndex - 1);
+		if (PrevSourceModel.ReductionSettings.PercentTriangles < 1.0f)
 		{
-			StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles * 0.5f;
+			ThisSourceModel.ReductionSettings.PercentTriangles = PrevSourceModel.ReductionSettings.PercentTriangles * 0.5f;
 		}
-		else if (StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation > 0.0f)
+		else if (PrevSourceModel.ReductionSettings.MaxDeviation > 0.0f)
 		{
-			StaticMesh->SourceModels[LODIndex].ReductionSettings.MaxDeviation = StaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation + 1.0f;
+			ThisSourceModel.ReductionSettings.MaxDeviation = PrevSourceModel.ReductionSettings.MaxDeviation + 1.0f;
 		}
 	}
 	else
 	{
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
+		ThisSourceModel.ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
 	}
 }
 
@@ -1245,9 +1248,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 			{
 				ImportStaticMeshAsSingle(Mesh->GetOuter(), LODMeshesArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, NewMesh, LODIndex, nullptr);
 				ReimportLodList.Add(LODIndex);
-				if (NewMesh && NewMesh->SourceModels.IsValidIndex(LODIndex))
+				if (NewMesh && NewMesh->IsSourceModelValid(LODIndex))
 				{
-					NewMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+					NewMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 				}
 			}
 		}
@@ -1292,9 +1295,9 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 							//For LOD we don't pass the ExistMeshDataPtr
 							ImportStaticMeshAsSingle(Mesh->GetOuter(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, NewMesh, LODIndex, nullptr);
 							ReimportLodList.Add(LODIndex);
-							if (NewMesh->SourceModels.IsValidIndex(LODIndex))
+							if (NewMesh->IsSourceModelValid(LODIndex))
 							{
-								NewMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+								NewMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 							}
 						}
 					}
@@ -1475,16 +1478,18 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		StaticMesh = NewObject<UStaticMesh>(Package, FName(*MeshName), Flags | RF_Public);
 	}
 
-	if (StaticMesh->SourceModels.Num() < LODIndex+1)
+	if (StaticMesh->GetNumSourceModels() < LODIndex+1)
 	{
 		// Add one LOD 
 		StaticMesh->AddSourceModel();
 		
-		if (StaticMesh->SourceModels.Num() < LODIndex+1)
+		if (StaticMesh->GetNumSourceModels() < LODIndex+1)
 		{
-			LODIndex = StaticMesh->SourceModels.Num() - 1;
+			LODIndex = StaticMesh->GetNumSourceModels() - 1;
 		}
 	}
+
+	FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 
 	FMeshDescription* MeshDescription = StaticMesh->GetMeshDescription(LODIndex);
 	if (MeshDescription == nullptr)
@@ -1494,9 +1499,9 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		StaticMesh->CommitMeshDescription(LODIndex);
 		//Make sure an imported mesh do not get reduce if there was no mesh data before reimport.
 		//In this case we have a generated LOD convert to a custom LOD
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.MaxDeviation = 0.0f;
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = 1.0f;
-		StaticMesh->SourceModels[LODIndex].ReductionSettings.PercentVertices = 1.0f;
+		SrcModel.ReductionSettings.MaxDeviation = 0.0f;
+		SrcModel.ReductionSettings.PercentTriangles = 1.0f;
+		SrcModel.ReductionSettings.PercentVertices = 1.0f;
 	}
 	else if (InStaticMesh != NULL && LODIndex > 0)
 	{
@@ -1504,8 +1509,6 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		MeshDescription->Empty();
 	}
 
-	FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
-	
 	// make sure it has a new lighting guid
 	StaticMesh->LightingGuid = FGuid::NewGuid();
 
@@ -1636,10 +1639,10 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 						MaterialIndex = PolygonGroupID.GetValue();
 					}
 				}
-				FMeshSectionInfo Info = StaticMesh->SectionInfoMap.Get(LODIndex, SectionIndex);
+				FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(LODIndex, SectionIndex);
 				Info.MaterialIndex = MaterialIndex;
-				StaticMesh->SectionInfoMap.Remove(LODIndex, SectionIndex);
-				StaticMesh->SectionInfoMap.Set(LODIndex, SectionIndex, Info);
+				StaticMesh->GetSectionInfoMap().Remove(LODIndex, SectionIndex);
+				StaticMesh->GetSectionInfoMap().Set(LODIndex, SectionIndex, Info);
 				SectionIndex++;
 			}
 		}
@@ -1653,13 +1656,13 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 			check(CurrentPlatform);
 			const FStaticMeshLODGroup& LODGroup = CurrentPlatform->GetStaticMeshLODSettings().GetLODGroup(ImportOptions->StaticMeshLODGroup);
 			int32 NumLODs = LODGroup.GetDefaultNumLODs();
-			while (StaticMesh->SourceModels.Num() < NumLODs)
+			while (StaticMesh->GetNumSourceModels() < NumLODs)
 			{
 				StaticMesh->AddSourceModel();
 			}
 			for (int32 ModelLODIndex = 0; ModelLODIndex < NumLODs; ++ModelLODIndex)
 			{
-				StaticMesh->SourceModels[ModelLODIndex].ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
+				StaticMesh->GetSourceModel(ModelLODIndex).ReductionSettings = LODGroup.GetDefaultSettings(ModelLODIndex);
 			}
 			StaticMesh->LightMapResolution = LODGroup.GetDefaultLightMapResolution();
 		}
@@ -1850,7 +1853,7 @@ void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshN
 	if (bAllowFbxReorder)
 	{
 		//So we make sure the order reflect the material ID in the DCCs
-		FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->SectionInfoMap;
+		FMeshSectionInfoMap OldSectionInfoMap = StaticMesh->GetSectionInfoMap();
 		TArray<int32> FbxRemapMaterials;
 		TArray<FStaticMaterial> NewStaticMaterials;
 		for (int32 FbxMaterialIndex = 0; FbxMaterialIndex < MeshMaterials.Num(); ++FbxMaterialIndex)
@@ -1911,8 +1914,8 @@ void ReorderMaterialAfterImport(UStaticMesh* StaticMesh, TArray<FbxNode*>& MeshN
 				if (StaticMesh->StaticMaterials.IsValidIndex(RemapIndex))
 				{
 					Info.MaterialIndex = RemapIndex;
-					StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
-					StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
 				}
 			}
 		}
@@ -2022,18 +2025,18 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 	{
 		StaticMesh->bAutoComputeLODScreenSize = false;
 
-		for (int32 LodIndex = 0; LodIndex < StaticMesh->SourceModels.Num(); ++LodIndex)
+		for (int32 LodIndex = 0; LodIndex < StaticMesh->GetNumSourceModels(); ++LodIndex)
 		{
-			FStaticMeshSourceModel &StaticMeshSourceModel = StaticMesh->SourceModels[LodIndex];
+			FStaticMeshSourceModel& StaticMeshSourceModel = StaticMesh->GetSourceModel(LodIndex);
 			StaticMeshSourceModel.ScreenSize = ImportOptions->LodDistances.IsValidIndex(LodIndex) ? ImportOptions->LodDistances[LodIndex] : 0.0f;
 		}
 	}
 
 	// this is damage control. After build, we'd like to absolutely sure that 
 	// all index is pointing correctly and they're all used. Otherwise we remove them
-	FMeshSectionInfoMap TempOldSectionInfoMap = StaticMesh->SectionInfoMap;
-	StaticMesh->SectionInfoMap.Clear();
-	StaticMesh->OriginalSectionInfoMap.Clear();
+	FMeshSectionInfoMap TempOldSectionInfoMap = StaticMesh->GetSectionInfoMap();
+	StaticMesh->GetSectionInfoMap().Clear();
+	StaticMesh->GetOriginalSectionInfoMap().Clear();
 	if (StaticMesh->RenderData)
 	{
 		// fix up section data
@@ -2046,8 +2049,8 @@ void UnFbx::FFbxImporter::PostImportStaticMesh(UStaticMesh* StaticMesh, TArray<F
 				FMeshSectionInfo Info = TempOldSectionInfoMap.Get(LODResoureceIndex, SectionIndex);
 				if (StaticMesh->StaticMaterials.IsValidIndex(Info.MaterialIndex))
 				{
-					StaticMesh->SectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
-					StaticMesh->OriginalSectionInfoMap.Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
+					StaticMesh->GetOriginalSectionInfoMap().Set(LODResoureceIndex, SectionIndex, Info);
 				}
 			}
 		}
@@ -2103,10 +2106,10 @@ void UnFbx::FFbxImporter::UpdateStaticMeshImportData(UStaticMesh *StaticMesh, UF
 			for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
 				int32 MaterialLodSectionIndex = LOD.Sections[SectionIndex].MaterialIndex;
-				if (StaticMesh->SectionInfoMap.GetSectionNumber(LODResoureceIndex) > SectionIndex)
+				if (StaticMesh->GetSectionInfoMap().GetSectionNumber(LODResoureceIndex) > SectionIndex)
 				{
 					//In case we have a different ordering then the original fbx order use the sectioninfomap
-					const FMeshSectionInfo &SectionInfo = StaticMesh->SectionInfoMap.Get(LODResoureceIndex, SectionIndex);
+					const FMeshSectionInfo &SectionInfo = StaticMesh->GetSectionInfoMap().Get(LODResoureceIndex, SectionIndex);
 					MaterialLodSectionIndex = SectionInfo.MaterialIndex;
 				}
 				if (ImportData->ImportMaterialOriginalNameData.IsValidIndex(MaterialLodSectionIndex))

@@ -54,7 +54,7 @@ enum class ENiagaraRibbonTessellationMode : uint8
 	Disabled
 };
 
-UCLASS(editinlinenew)
+UCLASS(editinlinenew, meta = (DisplayName = "Ribbon Renderer"))
 class UNiagaraRibbonRendererProperties : public UNiagaraRendererProperties
 {
 public:

@@ -36,6 +36,7 @@ void DecalCommonOutput(inout FPixelShaderIn In, inout FPixelShaderOut Out, float
 	Out.MRT[0] = float4(Color, Opacity);
 
 #if USE_PREEXPOSURE
+	// Blend mode normal should not mult with exposure because Out.MRT[0] is world space normal in that case.
 	#if DECAL_BLEND_MODE != DECALBLENDMODEID_NORMAL
 		Out.MRT[0].xyz *= View.PreExposure;
 	#endif

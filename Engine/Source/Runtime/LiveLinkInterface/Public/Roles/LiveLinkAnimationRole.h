@@ -43,7 +43,8 @@ public:
 		FLiveLinkAnimationFrameInterpolateProcessorWorker(bool bInterpolatePropertyValues);
 
 		virtual TSubclassOf<ULiveLinkRole> GetRole() const override;
-		virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame, int32& OutLastFrameIndexUsed) override;
+		virtual void Interpolate(double InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) override;
+		virtual void Interpolate(const FQualifiedFrameTime& InTime, const FLiveLinkStaticDataStruct& InStaticData, const TArray<FLiveLinkFrameDataStruct>& InSourceFrames, FLiveLinkSubjectFrameData& OutBlendedFrame) override;
 	};
 
 public:

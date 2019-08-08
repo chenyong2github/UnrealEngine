@@ -136,7 +136,7 @@ FText UNiagaraStackRendererItem::GetDisplayName() const
 {
 	if (RendererProperties != nullptr)
 	{
-		return FText::FromString(RendererProperties->GetClass()->GetName());
+		return RendererProperties->GetClass()->GetDisplayNameText();
 	}
 	else
 	{
@@ -158,7 +158,8 @@ void UNiagaraStackRendererItem::Delete()
 	Emitter->RemoveRenderer(RendererProperties.Get());
 
 	OnDataObjectModified().Broadcast(RendererProperties.Get());
-	ModifiedGroupItemsDelegate.ExecuteIfBound();
+	Finalize();
+	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackRendererItem::HasBaseRenderer() const
@@ -198,7 +199,7 @@ void UNiagaraStackRendererItem::ResetToBase()
 		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
 		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetEmitter()->GetParent();
 		MergeManager->ResetRendererToBase(*GetEmitterViewModel()->GetEmitter(), *BaseEmitter, RendererProperties->GetMergeId());
-		ModifiedGroupItemsDelegate.ExecuteIfBound();
+		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }
 

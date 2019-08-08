@@ -241,6 +241,14 @@ namespace Chaos
 			return MakePair(TVector<T, 3>(0), false);
 		}
 
+		virtual uint32 GetTypeHash() const override
+		{
+			const uint32 PlaneHashes = HashCombine(MPlane1.GetTypeHash(), MPlane2.GetTypeHash());
+			const uint32 PropertyHash = HashCombine(::GetTypeHash(MHeight), ::GetTypeHash(MRadius));
+
+			return HashCombine(PlaneHashes, PropertyHash);
+		}
+
 	private:
 		TPlane<T, 3> MPlane1, MPlane2;
 		T MHeight, MRadius;

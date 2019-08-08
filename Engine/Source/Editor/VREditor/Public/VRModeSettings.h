@@ -80,12 +80,12 @@ public:
 	UPROPERTY(EditAnywhere, config, Category = "Motion Controllers", meta = (DisplayName = "Trigger Pressed Threshold (Oculus Touch)", ClampMin = 0.01, ClampMax = 1.0))
 	float TriggerPressedThreshold_Rift;
 
-	/** The class we'll create our interactors from */
-	UPROPERTY(EditAnywhere, config, Category = "Motion Controllers")
+	/** The controller to use when UnrealEd is in VR mode. Use VREditorInteractor get default editor behavior, or select a custom controller for special behavior */
+	UPROPERTY(EditAnywhere, config, NoClear, Category = "Motion Controllers")
 	TSoftClassPtr<UVREditorInteractor> InteractorClass;
 
-	/** The class we'll create our interactors from */
-	UPROPERTY( EditAnywhere, config, Category = "Motion Controllers" )
+	/** The teleporter to use when UnrealEd is in VR mode. Use VREditorTeleporter to get default editor behavior, or select a custom teleporter */
+	UPROPERTY( EditAnywhere, config, NoClear, Category = "Motion Controllers" )
 	TSubclassOf<AVREditorTeleporter> TeleporterClass;
 
 private:

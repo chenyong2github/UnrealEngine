@@ -100,6 +100,9 @@ namespace EHostType
 		// Loads on all targets except dedicated servers.
 		ClientOnly,
 
+		// Loads in editor and client but not in commandlets.
+		ClientOnlyNoCommandlet,
+		
 		//~ NOTE: If you add a new value, make sure to update the ToString() method below!
 		Max
 	};

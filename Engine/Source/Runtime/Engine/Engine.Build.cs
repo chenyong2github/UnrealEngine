@@ -85,8 +85,6 @@ public class Engine : ModuleRules
 				"PakFile",
                 "NetworkReplayStreaming",
 				"PhysicsCore",
-				"PhysicsSQ",
-				"ChaosSolvers"
 			}
 		);
 
@@ -376,15 +374,25 @@ public class Engine : ModuleRules
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
 		}
 
-			// Engine public headers need to know about some types (enums etc.)
-			PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
-			PublicDependencyModuleNames.Add("ClothingSystemRuntimeInterface");
+		if (Target.bCompileChaos || Target.bUseChaos)
+        {
+            PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"PhysicsSQ",
+					"ChaosSolvers"
+				}
+			);
+        }
 
-			if (Target.bBuildEditor)
-			{
-				PrivateDependencyModuleNames.Add("ClothingSystemEditorInterface");
-				PrivateIncludePathModuleNames.Add("ClothingSystemEditorInterface");
-			}
+        // Engine public headers need to know about some types (enums etc.)
+        PublicIncludePathModuleNames.Add("ClothingSystemRuntimeInterface");
+		PublicDependencyModuleNames.Add("ClothingSystemRuntimeInterface");
+
+		if (Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.Add("ClothingSystemEditorInterface");
+			PrivateIncludePathModuleNames.Add("ClothingSystemEditorInterface");
+		}
 
 		if ((Target.Platform == UnrealTargetPlatform.Win64) ||
 			(Target.Platform == UnrealTargetPlatform.Win32))

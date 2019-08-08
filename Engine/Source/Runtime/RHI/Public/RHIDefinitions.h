@@ -1167,7 +1167,7 @@ inline bool RHISupportsComputeShaders(const EShaderPlatform Platform)
 
 inline bool RHISupportsGeometryShaders(const EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && !IsMetalPlatform(Platform) && !IsVulkanMobilePlatform(Platform);
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && !IsMetalPlatform(Platform) && !IsVulkanMobilePlatform(Platform) && Platform != SP_VULKAN_SM5_LUMIN;
 }
 
 inline bool RHIHasTiledGPU(const EShaderPlatform Platform)

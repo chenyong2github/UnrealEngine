@@ -352,7 +352,7 @@ static FRCPassPostProcessTonemap* AddTonemapper(
 	const bool bIsComputePass = ShouldDoComputePostProcessing(View);
 
 	FRenderingCompositeOutputRef TonemapperCombinedLUTOutputRef;
-	if (StereoPass != eSSP_RIGHT_EYE)
+	if (IStereoRendering::IsAPrimaryView(StereoPass, GEngine->StereoRenderingDevice))
 	{
 		bool bNeedFloatOutput = View.Family->SceneCaptureSource == SCS_FinalColorHDR;
 		bool bAllocateOutput = View.State == nullptr;
@@ -1347,7 +1347,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					bHistogramNeeded = true;
 				}
 
-				if (!GIsHighResScreenshot && bHistogramNeeded && FeatureLevel >= ERHIFeatureLevel::SM5 && IStereoRendering::IsAPrimaryView(View.StereoPass))
+				if (!GIsHighResScreenshot && bHistogramNeeded && FeatureLevel >= ERHIFeatureLevel::SM5 && IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice))
 				{
 					FRenderingCompositePass* NodeHistogram = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessHistogram());
 
@@ -1371,7 +1371,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				if (Context.View.FinalPostProcessSettings.BloomThreshold <= -1 && Context.View.Family->Views.Num() == 1)
 				{
 					if (!GIsHighResScreenshot && View.State &&
-						IStereoRendering::IsAPrimaryView(View.StereoPass) &&
+						IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice) &&
 						AutoExposure.MethodId == EAutoExposureMethod::AEM_Basic)
 					{
 						BloomAndEyeDownSamplesPtr = CreateDownSampleArray(Context, SceneColorHalfRes, true /*bGenerateLog2Alpha*/);
@@ -1380,7 +1380,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			}
 
 			// some views don't have a state (thumbnail rendering)
-			if(!GIsHighResScreenshot && View.State && IStereoRendering::IsAPrimaryView(View.StereoPass))
+			if(!GIsHighResScreenshot && View.State && IStereoRendering::IsAPrimaryView(View.StereoPass, GEngine->StereoRenderingDevice))
 			{
 				const bool bUseBasicEyeAdaptation = (AutoExposure.MethodId == EAutoExposureMethod::AEM_Basic);
 

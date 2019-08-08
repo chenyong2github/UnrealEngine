@@ -529,6 +529,13 @@ void UEditorEngine::EndPlayMap()
 		GEngine->PendingDroppedNotes.Empty();
 	}
 
+	//ensure stereo rendering is disabled in case we need to re-enable next PIE run.
+	if (GEngine->StereoRenderingDevice)
+	{
+		GEngine->StereoRenderingDevice->EnableStereo(false);
+	}
+
+
 	// Restores realtime viewports that have been disabled for PIE.
 	RestoreRealtimeViewports();
 
@@ -1419,6 +1426,15 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 	if (bIsServer && PlayInSettings->GetServerPort(ServerPort))
 	{
 		AdditionalParameters += FString::Printf(TEXT(" -port=%hu"), ServerPort);
+	}
+
+	if (PlayInSettings->IsNetworkEmulationEnabled())
+	{
+		NetworkEmulationTarget CurrentTarget = bIsServer ? NetworkEmulationTarget::Server : NetworkEmulationTarget::Client;
+		if (PlayInSettings->NetworkEmulationSettings.IsEmulationEnabledForTarget(CurrentTarget))
+		{
+			AdditionalParameters += PlayInSettings->NetworkEmulationSettings.BuildPacketSettingsForCmdLine();
+		}
 	}
 
 	// Decide if fullscreen or windowed based on what is specified in the params

@@ -45,6 +45,7 @@ struct FClearQuadCallbacks
 };
 
 extern UTILITYSHADERS_API void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& StructuredBuffer, uint32 Value);
+extern UTILITYSHADERS_API void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer& Buffer, FLinearColor Value);
 extern UTILITYSHADERS_API void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value, bool bBarriers = true);
 extern UTILITYSHADERS_API void ClearUAV(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* Buffer, uint32 NumBytes, uint32 Value);
 

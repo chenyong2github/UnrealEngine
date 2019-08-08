@@ -3,7 +3,7 @@
 #include "GeometryCollection/GeometryCollectionCollisionStructureManager.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "ChaosSolversModule.h"
 #include "Chaos/DebugDrawQueue.h"
 #include "Chaos/ErrorReporter.h"
@@ -17,7 +17,7 @@
 #include "PhysicalMaterials/Experimental/ChaosPhysicalMaterial.h"
 #include "PhysicsEngine/PhysicsAsset.h"
 #include "Rendering/SkeletalMeshRenderData.h"
-#include "SolverObjects/SkeletalMeshPhysicsObject.h"
+#include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
 
 #include "PhysXIncludes.h"
 
@@ -30,7 +30,7 @@
 
 #if INCLUDE_CHAOS
 
-void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsObjectParams& Params)
+void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const UPhysicsAsset* PhysicsAsset, FSkeletalMeshPhysicsProxyParams& Params)
 {
 #if WITH_PHYSX
 	Params.LocalToWorld = Params.InitialTransform = OwningActor->GetTransform();
@@ -317,7 +317,9 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 					const float LocalMaxExtent = Bounds.GetExtent().GetMax();
 					Bounds.ExpandBy(Extents.Size() / 10);
 
-					Chaos::TParticles<float, 3> Particles(Points);
+					//TODO: this gets used later which is incorrect. However, it was already broken because it passed a view and then moved the underlying data.
+					//Keeping as is for now, needs fixing
+					Chaos::TParticles<float, 3> Particles(MoveTemp(Points));
 					TUniquePtr<Chaos::TTriangleMesh<float>> TriangleMesh(
 						new Chaos::TTriangleMesh<float>(MoveTemp(Triangles)));
 					Chaos::FErrorReporter ErrorReporter;
@@ -455,7 +457,7 @@ void FPhysicsAssetSimulationUtil::BuildParams(const UObject* Caller, const AActo
 #endif
 }
 
-bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsObjectParams& Params)
+bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const AActor* OwningActor, const USkeletalMeshComponent* SkelMeshComponent, const float Dt, FSkeletalMeshPhysicsProxyParams& Params)
 {
 	int32 UpdatedBones = 0;
 
@@ -481,10 +483,13 @@ bool FPhysicsAssetSimulationUtil::UpdateAnimState(const UObject* Caller, const A
 	Params.BoneHierarchy.SetActorWorldSpaceTransform(OwningActor->GetTransform());
 
 	// Update bone transforms from animation.
+	// @todo(ccaulfield): BoneSpaceTransforms is now copied - can we avoid that?
+	// The ocnst cast is unfortunate - maybe the task waiting in the component should use mutable...
+	TArray<FTransform> BoneSpaceTransforms = const_cast<USkeletalMeshComponent*>(SkelMeshComponent)->GetBoneSpaceTransforms();
 	const TArray<int32>& BoneIndices = Params.BoneHierarchy.GetBoneIndices();
 	for (const int32 BoneIndex : BoneIndices)
 	{
-		if (SkelMeshComponent->BoneSpaceTransforms.IsValidIndex(BoneIndex))
+		if (BoneSpaceTransforms.IsValidIndex(BoneIndex))
 		{
 			const int32 SocketIndex = Params.BoneHierarchy.GetSocketIndexForBone(BoneIndex);
 			if (SocketIndex != INDEX_NONE)

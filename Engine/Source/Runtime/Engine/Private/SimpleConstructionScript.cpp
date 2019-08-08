@@ -302,6 +302,11 @@ void USimpleConstructionScript::FixupSceneNodeHierarchy()
 		{
 			SceneRootNode = DefaultSceneRootNode;
 			SceneRootComponentTemplate = CastChecked<USceneComponent>(DefaultSceneRootNode->ComponentTemplate);
+			if (!RootNodes.Contains(SceneRootNode))
+			{
+				RootNodes.Add(SceneRootNode);
+				AllNodes.Add(SceneRootNode);
+			}
 		}
 		// if there is no scene root (then there shouldn't be anything but the 
 		// default placeholder root).
@@ -414,27 +419,46 @@ void USimpleConstructionScript::FixupSceneNodeHierarchy()
 			}
 			else
 			{
-				UClass* ComponentClass = Node->ComponentClass ? Node->ComponentClass :
-					Node->ComponentTemplate ? Node->ComponentTemplate->GetClass() : nullptr;
-				// we don't care about non-scene nodes
-				if (ComponentClass && ComponentClass->IsChildOf<USceneComponent>())
+				auto VisitChildren = [this, Node]()
 				{
-					// scoped for the following TGuardValue
+					// recursively visit children so we can construct the hierarchy - iterate backwards so we can remove as we go
+					for (int32 ChildIndex = Node->ChildNodes.Num() - 1; ChildIndex >= 0; --ChildIndex)
 					{
-						TGuardValue<USCS_Node*> ParentStack(PendingParent, Node);
-						// recursively visit children so we can construct the hierarchy - iterate backwards so we can remove as we go
-						for (int32 ChildIndex = Node->ChildNodes.Num() - 1; ChildIndex >= 0; --ChildIndex)
+						if (!VisitNode(Node->ChildNodes[ChildIndex]))
 						{
-							if (!VisitNode(Node->ChildNodes[ChildIndex]))
-							{
-								Node->ChildNodes.RemoveAt(ChildIndex);
-							}
+							Node->ChildNodes.RemoveAt(ChildIndex);
 						}
 					}
+				};
 
-					// happens after recursing into children, so we don't add to 
-					// the orphaned list till after children are querying it
-					FixupParentage(Node);
+				if (UClass* ComponentClass = (Node->ComponentClass ? Node->ComponentClass : (Node->ComponentTemplate ? Node->ComponentTemplate->GetClass() : nullptr)))
+				{
+					if (ComponentClass->IsChildOf<USceneComponent>())
+					{
+						// scoped for the following TGuardValue
+						{
+							TGuardValue<USCS_Node*> ParentStack(PendingParent, Node);
+							VisitChildren();
+						}
+
+						// happens after recursing into children, so we don't add to 
+						// the orphaned list till after children are querying it
+						FixupParentage(Node);
+					}
+					else
+					{
+						RootNodeList.AddUnique(Node);
+						if (Node->ChildNodes.Num() > 0)
+						{
+							// If this isn't a scene component but it has children, that's not good, so shift them to the pending parent or make them orphan nodes
+							VisitChildren();
+
+							Node->ChildNodes.Reset();
+						}
+
+						// A non-scene component should never be in the child list of someone else, so return false so the parent removes it from its list
+						return false;
+					}
 				}
 			}
 			return true;
@@ -609,9 +633,8 @@ void USimpleConstructionScript::ExecuteScriptOnActor(AActor* Actor, const TInlin
 		// Get the given actor's root component (can be NULL).
 		USceneComponent* RootComponent = Actor->GetRootComponent();
 
-		for(auto NodeIt = RootNodes.CreateIterator(); NodeIt; ++NodeIt)
+		for (USCS_Node* RootNode : RootNodes)
 		{
-			USCS_Node* RootNode = *NodeIt;
 			if(RootNode != nullptr)
 			{
 				// If the root node specifies that it has a parent
@@ -696,12 +719,12 @@ void USimpleConstructionScript::RemoveNameToSCSNodeMap()
 #if WITH_EDITOR
 UBlueprint* USimpleConstructionScript::GetBlueprint() const
 {
-	if(auto OwnerClass = GetOwnerClass())
+	if (UClass* OwnerClass = GetOwnerClass())
 	{
 		return Cast<UBlueprint>(OwnerClass->ClassGeneratedBy);
 	}
 // >>> Backwards Compatibility:  VER_UE4_EDITORONLY_BLUEPRINTS
-	if(auto BP = Cast<UBlueprint>(GetOuter()))
+	if (UBlueprint* BP = Cast<UBlueprint>(GetOuter()))
 	{
 		return BP;
 	}
@@ -712,19 +735,35 @@ UBlueprint* USimpleConstructionScript::GetBlueprint() const
 
 UClass* USimpleConstructionScript::GetOwnerClass() const
 {
-	if(auto OwnerClass = Cast<UClass>(GetOuter()))
+	if (UClass* OwnerClass = Cast<UClass>(GetOuter()))
 	{
 		return OwnerClass;
 	}
 // >>> Backwards Compatibility:  VER_UE4_EDITORONLY_BLUEPRINTS
 #if WITH_EDITOR
-	if(auto BP = Cast<UBlueprint>(GetOuter()))
+	if (UBlueprint* BP = Cast<UBlueprint>(GetOuter()))
 	{
 		return BP->GeneratedClass;
 	}
 #endif
 // <<< End Backwards Compatibility
-	return NULL;
+	return nullptr;
+}
+
+UClass* USimpleConstructionScript::GetParentClass() const
+{
+#if WITH_EDITOR
+	if (UBlueprint* Blueprint = GetBlueprint())
+	{
+		return Blueprint->ParentClass;
+	}
+#endif
+	if (UClass* OwnerClass = GetOwnerClass())
+	{
+		return OwnerClass->GetSuperClass();
+	}
+
+	return nullptr;
 }
 
 #if WITH_EDITOR
@@ -942,9 +981,8 @@ USCS_Node* USimpleConstructionScript::FindSCSNodeByGuid(const FGuid Guid) const
 #if WITH_EDITOR
 USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_Node** OutSCSNode) const
 {
-	UBlueprint* Blueprint = GetBlueprint();
-
 	UClass* GeneratedClass = GetOwnerClass();
+	UClass* ParentClass = GetParentClass();
 
 	if(OutSCSNode)
 	{
@@ -959,9 +997,9 @@ USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_N
 	}
 
 	// If the generated class does not yet have a CDO, defer to the parent class
-	if(CDO == nullptr && Blueprint->ParentClass != nullptr)
+	if(CDO == nullptr && ParentClass != nullptr)
 	{
-		CDO = Cast<AActor>(Blueprint->ParentClass->GetDefaultObject(false));
+		CDO = Cast<AActor>(ParentClass->GetDefaultObject(false));
 	}
 
 	// Check to see if we already have a native root component template
@@ -988,13 +1026,13 @@ USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_N
 	{
 		// Get the Blueprint hierarchy
 		TArray<UBlueprint*> BPStack;
-		if(Blueprint->GeneratedClass != nullptr)
+		if(GeneratedClass != nullptr)
 		{
-			UBlueprint::GetBlueprintHierarchyFromClass(Blueprint->GeneratedClass, BPStack);
+			UBlueprint::GetBlueprintHierarchyFromClass(GeneratedClass, BPStack);
 		}
-		else if(Blueprint->ParentClass != nullptr)
+		else if(ParentClass != nullptr)
 		{
-			UBlueprint::GetBlueprintHierarchyFromClass(Blueprint->ParentClass, BPStack);
+			UBlueprint::GetBlueprintHierarchyFromClass(ParentClass, BPStack);
 		}
 
 		// Note: Normally if the Blueprint has a parent, we can assume that the parent already has a scene root component set,
@@ -1013,21 +1051,31 @@ USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(USCS_N
 
 		for(int32 StackIndex = 0; StackIndex < SCSStack.Num() && !RootComponentTemplate; ++StackIndex)
 		{
-			// Check for any scene component nodes in the root set that are not the default scene root
 			const TArray<USCS_Node*>& SCSRootNodes = SCSStack[StackIndex]->GetRootNodes();
-			for(int32 RootNodeIndex = 0; RootNodeIndex < SCSRootNodes.Num() && RootComponentTemplate == nullptr; ++RootNodeIndex)
+
+			const bool bCanUseDefaultSceneRoot = DefaultSceneRootNode && DefaultSceneRootNode->ComponentTemplate && SCSRootNodes.Contains(DefaultSceneRootNode);
+			// Check for any scene component nodes in the root set that are not the default scene root
+			for (int32 RootNodeIndex = 0; RootNodeIndex < SCSRootNodes.Num() && RootComponentTemplate == nullptr; ++RootNodeIndex)
 			{
 				USCS_Node* RootNode = SCSRootNodes[RootNodeIndex];
-				if(RootNode != nullptr
+				if (RootNode != nullptr
 					&& RootNode != DefaultSceneRootNode
 					&& RootNode->ComponentTemplate != nullptr
 					&& RootNode->ComponentTemplate->IsA<USceneComponent>())
 				{
-					if(OutSCSNode)
+					// if we found a non-default scene root, but the default scene root is also present, then we assume that's the desired one and still return null
+					// this is to deal with the case where an actor component became scene root, but we don't want it to replace the default scene root if that was
+					// deliberately being used
+					if (bCanUseDefaultSceneRoot)
+					{
+						return nullptr;
+					}
+
+					if (OutSCSNode)
 					{
 						*OutSCSNode = RootNode;
 					}
-					
+
 					RootComponentTemplate = Cast<USceneComponent>(RootNode->ComponentTemplate);
 				}
 			}
@@ -1142,6 +1190,22 @@ void USimpleConstructionScript::ValidateSceneRootNodes()
 }
 
 #if WITH_EDITOR
+EDataValidationResult USimpleConstructionScript::IsDataValid(TArray<FText>& ValidationErrors)
+{
+	EDataValidationResult Result = Super::IsDataValid(ValidationErrors);
+	Result = (Result == EDataValidationResult::NotValidated) ? EDataValidationResult::Valid : Result;
+
+	for (USCS_Node* Node : RootNodes)
+	{
+		if (Node)
+		{
+			EDataValidationResult NodeResult = Node->IsDataValid(ValidationErrors);
+			Result = CombineDataValidationResults(Result, NodeResult);
+		}
+	}
+	return Result;
+}
+
 void USimpleConstructionScript::GenerateListOfExistingNames(TSet<FName>& CurrentNames) const
 {
 	TArray<const USCS_Node*> ChildrenNodes = GetAllNodesConst();
@@ -1268,7 +1332,7 @@ FName USimpleConstructionScript::GenerateNewComponentName(const UClass* Componen
 
 USCS_Node* USimpleConstructionScript::CreateNodeImpl(UActorComponent* NewComponentTemplate, FName ComponentVariableName)
 {
-	auto NewNode = NewObject<USCS_Node>(this, MakeUniqueObjectName(this, USCS_Node::StaticClass()));
+	USCS_Node* NewNode = NewObject<USCS_Node>(this, MakeUniqueObjectName(this, USCS_Node::StaticClass()));
 	NewNode->SetFlags(RF_Transactional);
 	NewNode->ComponentClass = NewComponentTemplate->GetClass();
 	NewNode->ComponentTemplate = NewComponentTemplate;
@@ -1344,7 +1408,10 @@ USCS_Node* USimpleConstructionScript::CreateNodeAndRenameComponent(UActorCompone
 void USimpleConstructionScript::ValidateNodeVariableNames(FCompilerResultsLog& MessageLog)
 {
 	UBlueprint* Blueprint = GetBlueprint();
-	check(Blueprint);
+	if (!ensureMsgf(Blueprint != nullptr, TEXT("Cannot validate SCS node variable names because the owning Blueprint could not be determined from the SCS context (perhaps it was deleted?).")))
+	{
+		return;
+	}
 
 	TSharedPtr<FKismetNameValidator> ParentBPNameValidator;
 	if( Blueprint->ParentClass != NULL )

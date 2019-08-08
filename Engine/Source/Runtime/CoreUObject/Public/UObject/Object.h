@@ -235,6 +235,11 @@ public:
 	virtual void LoadedFromAnotherClass(const FName& OldClassName) {}
 #endif
 
+	/**
+	 * Called before calling PostLoad() in FAsyncPackage::PostLoadObjects(). This is the safeguard to prevent PostLoad() from stalling the main thread.
+	 */
+	virtual bool IsReadyForAsyncPostLoad() const { return true; }
+
 	/** 
 	 * Do any object-specific cleanup required immediately after loading an object.
 	 * This is not called for newly-created objects, and by default will always execute on the game thread.
@@ -451,10 +456,7 @@ public:
 	*
 	* @return	true if this object's destructor is thread safe
 	*/
-	virtual bool IsDestructionThreadSafe() const
-	{
-		return true;
-	}
+	virtual bool IsDestructionThreadSafe() const;
 
 	/**
 	* Called during cooking. Must return all objects that will be Preload()ed when this is serialized at load time. Only used by the EDL.

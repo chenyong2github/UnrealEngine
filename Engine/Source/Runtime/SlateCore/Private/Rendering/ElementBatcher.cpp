@@ -69,8 +69,7 @@ void FSlateBatchData::ResetData()
 	FinalIndexData.Reset();
 	FinalVertexData.Reset();
 
-	// note: LayerToElementBatches is not reset here as the same layers are 
-	// more than likely reused and we can save memory allocations by not resetting the map every frame
+	FirstRenderBatchIndex = INDEX_NONE;
 
 	NumBatches = 0;
 	NumLayers = 0;

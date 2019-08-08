@@ -289,6 +289,9 @@ public:
 	/** Returns the directory that contains subfolders for developer-specific content */
 	static FString GameDevelopersDir();
 
+	/** Returns The folder name for the developer-specific directory for the current user */
+	static FString GameUserDeveloperFolderName();
+
 	/** Returns The directory that contains developer-specific content for the current user */
 	static FString GameUserDeveloperDir();
 

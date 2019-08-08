@@ -13,6 +13,7 @@
 
 #include "XAudio2Device.h"
 #include "AudioEffect.h"
+#include "AudioPluginUtilities.h"
 #include "OpusAudioInfo.h"
 #include "VorbisAudioInfo.h"
 #include "ADPCMAudioInfo.h"
@@ -744,5 +745,6 @@ void* FXAudio2Device::AllocatePermanentMemory( int32 Size, bool& AllocatedInPool
 
 FAudioPlatformSettings FXAudio2Device::GetPlatformSettings() const
 {
-	return FAudioPlatformSettings::GetPlatformSettings(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"));
+	const TCHAR* ConfigSection = AudioPluginUtilities::GetPlatformConfigSection(EAudioPlatform::Windows);
+	return FAudioPlatformSettings::GetPlatformSettings(ConfigSection);
 }

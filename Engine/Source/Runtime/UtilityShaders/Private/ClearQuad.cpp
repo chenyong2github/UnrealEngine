@@ -155,6 +155,12 @@ void ClearUAV(FRHICommandList& RHICmdList, const FRWBufferStructured& Structured
 	}
 }
 
+
+void ClearUAV(FRHICommandList& RHICmdList, const FTextureRWBuffer& Buffer, FLinearColor Value)
+{
+	ClearTexture2DUAV(RHICmdList, Buffer.UAV, Buffer.Buffer->GetSizeX(), Buffer.Buffer->GetSizeY(), Value);	
+}
+
 void ClearUAV(FRHICommandList& RHICmdList, const FRWBuffer& Buffer, uint32 Value, bool bBarriers)
 {
 	if (Buffer.NumBytes <= uint32(CVarFastClearUAVMaxSize.GetValueOnRenderThread()))

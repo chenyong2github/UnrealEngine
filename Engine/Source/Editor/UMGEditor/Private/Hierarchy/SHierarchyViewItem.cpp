@@ -331,8 +331,7 @@ TOptional<EItemDropZone> ProcessHierarchyDragDrop(const FDragDropEvent& DragDrop
 					UWidget* NamedSlotHostWidget = FWidgetBlueprintEditorUtils::FindNamedSlotHostWidgetForContent(TemplateWidget, Blueprint->WidgetTree);
 					if (NamedSlotHostWidget != nullptr)
 					{
-						INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(NamedSlotHostWidget);
-						if (NamedSlotHost != nullptr)
+						if (TScriptInterface<INamedSlotInterface> NamedSlotHost = TScriptInterface<INamedSlotInterface>(NamedSlotHostWidget))
 						{
 							NamedSlotHostWidget->SetFlags(RF_Transactional);
 							NamedSlotHostWidget->Modify();
@@ -992,8 +991,7 @@ FReply FNamedSlotModel::HandleAcceptDrop(FDragDropEvent const& DragDropEvent, EI
 		UWidget* SourceNamedSlotHostWidget = FWidgetBlueprintEditorUtils::FindNamedSlotHostWidgetForContent(DroppingWidget, Blueprint->WidgetTree);
 		if (SourceNamedSlotHostWidget != nullptr)
 		{
-			INamedSlotInterface* SourceNamedSlotHost = Cast<INamedSlotInterface>(SourceNamedSlotHostWidget);
-			if (SourceNamedSlotHost != nullptr)
+			if (TScriptInterface<INamedSlotInterface> SourceNamedSlotHost = TScriptInterface<INamedSlotInterface>(SourceNamedSlotHostWidget))
 			{
 				SourceNamedSlotHostWidget->SetFlags(RF_Transactional);
 				SourceNamedSlotHostWidget->Modify();
@@ -1018,7 +1016,7 @@ void FNamedSlotModel::DoDrop(UWidget* NamedSlotHostWidget, UWidget* DroppingWidg
 	NamedSlotHostWidget->SetFlags(RF_Transactional);
 	NamedSlotHostWidget->Modify();
 
-	INamedSlotInterface* NamedSlotInterface = Cast<INamedSlotInterface>(NamedSlotHostWidget);
+	TScriptInterface<INamedSlotInterface> NamedSlotInterface = TScriptInterface<INamedSlotInterface>(NamedSlotHostWidget);
 	NamedSlotInterface->SetContentForSlot(SlotName, DroppingWidget);
 
 	FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);

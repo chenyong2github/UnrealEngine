@@ -8,6 +8,21 @@
 #include "PhysicsEngine/BodySetupEnums.h"
 #include "PhysicsInterfaceTypesCore.h"
 
+#if WITH_CHAOS
+#include "Chaos/Serializable.h"
+
+namespace Chaos
+{
+	template<typename T, int d>
+	class TImplicitObjectUnion;
+
+	template<typename T, int d>
+	class TImplicitObject;
+
+	template <typename T>
+	class TTriangleMeshImplicitObject;
+}
+#endif
 
 // Defines for enabling hitch repeating (see ScopedSQHitchRepeater.h)
 #if !UE_BUILD_SHIPPING
@@ -39,6 +54,9 @@ struct FGeometryAddParams
 	// FPhysicsInterfaceTriMesh - Per implementation
 #if WITH_PHYSX
 	TArrayView<physx::PxTriangleMesh*> TriMeshes;
+#endif
+#if WITH_CHAOS
+	TArrayView<TUniquePtr<Chaos::TTriangleMeshImplicitObject<float>>> ChaosTriMeshes;
 #endif
 };
 

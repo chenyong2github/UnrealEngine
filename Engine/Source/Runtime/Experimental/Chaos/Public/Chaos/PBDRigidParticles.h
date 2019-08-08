@@ -10,9 +10,6 @@ namespace Chaos
 template<class T, int d>
 class TPBDRigidsEvolution;
 
-template <typename T, int d>
-class TPBDRigidParticleHandle;
-
 template<class T, int d>
 class TPBDRigidParticles : public TRigidParticles<T, d>
 {
@@ -24,6 +21,7 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	TPBDRigidParticles()
 	    : TRigidParticles<T, d>()
 	{
+		this->MParticleType = EParticleType::Dynamic;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
@@ -31,14 +29,18 @@ class TPBDRigidParticles : public TRigidParticles<T, d>
 	}
 	TPBDRigidParticles(const TPBDRigidParticles<T, d>& Other) = delete;
 	TPBDRigidParticles(TPBDRigidParticles<T, d>&& Other)
-	    : TRigidParticles<T, d>(MoveTemp(Other)), MP(MoveTemp(Other.MP)), MQ(MoveTemp(Other.MQ))
+	    : TRigidParticles<T, d>(MoveTemp(Other))
+		, MP(MoveTemp(Other.MP))
+		, MQ(MoveTemp(Other.MQ))
+		, MPreV(MoveTemp(Other.MPreV))
+		, MPreW(MoveTemp(Other.MPreW))
 	{
+		this->MParticleType = EParticleType::Dynamic;
 		TArrayCollection::AddArray(&MP);
 		TArrayCollection::AddArray(&MQ);
 		TArrayCollection::AddArray(&MPreV);
 		TArrayCollection::AddArray(&MPreW);
 	}
-	~TPBDRigidParticles() {}
 
 	const TVector<T, d>& P(const int32 index) const { return MP[index]; }
 	TVector<T, d>& P(const int32 index) { return MP[index]; }

@@ -125,6 +125,8 @@ TSharedRef< FSlateStyleSet > FNiagaraEditorStyle::Create()
 	FEditableTextBoxStyle HeadingEditableTextBox = FEditableTextBoxStyle(NormalEditableTextBox)
 		.SetFont(DEFAULT_FONT("Regular", 14));
 
+	Style->Set("NiagaraEditor.HeadingTextBlock", HeadingText);
+
 	Style->Set("NiagaraEditor.HeadingEditableTextBox", HeadingEditableTextBox);
 
 	Style->Set("NiagaraEditor.HeadingInlineEditableText", FInlineEditableTextBlockStyle()

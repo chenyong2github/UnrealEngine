@@ -64,6 +64,7 @@ struct FTexture2DMipMap
 		bool CanLoadFromDisk() const { return !IsInlined(); }
 		bool IsAvailableForUse() const { return !(BulkDataFlags & BULKDATA_Unused); }
 		bool IsBulkDataLoaded() const { return IsInlined(); }
+		bool IsAsyncLoadingComplete() const { return true; }
 		bool IsStoredCompressedOnDisk() const { return !!(BulkDataFlags & BULKDATA_SerializeCompressed); }
 		const void* LockReadOnly() const;
 		void* Lock(uint32 LockFlags);

@@ -9,7 +9,7 @@
 #include "ShaderParameterUtils.h"
 #include "SceneUtils.h"
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	#include "Windows/AllowWindowsPlatformTypes.h"
 	#include <Windows.h>
 	#include <d3d11.h>
@@ -145,7 +145,7 @@ private:
 
 IMPLEMENT_SHADER_TYPE(, FHoloLensCameraImageConversionPS, TEXT("/Plugin/HoloLensAR/HoloLensCameraImageConversion.usf"), TEXT("MainPS"), SF_Pixel)
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 
 /** Resource class to do all of the setup work on the render thread */
 class FHoloLensCameraImageResource :
@@ -153,8 +153,8 @@ class FHoloLensCameraImageResource :
 {
 public:
 	FHoloLensCameraImageResource(UHoloLensCameraImageTexture* InOwner)
-		: Owner(InOwner)
-		, LastFrameNumber(0)
+		: LastFrameNumber(0)
+		, Owner(InOwner)
 	{
 		CameraImage = Owner->CameraImage;
 		// We've taken ownership so we can release the owner's copy
@@ -170,6 +170,8 @@ public:
 	 */
 	virtual void InitRHI() override
 	{
+		check(IsInRenderingThread());
+
 		FSamplerStateInitializerRHI SamplerStateInitializer(SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp);
 		SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 
@@ -345,7 +347,7 @@ private:
 
 UHoloLensCameraImageTexture::UHoloLensCameraImageTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	, LastUpdateFrame(0)
 	, CameraImage(nullptr)
 #endif
@@ -354,7 +356,7 @@ UHoloLensCameraImageTexture::UHoloLensCameraImageTexture(const FObjectInitialize
 
 void UHoloLensCameraImageTexture::BeginDestroy()
 {
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	if (CameraImage != nullptr)
 	{
 		CameraImage->Release();
@@ -366,14 +368,14 @@ void UHoloLensCameraImageTexture::BeginDestroy()
 
 FTextureResource* UHoloLensCameraImageTexture::CreateResource()
 {
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	return new FHoloLensCameraImageResource(this);
 #else
 	return nullptr;
 #endif
 }
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 /** Forces the reconstruction of the texture data and conversion from Nv12 to RGB */
 void UHoloLensCameraImageTexture::Init(ID3D11Texture2D* InCameraImage)
 {

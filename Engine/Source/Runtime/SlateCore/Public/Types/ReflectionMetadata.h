@@ -41,8 +41,8 @@ public:
 
 public:
 
-	static FString GetWidgetPath(const SWidget* InWidget);
-	static FString GetWidgetPath(const SWidget& InWidget);
+	static FString GetWidgetPath(const SWidget* InWidget, bool bShort = true, bool bNativePathOnly = false);
+	static FString GetWidgetPath(const SWidget& InWidget, bool bShort = true, bool bNativePathOnly = false);
 
 	static FString GetWidgetDebugInfo(const SWidget* InWidget);
 	static FString GetWidgetDebugInfo(const SWidget& InWidget);

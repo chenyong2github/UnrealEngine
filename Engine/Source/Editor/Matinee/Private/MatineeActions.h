@@ -195,7 +195,7 @@ public:
 	/** Action Types */
 	struct EGroupAction
 	{
-		enum Type
+		enum class Type
 		{
 			NewFolder, 
 			NewEmptyGroup,
@@ -213,7 +213,7 @@ public:
 
 	struct EKeyAction
 	{
-		enum Type
+		enum class Type
 		{
 			KeyModeCurveAuto,
 			KeyModeCurveAutoClamped, 

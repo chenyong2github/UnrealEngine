@@ -41,7 +41,9 @@ enum EBulkDataFlags
 	/** This payload will be memory mapped, this requires alignment, no compression etc. */
 	BULKDATA_MemoryMappedPayload = 1 << 12,
 	/** Bulk data size is 64 bits long */
-	BULKDATA_Size64Bit							= 1 << 13
+	BULKDATA_Size64Bit							= 1 << 13,
+	/** Duplicate non-optional payload in optional bulk data. */
+	BULKDATA_DuplicateNonOptionalPayload		= 1 << 14
 };
 
 /**
@@ -364,7 +366,7 @@ public:
 	*
 	* @return true if bulk data has been loaded or async loading was not used to load this data, false otherwise
 	*/
-	bool IsAsyncLoadingComplete();
+	bool IsAsyncLoadingComplete() const;
 
 	/**
 	* Returns whether this bulk data is used

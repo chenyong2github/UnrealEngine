@@ -1038,6 +1038,19 @@ FTexturePlatformData::~FTexturePlatformData()
 	if (VTData) delete VTData;
 }
 
+bool FTexturePlatformData::IsReadyForAsyncPostLoad() const
+{
+	for (int32 MipIndex = 0; MipIndex < Mips.Num(); ++MipIndex)
+	{
+		const FTexture2DMipMap& Mip = Mips[MipIndex];
+		if (!Mip.BulkData.IsAsyncLoadingComplete())
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 bool FTexturePlatformData::TryLoadMips(int32 FirstMipToLoad, void** OutMipData)
 {
 	int32 NumMipsCached = 0;
@@ -1286,8 +1299,8 @@ static void SerializePlatformData(
 			if (!bIsVirtual)
 			{
 				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, FMath::Max(NumMips - 1, 0));
-				NumMips -= FirstMipToSerialize;
-			}
+			NumMips -= FirstMipToSerialize;
+		}
 			else
 			{
 				FirstMipToSerialize = FMath::Clamp(FirstMipToSerialize, 0, FMath::Max((int32)PlatformData->VTData->GetNumMips() - 1, 0));
@@ -1309,51 +1322,54 @@ static void SerializePlatformData(
 	{
 		if (bIsVirtual == false)
 		{
-			BulkDataMipFlags.AddZeroed(PlatformData->Mips.Num());
-			for (int32 MipIndex = 0; MipIndex < PlatformData->Mips.Num(); ++MipIndex)
-			{
-				BulkDataMipFlags[MipIndex] = PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags();
-			}
+		BulkDataMipFlags.AddZeroed(PlatformData->Mips.Num());
+		for (int32 MipIndex = 0; MipIndex < PlatformData->Mips.Num(); ++MipIndex)
+		{
+			BulkDataMipFlags[MipIndex] = PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags();
+		}
 
-			int32 MinMipToInline = 0;
-			int32 OptionalMips = 0; // TODO: do we need to consider platforms saving texture assets as cooked files? all the info to calculate the optional is part of the editor only data
-
+		int32 MinMipToInline = 0;
+		int32 OptionalMips = 0; // TODO: do we need to consider platforms saving texture assets as cooked files? all the info to calculate the optional is part of the editor only data
+		bool DuplicateNonOptionalMips = false;
+		
 #if WITH_EDITORONLY_DATA
-			check(Ar.CookingTarget());
-			// This also needs to check whether the project enables texture streaming.
-			// Currently, there is no reliable way to implement this because there is no difference
-			// between the project settings (CVar) and the command line setting (from -NoTextureStreaming)
-			if (bStreamable && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::TextureStreaming))
+		check(Ar.CookingTarget());
+		// This also needs to check whether the project enables texture streaming.
+		// Currently, there is no reliable way to implement this because there is no difference
+		// between the project settings (CVar) and the command line setting (from -NoTextureStreaming)
+		if (bStreamable && Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::TextureStreaming))
 #else
-			if (bStreamable)
+		if (bStreamable)
 #endif
-			{
-				MinMipToInline = FMath::Max(0, NumMips - PlatformData->GetNumNonStreamingMips());
+		{
+			MinMipToInline = FMath::Max(0, NumMips - PlatformData->GetNumNonStreamingMips());
 #if WITH_EDITORONLY_DATA
-				const int32 Width = PlatformData->SizeX;
-				const int32 Height = PlatformData->SizeY;
-				const int32 LODGroup = Texture->LODGroup;
-				const int32 LODBias = Texture->LODBias;
-				const int32 NumCinematicMipLevels = Texture->NumCinematicMipLevels;
+			const int32 Width = PlatformData->SizeX;
+			const int32 Height = PlatformData->SizeY;
+			const int32 LODGroup = Texture->LODGroup;
+			const int32 LODBias = Texture->LODBias;
+			const int32 NumCinematicMipLevels = Texture->NumCinematicMipLevels;
 
-				OptionalMips = Ar.CookingTarget()->GetTextureLODSettings().CalculateNumOptionalMips(LODGroup, Width, Height, NumMips, MinMipToInline, Texture->MipGenSettings);
+			OptionalMips = Ar.CookingTarget()->GetTextureLODSettings().CalculateNumOptionalMips(LODGroup, Width, Height, NumMips, MinMipToInline, Texture->MipGenSettings);
+			DuplicateNonOptionalMips = Ar.CookingTarget()->GetTextureLODSettings().TextureLODGroups[LODGroup].DuplicateNonOptionalMips;
 #endif
-			}
+		}
 
 			for (int32 MipIndex = 0; MipIndex < NumMips && MipIndex < OptionalMips; ++MipIndex) //-V654
-			{
+		{
 				PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | BULKDATA_OptionalPayload);
-			}
-
-			for (int32 MipIndex = OptionalMips; MipIndex < NumMips && MipIndex < MinMipToInline; ++MipIndex)
-			{
-				PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload);
-			}
-			for (int32 MipIndex = MinMipToInline; MipIndex < NumMips; ++MipIndex)
-			{
-				PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload | BULKDATA_SingleUse);
-			}
 		}
+
+		const uint32 AdditionalNonOptionalBulkDataFlags = DuplicateNonOptionalMips ? BULKDATA_DuplicateNonOptionalPayload : 0;
+		for (int32 MipIndex = OptionalMips; MipIndex < NumMips && MipIndex < MinMipToInline; ++MipIndex)
+		{
+			PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_Force_NOT_InlinePayload | AdditionalNonOptionalBulkDataFlags);
+		}
+		for (int32 MipIndex = MinMipToInline; MipIndex < NumMips; ++MipIndex)
+		{
+			PlatformData->Mips[MipIndex + FirstMipToSerialize].BulkData.SetBulkDataFlags(BULKDATA_ForceInlinePayload | BULKDATA_SingleUse);
+		}
+	}
 		else // bVirtual == false
 		{
 			const int32 NumChunks = PlatformData->VTData->Chunks.Num();
@@ -1398,12 +1414,12 @@ static void SerializePlatformData(
 
 	if (bIsVirtual == false)
 	{
-		for (int32 MipIndex = 0; MipIndex < BulkDataMipFlags.Num(); ++MipIndex)
-		{
+	for (int32 MipIndex = 0; MipIndex < BulkDataMipFlags.Num(); ++MipIndex)
+	{
 			check(Ar.IsSaving());
-			PlatformData->Mips[MipIndex].BulkData.ClearBulkDataFlags(~BulkDataMipFlags[MipIndex]);
-			PlatformData->Mips[MipIndex].BulkData.SetBulkDataFlags(BulkDataMipFlags[MipIndex]);
-		}
+		PlatformData->Mips[MipIndex].BulkData.ClearBulkDataFlags(~BulkDataMipFlags[MipIndex]);
+		PlatformData->Mips[MipIndex].BulkData.SetBulkDataFlags(BulkDataMipFlags[MipIndex]);
+	}
 	}
 	else
 	{
@@ -1430,16 +1446,16 @@ void FTexturePlatformData::SerializeCooked(FArchive& Ar, UTexture* Owner, bool b
 	{
 		// Patch up Size as due to mips being stripped out during cooking it could be wrong.
 		if (Mips.Num() > 0)
-		{
-			SizeX = Mips[0].SizeX;
-			SizeY = Mips[0].SizeY;
+	{
+		SizeX = Mips[0].SizeX;
+		SizeY = Mips[0].SizeY;
 			
-			// SizeZ is not the same as NumSlices for texture arrays and cubemaps.
-			if (Owner && Owner->IsA(UVolumeTexture::StaticClass()))
-			{
-				 NumSlices = Mips[0].SizeZ;
-			}
+		// SizeZ is not the same as NumSlices for texture arrays and cubemaps.
+		if (Owner && Owner->IsA(UVolumeTexture::StaticClass()))
+		{
+			 NumSlices = Mips[0].SizeZ;
 		}
+	}
 		else if ( VTData )
 		{
 			SizeX = VTData->Width;

@@ -43,6 +43,10 @@ public:
 
 	TSharedRef<ITableRow> OnGenerateWidgetForScreenResults(TSharedPtr<FScreenComparisonModel> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
+	void DisplayError_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	void DisplayWarning_OnCheckStateChanged(ECheckBoxState NewRadioState);
+	void OnFilterStringCommitted(const FText& InText, ETextCommit::Type InCommitType);
+
 private:
 
 	void OnDirectoryChanged(const FString& Directory);
@@ -80,4 +84,13 @@ private:
 
 	/**  */
 	bool bReportsChanged;
+
+	/** Whether or not we're currently displaying errors */
+	bool bDisplayingError;
+
+	/** Whether or not we're currently displaying warnings*/
+	bool bDisplayingWarning;
+
+	/** Filter string for our reports, if any */
+	FString ReportFilterString;
 };

@@ -18,6 +18,13 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
+			PublicIncludePathModuleNames.AddRange(
+				new string[]
+				{
+					"Voice"
+				}
+			);
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{

@@ -55,6 +55,12 @@ bool UHoloLensARFunctionLibrary::SaveARPinToWMRAnchorStore(UARPin* InPin)
 	{
 		return false;
 	}
+	if (!InPin)
+	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("SaveARPinToWMRAnchorStore: Trying to save Null Pin.  Ignoring."));
+		return false;
+	}
+
 	return ARSystem->SaveARPinToAnchorStore(InPin);
 }
 
@@ -65,6 +71,12 @@ void UHoloLensARFunctionLibrary::RemoveARPinFromWMRAnchorStore(UARPin* InPin)
 	{
 		return;
 	}
+	if (!InPin)
+	{
+		UE_LOG(LogHoloLensAR, Warning, TEXT("RemoveARPinFromWMRAnchorStore: Trying to remove Null Pin.  Ignoring."));
+		return;
+	}
+
 	ARSystem->RemoveARPinFromAnchorStore(InPin);
 }
 

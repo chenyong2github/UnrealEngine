@@ -203,7 +203,7 @@ namespace GLTF
 			const FPrimitive& Primitive = Mesh.Primitives[Index];
 			const FName SlotName(*FString::FromInt(Primitive.MaterialIndex));
 			const int32 MeshSlot = StaticMesh->StaticMaterials.Emplace(nullptr, SlotName, SlotName);
-			StaticMesh->SectionInfoMap.Set(0, MeshSlot, FMeshSectionInfo(MeshSlot));
+			StaticMesh->GetSectionInfoMap().Set(0, MeshSlot, FMeshSectionInfo(MeshSlot));
 		}
 
 

@@ -225,7 +225,7 @@ static void PlatformOpenGLVersionFromCommandLine(int& OutMajorVersion, int& OutM
 	bool bGL4 = PlatformOpenGL4();
 	if (!bGL3 && !bGL4)
 	{
-		if (GRequestedFeatureLevel == ERHIFeatureLevel::SM5)
+		if (GRequestedFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			bGL4 = true;
 		}

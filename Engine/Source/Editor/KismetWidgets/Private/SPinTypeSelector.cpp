@@ -434,6 +434,8 @@ void SPinTypeSelector::Construct(const FArguments& InArgs, FGetPinTypeTree GetPi
 				.ButtonContent()
 				[
 					SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+
 					+SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)

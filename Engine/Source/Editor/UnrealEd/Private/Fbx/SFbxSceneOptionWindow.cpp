@@ -1134,7 +1134,7 @@ TSharedRef<SDockTab> SFbxSceneOptionWindow::SpawnStaticMeshReimportTab(const FSp
 
 TSharedPtr<SWidget> SFbxSceneOptionWindow::SpawnDockTab()
 {
-	return FbxSceneImportTabManager->RestoreFrom(Layout.ToSharedRef(), OwnerWindow).ToSharedRef();
+	return FbxSceneImportTabManager->RestoreFrom(Layout.ToSharedRef(), OwnerWindow.Pin()).ToSharedRef();
 }
 
 void SFbxSceneOptionWindow::InitAllTabs()
@@ -1380,7 +1380,7 @@ void SFbxSceneOptionWindow::CloseFbxSceneOption()
 	if (OwnerWindow.IsValid())
 	{
 		//Close the window
-		OwnerWindow->RequestDestroyWindow();
+		OwnerWindow.Pin()->RequestDestroyWindow();
 	}
 	OwnerWindow = nullptr;
 }

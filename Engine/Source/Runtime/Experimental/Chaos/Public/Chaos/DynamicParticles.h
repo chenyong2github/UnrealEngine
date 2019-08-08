@@ -27,7 +27,6 @@ class TDynamicParticles : public TParticles<T, d>
 		TArrayCollection::AddArray(&MM);
 		TArrayCollection::AddArray(&MInvM);
 	}
-	~TDynamicParticles() {}
 
 	const TVector<T, d>& V(const int32 Index) const { return MV[Index]; }
 	TVector<T, d>& V(const int32 Index) { return MV[Index]; }

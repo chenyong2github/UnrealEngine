@@ -9,14 +9,13 @@
 #include "RHIResources.h"
 #include "RHIUtilities.h"
 
-#include "XRThreadUtils.h"
+#include "Windows/D3D11RHI/Private/D3D11RHIPrivate.h"
 
 #include "Engine/GameViewportClient.h"
 #include "Engine/Engine.h"
 #include "Engine/RendererSettings.h"
 #include "Misc/Paths.h"
 #include "UnrealClient.h"
-#include "D3D11RHIPrivate.h"
 
 
 FDisplayClusterProjectionEasyBlendViewAdapterDX11::FDisplayClusterProjectionEasyBlendViewAdapterDX11(const FDisplayClusterProjectionEasyBlendViewAdapterBase::FInitParams& InitParams)
@@ -102,8 +101,11 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::CalculateView(const uint
 	FVector EasyBlendEyeLocation = Game2EasyBlend.TransformPosition(InOutViewLocation);
 
 	// Update EasyBlend state
-	check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc);
-	DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc(Views[ViewIdx].EasyBlendMeshData.Get(), EasyBlendEyeLocation.X, EasyBlendEyeLocation.Y, EasyBlendEyeLocation.Z);
+	{
+		FScopeLock lock(&DllAccessCS);
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc);
+		DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetEyepointFunc(Views[ViewIdx].EasyBlendMeshData.Get(), EasyBlendEyeLocation.X, EasyBlendEyeLocation.Y, EasyBlendEyeLocation.Z);
+	}
 
 	// Get rotation from the frustum that has been updated already
 	InOutViewRotation.Pitch = float(-Views[ViewIdx].EasyBlendMeshData->Frustum.ViewAngleC - 90);
@@ -187,16 +189,20 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	ID3D11Texture2D * SrcTextureD3D11 = static_cast<ID3D11Texture2D*>(SrcTextureRHI->GetResource());
 
 	// Setup In/Out EasyBlend textures
-	check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc);
-	EasyBlendSDKDXError EasyBlendSDKDXError1 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc(Views[ViewIdx].EasyBlendMeshData.Get(), SrcTextureD3D11);
-
-	check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc);
-	EasyBlendSDKDXError EasyBlendSDKDXError2 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc(Views[ViewIdx].EasyBlendMeshData.Get(), DstTextureD3D11);
-
-	if (!(EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError1) && EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError2)))
 	{
-		UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Coulnd't configure in/out textures"));
-		return false;
+		FScopeLock lock(&DllAccessCS);
+
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc);
+		const EasyBlendSDKDXError EasyBlendSDKDXError1 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetInputTexture2DFunc(Views[ViewIdx].EasyBlendMeshData.Get(), SrcTextureD3D11);
+
+		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc);
+		const EasyBlendSDKDXError EasyBlendSDKDXError2 = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendSetOutputTexture2DFunc(Views[ViewIdx].EasyBlendMeshData.Get(), DstTextureD3D11);
+
+		if (!(EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError1) && EasyBlendSDKDX_SUCCEEDED(EasyBlendSDKDXError2)))
+		{
+			UE_LOG(LogDisplayClusterProjectionEasyBlend, Error, TEXT("Coulnd't configure in/out textures"));
+			return false;
+		}
 	}
 
 	D3D11_VIEWPORT RenderViewportData;
@@ -218,6 +224,8 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 	DeviceContext->Flush();
 
 	{
+		FScopeLock lock(&DllAccessCS);
+
 		// Perform warp&blend by the EasyBlend
 		check(DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendDXRenderFunc);
 		EasyBlendSDKDXError EasyBlendSDKDXError = DisplayClusterProjectionEasyBlendLibraryDX11::EasyBlendDXRenderFunc(

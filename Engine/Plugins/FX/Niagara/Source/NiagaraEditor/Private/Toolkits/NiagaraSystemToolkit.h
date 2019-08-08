@@ -14,6 +14,7 @@
 #include "ISequencerTrackEditor.h"
 
 #include "NiagaraScript.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 
 class FNiagaraSystemInstance;
 class FNiagaraSystemViewModel;
@@ -122,9 +123,9 @@ private:
 	bool OnApplyEnabled() const;
 
 	void OnPinnedCurvesChanged();
-	void OnRefresh();
+	void RefreshParameters();
+	void OnSystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource);
 
-private:
 	TSharedRef<SWidget> GenerateBoundsMenuContent(TSharedRef<FUICommandList> InCommandList);
 	const FName GetNiagaraSystemMessageLogName(UNiagaraSystem* InSystem) const;
 	void OnSaveThumbnailImage();

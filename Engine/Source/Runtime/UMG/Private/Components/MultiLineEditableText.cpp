@@ -103,6 +103,17 @@ void UMultiLineEditableText::SynchronizeProperties()
 	Super::SynchronizeTextLayoutProperties(*MyMultiLineEditableText);
 }
 
+
+void UMultiLineEditableText::SetJustification(ETextJustify::Type InJustification)
+{
+	Super::SetJustification(InJustification);
+
+	if (MyMultiLineEditableText.IsValid())
+	{
+		MyMultiLineEditableText->SetJustification(InJustification);
+	}
+}
+
 FText UMultiLineEditableText::GetText() const
 {
 	if ( MyMultiLineEditableText.IsValid() )

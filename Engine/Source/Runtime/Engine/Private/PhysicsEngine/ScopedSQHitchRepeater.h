@@ -13,8 +13,6 @@
 
 #if PHYSICS_INTERFACE_PHYSX
 #include "PhysXInterfaceWrapper.h"
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-#include "Physics/Experimental/LLImmediateInterfaceWrapper.h"
 #endif
 
 #if DETECT_SQ_HITCHES
@@ -30,8 +28,6 @@ struct FSQHitchRepeaterCVars
 	static FAutoConsoleVariableRef CVarSQHitchDetectionThreshold;
 };
 #endif 
-
-#if WITH_PHYSX
 
 /** Various info we want to capture for hitch detection reporting */
 struct FHitchDetectionInfo
@@ -177,5 +173,3 @@ struct FScopedSQHitchRepeater
 	bool RepeatOnHitch() const { return false; }
 #endif
 };
-
-#endif // WITH_PHYSX

@@ -200,7 +200,7 @@ namespace Chaos
 		static void InitEquilateralTriangleXY(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
-			Particles.AddElements(3);
+			Particles.AddParticles(3);
 			// Left handed
 			Particles.X(Idx + 0) = TVector<T, 3>(0., 0.8083, 0.);
 			Particles.X(Idx + 1) = TVector<T, 3>(0.7, -0.4041, 0.);
@@ -215,7 +215,7 @@ namespace Chaos
 		static void InitEquilateralTriangleYZ(TTriangleMesh<T>& TriMesh, TParticles<T, 3>& Particles)
 		{
 			const int32 Idx = Particles.Size();
-			Particles.AddElements(3);
+			Particles.AddParticles(3);
 			// Left handed
 			Particles.X(Idx + 0) = TVector<T, 3>(0., 0., 0.8083);
 			Particles.X(Idx + 1) = TVector<T, 3>(0., 0.7, -0.4041);

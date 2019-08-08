@@ -431,7 +431,7 @@ static bool EndSavingIfCancelled( FLinkerSave* Linker, const FString& TempFilena
 	if ( GWarn->ReceivedUserCancel() )
 	{
 		// free the file handle and delete the temporary file
-		Linker->Detach();
+		Linker->CloseAndDestroySaver();
 		IFileManager::Get().Delete( *TempFilename );
 		return true;
 	}
@@ -3659,11 +3659,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 		// point to the new version of the path
 		Filename = *NewPath;
 
-		// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
-		// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
-		// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
-		// start reading from the file till we are done overwriting it.
-		FlushAsyncLoading();
+		if (!bSavingConcurrent)
+		{
+			// We need to fulfill all pending streaming and async loading requests to then allow us to lock the global IO manager. 
+			// The latter implies flushing all file handles which is a pre-requisite of saving a package. The code basically needs 
+			// to be sure that we are not reading from a file that is about to be overwritten and that there is no way we might 
+			// start reading from the file till we are done overwriting it.
+			FlushAsyncLoading();
+		}
 
 		(*GFlushStreamingFunc)();
 
@@ -3845,7 +3848,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						: bSavingConcurrent(InSavingConcurrent)
 					{
 						// We need the same lock as GC so that no StaticFindObject can happen in parallel to saveing a package
-						FGCCSyncObject::Get().GCLock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCLock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().LockAsync();
+						}
 
 						// Do not change GIsSavingPackage while saving concurrently. It should have been set before and after all packages are saved
 						if (!bSavingConcurrent)
@@ -3859,7 +3869,14 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 						{
 							GIsSavingPackage = false;
 						}
-						FGCCSyncObject::Get().GCUnlock();
+						if (IsInGameThread())
+						{
+							FGCCSyncObject::Get().GCUnlock();
+						}
+						else
+						{
+							FGCCSyncObject::Get().UnlockAsync();
+						}
 					}
 
 					bool bSavingConcurrent;
@@ -4422,7 +4439,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// Free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete( *TempFilename );
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -4474,7 +4491,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete(*TempFilename);
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -5978,14 +5995,22 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				// Detach archive used for saving, closing file handle.
+				// Destroy archives used for saving, closing file handle.
 				if (!bSaveAsync)
 				{
-					Linker->Detach();
+					const bool bFileWriterSuccess = Linker->CloseAndDestroySaver();
 
 					delete StructuredArchive;
 					delete Formatter;
 					delete TextFormatArchive;
+
+					if (!bFileWriterSuccess)
+					{
+						IFileManager::Get().Delete(*TempFilename);
+						UE_LOG(LogSavePackage, Error, TEXT("Error writing temp file '%s' for '%s'"),
+							*TempFilename, Filename);
+						return ESavePackageResult::Error;
+					}
 				}
 				UNCLOCK_CYCLES(Time);
 				UE_CLOG(!bDiffing, LogSavePackage, Verbose,  TEXT("Save=%.2fms"), FPlatformTime::ToMilliseconds(Time) );
@@ -6070,7 +6095,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								AsyncWriteFile(MoveTemp(DataPtr), DataSize, *NewPathToSave, FinalTimeStamp);
 							}
 						}
-						Linker->Detach();
+						Linker->CloseAndDestroySaver();
 
 						delete StructuredArchive;
 						delete Formatter;

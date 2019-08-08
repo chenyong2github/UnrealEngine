@@ -382,24 +382,25 @@ void FPropertyRetirement::CountBytes(FArchive& Ar) const
 //	FNetBitWriter
 // ----------------------------------------------------------------
 FNetBitWriter::FNetBitWriter()
-:	FBitWriter(0)
+	: FBitWriter(0)
+	, PackageMap(nullptr)
 {}
 
-FNetBitWriter::FNetBitWriter( int64 InMaxBits )
-:	FBitWriter (InMaxBits, true)
-,	PackageMap( NULL )
+FNetBitWriter::FNetBitWriter(int64 InMaxBits)
+	: FBitWriter(InMaxBits, true)
+	, PackageMap(nullptr)
 {
 
 }
 
-FNetBitWriter::FNetBitWriter( UPackageMap * InPackageMap, int64 InMaxBits )
-:	FBitWriter (InMaxBits, true)
-,	PackageMap( InPackageMap )
+FNetBitWriter::FNetBitWriter(UPackageMap* InPackageMap, int64 InMaxBits)
+	: FBitWriter(InMaxBits, true)
+	, PackageMap(InPackageMap)
 {
 
 }
 
-FArchive& FNetBitWriter::operator<<( class FName& N )
+FArchive& FNetBitWriter::operator<<(class FName& N)
 {
 	if (PackageMap)
 	{
@@ -413,9 +414,9 @@ FArchive& FNetBitWriter::operator<<( class FName& N )
 	return *this;
 }
 
-FArchive& FNetBitWriter::operator<<( UObject*& Object )
+FArchive& FNetBitWriter::operator<<(UObject*& Object)
 {
-	PackageMap->SerializeObject( *this, UObject::StaticClass(), Object );
+	PackageMap->SerializeObject(*this, UObject::StaticClass(), Object);
 	return *this;
 }
 
@@ -448,19 +449,19 @@ void FNetBitWriter::CountMemory(FArchive& Ar) const
 // ----------------------------------------------------------------
 //	FNetBitReader
 // ----------------------------------------------------------------
-FNetBitReader::FNetBitReader( UPackageMap *InPackageMap, uint8* Src, int64 CountBits )
-:	FBitReader	(Src, CountBits)
-,   PackageMap  ( InPackageMap )
+FNetBitReader::FNetBitReader(UPackageMap* InPackageMap, uint8* Src, int64 CountBits)
+	: FBitReader(Src, CountBits)
+	, PackageMap( InPackageMap )
 {
 }
 
-FArchive& FNetBitReader::operator<<( UObject*& Object )
+FArchive& FNetBitReader::operator<<(UObject*& Object)
 {
-	PackageMap->SerializeObject( *this, UObject::StaticClass(), Object );
+	PackageMap->SerializeObject(*this, UObject::StaticClass(), Object);
 	return *this;
 }
 
-FArchive& FNetBitReader::operator<<( class FName& N )
+FArchive& FNetBitReader::operator<<(class FName& N)
 {
 	if (PackageMap)
 	{

@@ -130,39 +130,96 @@ using FARKitCameraOverlayMobilePS = TARKitCameraOverlayPS<true>;
 template<> IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayPS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_VideoOverlay", SF_Pixel);
 template<> IMPLEMENT_MATERIAL_SHADER(FARKitCameraOverlayMobilePS, "/Engine/Private/PostProcessMaterialShaders.usf", "MainPS_ES2", SF_Pixel);
 
-void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView)
+void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation)
 {
 	if (RenderingOverlayMaterial == nullptr || !RenderingOverlayMaterial->IsValidLowLevel())
 	{
 		return;
 	}
 
-	if (VertexBufferRHI == nullptr || !VertexBufferRHI.IsValid())
+	if (OverlayVertexBufferRHI[0] == nullptr || !OverlayVertexBufferRHI[0].IsValid())
 	{
+		const FVector2D ViewSize(InView.UnconstrainedViewRect.Max.X, InView.UnconstrainedViewRect.Max.Y);
+
+		FVector2D CameraSize = Frame.Camera.ImageResolution;
+		if ((ViewSize.X > ViewSize.Y) != (CameraSize.X > CameraSize.Y))
+		{
+			CameraSize = FVector2D(CameraSize.Y, CameraSize.X);
+		}
+
+		const float CameraAspectRatio = CameraSize.X / CameraSize.Y;
+		const float ViewAspectRatio = ViewSize.X / ViewSize.Y;
+		const float ViewAspectRatioLandscape = (ViewSize.X > ViewSize.Y) ? ViewAspectRatio : ViewSize.Y / ViewSize.X;
+
+		float UVOffsetAmount = 0.0f;
+		if (!FMath::IsNearlyEqual(ViewAspectRatio, CameraAspectRatio))
+		{
+			if (ViewAspectRatio > CameraAspectRatio)
+			{
+				UVOffsetAmount = 0.5f * (1.0f - (CameraAspectRatio / ViewAspectRatio));
+			}
+			else
+			{
+				UVOffsetAmount = 0.5f * (1.0f - (ViewAspectRatio / CameraAspectRatio));
+			}
+		}
+
+		UVOffset = (ViewAspectRatioLandscape <= Frame.Camera.GetAspectRatio()) ? FVector2D(UVOffsetAmount, 0.0f) : FVector2D(0.0f, UVOffsetAmount);
+
 		// Setup vertex buffer
-		TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
-		Vertices.SetNumUninitialized(4);
+		const FVector4 Positions[] =
+		{
+			FVector4(0.0f, 1.0f, 0.0f, 1.0f),
+			FVector4(0.0f, 0.0f, 0.0f, 1.0f),
+			FVector4(1.0f, 1.0f, 0.0f, 1.0f),
+			FVector4(1.0f, 0.0f, 0.0f, 1.0f)
+		};
 
-		Vertices[0].Position = FVector4(0.f, 0.f, 0.f, 1.f);
-		Vertices[0].UV = FVector2D(0.f, 0.f);
+		const FVector2D UVs[] =
+		{
+			// Landscape
+			FVector2D(UVOffset.X, 1.0f - UVOffset.Y),
+			FVector2D(UVOffset.X, UVOffset.Y),
+			FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y),
+			FVector2D(1.0f - UVOffset.X, UVOffset.Y),
+            
+			// Portrait
+			FVector2D(UVOffset.Y, 1.0f - UVOffset.X),
+            FVector2D(UVOffset.Y, UVOffset.X),
+			FVector2D(1.0f - UVOffset.Y, 1.0f - UVOffset.X),
+			FVector2D(1.0f - UVOffset.Y, UVOffset.X),
+		};
 
-		Vertices[1].Position = FVector4(1.f, 0.f, 0.f, 1.f);
-		Vertices[1].UV = FVector2D(1.f, 0.f);
+		uint32 UVIndex = 0;
+		for (uint32 OrientationIter = 0; OrientationIter < 2; ++OrientationIter)
+		{
+			TResourceArray<FFilterVertex, VERTEXBUFFER_ALIGNMENT> Vertices;
+			Vertices.SetNumUninitialized(4);
 
-		Vertices[2].Position = FVector4(1.f, 1.f, 0.f, 1.f);
-		Vertices[2].UV = FVector2D(1.f, 1.f);
+			Vertices[0].Position = Positions[0];
+			Vertices[0].UV = UVs[UVIndex];
 
-		Vertices[3].Position = FVector4(0.f, 1.f, 0.f, 1.f);
-		Vertices[3].UV = FVector2D(0.f, 1.f);
+			Vertices[1].Position = Positions[1];
+			Vertices[1].UV = UVs[UVIndex + 1];
 
-		FRHIResourceCreateInfo CreateInfoVB(&Vertices);
-		VertexBufferRHI = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+			Vertices[2].Position = Positions[2];
+			Vertices[2].UV = UVs[UVIndex + 2];
+
+			Vertices[3].Position = Positions[3];
+			Vertices[3].UV = UVs[UVIndex + 3];
+
+			UVIndex += 4;
+
+			FRHIResourceCreateInfo CreateInfoVB(&Vertices);
+			OverlayVertexBufferRHI[OrientationIter] = RHICreateVertexBuffer(Vertices.GetResourceDataSize(), BUF_Static, CreateInfoVB);
+		}
 	}
+
 
 	if (IndexBufferRHI == nullptr || !IndexBufferRHI.IsValid())
 	{
 		// Setup index buffer
-		const uint16 Indices[] = { 0, 1, 2, 2, 3, 0 };
+		const uint16 Indices[] = { 0, 1, 2, 2, 1, 3 };
 
 		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
 		const uint32 NumIndices = ARRAY_COUNT(Indices);
@@ -241,29 +298,87 @@ void FAppleARKitVideoOverlay::RenderVideoOverlay_RenderThread(FRHICommandListImm
 		PixelShaderPtr->SetParameters(RHICmdList, InView, RenderingOverlayMaterial->GetRenderProxy());
 	}
 
-	RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
-	RHICmdList.DrawIndexedPrimitive(
-		IndexBufferRHI,
-		/*BaseVertexIndex=*/ 0,
-		/*MinIndex=*/ 0,
-		/*NumVertices=*/ 4,
-		/*StartIndex=*/ 0,
-		/*NumPrimitives=*/ 2,
-		/*NumInstances=*/ 1
-	);
+	FRHIVertexBuffer* VertexBufferRHI = nullptr;
+	switch (DeviceOrientation)
+	{
+		case EDeviceScreenOrientation::LandscapeRight:
+		case EDeviceScreenOrientation::LandscapeLeft:
+			VertexBufferRHI = OverlayVertexBufferRHI[0];
+			break;
+
+		case EDeviceScreenOrientation::Portrait:
+		case EDeviceScreenOrientation::PortraitUpsideDown:
+			VertexBufferRHI = OverlayVertexBufferRHI[1];
+			break;
+
+		default:
+			VertexBufferRHI = OverlayVertexBufferRHI[0];
+			break;
+	}
+
+
+	if (VertexBufferRHI && IndexBufferRHI.IsValid())
+	{
+		RHICmdList.SetStreamSource(0, VertexBufferRHI, 0);
+		RHICmdList.DrawIndexedPrimitive(
+			IndexBufferRHI,
+			/*BaseVertexIndex=*/ 0,
+			/*MinIndex=*/ 0,
+			/*NumVertices=*/ 4,
+			/*StartIndex=*/ 0,
+			/*NumPrimitives=*/ 2,
+			/*NumInstances=*/ 1
+		);
+	}
 }
 
 
-bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation)
+bool FAppleARKitVideoOverlay::GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation)
 {
-	OutUVs.Reset(4);
+#if SUPPORTS_ARKIT_1_0
+	if (OverlayVertexBufferRHI[0] != nullptr && OverlayVertexBufferRHI[0].IsValid())
+	{
+		OutUVs.SetNumUninitialized(4);
 
-	new(OutUVs) FVector2D(0.f, 0.f);
-	new(OutUVs) FVector2D(1.f, 0.f);
-	new(OutUVs) FVector2D(1.0f, 1.0f);
-	new(OutUVs) FVector2D(0.f, 1.0f);
+		switch (DeviceOrientation)
+		{
+		case EDeviceScreenOrientation::LandscapeRight:
+			OutUVs[1] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[0] = FVector2D(UVOffset.X, UVOffset.Y);
+			OutUVs[3] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+			OutUVs[2] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			return true;
 
-	return true;
+		case EDeviceScreenOrientation::LandscapeLeft:
+            OutUVs[1] = FVector2D(UVOffset.X, 1.0f - UVOffset.Y);
+            OutUVs[0] = FVector2D(UVOffset.X, UVOffset.Y);
+            OutUVs[3] = FVector2D(1.0f - UVOffset.X, 1.0f - UVOffset.Y);
+            OutUVs[2] = FVector2D(1.0f - UVOffset.X, UVOffset.Y);
+			return true;
+
+		case EDeviceScreenOrientation::Portrait:
+			OutUVs[1] = FVector2D(UVOffset.Y, 1.0f - UVOffset.X);
+			OutUVs[0] = FVector2D(UVOffset.Y, UVOffset.X);
+			OutUVs[3] = FVector2D(1.0f - UVOffset.Y, 1.0f - UVOffset.X);
+			OutUVs[2] = FVector2D(1.0f - UVOffset.Y, UVOffset.X);
+			return true;
+
+		case EDeviceScreenOrientation::PortraitUpsideDown:
+            OutUVs[1] = FVector2D(UVOffset.Y, 1.0f - UVOffset.X);
+            OutUVs[0] = FVector2D(UVOffset.Y, UVOffset.X);
+            OutUVs[3] = FVector2D(1.0f - UVOffset.Y, 1.0f - UVOffset.X);
+            OutUVs[2] = FVector2D(1.0f - UVOffset.Y, UVOffset.X);
+			return true;
+
+		default:
+			return false;
+		}
+	}
+	else
+#endif
+	{
+		return false;
+	}
 }
 
 void FAppleARKitVideoOverlay::AddReferencedObjects(FReferenceCollector& Collector)

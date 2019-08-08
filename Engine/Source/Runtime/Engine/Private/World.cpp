@@ -124,6 +124,7 @@
 #include "Engine/AssetManager.h"
 #include "Engine/HLODProxy.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Interfaces/Interface_PostProcessVolume.h"
 
 #if INCLUDE_CHAOS
 #include "ChaosSolversModule.h"
@@ -329,6 +330,7 @@ FWorldDelegates::FWorldGetAssetTags FWorldDelegates::GetAssetTags;
 FWorldDelegates::FOnWorldTickStart FWorldDelegates::OnWorldTickStart;
 FWorldDelegates::FOnWorldPreActorTick FWorldDelegates::OnWorldPreActorTick;
 FWorldDelegates::FOnWorldPostActorTick FWorldDelegates::OnWorldPostActorTick;
+FWorldDelegates::FWorldEvent FWorldDelegates::OnWorldBeginTearDown;
 #if WITH_EDITOR
 FWorldDelegates::FRefreshLevelScriptActionsEvent FWorldDelegates::RefreshLevelScriptActions;
 #endif // WITH_EDITOR
@@ -2466,12 +2468,15 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		// notify server that the client has finished making this level visible
 		if (!Level->bClientOnlyVisible)
 		{
+			FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, true);
+			const FName UnmappedPackageName = LevelVisibility.PackageName;
+			
 			for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 			{
-				APlayerController* LocalPlayerController = It->GetPlayerController(this);
-				if (LocalPlayerController != NULL)
+				if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 				{
-					LocalPlayerController->ServerUpdateLevelVisibility(LocalPlayerController->NetworkRemapPath(Level->GetOutermost()->GetFName(), false), true);
+					LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(UnmappedPackageName, false);
+					LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 				}
 			}
 		}
@@ -2535,6 +2540,10 @@ void UWorld::BeginTearingDown()
 	bIsTearingDown = true;
 	UE_LOG(LogWorld, Log, TEXT("BeginTearingDown for %s"), *GetOutermost()->GetName());
 	BeginTearingDownEvent.Broadcast();
+
+	//Simultaneous similar edits that caused merge conflict. Taking both for now to unblock.
+	//Can likely be unified.
+	FWorldDelegates::OnWorldBeginTearDown.Broadcast(this);
 }
 
 void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
@@ -2629,12 +2638,15 @@ void UWorld::RemoveFromWorld( ULevel* Level, bool bAllowIncrementalRemoval )
 			// notify server that the client has removed this level
 			if (!Level->bClientOnlyVisible)
 			{
+				FUpdateLevelVisibilityLevelInfo LevelVisibility(Level, false);
+				const FName UnmappedPackageName = LevelVisibility.PackageName;
+
 				for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 				{
-					APlayerController* LocalPlayerController = It->GetPlayerController(this);
-					if (LocalPlayerController != NULL)
+					if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 					{
-						LocalPlayerController->ServerUpdateLevelVisibility(LocalPlayerController->NetworkRemapPath(Level->GetOutermost()->GetFName(), false), false);
+						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(UnmappedPackageName, false);
+						LocalPlayerController->ServerUpdateLevelVisibility(LevelVisibility);
 					}
 				}
 			}
@@ -3998,22 +4010,20 @@ void UWorld::InitializeActorsForPlay(const FURL& InURL, bool bResetTime)
 		{
 			for (FLocalPlayerIterator It(GEngine, this); It; ++It)
 			{
-				APlayerController* LocalPlayerController = It->GetPlayerController(this);
-				if (LocalPlayerController != NULL)
+				if (APlayerController* LocalPlayerController = It->GetPlayerController(this))
 				{
 					TArray<FUpdateLevelVisibilityLevelInfo> LevelVisibilities;
 					for (int32 LevelIndex = 1; LevelIndex < Levels.Num(); LevelIndex++)
 					{
 						ULevel*	SubLevel = Levels[LevelIndex];
 
-						FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new( LevelVisibilities ) FUpdateLevelVisibilityLevelInfo();
-						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(SubLevel->GetOutermost()->GetFName(), false);
-						LevelVisibility.bIsVisible = SubLevel->bIsVisible;
+						FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new (LevelVisibilities) FUpdateLevelVisibilityLevelInfo(SubLevel, SubLevel->bIsVisible);
+						LevelVisibility.PackageName = LocalPlayerController->NetworkRemapPath(LevelVisibility.PackageName, false);
 					}
 
-					if( LevelVisibilities.Num() > 0 )
+					if(LevelVisibilities.Num() > 0)
 					{
-						LocalPlayerController->ServerUpdateMultipleLevelsVisibility( LevelVisibilities );
+						LocalPlayerController->ServerUpdateMultipleLevelsVisibility(LevelVisibilities);
 					}
 				}
 			}
@@ -4449,14 +4459,6 @@ void UWorld::AddNetworkActor( AActor* Actor )
 	if ( !ContainsLevel(Actor->GetLevel()) )
 	{
 		return;
-	}
-
-    // Remove DORM_Initial from dynamic actors
-	if (Actor->NetDormancy == DORM_Initial && Actor->IsNetStartupActor() == false)
-	{
-		UE_LOG(LogNet, VeryVerbose, TEXT("Dynamic actor %s dormancy was changed from DORM_Initial to DORM_DormantAll"), *Actor->GetFullName());
-        // Changing dormancy directly here since the actor was not yet registered to the network drivers
-		Actor->NetDormancy = DORM_DormantAll;
 	}
 
 	ForEachNetDriver(GEngine, this, [Actor](UNetDriver* const Driver)
@@ -6589,6 +6591,7 @@ bool UWorld::RemoveLevel( ULevel* InLevel )
 		}
 #endif //WITH_EDITOR
 		Levels.Remove( InLevel );
+		FWorldDelegates::LevelRemovedFromWorld.Broadcast(InLevel, this);
 		BroadcastLevelsChanged();
 	}
 	return bRemovedLevel;
@@ -7483,6 +7486,34 @@ FPrimaryAssetId UWorld::GetPrimaryAssetId() const
 	}
 
 	return FPrimaryAssetId();
+}
+
+void UWorld::InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume)
+{
+	const int32 NumVolumes = PostProcessVolumes.Num();
+	float TargetPriority = InVolume->GetProperties().Priority;
+	int32 InsertIndex = 0;
+	// TODO: replace with binary search.
+	for (; InsertIndex < NumVolumes; InsertIndex++)
+	{
+		IInterface_PostProcessVolume* CurrentVolume = PostProcessVolumes[InsertIndex];
+		float CurrentPriority = CurrentVolume->GetProperties().Priority;
+
+		if (TargetPriority < CurrentPriority)
+		{
+			break;
+		}
+		if (CurrentVolume == InVolume)
+		{
+			return;
+		}
+	}
+	PostProcessVolumes.Insert(InVolume, InsertIndex);
+}
+
+void UWorld::RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume)
+{
+	PostProcessVolumes.RemoveSingle(InVolume);
 }
 
 /**

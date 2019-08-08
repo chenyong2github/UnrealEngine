@@ -235,16 +235,21 @@ template <typename D> void consume_Microsoft_Holographic_AppRemoting_IPlayerCont
     WINRT_VERIFY_(0, WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext)->remove_OnDisconnected(get_abi(token)));
 }
 
-template <typename D> Microsoft::Holographic::AppRemoting::CameraPoseMode consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::PoseMode() const
+template <typename D> winrt::event_token consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::OnListening(Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const
 {
-    Microsoft::Holographic::AppRemoting::CameraPoseMode value{};
-    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext)->get_PoseMode(put_abi(value)));
-    return value;
+    winrt::event_token token{};
+    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext)->add_OnListening(get_abi(handler), put_abi(token)));
+    return token;
 }
 
-template <typename D> void consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode const& value) const
+template <typename D> typename consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::OnListening_revoker consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::OnListening(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const
 {
-    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext)->put_PoseMode(get_abi(value)));
+    return impl::make_event_revoker<D, OnListening_revoker>(this, OnListening(handler));
+}
+
+template <typename D> void consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::OnListening(winrt::event_token const& token) const noexcept
+{
+    WINRT_VERIFY_(0, WINRT_SHIM(Microsoft::Holographic::AppRemoting::IPlayerContext)->remove_OnListening(get_abi(token)));
 }
 
 template <typename D> Microsoft::Holographic::AppRemoting::BlitResult consume_Microsoft_Holographic_AppRemoting_IPlayerContext<D>::BlitRemoteFrame() const
@@ -354,6 +359,23 @@ template <typename D> typename consume_Microsoft_Holographic_AppRemoting_IRemote
 template <typename D> void consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnDisconnected(winrt::event_token const& token) const noexcept
 {
     WINRT_VERIFY_(0, WINRT_SHIM(Microsoft::Holographic::AppRemoting::IRemoteContext)->remove_OnDisconnected(get_abi(token)));
+}
+
+template <typename D> winrt::event_token consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnListening(Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const
+{
+    winrt::event_token token{};
+    check_hresult(WINRT_SHIM(Microsoft::Holographic::AppRemoting::IRemoteContext)->add_OnListening(get_abi(handler), put_abi(token)));
+    return token;
+}
+
+template <typename D> typename consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnListening_revoker consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnListening(auto_revoke_t, Microsoft::Holographic::AppRemoting::OnListeningHandler const& handler) const
+{
+    return impl::make_event_revoker<D, OnListening_revoker>(this, OnListening(handler));
+}
+
+template <typename D> void consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnListening(winrt::event_token const& token) const noexcept
+{
+    WINRT_VERIFY_(0, WINRT_SHIM(Microsoft::Holographic::AppRemoting::IRemoteContext)->remove_OnListening(get_abi(token)));
 }
 
 template <typename D> winrt::event_token consume_Microsoft_Holographic_AppRemoting_IRemoteContext<D>::OnSendFrame(Microsoft::Holographic::AppRemoting::OnSendFrameHandler const& handler) const
@@ -552,6 +574,28 @@ template <> struct delegate<Microsoft::Holographic::AppRemoting::OnDisconnectedH
             try
             {
                 (*this)(*reinterpret_cast<Microsoft::Holographic::AppRemoting::ConnectionFailureReason const*>(&failureReason));
+                return 0;
+            }
+            catch (...)
+            {
+                return to_hresult();
+            }
+        }
+    };
+};
+
+template <> struct delegate<Microsoft::Holographic::AppRemoting::OnListeningHandler>
+{
+    template <typename H>
+    struct type : implements_delegate<Microsoft::Holographic::AppRemoting::OnListeningHandler, H>
+    {
+        type(H&& handler) : implements_delegate<Microsoft::Holographic::AppRemoting::OnListeningHandler, H>(std::forward<H>(handler)) {}
+
+        int32_t WINRT_CALL Invoke(uint16_t port) noexcept final
+        {
+            try
+            {
+                (*this)(port);
                 return 0;
             }
             catch (...)
@@ -1064,28 +1108,24 @@ struct produce<D, Microsoft::Holographic::AppRemoting::IPlayerContext> : produce
         return 0;
     }
 
-    int32_t WINRT_CALL get_PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode* value) noexcept final
+    int32_t WINRT_CALL add_OnListening(void* handler, winrt::event_token* token) noexcept final
     {
         try
         {
             typename D::abi_guard guard(this->shim());
-            WINRT_ASSERT_DECLARATION(PoseMode, WINRT_WRAP(Microsoft::Holographic::AppRemoting::CameraPoseMode));
-            *value = detach_from<Microsoft::Holographic::AppRemoting::CameraPoseMode>(this->shim().PoseMode());
+            WINRT_ASSERT_DECLARATION(OnListening, WINRT_WRAP(winrt::event_token), Microsoft::Holographic::AppRemoting::OnListeningHandler const&);
+            *token = detach_from<winrt::event_token>(this->shim().OnListening(*reinterpret_cast<Microsoft::Holographic::AppRemoting::OnListeningHandler const*>(&handler)));
             return 0;
         }
         catch (...) { return to_hresult(); }
     }
 
-    int32_t WINRT_CALL put_PoseMode(Microsoft::Holographic::AppRemoting::CameraPoseMode value) noexcept final
+    int32_t WINRT_CALL remove_OnListening(winrt::event_token token) noexcept final
     {
-        try
-        {
-            typename D::abi_guard guard(this->shim());
-            WINRT_ASSERT_DECLARATION(PoseMode, WINRT_WRAP(void), Microsoft::Holographic::AppRemoting::CameraPoseMode const&);
-            this->shim().PoseMode(*reinterpret_cast<Microsoft::Holographic::AppRemoting::CameraPoseMode const*>(&value));
-            return 0;
-        }
-        catch (...) { return to_hresult(); }
+        typename D::abi_guard guard(this->shim());
+        WINRT_ASSERT_DECLARATION(OnListening, WINRT_WRAP(void), winrt::event_token const&);
+        this->shim().OnListening(*reinterpret_cast<winrt::event_token const*>(&token));
+        return 0;
     }
 
     int32_t WINRT_CALL BlitRemoteFrame(Microsoft::Holographic::AppRemoting::BlitResult* result) noexcept final
@@ -1274,6 +1314,26 @@ struct produce<D, Microsoft::Holographic::AppRemoting::IRemoteContext> : produce
         typename D::abi_guard guard(this->shim());
         WINRT_ASSERT_DECLARATION(OnDisconnected, WINRT_WRAP(void), winrt::event_token const&);
         this->shim().OnDisconnected(*reinterpret_cast<winrt::event_token const*>(&token));
+        return 0;
+    }
+
+    int32_t WINRT_CALL add_OnListening(void* handler, winrt::event_token* token) noexcept final
+    {
+        try
+        {
+            typename D::abi_guard guard(this->shim());
+            WINRT_ASSERT_DECLARATION(OnListening, WINRT_WRAP(winrt::event_token), Microsoft::Holographic::AppRemoting::OnListeningHandler const&);
+            *token = detach_from<winrt::event_token>(this->shim().OnListening(*reinterpret_cast<Microsoft::Holographic::AppRemoting::OnListeningHandler const*>(&handler)));
+            return 0;
+        }
+        catch (...) { return to_hresult(); }
+    }
+
+    int32_t WINRT_CALL remove_OnListening(winrt::event_token token) noexcept final
+    {
+        typename D::abi_guard guard(this->shim());
+        WINRT_ASSERT_DECLARATION(OnListening, WINRT_WRAP(void), winrt::event_token const&);
+        this->shim().OnListening(*reinterpret_cast<winrt::event_token const*>(&token));
         return 0;
     }
 
@@ -1587,6 +1647,31 @@ template <typename O, typename M> OnDisconnectedHandler::OnDisconnectedHandler(w
 inline void OnDisconnectedHandler::operator()(Microsoft::Holographic::AppRemoting::ConnectionFailureReason const& failureReason) const
 {
     check_hresult((*(impl::abi_t<OnDisconnectedHandler>**)this)->Invoke(get_abi(failureReason)));
+}
+
+template <typename L> OnListeningHandler::OnListeningHandler(L handler) :
+    OnListeningHandler(impl::make_delegate<OnListeningHandler>(std::forward<L>(handler)))
+{}
+
+template <typename F> OnListeningHandler::OnListeningHandler(F* handler) :
+    OnListeningHandler([=](auto&&... args) { return handler(args...); })
+{}
+
+template <typename O, typename M> OnListeningHandler::OnListeningHandler(O* object, M method) :
+    OnListeningHandler([=](auto&&... args) { return ((*object).*(method))(args...); })
+{}
+
+template <typename O, typename M> OnListeningHandler::OnListeningHandler(com_ptr<O>&& object, M method) :
+    OnListeningHandler([o = std::move(object), method](auto&&... args) { return ((*o).*(method))(args...); })
+{}
+
+template <typename O, typename M> OnListeningHandler::OnListeningHandler(weak_ref<O>&& object, M method) :
+    OnListeningHandler([o = std::move(object), method](auto&&... args) { if (auto s = o.get()) { ((*s).*(method))(args...); } })
+{}
+
+inline void OnListeningHandler::operator()(uint16_t port) const
+{
+    check_hresult((*(impl::abi_t<OnListeningHandler>**)this)->Invoke(port));
 }
 
 template <typename L> OnRecognizedSpeechHandler::OnRecognizedSpeechHandler(L handler) :

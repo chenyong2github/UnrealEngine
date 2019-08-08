@@ -2,7 +2,7 @@
 
 #include "GeometryCollection/GeometryCollectionExampleBoneHierarchy.h"
 
-#include "SolverObjects/AnalyticImplicitGroup.h"
+#include "PhysicsProxy/AnalyticImplicitGroup.h"
 #include "BoneHierarchy.h"
 
 #include "Chaos/Sphere.h"

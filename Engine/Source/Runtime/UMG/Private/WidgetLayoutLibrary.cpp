@@ -14,6 +14,12 @@
 #include "Components/GridSlot.h"
 #include "Components/OverlaySlot.h"
 #include "Components/BorderSlot.h"
+#include "Components/SafeZoneSlot.h"
+#include "Components/ScaleBoxSlot.h"
+#include "Components/ScrollBoxSlot.h"
+#include "Components/SizeBoxSlot.h"
+#include "Components/WrapBoxSlot.h"
+#include "Components/WidgetSwitcherSlot.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "Slate/SlateBrushAsset.h"
 #include "Blueprint/WidgetLayoutLibrary.h"
@@ -286,6 +292,56 @@ UScrollBoxSlot* UWidgetLayoutLibrary::SlotAsScrollBoxSlot(UWidget* Widget)
 	if (Widget)
 	{
 		return Cast<UScrollBoxSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+USafeZoneSlot* UWidgetLayoutLibrary::SlotAsSafeBoxSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<USafeZoneSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+UScaleBoxSlot* UWidgetLayoutLibrary::SlotAsScaleBoxSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<UScaleBoxSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+USizeBoxSlot* UWidgetLayoutLibrary::SlotAsSizeBoxSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<USizeBoxSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+UWrapBoxSlot* UWidgetLayoutLibrary::SlotAsWrapBoxSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<UWrapBoxSlot>(Widget->Slot);
+	}
+
+	return nullptr;
+}
+
+UWidgetSwitcherSlot* UWidgetLayoutLibrary::SlotAsWidgetSwitcherSlot(UWidget* Widget)
+{
+	if (Widget)
+	{
+		return Cast<UWidgetSwitcherSlot>(Widget->Slot);
 	}
 
 	return nullptr;

@@ -50,6 +50,8 @@ private:
 	TArray<FSpatializationParams> Params;
 
 	ovrAudioContext* Context;
+	FCriticalSection ContextLock;
+
 	FAudioPluginInitializationParams InitParams;
 	FDelegateHandle TickDelegateHandle;
 };

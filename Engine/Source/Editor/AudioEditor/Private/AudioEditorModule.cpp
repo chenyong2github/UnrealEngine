@@ -11,6 +11,7 @@
 #include "SoundCueGraphNodeFactory.h"
 #include "Factories/ReimportSoundSurroundFactory.h"
 #include "AssetToolsModule.h"
+#include "PropertyEditorModule.h"
 #include "SoundClassEditor.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
@@ -26,6 +27,7 @@
 #include "AssetTypeActions/AssetTypeActions_SoundBase.h"
 #include "AssetTypeActions/AssetTypeActions_SoundClass.h"
 #include "AssetTypeActions/AssetTypeActions_SoundCue.h"
+#include "AssetTypeActions/AssetTypeActions_SoundCueTemplate.h"
 #include "AssetTypeActions/AssetTypeActions_SoundMix.h"
 #include "AssetTypeActions/AssetTypeActions_SoundWave.h"
 #include "AssetTypeActions/AssetTypeActions_ReverbEffect.h"
@@ -55,7 +57,7 @@ static const FVector2D Icon64 = FVector2D(64.0f, 64.0f);
 // ICON_NAME - base-name of the icon to use. Not necessarily based off class name
 #define SET_AUDIO_ICON(CLASS_NAME, ICON_NAME) \
 		AudioStyleSet->Set( *FString::Printf(TEXT("ClassIcon.%s"), TEXT(#CLASS_NAME)), new FSlateImageBrush(FPaths::EngineContentDir() / FString::Printf(TEXT("Editor/Slate/Icons/AssetIcons/%s_16x.png"), TEXT(#ICON_NAME)), Icon16)); \
-		AudioStyleSet->Set( *FString::Printf(TEXT("ClassThumbnail.%s"), TEXT(#CLASS_NAME)), new FSlateImageBrush(FPaths::EngineContentDir() / FString::Printf(TEXT("Editor/Slate/Icons/AssetIcons/%s_64x.png"), TEXT(#ICON_NAME)), Icon64)); 
+		AudioStyleSet->Set( *FString::Printf(TEXT("ClassThumbnail.%s"), TEXT(#CLASS_NAME)), new FSlateImageBrush(FPaths::EngineContentDir() / FString::Printf(TEXT("Editor/Slate/Icons/AssetIcons/%s_64x.png"), TEXT(#ICON_NAME)), Icon64));
 
 // Simpler version of SET_AUDIO_ICON, assumes same name of icon png and class name
 #define SET_AUDIO_ICON_SIMPLE(CLASS_NAME) SET_AUDIO_ICON(CLASS_NAME, CLASS_NAME)
@@ -90,7 +92,6 @@ public:
 		UReimportSoundSurroundFactory::StaticClass();
 
 		SetupIcons();
-
 #if WITH_SNDFILE_IO
 		if (!Audio::InitSoundFileIOManager())
 		{
@@ -127,6 +128,7 @@ public:
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundBase));
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundClass));
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundCue));
+		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundCueTemplate));
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundMix));
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_SoundWave));
 		AssetTools.RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_ReverbEffect));
@@ -307,7 +309,7 @@ private:
 		SET_AUDIO_ICON(SoundEffectSourcePreset, SourceEffectPreset);
 		SET_AUDIO_ICON(SoundEffectSourcePresetChain, SourceEffectPresetChain_1);
 		SET_AUDIO_ICON(ModularSynthPresetBank, SoundGenericIcon_2);
-		SET_AUDIO_ICON(MonoWaveTableSynthPresetBank, SoundGenericIcon_2);
+		SET_AUDIO_ICON(MonoWaveTableSynthPreset, SoundGenericIcon_2);
 		SET_AUDIO_ICON(TimeSynthClip, SoundGenericIcon_2);
 		SET_AUDIO_ICON(TimeSynthVolumeGroup, SoundGenericIcon_1);
 

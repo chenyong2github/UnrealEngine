@@ -68,8 +68,6 @@
   <ItemGroup>
     <Compile Include="Editor\EditorTest.BootTest.cs" />
     <Compile Include="Editor\RunEditorTests.cs" />
-    <Compile Include="EngineTest\RunEngineTests.cs" />
-    <Compile Include="EngineTest\Tests\EngineTest.RunAutomatedTests.cs" />
     <Compile Include="Framework\Account\Gauntlet.AccountPool.cs" />
     <Compile Include="Framework\Base\Gauntlet.AppConfig.cs" />
     <Compile Include="Framework\Base\Gauntlet.AppInstall.cs" />

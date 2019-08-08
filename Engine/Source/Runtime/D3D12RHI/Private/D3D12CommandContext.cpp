@@ -86,7 +86,7 @@ FD3D12CommandContextBase::FD3D12CommandContextBase(class FD3D12Adapter* InParent
 FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllocatedOnlineHeap::SubAllocationDesc& SubHeapDesc, bool InIsDefaultContext, bool InIsAsyncComputeContext) :
 	FD3D12CommandContextBase(InParent->GetParentAdapter(), InParent->GetGPUMask(), InIsDefaultContext, InIsAsyncComputeContext),
 	FD3D12DeviceChild(InParent),
-	ConstantsAllocator(InParent, InParent->GetGPUMask(), GetConstantAllocatorSize(InIsAsyncComputeContext, InIsDefaultContext) ),
+	ConstantsAllocator(InParent, InParent->GetGPUMask(), GetConstantAllocatorSize(InIsAsyncComputeContext, InIsDefaultContext)),
 	CommandListHandle(),
 	CommandAllocator(nullptr),
 	CommandAllocatorManager(InParent, InIsAsyncComputeContext ? D3D12_COMMAND_LIST_TYPE_COMPUTE : D3D12_COMMAND_LIST_TYPE_DIRECT),
@@ -97,6 +97,7 @@ FD3D12CommandContext::FD3D12CommandContext(FD3D12Device* InParent, FD3D12SubAllo
 	NumSimultaneousRenderTargets(0),
 	NumUAVs(0),
 	CurrentDSVAccessType(FExclusiveDepthStencil::DepthWrite_StencilWrite),
+	bOuterOcclusionQuerySubmitted(false),
 	bDiscardSharedConstants(false),
 	bUsingTessellation(false),
 	SkipFastClearEliminateState(D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE),
@@ -464,18 +465,18 @@ void FD3D12CommandContextBase::RHIEndFrame()
 		Device->GetCommandListManager().ReleaseResourceBarrierCommandListAllocator();
 	}
 
-	UpdateMemoryStats();
+		UpdateMemoryStats();
 
-	// Stop Timing at the very last moment
-
-	ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
-
-
-	// Advance frame fence
-
-	FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
-	FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
-}
+	    // Stop Timing at the very last moment
+    
+	    ParentAdapter->GetGPUProfiler().EndFrame(ParentAdapter->GetOwningRHI());
+    
+    
+	    // Advance frame fence
+    
+	    FD3D12ManualFence& FrameFence = ParentAdapter->GetFrameFence();
+	    FrameFence.Signal(ED3D12CommandQueueType::Default, FrameFence.IncrementCurrentFence());
+	}
 
 void FD3D12CommandContextBase::UpdateMemoryStats()
 {

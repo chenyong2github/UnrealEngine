@@ -400,11 +400,6 @@ struct FSlateCachedElementData
 {
 	void Empty()
 	{
-		if (CachedElementLists.Num())
-		{
-			UE_LOG(LogSlate, Log, TEXT("Resetting cached element data.  Num: %d"), CachedElementLists.Num());
-		}
-
 		CachedElementLists.Empty();
 	}
 
@@ -438,7 +433,7 @@ private:
 /**
  * Represents a top level window and its draw elements.
  */
-class FSlateWindowElementList : public FGCObject, public FNoncopyable
+class FSlateWindowElementList : public FNoncopyable
 {
 	friend class FSlateElementBatcher;
 public:
@@ -614,7 +609,7 @@ public:
 
 	SLATECORE_API void SetRenderTargetWindow(SWindow* InRenderTargetWindow);
 
-	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
+	void AddReferencedObjects(FReferenceCollector& Collector);
 
 private:
 	FSlateDrawElement& AddCachedElement();

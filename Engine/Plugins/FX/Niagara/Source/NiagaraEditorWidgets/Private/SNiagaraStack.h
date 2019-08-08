@@ -2,7 +2,6 @@
 
 #pragma once
 
-#include "EditorUndoClient.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Views/STableRow.h"
@@ -11,14 +10,14 @@
 #include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-
+#include "ViewModels/Stack/NiagaraStackViewModel.h"
 
 class UNiagaraStackViewModel;
 class SNiagaraStackTableRow;
 class SSearchBox;
 class FReply;
 
-class SNiagaraStack : public SCompoundWidget, public FEditorUndoClient
+class SNiagaraStack : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SNiagaraStack)
@@ -50,6 +49,10 @@ private:
 
 	TSharedRef<ITableRow> OnGenerateRowForStackItem(UNiagaraStackEntry* Item, const TSharedRef<STableViewBase>& OwnerTable);
 
+	TSharedRef<ITableRow> OnGenerateRowForTopLevelObject(TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel> Item, const TSharedRef<STableViewBase>& OwnerTable);
+
+	FReply OnTopLevelRowMouseButtonDown(const FGeometry&, const FPointerEvent& MouseEvent, TWeakPtr<UNiagaraStackViewModel::FTopLevelViewModel> TopLevelViewModelWeak);
+
 	TSharedRef<SNiagaraStackTableRow> ConstructContainerForItem(UNiagaraStackEntry* Item);
 
 	FRowWidgets ConstructNameAndValueWidgetsForItem(UNiagaraStackEntry* Item, TSharedRef<SNiagaraStackTableRow> Container);
@@ -69,21 +72,7 @@ private:
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-	void ConstructHeaderWidget();
-	FSlateColor GetPinColor() const;
-	FReply PinButtonPressed();
-	FReply OpenParentEmitter();
-	EVisibility GetEnableCheckboxVisibility() const;
-	EVisibility GetPinEmitterVisibility() const;
-	EVisibility GetOpenSourceEmitterVisibility() const;
-
-	// source name handling
-	bool GetEmitterNameIsReadOnly() const;
-	FText GetSourceEmitterNameText() const;
-	FText GetEmitterNameToolTip() const;
-	void OnStackViewNameTextCommitted(const FText& InText, ETextCommit::Type CommitInfo) const;
-	EVisibility GetSourceEmitterNameVisibility() const; 
-	bool GetIsEmitterRenamed() const;
+	TSharedRef<SWidget> ConstructHeaderWidget();
 
 	// ~stack search stuff
 	void OnSearchTextChanged(const FText& SearchText);
@@ -100,9 +89,7 @@ private:
 	bool IsEntryFocusedInSearch(UNiagaraStackEntry* Entry) const;
 	
 	// Inline menu commands
-	void SetEmitterEnabled(bool bIsEnabled);
-	bool CheckEmitterEnabledStatus(bool bIsEnabled);
-	void ShowEmitterInContentBrowser();
+	void ShowEmitterInContentBrowser(TWeakPtr<FNiagaraEmitterHandleViewModel> EmitterHandleViewModelWeak);
 	void NavigateTo(UNiagaraStackEntry* Item);
 	void CollapseAll();
 
@@ -120,20 +107,11 @@ private:
 
 	TSharedPtr<STreeView<UNiagaraStackEntry*>> StackTree;
 
+	TSharedPtr<SListView<TSharedRef<UNiagaraStackViewModel::FTopLevelViewModel>>> HeaderList;
+
 	float NameColumnWidth;
 
 	float ContentColumnWidth;
-	
-	TSharedPtr<SWidget> HeaderWidget;
-
-	FLinearColor PinIsPinnedColor;
-	
-	FLinearColor PinIsUnpinnedColor;
-
-	FLinearColor CurrentPinColor;
-	
-	// emitter name textblock
-	TSharedPtr<SInlineEditableTextBlock> InlineEditableTextBlock;
 
 	// ~ search stuff
 	TSharedPtr<SSearchBox> SearchBox;

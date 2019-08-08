@@ -170,7 +170,7 @@ DECLARE_DELEGATE_ThreeParams(FOnLowLevelSend, void* /*Data*/, int32 /*Count*/, b
 /**
  * An artificially lagged packet
  */
-struct DelayedPacket
+struct FDelayedPacket
 {
 	/** The packet data to send */
 	TArray<uint8> Data;
@@ -186,7 +186,7 @@ struct DelayedPacket
 
 public:
 	UE_DEPRECATED(4.21, "Use the constructor that takes PacketTraits for allowing for analytics and flags")
-	FORCEINLINE DelayedPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits)
+	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits)
 		: Data()
 		, SizeBits(InSizeBits)
 		, Traits()
@@ -196,7 +196,7 @@ public:
 		FMemory::Memcpy(Data.GetData(), InData, InSizeBytes);
 	}
 
-	FORCEINLINE DelayedPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
+	FORCEINLINE FDelayedPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
 		: Data()
 		, SizeBits(InSizeBits)
 		, Traits(InTraits)
@@ -213,7 +213,16 @@ public:
 		Data.CountBytes(Ar);
 	}
 };
-#endif
+
+struct FDelayedIncomingPacket
+{
+	TUniquePtr<FBitReader> PacketData;
+
+	/** Time at which the packet should be reinjected into the connection */
+	double ReinjectionTime = 0.0;
+};
+
+#endif //#if DO_ENABLE_NET_TEST
 
 /** Record of channels with data written into each outgoing packet. */
 struct FWrittenChannelsRecord
@@ -607,19 +616,37 @@ public:
 	TSet<FName> ClientVisibleLevelNames;
 
 	/** Called by PlayerController to tell connection about client level visiblity change */
+	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
+	
+	UE_DEPRECATED(4.24, "This method will be removed. Use UpdateLevelVisibility that takes an FUpdateLevelVisibilityLevelInfo")
 	ENGINE_API void UpdateLevelVisibility(const FName& PackageName, bool bIsVisible);
 
 #if DO_ENABLE_NET_TEST
+
 	// For development.
 	/** Packet settings for testing lag, net errors, etc */
 	FPacketSimulationSettings PacketSimulationSettings;
 
-	/** delayed packet array */
-	TArray<DelayedPacket> Delayed;
-
 	/** Copies the settings from the net driver to our local copy */
-	void UpdatePacketSimulationSettings(void);
-#endif
+	void UpdatePacketSimulationSettings();
+
+private:
+
+	/** delayed outgoing packet array */
+	TArray<FDelayedPacket> Delayed;
+
+	/** delayed incoming packet array */
+	TArray<FDelayedIncomingPacket> DelayedIncomingPackets;
+
+	/** set to true when already delayed packets are reinjected */
+	bool bIsReinjectingDelayedPackets;
+
+	/** Process incoming packets that have been delayed for long enough */
+	void ReinjectDelayedPackets();
+
+#endif //#if DO_ENABLE_NET_TEST
+
+public:
 
 	/** 
 	 * If true, will resend everything this connection has ever sent, since the connection has been open.
@@ -1199,6 +1226,14 @@ private:
 
 	/** Returns true if an outgoing packet should be dropped due to packet simulation settings, including loss burst simulation. */
 	bool ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) const;
+
+	/**
+	*	Test the current emulation settings to delay, drop, etc the current packet
+	*	Returns true if the packet was emulated and false when the packet must be sent via the normal path
+	*/
+#if DO_ENABLE_NET_TEST
+	bool CheckOutgoingPacketEmulation(FOutPacketTraits& Traits);
+#endif
 
 	/** Write packetHeader */
 	void WritePacketHeader(FBitWriter& Writer);

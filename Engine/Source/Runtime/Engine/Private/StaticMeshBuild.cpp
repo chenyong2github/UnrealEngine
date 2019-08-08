@@ -76,15 +76,15 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 	if (IsTemplate())
 		return;
 
-	if (SourceModels.Num() <= 0)
+	if (GetNumSourceModels() <= 0)
 	{
 		UE_LOG(LogStaticMesh,Warning,TEXT("Static mesh has no source models: %s"),*GetPathName());
 		return;
 	}
 
-	if (SourceModels.Num() > MAX_STATIC_MESH_LODS)
+	if (GetNumSourceModels() > MAX_STATIC_MESH_LODS)
 	{
-		UE_LOG(LogStaticMesh, Warning, TEXT("Cannot build LOD %d.  The maximum allowed is %d.  Skipping."), SourceModels.Num(), MAX_STATIC_MESH_LODS);
+		UE_LOG(LogStaticMesh, Warning, TEXT("Cannot build LOD %d.  The maximum allowed is %d.  Skipping."), GetNumSourceModels(), MAX_STATIC_MESH_LODS);
 		return;
 	}
 
@@ -139,10 +139,10 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 	CreateBodySetup();
 	check(BodySetup != NULL);
 
-	if( SourceModels.Num() )
+	if( GetNumSourceModels() )
 	{
 		// Rescale simple collision if the user changed the mesh build scale
-		BodySetup->RescaleSimpleCollision( SourceModels[0].BuildSettings.BuildScale3D );
+		BodySetup->RescaleSimpleCollision( GetSourceModel(0).BuildSettings.BuildScale3D );
 	}
 
 	// Invalidate physics data if this has changed.
@@ -163,11 +163,12 @@ void UStaticMesh::Build(bool bSilent, TArray<FText>* OutErrors)
 			//Issue the tangent message in case tangent are zero
 			if (bZeroTangents || bZeroBinormals)
 			{
-				bool bIsUsingMikktSpace = SourceModels[0].BuildSettings.bUseMikkTSpace && (SourceModels[0].BuildSettings.bRecomputeTangents || SourceModels[0].BuildSettings.bRecomputeNormals);
+				const FStaticMeshSourceModel& SourceModelLOD0 = GetSourceModel(0);
+				bool bIsUsingMikktSpace = SourceModelLOD0.BuildSettings.bUseMikkTSpace && (SourceModelLOD0.BuildSettings.bRecomputeTangents || SourceModelLOD0.BuildSettings.bRecomputeNormals);
 				// Only suggest Recompute Tangents if the import hasn't already tried it
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("Meshname"), FText::FromString(GetName()));
-				Arguments.Add(TEXT("Options"), SourceModels[0].BuildSettings.bRecomputeTangents ? FText::GetEmpty() : LOCTEXT("MeshRecomputeTangents", "Consider enabling Recompute Tangents in the mesh's Build Settings."));
+				Arguments.Add(TEXT("Options"), SourceModelLOD0.BuildSettings.bRecomputeTangents ? FText::GetEmpty() : LOCTEXT("MeshRecomputeTangents", "Consider enabling Recompute Tangents in the mesh's Build Settings."));
 				Arguments.Add(TEXT("MikkTSpace"), bIsUsingMikktSpace ? LOCTEXT("MeshUseMikkTSpace", "MikkTSpace relies on tangent bases and may result in mesh corruption, consider disabling this option.") : FText::GetEmpty());
 				const FText WarningMsg = FText::Format(LOCTEXT("MeshHasDegenerateTangents", "{Meshname} has degenerate tangent bases which will result in incorrect shading. {Options} {MikkTSpace}"), Arguments);
 				//Automation and unattended log display instead of warning for tangents
@@ -584,7 +585,7 @@ void UStaticMesh::FixupZeroTriangleSections()
 				if (RenderData->MaterialIndexToImportIndex.IsValidIndex(SectionIndex))
 				{
 					int32 ImportIndex = RenderData->MaterialIndexToImportIndex[SectionIndex];
-					FMeshSectionInfo SectionInfo = SectionInfoMap.Get(LODIndex, ImportIndex);
+					FMeshSectionInfo SectionInfo = GetSectionInfoMap().Get(LODIndex, ImportIndex);
 					int32 OriginalMaterialIndex = SectionInfo.MaterialIndex;
 
 					// If import index == material index, remap it.
@@ -641,8 +642,8 @@ void UStaticMesh::FixupZeroTriangleSections()
 			}
 		}
 
-		SectionInfoMap.Clear();
-		SectionInfoMap.CopyFrom(NewSectionInfoMap);
+		GetSectionInfoMap().Clear();
+		GetSectionInfoMap().CopyFrom(NewSectionInfoMap);
 
 		// Check if we need to remap materials.
 		bool bRemapMaterials = false;
@@ -688,7 +689,7 @@ void UStaticMesh::FixupZeroTriangleSections()
 				int32 NumSections = LOD.Sections.Num();
 				for (int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 				{
-					FMeshSectionInfo Info = SectionInfoMap.Get(LODIndex, SectionIndex);
+					FMeshSectionInfo Info = GetSectionInfoMap().Get(LODIndex, SectionIndex);
 					if(Info.MaterialIndex > FoundMaxMaterialIndex)
 					{
 						FoundMaxMaterialIndex = Info.MaterialIndex;

@@ -189,6 +189,7 @@ UAppleARKitTextureCameraImage::UAppleARKitTextureCameraImage(const FObjectInitia
 	: Super(ObjectInitializer)
 #if PLATFORM_MAC || PLATFORM_IOS
 	, CameraImage(nullptr)
+    , NewCameraImage(nullptr)
 #endif
 {
 	ExternalTextureGuid = FGuid::NewGuid();
@@ -211,6 +212,15 @@ void UAppleARKitTextureCameraImage::BeginDestroy()
 		CFRelease(CameraImage);
 		CameraImage = nullptr;
 	}
+    
+    {
+        FScopeLock ScopeLock(&PendingImageLock);
+        if (NewCameraImage != nullptr)
+        {
+            CFRelease(NewCameraImage);
+            NewCameraImage = nullptr;
+        }
+    }
 #endif
 	Super::BeginDestroy();
 }
@@ -244,19 +254,35 @@ void UAppleARKitTextureCameraImage::Init(float InTimestamp, CVPixelBufferRef InC
 	}
 }
 
-void UAppleARKitTextureCameraImage::Init_RenderThread(CVPixelBufferRef InCameraImage)
+void UAppleARKitTextureCameraImage::Init_RenderThread()
 {
 	if (Resource != nullptr)
 	{
-		CFRetain(InCameraImage);
 		FARKitCameraImageResource* ARKitResource = static_cast<FARKitCameraImageResource*>(Resource);
 		ENQUEUE_RENDER_COMMAND(Init_RenderThread)(
-			[ARKitResource, InCameraImage](FRHICommandListImmediate&)
+			[ARKitResource, this](FRHICommandListImmediate&)
 		{
-			ARKitResource->Init_RenderThread(InCameraImage);
-			CFRelease(InCameraImage);
+			FScopeLock ScopeLock(&PendingImageLock);
+			if (NewCameraImage != nullptr)
+			{
+				ARKitResource->Init_RenderThread(NewCameraImage);
+				CFRelease(NewCameraImage);
+				NewCameraImage = nullptr;
+			}
 		});
 	}
+}
+
+void UAppleARKitTextureCameraImage::EnqueueNewCameraImage(CVPixelBufferRef InCameraImage)
+{
+	FScopeLock ScopeLock(&PendingImageLock);
+	if (NewCameraImage != nullptr)
+	{
+		CFRelease(NewCameraImage);
+	}
+
+	NewCameraImage = InCameraImage;
+	CFRetain(NewCameraImage);
 }
 #endif
 

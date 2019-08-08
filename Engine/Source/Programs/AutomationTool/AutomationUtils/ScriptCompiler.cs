@@ -187,6 +187,13 @@ namespace AutomationTool
 
 			foreach (string Module in Modules)
 			{
+				// this project is built by the AutomationTool project that the RunUAT script builds so 
+				// it will always be newer than was last built
+				if (Module.Contains("AutomationUtils.Automation"))
+				{
+					continue;
+				}
+
 				CsProjectInfo Proj;
 
 				Dictionary<string, string> Properties = new Dictionary<string, string>();
@@ -284,9 +291,10 @@ namespace AutomationTool
 
 			DateTime StartTime = DateTime.Now;
 
-			bool UseParallelMsBuild = UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Win64
-				|| UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Win32
-				|| UnrealBuildTool.BuildHostPlatform.Current.Platform == UnrealBuildTool.UnrealTargetPlatform.Mac;
+			string BuildTool = CommandUtils.CmdEnv.MsBuildExe;
+
+			// msbuild (standard on windows, in mono >=5.0 is preferred due to speed and parallel compilation)
+			bool UseParallelMsBuild = Path.GetFileNameWithoutExtension(BuildTool).ToLower() == "msbuild";
 
 			if (UseParallelMsBuild)
 			{
@@ -308,7 +316,7 @@ namespace AutomationTool
 
 				var CmdLine = String.Format("\"{0}\" /p:Configuration={1} /verbosity:{2} /nologo", UATProjFile, BuildConfig, MsBuildVerbosity);
 				// suppress the run command because it can be long and intimidating, making the logs around this code harder to read.
-				var Result = CommandUtils.Run(CommandUtils.CmdEnv.MsBuildExe, CmdLine, Options: CommandUtils.ERunOptions.Default | CommandUtils.ERunOptions.NoLoggingOfRunCommand | CommandUtils.ERunOptions.LoggingOfRunDuration);
+				var Result = CommandUtils.Run(BuildTool, CmdLine, Options: CommandUtils.ERunOptions.Default | CommandUtils.ERunOptions.NoLoggingOfRunCommand | CommandUtils.ERunOptions.LoggingOfRunDuration);
 				if (Result.ExitCode != 0)
 				{
 					throw new AutomationException(String.Format("Failed to build \"{0}\":{1}{2}", UATProjFile, Environment.NewLine, Result.Output));

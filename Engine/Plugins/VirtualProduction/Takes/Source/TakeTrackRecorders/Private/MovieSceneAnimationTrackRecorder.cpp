@@ -244,7 +244,9 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 			bRecordInWorldSpace = !OwningTakeRecorderSource->IsOtherActorBeingRecorded(AttachParent->GetOwner());
 		}
 
-		FFrameRate SampleRate = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetDisplayRate();
+		const UTimecodeProvider* TimecodeProvider = GEngine->GetTimecodeProvider();
+		FFrameRate SampleRate = (TimecodeProvider && TimecodeProvider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+			? TimecodeProvider->GetFrameRate() : MovieScene->GetDisplayRate();
 
 		//Set this up here so we know that it's parent sources have also been added so we record in the correct space
 		FAnimationRecordingSettings RecordingSettings;
@@ -254,7 +256,7 @@ void UMovieSceneAnimationTrackRecorder::RecordSampleImpl(const FQualifiedFrameTi
 		RecordingSettings.Length = 0;
 		RecordingSettings.bRecordInWorldSpace = bRecordInWorldSpace;
 		RecordingSettings.bRemoveRootAnimation = bRemoveRootAnimation;
-
+		RecordingSettings.bCheckDeltaTimeAtBeginning = false;
 		AnimationRecorder.Init(SkeletalMeshComponent.Get(), AnimSequence.Get(), &AnimationSerializer, RecordingSettings);
 		AnimationRecorder.BeginRecording();
 	}

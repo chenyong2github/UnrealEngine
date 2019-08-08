@@ -206,12 +206,19 @@ public:
 	/**
 	* Move Constructor
 	*/
-	FORCEINLINE TManagedArrayBase(TManagedArrayBase<ElementType>&& Other) = delete;
+	FORCEINLINE TManagedArrayBase(TManagedArrayBase<ElementType>&& Other)
+		: Array(MoveTemp(Other.Array))
+	{}
 
 	/**
 	* Assignment operator
 	*/
-	FORCEINLINE TManagedArrayBase& operator=(TManagedArrayBase<ElementType>&& Other) = delete;
+	FORCEINLINE TManagedArrayBase& operator=(TManagedArrayBase<ElementType>&& Other)
+	{
+		Array = MoveTemp(Other.Array);
+		return *this;
+	}
+
 
 
 	/**
@@ -481,9 +488,17 @@ public:
 		: TManagedArrayBase<InElementType>(Other)
 	{}
 
+	FORCEINLINE TManagedArray(TManagedArray<InElementType>&& Other)
+		: TManagedArrayBase<InElementType>(MoveTemp(Other))
+	{}
+
+	FORCEINLINE TManagedArray& operator=(TManagedArray<InElementType>&& Other)
+	{
+		TManagedArrayBase<InElementType>::operator=(MoveTemp(Other));
+		return *this;
+	}
+
 	FORCEINLINE TManagedArray(const TManagedArray<InElementType>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<InElementType>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<InElementType>&& Other) = delete;
 
 	virtual ~TManagedArray()
 	{}
@@ -503,8 +518,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<int32>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<int32>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<int32>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<int32>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<int32>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}
@@ -555,8 +570,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<TSet<int32>>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<TSet<int32>>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<TSet<int32>>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<TSet<int32>>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<TSet<int32>>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}
@@ -622,8 +637,8 @@ public:
 	{}
 
 	FORCEINLINE TManagedArray(const TManagedArray<FIntVector>& Other) = delete;
-	FORCEINLINE TManagedArray(TManagedArray<FIntVector>&& Other) = delete;
-	FORCEINLINE TManagedArray& operator=(TManagedArray<FIntVector>&& Other) = delete;
+	FORCEINLINE TManagedArray(TManagedArray<FIntVector>&& Other) = default;
+	FORCEINLINE TManagedArray& operator=(TManagedArray<FIntVector>&& Other) = default;
 
 	virtual ~TManagedArray()
 	{}

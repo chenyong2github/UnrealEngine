@@ -15,7 +15,6 @@
 	"IsBetaVersion" : true,
 	"Installed" : false,
 	"SupportedTargetPlatforms": [
-		"Win32",
 		"Win64",
 		"HoloLens"
 	],
@@ -25,7 +24,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -35,7 +33,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -45,7 +42,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -55,7 +51,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -65,7 +60,6 @@
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -75,7 +69,6 @@
 			"Type": "Runtime",
 			"LoadingPhase": "PreDefault",
 			"WhitelistPlatforms": [
-				"Win32",
 				"Win64",
 				"HoloLens"
 			]
@@ -102,6 +95,7 @@
 			"Name": "HoloLensAR",
 			"Enabled": true,
 			"WhitelistPlatforms": [
+				"Win64",
 				"HoloLens"
 			]
 		}

@@ -631,58 +631,75 @@ class Popen(object):
                 to_close.remove(fd)
 
             # Start the process
-            try:
-                hp, ht, pid, tid = _subprocess.CreateProcess(executable, args,
-                                         # no special security
-                                         None, None,
-                                         int(not close_fds),
-                                         creationflags,
-                                         env,
-                                         cwd,
-                                         startupinfo)
-# EPIC EDIT start -- nick.shin 2019-06-13 -- UE-76599
-#            except pywintypes.error, e:
-            except (OSError, pywintypes.error) as e:
-                # Translate pywintypes.error to WindowsError, which is
-                # a subclass of OSError.  FIXME: We should really
-                # translate errno using _sys_errlist (or similar), but
-                # how can this be done from Python?
-#                raise WindowsError(*e.args)
-                # ERROR_ACCESS_DENIED (winerror 5) is received when the
-                # process already died.
-                print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP')
-                print(executable)
-                print(args)
-                print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
-                if e.winerror != 5:
-                    print('NICKNICK: subprocess.py e.winerror:', e.winerror)
-                    raise WindowsError(*e.args)
-                hp = None
-# EPIC EDIT end -- nick.shin 2019-06-13 -- UE-76599
-            finally:
-                # Child is launched. Close the parent's copy of those pipe
-                # handles that only the child should have open.  You need
-                # to make sure that no handles to the write end of the
-                # output pipe are maintained in this process or else the
-                # pipe will not close when the child process exits and the
-                # ReadFile will hang.
-                if p2cread is not None:
-                    _close_in_parent(p2cread)
-                if c2pwrite is not None:
-                    _close_in_parent(c2pwrite)
-                if errwrite is not None:
-                    _close_in_parent(errwrite)
-
-            # Retain the process handle, but close the thread handle
-# EPIC EDIT start -- nick.shin 2019-07-16 -- UE-76599
-            self._handle = hp
-            if hp is not None:
-                self._child_created = True
-                self.pid = pid
-                ht.Close()
-            else:
+# EPIC EDIT start -- nick.shin 2019-07-18 -- UE-76599
+# windows seems to have a problem of returning control to python after spawning process
+# - we are seening the process has already exit which give bad results upon coming back from CreateProcess()
+# - for now, rerun the command -- THIS CHANGE WILL BE ONLY DONE FOR emscripten builds
+            loop_limit = 3
+            while loop_limit > 0:
+                # ----------------------------------------
+                try:
+                    hp, ht, pid, tid = _subprocess.CreateProcess(executable, args,
+                                             # no special security
+                                             None, None,
+                                             int(not close_fds),
+                                             creationflags,
+                                             env,
+                                             cwd,
+                                             startupinfo)
+#                except pywintypes.error, e:
+                except (OSError, pywintypes.error) as e:
+                    # Translate pywintypes.error to WindowsError, which is
+                    # a subclass of OSError.  FIXME: We should really
+                    # translate errno using _sys_errlist (or similar), but
+                    # how can this be done from Python?
+#                    raise WindowsError(*e.args)
+                    # ERROR_ACCESS_DENIED (winerror 5) is received when the
+                    # process already died.
+                    print('NICKNICK: subprocess.py START OF CIS BUGHUNT DUMP loop:%d' % loop_limit)
+                    print(executable)
+                    print(args)
+                    print('NICKNICK: subprocess.py END OF CIS BUGHUNT DUMP')
+                    if e.winerror != 5:
+                        print('NICKNICK: subprocess.py e.winerror:', e.winerror)
+                        raise WindowsError(*e.args)
+                    hp = None
+#                finally:
+#                    print "bla:"
+#                    # Child is launched. Close the parent's copy of those pipe
+#                    # handles that only the child should have open.  You need
+#                    # to make sure that no handles to the write end of the
+#                    # output pipe are maintained in this process or else the
+#                    # pipe will not close when the child process exits and the
+#                    # ReadFile will hang.
+#                    if p2cread is not None:
+#                        _close_in_parent(p2cread)
+#                    if c2pwrite is not None:
+#                        _close_in_parent(c2pwrite)
+#                    if errwrite is not None:
+#                        _close_in_parent(errwrite)
+    
+                # Retain the process handle, but close the thread handle
+                self._handle = hp
+                if hp is not None:
+                    self._child_created = True
+                    self.pid = pid
+                    ht.Close()
+                    loop_limit = 0
+                else:
+                    loop_limit -= 1
+# finally:
+            if p2cread is not None:
+                _close_in_parent(p2cread)
+            if c2pwrite is not None:
+                _close_in_parent(c2pwrite)
+            if errwrite is not None:
+                _close_in_parent(errwrite)
+  
+            if self._handle is None:
+                # should raise error if still here...
                 self.returncode = 0
-# EPIC EDIT end -- nick.shin 2019-07-16 -- UE-76599
+# EPIC EDIT end -- nick.shin 2019-07-18 -- UE-76599
 
         def _internal_poll(self, _deadstate=None,
                 _WaitForSingleObject=_subprocess.WaitForSingleObject,

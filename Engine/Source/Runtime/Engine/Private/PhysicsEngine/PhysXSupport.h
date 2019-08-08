@@ -132,7 +132,7 @@ PxFilterFlags PhysXSimFilterShader(	PxFilterObjectAttributes attributes0, PxFilt
 									PxFilterObjectAttributes attributes1, PxFilterData filterData1,
 									PxPairFlags& pairFlags, const void* constantBlock, PxU32 constantBlockSize );
 
-#if !WITH_CHAOS && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS
 /** Event callback used to notify engine about various collision events */
 class ENGINE_API FPhysXSimEventCallback : public PxSimulationEventCallback
 {

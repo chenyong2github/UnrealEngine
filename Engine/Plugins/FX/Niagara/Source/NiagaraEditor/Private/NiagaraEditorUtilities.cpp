@@ -10,6 +10,7 @@
 #include "UObject/StructOnScope.h"
 #include "NiagaraGraph.h"
 #include "NiagaraSystem.h"
+#include "NiagaraSystemEditorData.h"
 #include "NiagaraScriptSource.h"
 #include "NiagaraScript.h"
 #include "NiagaraNodeOutput.h"
@@ -500,7 +501,7 @@ void FNiagaraEditorUtilities::CompileExistingEmitters(const TArray<UNiagaraEmitt
 	for (UNiagaraEmitter* Emitter : AffectedEmitters)
 	{
 		// If we've already compiled this emitter, or it's invalid skip it.
-		if (CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
+		if (Emitter == nullptr || CompiledEmitters.Contains(Emitter) || Emitter->IsPendingKillOrUnreachable())
 		{
 			continue;
 		}
@@ -1083,7 +1084,7 @@ TArray<UNiagaraComponent*> FNiagaraEditorUtilities::GetComponentsThatReferenceSy
 	return ReferencingComponents;
 }
 
-const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem, UNiagaraEmitter& InEmitterToAdd, bool bSystemIsPlaceholder)
+const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem, UNiagaraEmitter& InEmitterToAdd)
 {
 	// Kill all system instances before modifying the emitter handle list to prevent accessing deleted data.
 	KillSystemInstances(InSystem);
@@ -1094,8 +1095,9 @@ const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem
 		EmitterHandleNames.Add(EmitterHandle.GetName());
 	}
 
+	UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(InSystem.GetEditorData(), ECastCheckedType::NullChecked);
 	FNiagaraEmitterHandle EmitterHandle;
-	if (false == bSystemIsPlaceholder)
+	if (SystemEditorData->GetOwningSystemIsPlaceholder() == false)
 	{
 		InSystem.Modify();
 		EmitterHandle = InSystem.AddEmitterHandle(InEmitterToAdd, FNiagaraUtilities::GetUniqueName(InEmitterToAdd.GetFName(), EmitterHandleNames));
@@ -1110,6 +1112,7 @@ const FGuid FNiagaraEditorUtilities::AddEmitterToSystem(UNiagaraSystem& InSystem
 	}
 	
 	FNiagaraStackGraphUtilities::RebuildEmitterNodes(InSystem);
+	SystemEditorData->SynchronizeOverviewGraphWithSystem(InSystem);
 
 	return EmitterHandle.GetId();
 }
@@ -1125,7 +1128,10 @@ void FNiagaraEditorUtilities::RemoveEmittersFromSystemByEmitterHandleId(UNiagara
 
 	InSystem.Modify();
 	InSystem.RemoveEmitterHandlesById(EmitterHandleIdsToDelete);
+
 	FNiagaraStackGraphUtilities::RebuildEmitterNodes(InSystem);
+	UNiagaraSystemEditorData* SystemEditorData = CastChecked<UNiagaraSystemEditorData>(InSystem.GetEditorData(), ECastCheckedType::NullChecked);
+	SystemEditorData->SynchronizeOverviewGraphWithSystem(InSystem);
 }
 
 void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)

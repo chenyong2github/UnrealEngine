@@ -19,14 +19,6 @@ namespace DisplayClusterStrings
 					static constexpr auto Screen = TEXT("screen");
 				}
 
-				namespace mpcdi
-				{
-					static constexpr auto File   = TEXT("file");
-					static constexpr auto Buffer = TEXT("buffer");
-					static constexpr auto Region = TEXT("region");
-					static constexpr auto Origin = TEXT("origin");
-				}
-
 				namespace easyblend
 				{
 					static constexpr auto File   = TEXT("file");
@@ -39,6 +31,7 @@ namespace DisplayClusterStrings
 
 	namespace projection
 	{
+		static constexpr auto Camera    = TEXT("camera");
 		static constexpr auto Simple    = TEXT("simple");
 		static constexpr auto MPCDI     = TEXT("mpcdi");
 		static constexpr auto EasyBlend = TEXT("easyblend");

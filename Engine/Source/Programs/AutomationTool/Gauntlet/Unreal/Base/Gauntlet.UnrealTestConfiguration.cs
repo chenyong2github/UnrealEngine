@@ -139,7 +139,7 @@ namespace Gauntlet
 	/// implementation.
 	///
 	/// </summary>
-	abstract public class UnrealTestConfiguration : IConfigOption<UnrealAppConfig>
+	public class UnrealTestConfiguration : IConfigOption<UnrealAppConfig>
 	{
 
 		// Protected options that are driven from the command line

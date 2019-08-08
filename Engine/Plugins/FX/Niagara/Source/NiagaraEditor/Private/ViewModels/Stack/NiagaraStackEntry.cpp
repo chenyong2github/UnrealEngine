@@ -18,6 +18,7 @@ const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Settings = TEXT("Set
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Spawn = TEXT("Spawn");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Update = TEXT("Update");
 const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Event = TEXT("Event");
+const FName UNiagaraStackEntry::FExecutionSubcategoryNames::Render = TEXT("Render");
 
 UNiagaraStackEntry::FStackIssueFix::FStackIssueFix()
 {
@@ -165,6 +166,11 @@ void UNiagaraStackEntry::Finalize()
 	ErrorChildren.Empty();
 }
 
+bool UNiagaraStackEntry::IsFinalized() const
+{
+	return bIsFinalized;
+}
+
 FText UNiagaraStackEntry::GetDisplayName() const
 {
 	return FText();
@@ -289,11 +295,9 @@ TSharedRef<FNiagaraSystemViewModel> UNiagaraStackEntry::GetSystemViewModel() con
 	return PinnedSystemViewModel.ToSharedRef();
 }
 
-TSharedRef<FNiagaraEmitterViewModel> UNiagaraStackEntry::GetEmitterViewModel() const
+TSharedPtr<FNiagaraEmitterViewModel> UNiagaraStackEntry::GetEmitterViewModel() const
 {
-	TSharedPtr<FNiagaraEmitterViewModel> PinnedEmitterViewModel = EmitterViewModel.Pin();
-	checkf(PinnedEmitterViewModel.IsValid(), TEXT("Base stack entry not initialized or emitter view model was already deleted."));
-	return PinnedEmitterViewModel.ToSharedRef();
+	return EmitterViewModel.Pin();
 }
 
 UNiagaraStackEntry::FOnStructureChanged& UNiagaraStackEntry::OnStructureChanged()
@@ -390,8 +394,7 @@ bool UNiagaraStackEntry::HasBaseEmitter() const
 {
 	if (bHasBaseEmitterCache.IsSet() == false)
 	{
-		TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
-		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+		const UNiagaraEmitter* BaseEmitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetParentEmitter() : nullptr;
 		bHasBaseEmitterCache = BaseEmitter != nullptr;
 	}
 	return bHasBaseEmitterCache.GetValue();
@@ -429,7 +432,7 @@ void UNiagaraStackEntry::FinalizeInternal()
 void UNiagaraStackEntry::RefreshChildren()
 {
 	checkf(bIsFinalized == false, TEXT("Can not refresh children on an entry after it has been finalized."));
-	checkf(SystemViewModel.IsValid() && EmitterViewModel.IsValid(), TEXT("Base stack entry not initialized."));
+	checkf(SystemViewModel.IsValid(), TEXT("Base stack entry not initialized."));
 
 	for (UNiagaraStackEntry* Child : Children)
 	{
@@ -455,11 +458,11 @@ void UNiagaraStackEntry::RefreshChildren()
 	TArray<FStackIssue> NewStackIssues;
 	RefreshChildrenInternal(Children, NewChildren, NewStackIssues);
 
-	// If any of the current children were not moved to the new children collection than finalize them since
+	// If any of the current children were not moved to the new children collection, and they're owned by this entry than finalize them since
 	// they weren't reused.
 	for (UNiagaraStackEntry* Child : Children)
 	{
-		if (NewChildren.Contains(Child) == false)
+		if (NewChildren.Contains(Child) == false && Child->GetOuter() == this)
 		{
 			Child->Finalize();
 		}

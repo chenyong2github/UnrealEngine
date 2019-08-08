@@ -6,166 +6,140 @@
 #include "Chaos/Vector.h"
 #include "ChaosArchive.h"
 
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+#define PARTICLE_ITERATOR_RANGED_FOR_CHECK 1
+#else
+#define PARTICLE_ITERATOR_RANGED_FOR_CHECK 0
+#endif
+
 namespace Chaos
 {
 	template<class T, int d>
 	class TPBDRigidsEvolution;
+
+	enum class ERemoveParticleBehavior : uint8
+	{
+		RemoveAtSwap,	//O(1) but reorders particles relative to one another
+		Remove			//Keeps particles relative to one another, but O(n)
+	};
 
 	template<class T, int d>
 	class TParticles : public TArrayCollection
 	{
 	public:
 		TParticles()
-		    : MXView(MX.GetData(), MX.Num())
+			: MRemoveParticleBehavior(ERemoveParticleBehavior::RemoveAtSwap)
 		{
 			AddArray(&MX);
-			MXView = TArrayCollectionArrayView<TVector<T, d>>(MX.GetData(), MX.Num());
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			MDirtyValidationCount = 0;
+#endif
 		}
 		TParticles(const TParticles<T, d>& Other) = delete;
 		TParticles(TParticles<T, d>&& Other)
-		    : TArrayCollection(), MX(MoveTemp(Other.MX)), MXView(MoveTemp(Other.MXView))
+		    : TArrayCollection(), MX(MoveTemp(Other.MX))
+			, MRemoveParticleBehavior(Other.MRemoveParticleBehavior)
 		{
 			AddParticles(Other.Size());
 			AddArray(&MX);
 			Other.MSize = 0;
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			MDirtyValidationCount = 0;
+#endif
 		}
 
-		/**
-		 * Constructor that replaces the positions array with a view of @param Points.
-		 */
-		TParticles(TArray<TVector<T, d>>& Points)
-		    : TArrayCollection()
-		    , MXView(Points.GetData(), Points.Num())
+		TParticles(TArray<TVector<T, d>>&& Positions)
+			: TArrayCollection(), MX(MoveTemp(Positions))
+			, MRemoveParticleBehavior(ERemoveParticleBehavior::RemoveAtSwap)
 		{
-			AddElementsHelper(MXView.Num());
-			AddArray(&MXView);
-		}
-		TParticles(TVector<T, d>* Data, const int32 Num)
-		    : TArrayCollection()
-		    , MXView(Data, Num)
-		{
-			AddElementsHelper(MXView.Num());
-			AddArray(&MXView);
+			AddParticles(MX.Num());
+			AddArray(&MX);
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			MDirtyValidationCount = 0;
+#endif
 		}
 
 		~TParticles()
 		{}
 
-		/**
-		 * Add (or remove) particles.  If this class is currently using a non-local view for 
-		 * positions, they are copied into a local positions array and resized.
-		 */
-		void AddElements(const int32 Num)
-		{
-			if (Num == 0) // Can be negative
-			{
-				return;
-			}
-			const bool UsingLocalXArray = IsUsingLocalXArray();
-			if (!UsingLocalXArray)
-			{
-				// Don't add MX yet, so we avoid an extra memory allocation
-				RemoveArray(&MXView);
-			}
-			// Add elements, which may allocate new memory
-			AddElementsHelper(Num);
-			if (!UsingLocalXArray)
-			{
-				AddArray(&MX); // Reuses MXView's position in the TArrayCollection
-				for (int32 It = 0, EndIt = FMath::Min(MX.Num(), MXView.Num()); It < EndIt; ++It)
-				{
-					MX[It] = MXView[It];
-				}
-			}
-			// MX's base pointer may have changed
-			MXView = TArrayCollectionArrayView<TVector<T, d>>(MX.GetData(), MX.Num());
-		}
 		void AddParticles(const int32 Num)
 		{
-			AddElements(Num);
+			AddElementsHelper(Num);
+			IncrementDirtyValidation();
+		}
+
+		void DestroyParticle(const int32 Idx)
+		{
+			if (MRemoveParticleBehavior == ERemoveParticleBehavior::RemoveAtSwap)
+			{
+				RemoveAtSwapHelper(Idx);
+			}
+			else
+			{
+				RemoveAtHelper(Idx, 1);
+			}
+			IncrementDirtyValidation();
+		}
+
+		ERemoveParticleBehavior RemoveParticleBehavior() const { return MRemoveParticleBehavior; }
+		ERemoveParticleBehavior& RemoveParticleBehavior() { return MRemoveParticleBehavior; }
+
+		void MoveToOtherParticles(const int32 Idx, TParticles<T,d>& Other)
+		{
+			MoveToOtherArrayCollection(Idx, Other);
+			IncrementDirtyValidation();
 		}
 
 		void Resize(const int32 Num)
 		{
-			AddElements(Num - Size());
-		}
-
-		void RemoveAt(const int32 Index, const int32 Count)
-		{
-			if (Count <= 0 || Index < 0 || Index >= static_cast<int32>(Size()))
-			{
-				return;
-			}
-			const bool UsingLocalXArray = IsUsingLocalXArray();
-			if (!UsingLocalXArray)
-			{
-				RemoveArray(&MXView);
-			}
-			RemoveAtHelper(Index, Count);
-			if (!UsingLocalXArray)
-			{
-				AddArray(&MX);
-				int32 It = 0;
-				for (int32 EndIt = FMath::Min(Index, MXView.Num()); It < EndIt; ++It)
-				{
-					MX[It] = MXView[It];
-				}
-				for (int32 EndIt=MXView.Num(); It < EndIt; ++It)
-				{
-					MX[It] = MXView[It + Count];
-				}
-			}
-			MXView = TArrayCollectionArrayView<TVector<T, d>>(MX.GetData(), MX.Num());
+			AddParticles(Num - Size());
+			IncrementDirtyValidation();
 		}
 
 		TParticles& operator=(TParticles<T, d>&& Other)
 		{
 			MX = MoveTemp(Other.MX);
-			MXView = MoveTemp(Other.MXView);
 			AddParticles(Other.Size());
 			Other.MSize = 0;
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			MDirtyValidationCount = 0;
+			++Other.MDirtyValidationCount;
+#endif
 			return *this;
 		}
 
-		const TArrayCollectionArrayView<TVector<T, d>>& X() const
+		inline const TArrayCollectionArray<TVector<T, d>>& X() const
 		{
-			return MXView;
+			return MX;
 		}
 		
-		void Serialize(FChaosArchive& Ar)
+		void Serialize(FArchive& Ar)
 		{
-			bool bSerialize = IsUsingLocalXArray();
+			bool bSerialize = true;	//leftover from when we had view support
 			Ar << bSerialize;
-			if (ensureMsgf(bSerialize, TEXT("Cannot serialize shared views. Refactor needed to reduce memory")))	//todo(ocohen): give better way to re-use simplicial
+			if (ensureMsgf(bSerialize, TEXT("Cannot serialize shared views. Refactor needed to reduce memory")))
 			{
 				Ar << MX;
 				ResizeHelper(MX.Num());
-				MXView = TArrayCollectionArrayView<TVector<T, d>>(MX.GetData(), MX.Num());
 			}
+			IncrementDirtyValidation();
 		}
+
 		const TArrayCollectionArray<TVector<T, d>>& XArray() const
 		{
 			return MX;
 		}
-		const TArrayCollectionArrayView<TVector<T, d>>& XView() const
-		{
-			return MXView;
-		}
-		const bool IsUsingLocalXArray() const
-		{
-			return MXView.GetData() == MX.GetData();
-		}
-
+		
 		const TVector<T, d>& X(const int32 Index) const
 		{
-			check(IsUsingLocalXArray() && MXView.Num() == MX.Num() || !IsUsingLocalXArray());
-			return MXView[Index];
+			return MX[Index];
 		}
 
 		TVector<T, d>& X(const int32 Index)
 		{
-			check(IsUsingLocalXArray() && MXView.Num() == MX.Num() || !IsUsingLocalXArray());
-			return MXView[Index];
+			return MX[Index];
 		}
 
 		FString ToString(int32 index) const
@@ -173,8 +147,56 @@ namespace Chaos
 			return FString::Printf(TEXT("MX:%s"), *X(index).ToString());
 		}
 
+		uint32 GetTypeHash() const
+		{
+			uint32 OutHash = 0;
+			const int32 NumXEntries = MX.Num();
+
+			if(NumXEntries > 0)
+			{
+				OutHash = ::GetTypeHash(MX[0]);
+
+				for(int32 XIndex = 1; XIndex < NumXEntries; ++XIndex)
+				{
+					OutHash = HashCombine(OutHash, ::GetTypeHash(MX[XIndex]));
+				}
+			}
+
+			return OutHash;
+		}
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+		int32 DirtyValidationCount() const { return MDirtyValidationCount; }
+#endif
+
 	private:
 		TArrayCollectionArray<TVector<T, d>> MX;
-		TArrayCollectionArrayView<TVector<T, d>> MXView;
+
+		ERemoveParticleBehavior MRemoveParticleBehavior;
+
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+		int32 MDirtyValidationCount;
+#endif
+
+		void IncrementDirtyValidation()
+		{
+#if PARTICLE_ITERATOR_RANGED_FOR_CHECK
+			++MDirtyValidationCount;
+#endif
+		}
+
+		template<typename operator_T, int operator_d>
+		friend FArchive& operator<<(FArchive& Ar, TParticles<operator_T, operator_d>& InParticles)
+		{
+			InParticles.Serialize(Ar);
+			return Ar;
+		}
 	};
+
+	template<typename T, int d>
+	static uint32 GetTypeHash(const TParticles<T, d>& InParticles)
+	{
+		return InParticles.GetTypeHash();
+	}
+	
 } // namespace Chaos

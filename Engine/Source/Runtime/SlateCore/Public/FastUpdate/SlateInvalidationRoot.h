@@ -68,6 +68,8 @@ public:
 	/** Call to notify that the ordering of children somewhere in the hierarchy below this root has changed and the fast path is no longer valid */
 	SLATECORE_API void InvalidateChildOrder();
 
+	SLATECORE_API void InvalidateScreenPosition();
+
 	bool NeedsSlowPath() const { return bNeedsSlowPath; }
 
 	void RemoveWidgetFromFastPath(FWidgetProxy& Proxy);
@@ -91,16 +93,18 @@ protected:
 
 	SLATECORE_API bool ProcessInvalidation();
 
-	SLATECORE_API void ClearAllFastPathData(bool bInvalidationRootBeingDestroyed);
+	SLATECORE_API void ClearAllFastPathData(bool bClearResourcesImmediately);
 
 private:
 
-	void OnInvalidateAllWidgets();
+	void OnInvalidateAllWidgets(bool bClearResourcesImmediately);
 
 	bool PaintFastPath(const FSlateInvalidationContext& Context);
 
 	void BuildFastPathList(SWidget* RootWidget);
 	void BuildNewFastPathList_Recursive(FSlateInvalidationRoot& Root, FWidgetProxy& Proxy, int32 ParentIndex, int32& NextTreeIndex, TArray<FWidgetProxy>& CurrentFastPathList, TArray<FWidgetProxy, TMemStackAllocator<>>& NewFastPathList);
+
+	void AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform);
 private:
 	TArray<FWidgetProxy> FastWidgetPathList;
 	/** Index to widgets which are dirty, volatile, or need some sort of per frame update (such as a tick or timer) */
@@ -125,4 +129,5 @@ private:
 
 	bool bChildOrderInvalidated;
 	bool bNeedsSlowPath;
+	bool bNeedScreenPositionShift;
 };

@@ -481,9 +481,12 @@ void FSlateEditableTextLayout::SetMargin(const TAttribute<FMargin>& InMargin)
 
 void FSlateEditableTextLayout::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
-	Justification = InJustification;
+	if (!Justification.IdenticalTo(InJustification))
+	{
+		Justification = InJustification;
 
-	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
+	}
 }
 
 void FSlateEditableTextLayout::SetLineHeightPercentage(const TAttribute<float>& InLineHeightPercentage)
@@ -661,6 +664,17 @@ FVector2D FSlateEditableTextLayout::SetScrollOffset(const FVector2D& InScrollOff
 FVector2D FSlateEditableTextLayout::GetScrollOffset() const
 {
 	return ScrollOffset;
+}
+
+
+float FSlateEditableTextLayout::GetComputedWrappingWidth() const
+{
+	return TextLayout->GetWrappingWidth();
+}
+
+bool FSlateEditableTextLayout::GetAutoWrapText() const
+{
+	return AutoWrapText.Get();
 }
 
 bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEvent)
@@ -973,8 +987,8 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 	else if (Key == EKeys::Delete && !OwnerWidget->IsTextReadOnly())
 	{
 		// @Todo: Slate keybindings support more than one set of keys. 
-		// Delete to next word boundary (Ctrl+Delete)
-		if (InKeyEvent.IsControlDown() && !InKeyEvent.IsAltDown() && !InKeyEvent.IsShiftDown())
+		// Delete to next word boundary (Ctrl+Delete), only if there is no Text Selected in that case we carry on with a normal delete.
+		if (!AnyTextSelected() && InKeyEvent.IsControlDown() && !InKeyEvent.IsAltDown() && !InKeyEvent.IsShiftDown())
 		{
 			if (OwnerWidget->IsTextPassword())
 			{

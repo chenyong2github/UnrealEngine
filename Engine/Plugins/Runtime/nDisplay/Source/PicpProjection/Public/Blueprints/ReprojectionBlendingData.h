@@ -7,6 +7,7 @@
 #include "OverlayRenderingParameters.h"
 
 #include "Components/SceneCaptureComponent2D.h"
+#include "CineCameraComponent.h"
 #include "TextureResource.h"
 
 #include "ReprojectionBlendingData.generated.h"
@@ -58,7 +59,13 @@ public:
 	FVector  SoftEdge;    // Basic soft edges values
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
-	USceneCaptureComponent2D* CameraOverlayFrameCapture;
+	UCineCameraComponent* CineCamera;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
+	float FieldOfViewMultiplier = 1.0f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
+	FString RTTViewportId;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "PICP")
 	TArray<struct FPicpOverlayFrameBlendingPair> OverlayBlendFrames;

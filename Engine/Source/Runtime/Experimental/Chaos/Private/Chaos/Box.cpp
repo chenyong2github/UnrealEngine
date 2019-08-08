@@ -6,11 +6,12 @@
 namespace Chaos
 {
 template <typename T, int d>
-bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal) const
+bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, d>& OutPosition, TVector<T, d>& OutNormal, int32& OutFaceIndex) const
 {
 	ensure(Length > 0);
 	ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 
+	OutFaceIndex = INDEX_NONE;
 	const TVector<T, d> MinInflated = MMin - Thickness;
 	const TVector<T,d> StartToMin = MinInflated - StartPoint;
 	
@@ -128,7 +129,7 @@ bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& D
 					TVector<T, d> End = GeomStart;
 					End[CurIdx] = End[CurIdx] == MMin[CurIdx] ? MMax[CurIdx] : MMin[CurIdx];
 					TCapsule<T> Capsule(GeomStart, End, Thickness);
-					if (Capsule.Raycast(StartPoint, Dir, Length, 0, CornerTimes[CurIdx], CornerPositions[CurIdx], CornerNormals[CurIdx]))
+					if (Capsule.Raycast(StartPoint, Dir, Length, 0, CornerTimes[CurIdx], CornerPositions[CurIdx], CornerNormals[CurIdx], OutFaceIndex))
 					{
 						if (HitIdx == INDEX_NONE || CornerTimes[CurIdx] < MinTime)
 						{
@@ -156,7 +157,7 @@ bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& D
 			{
 				//capsule: todo(use a cylinder which is cheaper. Our current cylinder raycast implementation doesn't quite work for this setup)
 				TCapsule<T> CapsuleBorder(GeomStart, GeomEnd, Thickness);
-				bHit = CapsuleBorder.Raycast(StartPoint, Dir, Length, 0, OutTime, OutPosition, OutNormal);
+				bHit = CapsuleBorder.Raycast(StartPoint, Dir, Length, 0, OutTime, OutPosition, OutNormal, OutFaceIndex);
 			}
 
 			if (bHit && OutTime > 0)
@@ -168,7 +169,7 @@ bool TBox<T, d>::Raycast(const TVector<T, d>& StartPoint, const TVector<T, d>& D
 	}
 	
 	// didn't hit any rounded parts so just use the box intersection
-	OutTime = LatestStartTime / Length;
+	OutTime = LatestStartTime;
 	OutNormal = Normal;
 	OutPosition = BoxIntersection - Thickness * Normal;
 	return true;

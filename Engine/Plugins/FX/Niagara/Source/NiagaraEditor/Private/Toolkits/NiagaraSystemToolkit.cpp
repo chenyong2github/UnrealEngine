@@ -8,13 +8,13 @@
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
+#include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "Widgets/SNiagaraCurveEditor.h"
 #include "Widgets/SNiagaraSystemScript.h"
 #include "Widgets/SNiagaraSystemViewport.h"
 #include "Widgets/SNiagaraSelectedObjectsDetails.h"
 #include "Widgets/SNiagaraParameterMapView.h"
-#include "Widgets/SNiagaraSelectedEmitterHandles.h"
 #include "Widgets/SNiagaraSpreadsheetView.h"
 #include "Widgets/SNiagaraGeneratedCodeView.h"
 #include "Widgets/SNiagaraScriptGraph.h"
@@ -24,6 +24,7 @@
 #include "NiagaraSystemFactoryNew.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraComponent.h"
+#include "NiagaraSystemEditorData.h"
 
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
@@ -187,9 +188,10 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 	SystemOptions.bCanModifyEmittersFromTimeline = true;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::SystemAsset;
 	SystemOptions.OnGetSequencerAddMenuContent.BindSP(this, &FNiagaraSystemToolkit::GetSequencerAddMenuContent);
-	const FGuid MessageLogGuid = FGuid::NewGuid();
+	SystemOptions.MessageLogGuid = FGuid::NewGuid();
 
-	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions, MessageLogGuid));
+	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
+	SystemViewModel->Initialize(*System, SystemOptions);
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemToolkitMode = ESystemToolkitMode::System;
 
@@ -204,7 +206,7 @@ void FNiagaraSystemToolkit::InitializeWithSystem(const EToolkitMode::Type Mode, 
 		FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FilenamePart + TEXT(".onLoad.txt"), ExportText, true);
 	}
 
-	InitializeInternal(Mode, InitToolkitHost, MessageLogGuid);
+	InitializeInternal(Mode, InitToolkitHost, SystemOptions.MessageLogGuid.GetValue());
 }
 
 void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UNiagaraEmitter& InEmitter)
@@ -255,9 +257,11 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 	FNiagaraSystemViewModelOptions SystemOptions;
 	SystemOptions.bCanModifyEmittersFromTimeline = false;
 	SystemOptions.EditMode = ENiagaraSystemViewModelEditMode::EmitterAsset;
-	const FGuid MessageLogGuid = FGuid::NewGuid();
+	SystemOptions.MessageLogGuid = FGuid::NewGuid();
 
-	SystemViewModel = MakeShareable(new FNiagaraSystemViewModel(*System, SystemOptions, MessageLogGuid));
+	SystemViewModel = MakeShared<FNiagaraSystemViewModel>();
+	SystemViewModel->Initialize(*System, SystemOptions);
+	SystemViewModel->GetEditorData().SetOwningSystemIsPlaceholder(true, *System);
 	SystemViewModel->SetToolkitCommands(GetToolkitCommands());
 	SystemViewModel->AddEmitter(*Emitter);
 
@@ -278,29 +282,22 @@ void FNiagaraSystemToolkit::InitializeWithEmitter(const EToolkitMode::Type Mode,
 		FNiagaraEditorUtilities::WriteTextFileToDisk(FPaths::ProjectLogDir(), FilenamePart + TEXT(".onLoad.txt"), ExportText, true);
 	}
 
-	InitializeInternal(Mode, InitToolkitHost, MessageLogGuid);
+	InitializeInternal(Mode, InitToolkitHost, SystemOptions.MessageLogGuid.GetValue());
 }
 
 void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, const FGuid& MessageLogGuid)
 {
-	SystemViewModel->SetOverviewGraphViewModel(MakeShareable(new FNiagaraOverviewGraphViewModel(SystemViewModel->AsShared()))); //@TODO System Overview: move constructing system overview viewmodel to SystemViewModel Init
-
-	if (SystemViewModel->GetEmitterHandleViewModels().Num() > 0)
-	{
-		SystemViewModel->SetSelectedEmitterHandleById(SystemViewModel->GetEmitterHandleViewModels()[0]->GetId());
-	}
-
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraSystemMessageLogName(System), MessageLogGuid, NiagaraMessageLog);
 
-	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::OnRefresh);
-	SystemViewModel->OnSelectedEmitterHandlesChanged().AddSP(this, &FNiagaraSystemToolkit::OnRefresh);
-	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::OnRefresh);
+	SystemViewModel->OnEmitterHandleViewModelsChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
+	SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraSystemToolkit::OnSystemSelectionChanged);
+	SystemViewModel->GetOnPinnedEmittersChanged().AddSP(this, &FNiagaraSystemToolkit::RefreshParameters);
 	SystemViewModel->GetOnPinnedCurvesChanged().AddSP(this, &FNiagaraSystemToolkit::OnPinnedCurvesChanged);
 
 	const float InTime = -0.02f;
 	const float OutTime = 3.2f;
 
-	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v19")
+	TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Standalone_Niagara_System_Layout_v20")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -316,28 +313,36 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 				FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
 				->Split
 				(
+					// Top Level Left
 					FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
-					->SetSizeCoefficient(.60f)
+					->SetSizeCoefficient(.75f)
 					->Split
 					(
+						// Inner Left Top
 						FTabManager::NewSplitter()->SetOrientation(Orient_Horizontal)
 						->SetSizeCoefficient(0.75f)
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(.80f)
+							->SetSizeCoefficient(.25f)
 							->AddTab(ViewportTabID, ETabState::OpenedTab)
-							->AddTab(SystemOverviewTabID, ETabState::ClosedTab)
 						)
 						->Split
 						(
 							FTabManager::NewStack()
-							->SetSizeCoefficient(0.20f)
+							->SetSizeCoefficient(0.15f)
 							->AddTab(SystemParametersTabID, ETabState::OpenedTab)
+						)
+						->Split
+						(
+							FTabManager::NewStack()
+							->SetSizeCoefficient(0.6f)
+							->AddTab(SystemOverviewTabID, ETabState::OpenedTab)
 						)
 					)
 					->Split
 					(
+						// Inner Left Bottom
 						FTabManager::NewStack()
 						->SetSizeCoefficient(0.25f)
 						->AddTab(CurveEditorTabID, ETabState::OpenedTab)
@@ -347,8 +352,9 @@ void FNiagaraSystemToolkit::InitializeInternal(const EToolkitMode::Type Mode, co
 				)
 				->Split
 				(
+					// Top Level Right
 					FTabManager::NewStack()
-					->SetSizeCoefficient(0.40f)
+					->SetSizeCoefficient(0.25f)
 					->AddTab(SelectedEmitterStackTabID, ETabState::OpenedTab)
 					->AddTab(SelectedEmitterGraphTabID, ETabState::ClosedTab)
 					->AddTab(SystemScriptTabID, ETabState::ClosedTab)
@@ -512,10 +518,11 @@ TSharedRef<SDockTab> FNiagaraSystemToolkit::SpawnTab_SelectedEmitterStack(const 
 {
 	check(Args.GetTabId().TabType == SelectedEmitterStackTabID);
 
-	TSharedRef<SDockTab> SpawnedTab =
-		SNew(SDockTab)
+	FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
+	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
+		.Label(LOCTEXT("SystemOverviewSelection", "Selection"))
 		[
-			SNew(SNiagaraSelectedEmitterHandles, SystemViewModel.ToSharedRef())
+			NiagaraEditorModule.GetWidgetProvider()->CreateStackView(*SystemViewModel->GetSelectionViewModel()->GetSelectionStackViewModel())
 		];
 
 	return SpawnedTab;
@@ -531,7 +538,7 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
 	{
 		SystemViewModel = InSystemViewModel;
-		SystemViewModel->OnSelectedEmitterHandlesChanged().AddRaw(this, &SNiagaraSelectedEmitterGraph::SelectedEmitterHandlesChanged);
+		SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &SNiagaraSelectedEmitterGraph::SystemSelectionChanged);
 		ChildSlot
 		[
 			SAssignNew(GraphWidgetContainer, SBox)
@@ -543,26 +550,23 @@ public:
 	{
 		if (SystemViewModel.IsValid())
 		{
-			SystemViewModel->OnEmitterHandleViewModelsChanged().RemoveAll(this);
-			SystemViewModel->OnSelectedEmitterHandlesChanged().RemoveAll(this);
-			SystemViewModel->GetOnPinnedEmittersChanged().RemoveAll(this);
-			SystemViewModel->OnSelectedEmitterHandlesChanged().RemoveAll(this);
+			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
 		}
 	}
 
 private:
-	void SelectedEmitterHandlesChanged()
+	void SystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
 	{
 		UpdateGraphWidget();
 	}
 
 	void UpdateGraphWidget()
 	{
-		TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-		SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-		if (SelectedEmitterHandles.Num() == 1)
+		TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+		if (SelectedEmitterHandleIds.Num() == 1)
 		{
-			GraphWidgetContainer->SetContent(SNew(SNiagaraScriptGraph, SelectedEmitterHandles[0]->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()));
+			TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
+			GraphWidgetContainer->SetContent(SNew(SNiagaraScriptGraph, SelectedEmitterHandle->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()));
 		}
 		else
 		{
@@ -1276,21 +1280,29 @@ void FNiagaraSystemToolkit::OnPinnedCurvesChanged()
 	TabManager->InvokeTab(CurveEditorTabID);
 }
 
-void FNiagaraSystemToolkit::OnRefresh()
+void FNiagaraSystemToolkit::RefreshParameters()
 {
 	if (ParameterMapView.IsValid())
 	{
 		TArray<TSharedPtr<FNiagaraEmitterHandleViewModel>> EmitterHandlesToDisplay;
 		EmitterHandlesToDisplay.Append(SystemViewModel->GetPinnedEmitterHandles());
-		TArray<TSharedRef<FNiagaraEmitterHandleViewModel>> SelectedEmitterHandles;
-		SystemViewModel->GetSelectedEmitterHandles(SelectedEmitterHandles);
-		for (auto Handle : SelectedEmitterHandles)
+		
+		TArray<FGuid> SelectedEmitterHandleIds = SystemViewModel->GetSelectionViewModel()->GetSelectedEmitterHandleIds();
+		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : SystemViewModel->GetEmitterHandleViewModels())
 		{
-			EmitterHandlesToDisplay.AddUnique(Handle);
+			if (SelectedEmitterHandleIds.Contains(EmitterHandleViewModel->GetId()))
+			{
+				EmitterHandlesToDisplay.AddUnique(EmitterHandleViewModel);
+			}
 		}
 
 		ParameterMapView->RefreshEmitterHandles(EmitterHandlesToDisplay);
 	}
+}
+
+void FNiagaraSystemToolkit::OnSystemSelectionChanged(UNiagaraSystemSelectionViewModel::ESelectionChangeSource SelectionChangeSource)
+{
+	RefreshParameters();
 }
 
 #undef LOCTEXT_NAMESPACE

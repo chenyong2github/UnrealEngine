@@ -16,6 +16,7 @@ struct FLiveLinkSourceUIEntry;
 struct FLiveLinkSubjectUIEntry;
 class FMenuBuilder;
 class FUICommandList;
+class SLiveLinkDataView;
 class ULiveLinkSourceFactory;
 class SLiveLinkSourceListView;
 class STableViewBase;
@@ -81,6 +82,8 @@ private:
 	FReply DisableEditorPerformanceThrottling();
 
 private:
+	int32 GetDetailWidgetIndex() const;
+
 	TSharedRef<ITableRow> MakeSourceListViewWidget(FLiveLinkSourceUIEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable) const;
 	TSharedPtr<SWidget> OnSourceConstructContextMenu();
 
@@ -114,6 +117,9 @@ private:
 	// Reference to connection settings struct details panel
 	TSharedPtr<class IDetailsView> SettingsDetailsView;
 
+	// Reference to the data value struct details panel
+	TSharedPtr<class SLiveLinkDataView> DataDetailsView;
+
 	// Handle to delegate when client sources list has changed */
 	FDelegateHandle OnSourcesChangedHandle;
 
@@ -122,6 +128,9 @@ private:
 
 	// Map to cover 
 	TMap<UClass*, UObject*> DetailsPanelEditorObjects;
+
+	// Details index
+	int32 DetailWidgetIndex;
 
 	// Guard from reentrant selection
 	mutable bool bSelectionChangedGuard;

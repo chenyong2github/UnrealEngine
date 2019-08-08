@@ -71,7 +71,9 @@ namespace AutomationTool
 			List<InstalledPlatformInfo.InstalledPlatformConfiguration> InstalledConfigs = new List<InstalledPlatformInfo.InstalledPlatformConfiguration>();
 
 			// Add the editor platform, otherwise we'll never be able to run UAT
-			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.Development, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, "", "", EProjectType.Unknown, false));
+			string EditorArchitecture = PlatformExports.GetDefaultArchitecture(HostPlatform.Current.HostEditorPlatform, null);
+			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.Development, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
+			InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(UnrealTargetConfiguration.DebugGame, HostPlatform.Current.HostEditorPlatform, TargetRules.TargetType.Editor, EditorArchitecture, "", EProjectType.Unknown, false));
 
 			foreach (UnrealTargetPlatform CodeTargetPlatform in UnrealTargetPlatform.GetValidPlatforms())
 			{
@@ -96,9 +98,10 @@ namespace AutomationTool
 					{
 						AllArchNames = Architectures.Split('+').ToList();
 					}
+					// if there aren't any, use the default
 					else
 					{
-						AllArchNames = new List<string>();
+						AllArchNames = new List<string>() { Architecture };
 					}
 
 					// Check whether this platform should only be used for content based projects
@@ -113,25 +116,42 @@ namespace AutomationTool
 						{
 							// Need to check for development receipt as we use that for the Engine code in DebugGame
 							UnrealTargetConfiguration EngineConfiguration = (CodeTargetConfiguration == UnrealTargetConfiguration.DebugGame) ? UnrealTargetConfiguration.Development : CodeTargetConfiguration;
-							FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), TargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
 
-							if (FileReference.Exists(ReceiptFileName))
+							// Android has multiple architecture flavors built without receipts, so use the default arch target instead
+							if (CodeTargetPlatform == UnrealTargetPlatform.Android)
 							{
-								// Strip the output folder so that this can be used on any machine
-								string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
-
-								// If we have pre-compiled architectures for this platform then add an entry for each of these -
-								// there isn't a receipt for each architecture like some other platforms
-								if (AllArchNames.Count > 0)
+								FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), TargetName, CodeTargetPlatform, EngineConfiguration, Architecture);
+								if (FileReference.Exists(ReceiptFileName))
 								{
-									foreach (string Arch in AllArchNames)
+									// Strip the output folder so that this can be used on any machine
+									string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+
+									// Blindly append all of the architecture names
+									if (AllArchNames.Count > 0)
 									{
-										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+										foreach (string Arch in AllArchNames)
+										{
+											InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+										}
+									}
+									// if for some reason we didn't specify any flavors, just add the default one.
+									else
+									{
+										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
 									}
 								}
-								else
+							}
+							// If we're not Android, check the existence of the target receipts for each architecture specified.
+							else
+							{
+								foreach (string Arch in AllArchNames)
 								{
-									InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Architecture, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+									FileReference ReceiptFileName = TargetReceipt.GetDefaultPath(new DirectoryReference(OutputEnginePath), TargetName, CodeTargetPlatform, EngineConfiguration, Arch);
+									if (FileReference.Exists(ReceiptFileName))
+									{
+										string RelativeReceiptFileName = ReceiptFileName.MakeRelativeTo(new DirectoryReference(OutputDir));
+										InstalledConfigs.Add(new InstalledPlatformInfo.InstalledPlatformConfiguration(CodeTargetConfiguration, CodeTargetPlatform, TargetType.Game, Arch, RelativeReceiptFileName, ProjectType, bCanBeDisplayed));
+									}
 								}
 							}
 						}

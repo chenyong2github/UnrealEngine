@@ -25,7 +25,7 @@ enum class ENiagaraMeshFacingMode : uint8
 	CameraPlane
 };
 
-UCLASS(editinlinenew)
+UCLASS(editinlinenew, meta = (DisplayName = "Mesh Renderer"))
 class UNiagaraMeshRendererProperties : public UNiagaraRendererProperties
 {
 public:

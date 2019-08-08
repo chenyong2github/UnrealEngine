@@ -3,7 +3,15 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "D3D11RHIPrivate.h"
+
+#include "RHI.h"
+#include "RHIResources.h"
+
+#include "Windows/AllowWindowsPlatformTypes.h"
+#include "DirectX/Include/DXGI.h"
+#include "Windows/HideWindowsPlatformTypes.h"
+
+#include "D3D11RHI/Private/Windows/D3D11RHIBasePrivate.h"
 
 #include "EasyBlendSDKDXVer.h"
 #include "EasyBlendSDKDXErrors.h"

@@ -7,6 +7,7 @@ FConcertMessageCapturedContext::FConcertMessageCapturedContext(const FConcertMes
 {
 	CapturedContext.SenderConcertEndpointId = InContext.SenderConcertEndpointId;
 	CapturedContext.UtcNow = InContext.UtcNow;
+	CapturedContext.Annotations = InContext.Annotations;
 	MallocCapturedContextMessage(InContext.Message, InContext.MessageType);
 }
 
@@ -20,6 +21,7 @@ FConcertMessageCapturedContext::FConcertMessageCapturedContext(FConcertMessageCa
 {
 	CapturedContext.SenderConcertEndpointId = Other.CapturedContext.SenderConcertEndpointId;
 	CapturedContext.UtcNow = Other.CapturedContext.UtcNow;
+	CapturedContext.Annotations = MoveTemp(Other.CapturedContext.Annotations);
 	Exchange(CapturedContext.MessageType, Other.CapturedContext.MessageType); // Swap null with Other
 	Exchange(CapturedContext.Message, Other.CapturedContext.Message); // Swap null with Other
 }
@@ -32,6 +34,7 @@ const FConcertMessageCapturedContext& FConcertMessageCapturedContext::operator=(
 
 		CapturedContext.SenderConcertEndpointId = Other.CapturedContext.SenderConcertEndpointId;
 		CapturedContext.UtcNow = Other.CapturedContext.UtcNow;
+		CapturedContext.Annotations = MoveTemp(Other.CapturedContext.Annotations);
 		Exchange(CapturedContext.MessageType, Other.CapturedContext.MessageType); // Swap null with Other
 		Exchange(CapturedContext.Message, Other.CapturedContext.Message); // Swap null with Other
 	}

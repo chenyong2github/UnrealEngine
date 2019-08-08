@@ -100,7 +100,7 @@ struct FSubTrackGroup
 };
 
 UCLASS(collapsecategories, hidecategories=Object, abstract, MinimalAPI)
-class UInterpTrack : public UObject, public FCurveEdInterface, public FInterpEdInputInterface
+class ENGINE_VTABLE UInterpTrack : public UObject, public FCurveEdInterface, public FInterpEdInputInterface
 {
 	GENERATED_UCLASS_BODY()
 

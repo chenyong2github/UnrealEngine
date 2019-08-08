@@ -62,6 +62,15 @@ void UListViewBase::ScrollToBottom()
 	}
 }
 
+void UListViewBase::SetWheelScrollMultiplier(float NewWheelScrollMultiplier)
+{
+	WheelScrollMultiplier = NewWheelScrollMultiplier;
+	if (MyTableViewBase)
+	{
+		MyTableViewBase->SetWheelScrollMultiplier(GetGlobalScrollAmount() * NewWheelScrollMultiplier);
+	}
+}
+
 void UListViewBase::SetScrollbarVisibility(ESlateVisibility InVisibility)
 {
 	if (MyTableViewBase)
@@ -104,6 +113,10 @@ TSharedRef<SWidget> UListViewBase::RebuildWidget()
 	}
 
 	MyTableViewBase = RebuildListWidget();
+	MyTableViewBase->SetIsScrollAnimationEnabled(bEnableScrollAnimation);
+	MyTableViewBase->SetFixedLineScrollOffset(bEnableFixedLineOffset ? TOptional<double>(FixedLineScrollOffset) : TOptional<double>());
+	MyTableViewBase->SetWheelScrollMultiplier(GetGlobalScrollAmount() * WheelScrollMultiplier);
+
 	return MyTableViewBase.ToSharedRef();
 }
 
@@ -119,6 +132,13 @@ void UListViewBase::ReleaseSlateResources(bool bReleaseChildren)
 void UListViewBase::SynchronizeProperties()
 {
 	Super::SynchronizeProperties();
+
+	if (MyTableViewBase)
+	{
+		MyTableViewBase->SetIsScrollAnimationEnabled(bEnableScrollAnimation);
+		MyTableViewBase->SetFixedLineScrollOffset(bEnableFixedLineOffset ? TOptional<double>(FixedLineScrollOffset) : TOptional<double>());
+		MyTableViewBase->SetWheelScrollMultiplier(GetGlobalScrollAmount() * WheelScrollMultiplier);
+	}
 
 #if WITH_EDITORONLY_DATA
 	if (IsDesignTime() && MyTableViewBase.IsValid())

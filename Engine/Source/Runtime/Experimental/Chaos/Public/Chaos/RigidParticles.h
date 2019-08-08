@@ -40,7 +40,7 @@ constexpr int8 LowBitsMask(const int8 NumBits)
 static constexpr int8 ObjectStateBitCount = NumBitsNeeded((int8)EObjectStateType::Count - 1);
 
 template<class T, int d>
-class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
+class TRigidParticles : public TKinematicGeometryParticles<T, d>
 {
   public:
 	using TArrayCollection::Size;
@@ -80,9 +80,6 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 		TArrayCollection::AddArray(&MIsland);
 		TArrayCollection::AddArray(&MToBeRemovedOnFracture);
 	}
-	~TRigidParticles()
-	{
-	}
 
 	const TVector<T, d>& Torque(const int32 Index) const { return MT[Index]; }
 	TVector<T, d>& Torque(const int32 Index) { return MT[Index]; }
@@ -103,7 +100,8 @@ class CHAOS_API TRigidParticles : public TKinematicGeometryParticles<T, d>
 	T& InvM(const int32 Index) { return MInvM[Index]; }
 
 	int32 CollisionParticlesSize(int32 Index) const { return MCollisionParticles[Index] == nullptr ? 0 : MCollisionParticles[Index]->Size(); }
-	void CollisionParticlesInitIfNeeded(const int32 Index, TArray<TVector<T, d>>* Points=nullptr);
+	void CHAOS_API CollisionParticlesInitIfNeeded(const int32 Index);
+	void CHAOS_API SetCollisionParticles(const int32 Index, TParticles<T, d>&& Particles);
 	
 	const TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) const { return MCollisionParticles[Index]; }
 	TUniquePtr<TBVHParticles<T, d>>& CollisionParticles(const int32 Index) { return MCollisionParticles[Index]; }
@@ -170,4 +168,7 @@ FChaosArchive& operator<<(FChaosArchive& Ar, TRigidParticles<T, d>& Particles)
 	Particles.Serialize(Ar);
 	return Ar;
 }
+
+extern template class TRigidParticles<float, 3>;
+
 }

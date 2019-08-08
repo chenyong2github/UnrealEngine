@@ -418,11 +418,10 @@ namespace Chaos
 	/** Sweeps one geometry against the other
 	 @A The first geometry
 	 @B The second geometry
-	 @BToATM The transform of B in A's local space
-	 @StartPoint The ray's starting point in A's local space
+	 @StartTM B's starting configuration in A's local space
 	 @RayDir The ray's direction (normalized)
 	 @RayLength The ray's length
-	 @OutTime The normalized time along the ray when the objects first overlap
+	 @OutTime The time along the ray when the objects first overlap
 	 @OutPosition The first point of impact (in A's local space) when the objects first overlap. Invalid if time of impact is 0
 	 @OutNormal The impact normal (in A's local space) when the objects first overlap. Invalid if time of impact is 0
 	 @Thickness The amount of geometry inflation (for example if the surface distance of two geometries with thickness 0 would be 2, a thickness of 0.5 would give a distance of 1.5)
@@ -430,12 +429,13 @@ namespace Chaos
 	 @return True if the geometries overlap during the sweep, False otherwise */
 
 	template <typename T, typename TGeometryA, typename TGeometryB>
-	bool GJKRaycast(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& BToATM, const TVector<T,3>& StartPoint, const TVector<T,3>& RayDir, const T RayLength,
+	bool GJKRaycast(const TGeometryA& A, const TGeometryB& B, const TRigidTransform<T, 3>& StartTM, const TVector<T,3>& RayDir, const T RayLength,
 		T& OutTime, TVector<T,3>& OutPosition, TVector<T,3>& OutNormal, const T Thickness = 0, const TVector<T, 3>& InitialDir = TVector<T, 3>(1, 0, 0))
 	{
 		ensure(FMath::IsNearlyEqual(RayDir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 		ensure(RayLength > 0);
 		check(A.IsConvex() && B.IsConvex());
+		const TVector<T, 3> StartPoint = StartTM.GetLocation();
 
 		TVector<T, 3> Simplex[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
 		TVector<T, 3> As[4] = { TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0), TVector<T,3>(0) };
@@ -444,13 +444,14 @@ namespace Chaos
 		T Barycentric[4];
 
 		FSimplex SimplexIDs;
-		const TRotation<T, 3> AToBRotation = BToATM.GetRotation().Inverse();
+		const TRotation<T, 3> BToARotation = StartTM.GetRotation();
+		const TRotation<T, 3> AToBRotation = BToARotation.Inverse();
 		TVector<T,3> SupportA = A.Support(InitialDir, Thickness);	//todo: use Thickness on quadratic geometry
 		As[0] = SupportA;
 
 		const TVector<T, 3> InitialDirInB = AToBRotation * (-InitialDir);
 		const TVector<T, 3> InitialSupportBLocal = B.Support(InitialDirInB, 0);
-		TVector<T, 3> SupportB = BToATM.TransformVectorNoScale(InitialSupportBLocal);
+		TVector<T, 3> SupportB = BToARotation * InitialSupportBLocal;
 		Bs[0] = SupportB;
 
 		T Lambda = 0;
@@ -473,7 +474,7 @@ namespace Chaos
 			SupportA = A.Support(V, Thickness);	//todo: add thickness to quadratic geometry to avoid quadratic vs quadratic when possible
 			const TVector<T, 3> VInB = AToBRotation * (-V);
 			const TVector<T, 3> SupportBLocal = B.Support(VInB, 0);
-			SupportB = BToATM.TransformVectorNoScale(SupportBLocal);
+			SupportB = BToARotation * SupportBLocal;
 			const TVector<T, 3> P = SupportA - SupportB;
 			const TVector<T, 3> W = X - P;
 			SimplexIDs[SimplexIDs.NumVerts] = SimplexIDs.NumVerts;	//is this needed?
@@ -527,7 +528,7 @@ namespace Chaos
 
 		} while (!bTerminate);
 
-		OutTime = Lambda / RayLength;
+		OutTime = Lambda;
 
 		if (Lambda > 0)
 		{

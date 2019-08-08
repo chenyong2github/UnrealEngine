@@ -176,8 +176,11 @@ struct FNiagaraID
 	int32 AcquireTag;
 
 	bool operator==(const FNiagaraID& Other)const { return Index == Other.Index && AcquireTag == Other.AcquireTag; }
+	bool operator!=(const FNiagaraID& Other)const { return !(*this == Other); }
 	bool operator<(const FNiagaraID& Other)const { return Index < Other.Index && AcquireTag < Other.AcquireTag; }
 };
+
+#define NIAGARA_INVALID_ID (FNiagaraID({(INDEX_NONE), (INDEX_NONE)}))
 
 FORCEINLINE uint32 GetTypeHash(const FNiagaraID& ID)
 {
@@ -720,6 +723,15 @@ public:
 		{
 			RegisteredNumericTypes.AddUnique(NewType);
 		}
+	}
+
+	static void Deregister(const FNiagaraTypeDefinition& Type)
+	{
+		RegisteredTypes.Remove(Type);
+		RegisteredParamTypes.Remove(Type);
+		RegisteredPayloadTypes.Remove(Type);
+		RegisteredUserDefinedTypes.Remove(Type);
+		RegisteredNumericTypes.Remove(Type);
 	}
 
 	FNiagaraTypeDefinition GetTypeDefFromStruct(UStruct* Struct)

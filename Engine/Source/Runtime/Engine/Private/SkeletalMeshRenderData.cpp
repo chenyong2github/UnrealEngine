@@ -12,6 +12,9 @@
 #include "DerivedDataCacheInterface.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "PlatformInfo.h"
 
 
 #if ENABLE_COOK_STATS
@@ -29,7 +32,7 @@ namespace SkeletalMeshCookStats
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.                                       
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("B79E93B9DF9E4D2D8F44F44A9D947994")
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("51BDAF351B6941548818C2F8B33397D7")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -49,6 +52,23 @@ static FString BuildSkeletalMeshDerivedDataKey(USkeletalMesh* SkelMesh)
 	KeySuffix += (SkelMesh->bUseFullPrecisionUVs || !GVertexElementTypeSupport.IsSupported(VET_Half2)) ? "1" : "0";
 	KeySuffix += SkelMesh->bHasVertexColors ? "1" : "0";
 	KeySuffix += SkelMesh->VertexColorGuid.ToString(EGuidFormats::Digits);
+
+	const ITargetPlatform* TargetPlatform = GetTargetPlatformManagerRef().GetRunningTargetPlatform();
+	check(TargetPlatform);
+	const FName PlatformGroupName = TargetPlatform->GetPlatformInfo().PlatformGroupName;
+	const FName VanillaPlatformName = TargetPlatform->GetPlatformInfo().VanillaPlatformName;
+
+	const bool bSupportLODStreaming = SkelMesh->bSupportLODStreaming.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+	if (bSupportLODStreaming)
+	{
+		const int32 MaxNumStreamedLODs = SkelMesh->MaxNumStreamedLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		const int32 MaxNumOptionalLODs = SkelMesh->MaxNumOptionalLODs.GetValueForPlatformIdentifiers(PlatformGroupName, VanillaPlatformName);
+		KeySuffix += *FString::Printf(TEXT("1%08x%08x"), MaxNumStreamedLODs, MaxNumOptionalLODs);
+	}
+	else
+	{
+		KeySuffix += TEXT("0zzzzzzzzzzzzzzzz");
+	}
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("SKELETALMESH"),
@@ -81,6 +101,18 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 			COOK_STAT(Timer.AddHit(DerivedData.Num()));
 			FMemoryReader Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner);
+			for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
+			{
+				FSkeletalMeshLODRenderData& LODData = LODRenderData[LODIndex];
+				if (LODData.bStreamedDataInlined)
+				{
+					break;
+				}
+				constexpr uint8 DummyStripFlags = 0;
+				const bool bForceKeepCPUResources = FSkeletalMeshLODRenderData::ShouldForceKeepCPUResources();
+				const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Owner, LODIndex, bForceKeepCPUResources);
+				LODData.SerializeStreamedData(Ar, Owner, LODIndex, DummyStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			}
 
 			int32 T1 = FPlatformTime::Cycles();
 			UE_LOG(LogSkeletalMesh, Verbose, TEXT("Skeletal Mesh found in DDC [%fms] %s"), FPlatformTime::ToMilliseconds(T1 - T0), *Owner->GetPathName());
@@ -106,6 +138,18 @@ void FSkeletalMeshRenderData::Cache(USkeletalMesh* Owner)
 
 			FMemoryWriter Ar(DerivedData, /*bIsPersistent=*/ true);
 			Serialize(Ar, Owner);
+			for (int32 LODIndex = 0; LODIndex < LODRenderData.Num(); ++LODIndex)
+			{
+				FSkeletalMeshLODRenderData& LODData = LODRenderData[LODIndex];
+				if (LODData.bStreamedDataInlined)
+				{
+					break;
+				}
+				const uint8 LODStripFlags = FSkeletalMeshLODRenderData::GenerateClassStripFlags(Ar, Owner, LODIndex);
+				const bool bForceKeepCPUResources = FSkeletalMeshLODRenderData::ShouldForceKeepCPUResources();
+				const bool bNeedsCPUAccess = FSkeletalMeshLODRenderData::ShouldKeepCPUResources(Owner, LODIndex, bForceKeepCPUResources);
+				LODData.SerializeStreamedData(Ar, Owner, LODIndex, LODStripFlags, bNeedsCPUAccess, bForceKeepCPUResources);
+			}
 			GetDerivedDataCacheRef().Put(*DerivedDataKey, DerivedData);
 
 			int32 T1 = FPlatformTime::Cycles();
@@ -133,14 +177,47 @@ void FSkeletalMeshRenderData::SyncUVChannelData(const TArray<FSkeletalMaterial>&
 
 #endif // WITH_EDITOR
 
+FSkeletalMeshRenderData::FSkeletalMeshRenderData()
+	: bReadyForStreaming(false)
+	, NumInlinedLODs(0)
+	, NumOptionalLODs(0)
+	, CurrentFirstLODIdx(0)
+	, PendingFirstLODIdx(0)
+	, bInitialized(false)
+{}
+
 void FSkeletalMeshRenderData::Serialize(FArchive& Ar, USkeletalMesh* Owner)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshRenderData::Serialize"), STAT_SkeletalMeshRenderData_Serialize, STATGROUP_LoadTime);
 
 	LODRenderData.Serialize(Ar, Owner);
+
+#if WITH_EDITOR
+	if (Ar.IsSaving())
+	{
+		NumInlinedLODs = 0;
+		NumOptionalLODs = 0;
+		for (int32 Idx = LODRenderData.Num() - 1; Idx >= 0; --Idx)
+		{
+			if (LODRenderData[Idx].bStreamedDataInlined)
+			{
+				++NumInlinedLODs;
+			}
+			if (LODRenderData[Idx].bIsLODOptional)
+			{
+				++NumOptionalLODs;
+			}
+		}
+	}
+#endif
+	Ar << NumInlinedLODs << NumOptionalLODs;
+	
+	CurrentFirstLODIdx = LODRenderData.Num() - NumInlinedLODs;
+	PendingFirstLODIdx = CurrentFirstLODIdx;
+	Owner->SetCachedNumResidentLODs(NumInlinedLODs);
 }
 
-void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets)
+void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner)
 {
 	if (!bInitialized)
 	{
@@ -151,9 +228,17 @@ void FSkeletalMeshRenderData::InitResources(bool bNeedsVertexColors, TArray<UMor
 
 			if(RenderData.GetNumVertices() > 0)
 			{
-				RenderData.InitResources(bNeedsVertexColors, LODIndex, InMorphTargets);
+				RenderData.InitResources(bNeedsVertexColors, LODIndex, InMorphTargets, Owner);
 			}
 		}
+
+		ENQUEUE_RENDER_COMMAND(CmdSetSkeletalMeshReadyForStreaming)(
+			[this, Owner](FRHICommandListImmediate&)
+		{
+			bReadyForStreaming = true;
+			Owner->SetCachedReadyForStreaming(true);
+		});
+
 		bInitialized = true;
 	}
 }

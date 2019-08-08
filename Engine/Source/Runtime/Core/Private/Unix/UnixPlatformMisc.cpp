@@ -20,7 +20,8 @@
 #include "Misc/CommandLine.h"
 #include "Misc/App.h"
 #include "Unix/UnixPlatformCrashContext.h"
-
+#include "Misc/ConfigCacheIni.h"
+#include "GenericPlatform/GenericPlatformChunkInstall.h"
 
 #if PLATFORM_HAS_CPUID
 	#include <cpuid.h>
@@ -1040,4 +1041,38 @@ void FUnixPlatformMisc::UngrabAllInput()
 FString FUnixPlatformMisc::GetLoginId()
 {
 	return FString::Printf(TEXT("%s-%08x"), *GetOperatingSystemId(), static_cast<uint32>(geteuid()));
+}
+
+IPlatformChunkInstall* FUnixPlatformMisc::GetPlatformChunkInstall()
+{
+	static IPlatformChunkInstall* ChunkInstall = nullptr;
+	static bool bIniChecked = false;
+	if (!ChunkInstall || !bIniChecked)
+	{
+		IPlatformChunkInstallModule* PlatformChunkInstallModule = nullptr;
+		if (!GEngineIni.IsEmpty())
+		{
+			FString InstallModule;
+			GConfig->GetString(TEXT("StreamingInstall"), TEXT("DefaultProviderName"), InstallModule, GEngineIni);
+			FModuleStatus Status;
+			if (FModuleManager::Get().QueryModule(*InstallModule, Status))
+			{
+				PlatformChunkInstallModule = FModuleManager::LoadModulePtr<IPlatformChunkInstallModule>(*InstallModule);
+				if (PlatformChunkInstallModule != nullptr)
+				{
+					// Attempt to grab the platform installer
+					ChunkInstall = PlatformChunkInstallModule->GetPlatformChunkInstall();
+				}
+			}
+			bIniChecked = true;
+		}
+
+		if (PlatformChunkInstallModule == nullptr)
+		{
+			// Placeholder instance
+			ChunkInstall = FGenericPlatformMisc::GetPlatformChunkInstall();
+		}
+	}
+
+	return ChunkInstall;
 }

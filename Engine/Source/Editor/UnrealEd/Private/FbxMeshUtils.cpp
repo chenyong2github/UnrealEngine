@@ -210,10 +210,11 @@ namespace FbxMeshUtils
 					NotificationInfo.Text = FText::Format(LOCTEXT("LODImportSuccessful", "Mesh for LOD {0} imported successfully!"), FText::AsNumber(LODLevel));
 					NotificationInfo.ExpireDuration = 5.0f;
 					FSlateNotificationManager::Get().AddNotification(NotificationInfo);
-					if (BaseStaticMesh->SourceModels.IsValidIndex(LODLevel))
+					if (BaseStaticMesh->IsSourceModelValid(LODLevel))
 					{
-						BaseStaticMesh->SourceModels[LODLevel].SourceImportFilename = UAssetImportData::SanitizeImportFilename(Filename, nullptr);
-						BaseStaticMesh->SourceModels[LODLevel].bImportWithBaseMesh = false;
+						FStaticMeshSourceModel& SourceModel = BaseStaticMesh->GetSourceModel(LODLevel);
+						SourceModel.SourceImportFilename = UAssetImportData::SanitizeImportFilename(Filename, nullptr);
+						SourceModel.bImportWithBaseMesh = false;
 					}
 					bSuccess = true;
 				}
@@ -660,11 +661,12 @@ namespace FbxMeshUtils
 		}
 		else if (StaticMesh)
 		{
-			if (StaticMesh->SourceModels.IsValidIndex(LODLevel))
+			if (StaticMesh->IsSourceModelValid(LODLevel))
 			{
-				FilenameToImport = StaticMesh->SourceModels[LODLevel].SourceImportFilename.IsEmpty() ?
-					StaticMesh->SourceModels[LODLevel].SourceImportFilename :
-					UAssetImportData::ResolveImportFilename(StaticMesh->SourceModels[LODLevel].SourceImportFilename, nullptr);
+				const FStaticMeshSourceModel& SourceModel = StaticMesh->GetSourceModel(LODLevel);
+				FilenameToImport = SourceModel.SourceImportFilename.IsEmpty() ?
+					SourceModel.SourceImportFilename :
+					UAssetImportData::ResolveImportFilename(SourceModel.SourceImportFilename, nullptr);
 			}
 		}
 

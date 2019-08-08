@@ -64,24 +64,30 @@ public:
 
 	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, bool bIsOverlap);
 
-	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, const FPhysicsQueryHit& Hit);
-	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const FPhysicsShape& Shape, const FPhysicsActor& Actor);
-
-#if INCLUDE_CHAOS
-	virtual ECollisionQueryHitType PreFilterChaos(const FCollisionFilterData& FilterData, const Chaos::TImplicitObject<float, 3>& Shape, int32 ActorIdx, int32 ShapeIdx) { check(false);  return ECollisionQueryHitType::Block; }
+#if WITH_PHYSX
+	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit);
+	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, const physx::PxActor& Actor);
 #endif
 
-	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const FPhysicsQueryHit& Hit) override
+#if INCLUDE_CHAOS
+	ECollisionQueryHitType PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor);
+	ECollisionQueryHitType PostFilterImp(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit);
+#endif
+
+#if INCLUDE_CHAOS
+	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit) override
 	{
 		return PostFilterImp(FilterData, Hit);
 	}
-	
-	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const FPhysicsShape& Shape, const FPhysicsActor& Actor) override
+	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor) override
 	{
 		return PreFilterImp(FilterData, Shape, Actor);
 	}
+#endif
 
 #if WITH_PHYSX
+	virtual ECollisionQueryHitType PostFilter(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit) override { return PostFilterImp(FilterData, Hit); }
+	virtual ECollisionQueryHitType PreFilter(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, physx::PxRigidActor& Actor) override { return PreFilterImp(FilterData, Shape, Actor); }
 	virtual PxQueryHitType::Enum preFilter(const PxFilterData& filterData, const PxShape* shape, const PxRigidActor* actor, PxHitFlags& queryFlags) override;
 	virtual PxQueryHitType::Enum postFilter(const PxFilterData& filterData, const PxQueryHit& hit) override;
 #endif

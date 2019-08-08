@@ -92,27 +92,65 @@ public:
 		return !(Pass == EStereoscopicPass::eSSP_FULL);
 	}
 	
+
+	virtual bool DeviceIsAPrimaryView(EStereoscopicPass Pass)
+	{
+		return Pass == eSSP_FULL || Pass == eSSP_LEFT_EYE;
+	}
+
+	/**
+	* Return true if this pass is for a view for which we share some work done for eSSP_LEFT_EYE (ie borrow some intermediate state from that eye)
+	*/
+	virtual bool DeviceIsASecondaryView(EStereoscopicPass Pass)
+	{
+		return !DeviceIsAPrimaryView(Pass);
+	}
+
+	/**
+	* Return true for additional eyes past the first two (a plugin could implement additional 'eyes').
+	*/
+	virtual bool DeviceIsAnAdditionalView(EStereoscopicPass Pass)
+	{
+		return Pass > eSSP_RIGHT_EYE;
+	}
+
+
 	/**
 	* Return true if this pass is for a view we do all the work for (ie this view can't borrow from another)
 	*/
-	static bool IsAPrimaryView(EStereoscopicPass Pass)
+	static bool IsAPrimaryView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
 	{
+		if (StereoRenderingDevice.IsValid())
+		{
+			return StereoRenderingDevice->DeviceIsAPrimaryView(Pass);
+		}
+
 		return Pass == eSSP_FULL || Pass == eSSP_LEFT_EYE;
 	}
 	
 	/**
 	* Return true if this pass is for a view for which we share some work done for eSSP_LEFT_EYE (ie borrow some intermediate state from that eye)
 	*/
-	static bool IsASecondaryView(EStereoscopicPass Pass)
+	static bool IsASecondaryView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
 	{
-		return !IsAPrimaryView(Pass);
+		if (StereoRenderingDevice.IsValid())
+		{
+			return StereoRenderingDevice->DeviceIsASecondaryView(Pass);
+		}
+
+		return !IsAPrimaryView(Pass, StereoRenderingDevice);
 	}
 	
 	/**
 	* Return true for additional eyes past the first two (a plugin could implement additional 'eyes').
 	*/
-	static bool IsAnAdditionalView(EStereoscopicPass Pass)
+	static bool IsAnAdditionalView(EStereoscopicPass Pass, TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > StereoRenderingDevice)
 	{
+		if (StereoRenderingDevice.IsValid())
+		{
+			return StereoRenderingDevice->DeviceIsAnAdditionalView(Pass);
+		}
+
 		return Pass > eSSP_RIGHT_EYE;
 	}
 
@@ -160,5 +198,10 @@ public:
 	 * Returns an IStereoLayers implementation, if one is present
 	 */
 	virtual IStereoLayers* GetStereoLayers () { return nullptr; }
+
+	
+	virtual void StartFinalPostprocessSettings(struct FPostProcessSettings* StartPostProcessingSettings, const enum EStereoscopicPass StereoPassType) {}
+	virtual bool OverrideFinalPostprocessSettings(struct FPostProcessSettings* OverridePostProcessingSettings, const enum EStereoscopicPass StereoPassType, float& BlendWeight) { return false; }
+	virtual void EndFinalPostprocessSettings(struct FPostProcessSettings* FinalPostProcessingSettings, const enum EStereoscopicPass StereoPassType) {}
 
 };

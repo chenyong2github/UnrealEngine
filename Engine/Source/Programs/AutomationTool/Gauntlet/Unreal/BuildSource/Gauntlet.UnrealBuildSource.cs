@@ -7,14 +7,17 @@ using UnrealBuildTool;
 using System.Text.RegularExpressions;
 using System.IO;
 using System.Linq;
+using Tools.DotNETCommon;
 
 namespace Gauntlet
 {
 	public class UnrealBuildSource : IBuildSource
 	{
-		public string UnrealPath { get; protected set; }
+		public DirectoryReference UnrealPath { get; protected set; }
 
 		public string ProjectName { get; protected set; }
+
+		public FileReference ProjectPath { get; protected set; }
 
 		public bool UsesSharedBuildType { get; protected set; }
 
@@ -32,19 +35,19 @@ namespace Gauntlet
 
 		public int BuildCount { get { return DiscoveredBuilds.Count; } }
 
-		public UnrealBuildSource(string InProjectName, bool InUsesSharedBuildType, string InUnrealPath, string BuildReference) 
+		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
 		{
-			InitBuildSource(InProjectName, InUsesSharedBuildType, InUnrealPath, BuildReference, null);
+			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, null);
 		}
 
-		public UnrealBuildSource(string InProjectName, bool InUsesSharedBuildType, string InUnrealPath, string BuildReference, Func<string, string> ResolutionDelegate)
+		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, Func<string, string> ResolutionDelegate)
 		{
-			InitBuildSource(InProjectName, InUsesSharedBuildType, InUnrealPath, BuildReference, ResolutionDelegate);
+			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, ResolutionDelegate);
 		}
 
-		public UnrealBuildSource(string InProjectName, bool InUsesSharedBuildType, string InUnrealPath, string BuildReference, IEnumerable<string> InSearchPaths)
+		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, IEnumerable<string> InSearchPaths)
 		{
-			InitBuildSource(InProjectName, InUsesSharedBuildType, InUnrealPath, BuildReference, (string BuildRef) =>
+			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, (string BuildRef) =>
 			{
 				foreach (string SearchPath in InSearchPaths)
 				{
@@ -71,12 +74,13 @@ namespace Gauntlet
 		}
 
 
-		protected void InitBuildSource(string InProjectName, bool InUsesSharedBuildType, string InUnrealPath, string InBuildArgument, Func<string, string> ResolutionDelegate)
+		protected void InitBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string InBuildArgument, Func<string, string> ResolutionDelegate)
 		{
 			UnrealPath = InUnrealPath;
 			UsesSharedBuildType = InUsesSharedBuildType;
 
-			ResolveProjectName(InProjectName);
+			ProjectPath = InProjectPath;
+			ProjectName = InProjectPath.GetFileNameWithoutExtension();
 
 			// Resolve the build argument into something meaningful
 			string ResolvedBuildName;
@@ -114,30 +118,6 @@ namespace Gauntlet
 			// allow user overrides (TODO - centralize all this!)
 			Branch = Globals.Params.ParseValue("branch", Branch);
 			Changelist = Convert.ToInt32(Globals.Params.ParseValue("changelist", Changelist.ToString()));
-		}
-
-		void ResolveProjectName(string InProjectName)
-		{
-			// figure out the game name - they may have passed Foo or FooGame
-			string ProjectOption1 = Path.Combine(UnrealPath, InProjectName, string.Format(@"{0}.uproject", InProjectName));
-			string ProjectOption2 = Path.Combine(UnrealPath, InProjectName + "Game", string.Format(@"{0}Game.uproject", InProjectName));
-			string ProjectPath = "";
-
-			if (File.Exists(ProjectOption1))
-			{
-				ProjectPath = ProjectOption1;
-				ProjectName = InProjectName;
-			}
-			else if (File.Exists(ProjectOption2))
-			{
-				ProjectPath = ProjectOption2;
-				ProjectName = InProjectName + "Game";
-			}
-			else
-			{
-				// Not resolving is not an error, may just be staged build. Also above doesn't account for sample projects.
-				ProjectName = InProjectName;
-			}
 		}
 
 		virtual protected bool ResolveBuildReference(string InBuildReference, Func<string, string> ResolutionDelegate, out IEnumerable<string> OutBuildPaths, out string OutBuildName)
@@ -208,16 +188,9 @@ namespace Gauntlet
 			}
 			else if (BuildDir.Name.Equals("local", StringComparison.OrdinalIgnoreCase) || BuildDir.Name.Equals("staged", StringComparison.OrdinalIgnoreCase))
 			{
-				string ProjectDir = Path.GetDirectoryName(UnrealHelpers.GetProjectPath(ProjectName));
-
-				if (string.IsNullOrEmpty(ProjectDir))
-				{
-					throw new AutomationException("Could not find uproject for {0}.", ProjectName);
-				}
-
 				// First special case - "Staged" means use whats locally staged
 				OutBuildName = "Local";
-				string StagedPath = Path.Combine(ProjectDir, "Saved", "StagedBuilds");
+				string StagedPath = Path.Combine(ProjectPath.Directory.FullName, "Saved", "StagedBuilds");
 
 				if (Directory.Exists(StagedPath) == false)
 				{
@@ -226,7 +199,7 @@ namespace Gauntlet
 				}
 				
 				// include binaries path for packaged builds
-				string BinariesPath = Path.Combine(ProjectDir, "Binaries");
+				string BinariesPath = Path.Combine(ProjectPath.Directory.FullName, "Binaries");
 
 				OutBuildPaths = new string[] { StagedPath, BinariesPath };
 			}
@@ -302,7 +275,7 @@ namespace Gauntlet
 			}
 
 			// Editor?
-			IBuild EditorBuild = CreateEditorBuild(ProjectName, UnrealPath);
+			IBuild EditorBuild = CreateEditorBuild(UnrealPath);
 
 			if (EditorBuild != null)
 			{
@@ -371,7 +344,7 @@ namespace Gauntlet
 
 		public bool CanSupportRole(UnrealSessionRole Role, ref List<string> Reasons)
 		{
-			if (Role.RoleType.UsesEditor() && string.IsNullOrEmpty(UnrealPath))
+			if (Role.RoleType.UsesEditor() && UnrealPath == null)
 			{
 				Reasons.Add(string.Format("Role {0} wants editor but no path to Unreal exists", Role));
 				return false;
@@ -447,15 +420,19 @@ namespace Gauntlet
 				Config.CommandLine += " " + Role.CommandLine;
 			}
 
+			// Cleanup the commandline
+			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
+
+			// Now add the project (the above code doesn't handle arguments without a leading - so do this last
 			bool IsContentOnlyProject = (Config.Build.Flags & BuildFlags.ContentOnlyProject) == BuildFlags.ContentOnlyProject;
 
 			// Add in editor - TODO, should this be in the editor build?
 			if (Role.RoleType.UsesEditor() || IsContentOnlyProject)
 			{
-				string ProjectParam = ProjectName;
+				string ProjectParam = ProjectPath.FullName;
 
 				// if content only we need to provide a relative path to the uproject.
-				if (IsContentOnlyProject)
+				if (IsContentOnlyProject && !Role.RoleType.UsesEditor())
 				{
 					ProjectParam = string.Format("../../../{0}/{0}.uproject", ProjectName);
 				}
@@ -466,11 +443,11 @@ namespace Gauntlet
 				// add in -game or -server
 				if (Role.RoleType.IsClient())
 				{
-					Config.CommandLine += " -game";
+					Config.CommandLine = "-game " + Config.CommandLine;
 				}
 				else if (Role.RoleType.IsServer())
 				{
-					Config.CommandLine += " -server";
+					Config.CommandLine = "-server " + Config.CommandLine;
 				}
 			}
 
@@ -478,7 +455,7 @@ namespace Gauntlet
             {
                 Config.FilesToCopy = Role.FilesToCopy;
             }
-			Config.CommandLine = GenerateProcessedCommandLine(Config.CommandLine);
+			
 			return Config;
 		}
 
@@ -493,7 +470,7 @@ namespace Gauntlet
 			// Break down Commandline into individual tokens 
 			Dictionary<string, string> CommandlineTokens = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 			// turn Name(p1,etc) into a collection of Name|(p1,etc) groups
-			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
+			MatchCollection Matches = Regex.Matches(InCommandLine, "(?<option>\\-?[\\w\\d.:\\[\\]\\/\\\\]+)(=(?<value>(\"([^\"]*)\")|(\\S+)))?");
 
 			foreach (Match M in Matches)
 			{
@@ -608,6 +585,10 @@ namespace Gauntlet
                     {
                         Flags |= BuildFlags.Bulk;
                     }
+					else
+					{
+						Flags |= BuildFlags.NotBulk;
+					}
 
                     var Build = GetMatchingBuilds(TargetType, TargetPlatform, TargetConfiguration, Flags).FirstOrDefault();
 
@@ -681,7 +662,7 @@ namespace Gauntlet
 		{
 			if (Type.UsesEditor())
 			{
-				return UnrealPath;
+				return UnrealPath.FullName;
 			}
 
 			string BuildPath = BuildPaths.ElementAt(0);
@@ -708,43 +689,24 @@ namespace Gauntlet
 			return PlatformPath;
 		}
 
-		EditorBuild CreateEditorBuild(string InProjectName, string InUnrealPath)
+		EditorBuild CreateEditorBuild(DirectoryReference InUnrealPath)
 		{
-			if (string.IsNullOrEmpty(InUnrealPath))
+			if (InUnrealPath == null)
 			{
 				return null;
 			}
 
 			// check for the editor
-			string EditorExe = Path.Combine(InUnrealPath, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development));
+			string EditorExe = Path.Combine(InUnrealPath.FullName, GetRelativeExecutablePath(UnrealTargetRole.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development));
 
 			if (!Utils.SystemHelpers.ApplicationExists(EditorExe))
 			{
 				return null;
 			}
 
-			// figure out the game name - they may have passed Foo or FooGame
-			string ProjectPath = UnrealHelpers.GetProjectPath(InProjectName);
-
-			if (File.Exists(ProjectPath))
-			{
-				ProjectName = InProjectName;
-			}
-			else
-			{
-				// todo - this is ok, because we want people to be able to run staged builds
-				// where no uproject file is available.
-				/*throw new AutomationException("Unable to find project file for {0}. Neither {1} nor {2} exists.",
-					InProjectName, ProjectOption1, ProjectOption2);*/
-				return null;
-			}
-
 			EditorBuild NewBuild = new EditorBuild(EditorExe);
 
 			return NewBuild;
-
-			//List<string> Empty = new List<string>();
-			//return CanSupportRole(new UnrealSessionRole(UnrealRoleType.Editor, BuildHostPlatform.Current.Platform, UnrealTargetConfiguration.Development), ref Empty); ;
 		}
 	}
 }

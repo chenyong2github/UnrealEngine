@@ -99,6 +99,11 @@ FUSDPropertySetter::FUSDPropertySetter(FUsdImportContext& InImportContext)
 
 void FUSDPropertySetter::ApplyPropertiesToActor(AActor* SpawnedActor, const pxr::UsdPrim& Prim, const FString& StartingPropertyPath)
 {
+	if ( !SpawnedActor )
+	{
+		return;
+	}
+
 	ApplyPropertiesFromUsdAttributes(Prim, SpawnedActor, StartingPropertyPath);
 
 	// find prims that represent complicated properties 
@@ -140,12 +145,12 @@ void FUSDPropertySetter::RegisterStructSetter(FName StructName, FStructSetterFun
 
 void FUSDPropertySetter::ApplyPropertiesFromUsdAttributes(const pxr::UsdPrim& Prim, AActor* SpawnedActor, const FString& StartingPropertyPath)
 {
-	const std::vector<pxr::UsdAttribute> Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
+	const TUsdStore< std::vector<pxr::UsdAttribute> > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
 
 	// For map properties.  Ignore prims set by maps
 	std::set< std::string > AttribsToIgnore;
 
-	for (const pxr::UsdAttribute& Attribute : Attributes)
+	for (const pxr::UsdAttribute& Attribute : Attributes.Get())
 	{
 		if ( AttribsToIgnore.find( Attribute.GetName().GetString() ) != AttribsToIgnore.end() )
 		{
@@ -455,10 +460,10 @@ void FUSDPropertySetter::SetFromUSDValue(PropertyHelpers::FPropertyAddress& Prop
 
 bool FUSDPropertySetter::FindMapKeyAndValues(const pxr::UsdPrim& Prim, pxr::UsdAttribute& OutKey, TArray<pxr::UsdAttribute>& OutValues)
 {
-	const std::vector<pxr::UsdAttribute> Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
+	const TUsdStore< std::vector<pxr::UsdAttribute> > Attributes = IUsdPrim::GetUnrealPropertyAttributes( Prim );
 
 	bool bFoundKey = false;
-	for (const pxr::UsdAttribute& Attrib : Attributes)
+	for (const pxr::UsdAttribute& Attrib : Attributes.Get())
 	{
 		if (USDToUnreal::ConvertString( FUsdAttribute::GetUnrealPropertyPath( Attrib ).c_str() ) == TEXT("_KEY"))
 		{

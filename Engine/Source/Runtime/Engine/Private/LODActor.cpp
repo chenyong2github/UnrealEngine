@@ -364,6 +364,34 @@ void ALODActor::ParseOverrideDistancesCVar()
 	}	
 }
 
+float ALODActor::GetLODDrawDistanceWithOverride() const
+{
+	const int32 NumDistances = ALODActor::HLODDistances.Num();
+	const int32 DistanceIndex = [&]()
+	{
+		if(CachedNumHLODLevels <= NumDistances)
+		{
+			return (LODLevel + (NumDistances - CachedNumHLODLevels)) - 1;
+		}
+		else
+		{
+			// We've reached the end of the array, change nothing
+			return (int32)INDEX_NONE;
+		}
+	}();
+
+	const float HLODDistanceOverride = (!ALODActor::HLODDistances.IsValidIndex(DistanceIndex)) ? 0.0f : ALODActor::HLODDistances[DistanceIndex];
+	// Determine desired HLOD state
+	float MinDrawDistance = LODDrawDistance;
+	const bool bIsOverridingHLODDistance = HLODDistanceOverride != 0.0f;
+	if(bIsOverridingHLODDistance)
+	{
+		MinDrawDistance = HLODDistanceOverride;
+	}
+
+	return MinDrawDistance;
+}
+
 void ALODActor::Tick(float DeltaSeconds)
 {
 	AActor::Tick(DeltaSeconds);
@@ -371,29 +399,8 @@ void ALODActor::Tick(float DeltaSeconds)
 	{		
 		if (ResetDrawDistanceTime > CVarHLODDitherPauseTime.GetValueOnAnyThread())
 		{
-			const int32 NumDistances = ALODActor::HLODDistances.Num();
-			const int32 DistanceIndex = [&]()
-	        {
-		        if (CachedNumHLODLevels <= NumDistances)
-		        {
-			    	return (LODLevel + (NumDistances - CachedNumHLODLevels)) - 1;
-		        }
-		        else
-		        {
-			        // We've reached the end of the array, change nothing
-			        return (int32)INDEX_NONE;
-		        }
-	        }();
-
-
-			const float HLODDistanceOverride = (!ALODActor::HLODDistances.IsValidIndex(DistanceIndex)) ? 0.0f : ALODActor::HLODDistances[DistanceIndex];
 			// Determine desired HLOD state
-			float MinDrawDistance = LODDrawDistance;
-			const bool bIsOverridingHLODDistance = HLODDistanceOverride != 0.0f;
-			if (bIsOverridingHLODDistance)
-			{
-				MinDrawDistance = HLODDistanceOverride;
-			}
+			float MinDrawDistance = GetLODDrawDistanceWithOverride();
 
 			SetComponentsMinDrawDistance(MinDrawDistance, true);
 			bNeedsDrawDistanceReset = false;
@@ -405,6 +412,24 @@ void ALODActor::Tick(float DeltaSeconds)
 			const float CurrentTimeDilation = FMath::Max(GetActorTimeDilation(), SMALL_NUMBER);
 			ResetDrawDistanceTime += DeltaSeconds / CurrentTimeDilation;
         }
+	}
+}
+
+void ALODActor::SetLODParent(UPrimitiveComponent* InLODParent, float InParentDrawDistance, bool bApplyToImposters)
+{
+	if (bApplyToImposters)
+	{
+		AActor::SetLODParent(InLODParent, InParentDrawDistance);
+	}
+	else
+	{
+		if(InLODParent)
+		{
+			InLODParent->MinDrawDistance = InParentDrawDistance;
+			InLODParent->MarkRenderStateDirty();
+		}
+
+		StaticMeshComponent->SetLODParentPrimitive(InLODParent);
 	}
 }
 
@@ -1034,7 +1059,7 @@ bool IsImposter(const UStaticMeshComponent* InComponent)
 {
 	check(InComponent);
 
-	if (!InComponent->bUseMaxLODAsImposter)
+	if (!InComponent->bUseMaxLODAsImposter || !InComponent->bBatchImpostersAsInstances)
 	{
 		return false;
 	}
@@ -1058,14 +1083,7 @@ bool IsImposter(const UStaticMeshComponent* InComponent)
 		return false;
 	}
 
-	// Currently, the bUseMaxLODAsImposter flag serves multiple purposes. Until this is sorted out,
-	// only take into accounts quads & octagons meshes.
-	const int32 NumWedges = StaticMeshLOD.IndexBuffer.GetNumIndices();
-	const int32 NumVertexPositions = StaticMeshLOD.VertexBuffers.PositionVertexBuffer.GetNumVertices();
-	const int32 NumFaces = NumWedges / 3;
-
-	return (NumFaces == 2 && NumVertexPositions == 4) ||
-		   (NumFaces == 8 && NumVertexPositions == 9);
+	return true;
 }
 
 UMaterialInterface* ALODActor::GetImposterMaterial(const UStaticMeshComponent* InComponent) const

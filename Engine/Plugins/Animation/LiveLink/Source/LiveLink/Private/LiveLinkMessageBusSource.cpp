@@ -246,7 +246,10 @@ bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 
 	FLiveLinkHeartbeatEmitter& HeartbeatEmitter = ILiveLinkModule::Get().GetHeartbeatEmitter();
 	HeartbeatEmitter.StopHeartbeat(ConnectionAddress, MessageEndpoint);
-	FMessageEndpoint::SafeRelease(MessageEndpoint);
+
+	// Disable the Endpoint message handling since the message could keep it alive a bit.
+	MessageEndpoint->Disable();
+	MessageEndpoint.Reset();
 
 	return true;
 }

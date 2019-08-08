@@ -217,6 +217,9 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	/** True if this is the signature for a "member" function of a data interface. If this is true, the first input is the owner. */
 	UPROPERTY()
 	bool bMemberFunction;
+	/** Function specifiers verified at bind time. */
+	UPROPERTY()
+	TMap<FName, FName> FunctionSpecifiers;
 
 	/** Localized description of this node. Note that this is *not* used during the operator == below since it may vary from culture to culture.*/
 #if WITH_EDITORONLY_DATA
@@ -236,11 +239,43 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, Outputs(InOutputs)
 		, bRequiresContext(bInRequiresContext)
 		, bMemberFunction(bInMemberFunction)
+		, FunctionSpecifiers()
+	{
+
+	}
+
+	FNiagaraFunctionSignature(FName InName, TArray<FNiagaraVariable>& InInputs, TArray<FNiagaraVariable>& InOutputs, FName InSource, bool bInRequiresContext, bool bInMemberFunction, TMap<FName, FName>& InFunctionSpecifiers)
+		: Name(InName)
+		, Inputs(InInputs)
+		, Outputs(InOutputs)
+		, bRequiresContext(bInRequiresContext)
+		, bMemberFunction(bInMemberFunction)
+		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
 	}
 
 	bool operator==(const FNiagaraFunctionSignature& Other) const
+	{
+		bool bFunctionSpecifiersEqual = [&]()
+		{
+			if (Other.FunctionSpecifiers.Num() != FunctionSpecifiers.Num())
+			{
+				return false;
+			}
+			for (const TTuple<FName, FName>& Specifier : FunctionSpecifiers)
+			{
+				if (Other.FunctionSpecifiers.FindRef(Specifier.Key) != Specifier.Value)
+				{
+					return false;
+				}
+			}
+			return true;
+		}();
+		return EqualsIgnoringSpecifiers(Other) && bFunctionSpecifiersEqual;
+	}
+
+	bool EqualsIgnoringSpecifiers(const FNiagaraFunctionSignature& Other) const
 	{
 		bool bNamesEqual = Name.ToString().Equals(Other.Name.ToString());
 		bool bInputsEqual = Inputs == Other.Inputs;
@@ -383,6 +418,9 @@ struct FVMExternalFunctionBindingInfo
 
 	UPROPERTY()
 	int32 NumOutputs;
+
+	UPROPERTY()
+	TMap<FName, FName> Specifiers;
 
 	FORCEINLINE int32 GetNumInputs()const { return InputParamLocations.Num(); }
 	FORCEINLINE int32 GetNumOutputs()const { return NumOutputs; }
@@ -604,4 +642,21 @@ struct FNiagaraRandInfo
 
 	UPROPERTY(EditAnywhere, Category = "Random")
 	int32 Seed3;
+};
+
+
+//////////////////////////////////////////////////////////////////////////
+// Legacy Anim Trail Support
+
+
+/** 
+Controls the way that the width scale property affects animation trails. 
+Only used for Legacy Anim Trail support when converting from Cascade to Niagara.
+*/
+UENUM()
+enum class ENiagaraLegacyTrailWidthMode : uint32
+{
+	FromCentre,
+	FromFirst,
+	FromSecond,
 };

@@ -2036,7 +2036,7 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 			}
 
 			// Only show general info if there are no errors and stats are enabled - Stats show for Materials, layers and blends
-		if (CompileErrors.Num() == 0 && (!MaterialFunction || MaterialFunction->GetMaterialFunctionUsage() != Default))
+		if (CompileErrors.Num() == 0 && (!MaterialFunction || MaterialFunction->GetMaterialFunctionUsage() != EMaterialFunctionUsage::Default))
 			{
 			TArray<FMaterialStatsUtils::FShaderInstructionsInfo> Results;
 			TArray<FMaterialStatsUtils::FShaderInstructionsInfo> EmptyMaterialResults;

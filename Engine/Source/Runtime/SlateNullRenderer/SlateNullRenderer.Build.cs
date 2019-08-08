@@ -11,6 +11,7 @@ public class SlateNullRenderer : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"CoreUObject",
 				"SlateCore"
 			}
 		);

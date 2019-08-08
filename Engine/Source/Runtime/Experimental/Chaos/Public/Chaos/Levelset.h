@@ -80,6 +80,20 @@ class CHAOS_API TLevelSet final : public TImplicitObject<T, d>
 
 	bool CheckData(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TTriangleMesh<T>& Mesh, const TArray<TVector<T, 3>> &Normals);
 
+	virtual uint32 GetTypeHash() const override
+	{
+		uint32 Result = 0;
+
+		const int32 NumValues = MPhi.Num();
+
+		for(int32 Index = 0; Index < NumValues; ++Index)
+		{
+			Result = HashCombine(Result, ::GetTypeHash(MPhi[Index]));
+		}
+
+		return Result;
+	}
+
   private:
 	bool ComputeDistancesNearZeroIsocontour(FErrorReporter& ErrorReporter, const TParticles<T, d>& InParticles, const TArray<TVector<T, 3>> &Normals, const TTriangleMesh<T>& Mesh, TArrayND<bool, d>& BlockedFaceX, TArrayND<bool, d>& BlockedFaceY, TArrayND<bool, d>& BlockedFaceZ, TArray<TVector<int32, d>>& InterfaceIndices);
 	void ComputeDistancesNearZeroIsocontour(const TImplicitObject<T, d>& Object, const TArrayND<T, d>& ObjectPhi, TArray<TVector<int32, d>>& InterfaceIndices);

@@ -12,14 +12,14 @@
 
 #include "Chaos/Framework/Parallel.h"
 #include "Framework/TimeStep.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 #include "Field/FieldSystem.h"
 
-#include "SolverObjects/SkeletalMeshPhysicsObject.h"
-#include "SolverObjects/StaticMeshPhysicsObject.h"
-#include "SolverObjects/BodyInstancePhysicsObject.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
-#include "SolverObjects/FieldSystemPhysicsObject.h"
+#include "PhysicsProxy/SkeletalMeshPhysicsProxy.h"
+#include "PhysicsProxy/StaticMeshPhysicsProxy.h"
+#include "Chaos/Framework/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
+#include "PhysicsProxy/FieldSystemPhysicsProxy.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -27,7 +27,7 @@
 
 namespace Chaos
 {
-	FPersistentPhysicsTask::FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, FDispatcher<EThreadingMode::DedicatedThread>* InDispatcher)
+	FPersistentPhysicsTask::FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, IDispatcher* InDispatcher)
 		: TickMode(EChaosSolverTickMode::VariableCappedWithTarget)
 		, CommandDispatcher(InDispatcher)
 		, Timestep(nullptr)
@@ -60,7 +60,7 @@ namespace Chaos
 
 #if CHAOS_DEBUG_SUBSTEP
 		// Prepare the debug substepping tasks for all existing solvers
-		for (FPBDRigidsSolver* Solver : Solvers)
+		for (FPhysicsSolver* Solver : Solvers)
 		{
 			DebugSolverTasks.Add(Solver);
 		}
@@ -75,30 +75,13 @@ namespace Chaos
 		Timestep->Reset();
 
 		// Scratch array for active solver list
-		TArray<Chaos::FPBDRigidsSolver*> ActiveSolverList;
+		TArray<Chaos::FPhysicsSolver*> ActiveSolverList;
 
 		while(bRunning)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PhysicsAdvance);
 
-			// Run global and task commands
-			{
-				SCOPE_CYCLE_COUNTER(STAT_PhysCommands);
-				TFunction<void()> GlobalCommand;
-				while(CommandDispatcher->GlobalCommandQueue.Dequeue(GlobalCommand))
-				{
-					GlobalCommand();
-				}
-			}
-
-			{
-				SCOPE_CYCLE_COUNTER(STAT_TaskCommands);
-				TFunction<void(FPersistentPhysicsTask*)> TaskCommand;
-				while(CommandDispatcher->TaskCommandQueue.Dequeue(TaskCommand))
-				{
-					TaskCommand(this);
-				}
-			}
+			CommandDispatcher->Execute();
 
 			Dt = Timestep->GetCalculatedDt();
 
@@ -109,9 +92,9 @@ namespace Chaos
 			{
 				// Go wide if possible on the solvers
 				ActiveSolverList.Reset(Solvers.Num());
-				for(Chaos::FPBDRigidsSolver* Solver : Solvers)
+				for(Chaos::FPhysicsSolver* Solver : Solvers)
 				{
-					if(Solver->HasActiveObjects())
+					if(Solver->HasActiveParticles())
 					{
 						ActiveSolverList.Add(Solver);
 					}
@@ -123,7 +106,7 @@ namespace Chaos
 				{
 					SCOPE_CYCLE_COUNTER(STAT_SolverAdvance);
 				
-					FPBDRigidsSolver* Solver = ActiveSolverList[Index];
+					FPhysicsSolver* Solver = ActiveSolverList[Index];
 
 					// Execute Step function either on this thread or in a pausable side debug thread
 					DebugSolverTasks.DebugStep(Solver, [this, Solver, Dt]()
@@ -161,23 +144,27 @@ namespace Chaos
 
 				for(int32 SolverIndex = 0; SolverIndex < NumSolvers; ++SolverIndex)
 				{
-					FPBDRigidsSolver* Solver = Solvers[SolverIndex];
+					FPhysicsSolver* Solver = Solvers[SolverIndex];
 
 					FPersistentPhysicsTaskStatistics::FPerSolverStatistics& SolverStat = CurrStats.SolverStats[SolverIndex];
-					FPBDRigidsEvolution& Evolution = *Solver->MEvolution;
+					FPhysicsSolver::FPBDRigidsEvolution& Evolution = *Solver->MEvolution;
 
+#if TODO_REIMPLEMENT_SOLVER_ENABLING
 					if(Solver->Enabled())
 					{
+#if TODO_REIMPLMEENT_EVOLUTION_ACCESSORS
 						SolverStat.NumActiveParticles = Evolution.GetActiveIndices().Num();
 						SolverStat.NumActiveConstraints = Evolution.NumConstraints();
 						SolverStat.NumAllocatedParticles = Evolution.GetParticles().Size();
 						SolverStat.NumParticleIslands = Evolution.NumIslands();
 						SolverStat.EvolutionStats = Evolution.GetEvolutionStats();
+#endif
 					}
 					else
 					{
 						SolverStat.Reset();
 					}
+#endif
 				}
 #endif
 
@@ -190,31 +177,31 @@ namespace Chaos
 		ShutdownEvent->Trigger();
 	}
 
-	void FPersistentPhysicsTask::StepSolver(FPBDRigidsSolver* InSolver, float Dt)
+	void FPersistentPhysicsTask::StepSolver(FPhysicsSolver* InSolver, float Dt)
 	{
 		HandleSolverCommands(InSolver);
 
 		// Check whether this solver is paused (changes in pause states usually happens during HandleSolverCommands)
 #if CHAOS_WITH_PAUSABLE_SOLVER
+#if TODO_REIMPLEMENT_SOLVER_PAUSING
 		if (!InSolver->Paused())
+#endif
 #endif
 		{
 			if (InSolver->bEnabled)
 			{
-				FSolverObjectStorage& Objects = InSolver->GetObjectStorage();
-					
 				// Only process if we have something to actually simulate
-				if(Objects.GetNumObjects() > 0)
+				if(InSolver->HasActiveParticles())
 				{
 					AdvanceSolver(InSolver, Dt);
 
 					{
-						SCOPE_CYCLE_COUNTER(STAT_CacheResults);
+						SCOPE_CYCLE_COUNTER(STAT_BufferPhysicsResults);
 						CacheLock.ReadLock();
 
-						Objects.ForEachSolverObjectParallel([](auto* Object)
+						InSolver->ForEachPhysicsProxyParallel([](auto* Object)
 						{
-							Object->CacheResults();
+							Object->BufferPhysicsResults();
 						});
 
 						CacheLock.ReadUnlock();
@@ -224,9 +211,9 @@ namespace Chaos
 						SCOPE_CYCLE_COUNTER(STAT_FlipResults);
 						CacheLock.WriteLock();
 
-						Objects.ForEachSolverObject([](auto* Object)
+						InSolver->ForEachPhysicsProxy([](auto* Object)
 						{
-							Object->FlipCache();
+							Object->FlipBuffer();
 						});
 
 						CacheLock.WriteUnlock();
@@ -236,13 +223,13 @@ namespace Chaos
 		}
 	}
 
-	void FPersistentPhysicsTask::AddSolver(FPBDRigidsSolver* InSolver)
+	void FPersistentPhysicsTask::AddSolver(FPhysicsSolver* InSolver)
 	{
 		Solvers.Add(InSolver);
 		DebugSolverTasks.Add(InSolver);
 	}
 
-	void FPersistentPhysicsTask::RemoveSolver(FPBDRigidsSolver* InSolver)
+	void FPersistentPhysicsTask::RemoveSolver(FPhysicsSolver* InSolver)
 	{
 		DebugSolverTasks.Remove(InSolver);
 		Solvers.Remove(InSolver);
@@ -257,21 +244,22 @@ namespace Chaos
 
 		CacheLock.ReadLock();
 
+
 		if(bFullSync)
 		{
-			TArray<FFieldSystemPhysicsObject*> FieldsToDelete;
+			TArray<FFieldSystemPhysicsProxy*> FieldsToDelete;
 
-			for(FPBDRigidsSolver* Solver : Solvers)
+			for(FPhysicsSolver* Solver : Solvers)
 			{
-				FSolverObjectStorage& Objects = Solver->GetObjectStorage();
-				FSolverObjectStorage& RemovedObjects = Solver->GetRemovedObjectStorage();
-				
-				Objects.ForEachSolverObject([](auto* Object)
+				Solver->ForEachPhysicsProxy([](auto* Object)
 				{
-					Object->SyncToCache();
+					Object->PullFromPhysicsState();
 				});
 
-				RemovedObjects.ForEachSolverObject([](auto* Object)
+#if TODO_REIMPLEMENT_REMOVED_PROXY_STORAGE
+				FPhysicsProxyStorage& RemovedObjects = Solver->GetRemovedObjectStorage();
+
+				RemovedObjects.ForEachPhysicsProxy([](auto* Object)
 				{
 					if (ensure(Object))
 					{
@@ -280,7 +268,7 @@ namespace Chaos
 					}
 				});
 
-				RemovedObjects.ForEachFieldSolverObject([Solver, &FieldsToDelete](auto* Object)
+				RemovedObjects.ForEachFieldPhysicsProxy([Solver, &FieldsToDelete](auto* Object)
 				{
 					if(Object->GetSolver() == Solver)
 					{
@@ -289,31 +277,31 @@ namespace Chaos
 				});
 
 				RemovedObjects.Reset();
+#endif
 			}
 
-			for(FFieldSystemPhysicsObject* FieldObj : FieldsToDelete)
+			// @todo(question) : Why is there a separate delete here for fields. [brice]
+			for(FFieldSystemPhysicsProxy* FieldObj : FieldsToDelete)
 			{
 				delete FieldObj;
 			}
 
-			for (FPBDRigidsSolver* Solver : Solvers)
+			for (FPhysicsSolver* Solver : Solvers)
 			{
 				Solver->SyncEvents_GameThread();
 			}
 		}
 		else
 		{ 
-			for(FPBDRigidsSolver* Solver : Solvers)
+			for(FPhysicsSolver* Solver : Solvers)
 			{
-				FSolverObjectStorage& Objects_GameThread = Solver->GetObjectStorage_GameThread();
-
-				Objects_GameThread.ForEachSolverObject([](auto* Object)
+				Solver->ForEachPhysicsProxy([](auto* Object)
 				{
-					Object->SyncToCache();
+					Object->PullFromPhysicsState();
 				});
 			}
 
-			for (FPBDRigidsSolver* Solver : Solvers)
+			for (FPhysicsSolver* Solver : Solvers)
 			{
 				Solver->SyncEvents_GameThread();
 			}
@@ -390,20 +378,20 @@ namespace Chaos
 		return Stats.GetGameDataForRead();
 	}
 
-	void FPersistentPhysicsTask::HandleSolverCommands(FPBDRigidsSolver* InSolver)
+	void FPersistentPhysicsTask::HandleSolverCommands(FPhysicsSolver* InSolver)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 
 		check(InSolver);
-		TQueue<TFunction<void(FPBDRigidsSolver*)>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
-		TFunction<void(FPBDRigidsSolver*)> Command;
+		TQueue<TFunction<void(FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
+		TFunction<void(FPhysicsSolver*)> Command;
 		while(Queue.Dequeue(Command))
 		{
 			Command(InSolver);
 		}
 	}
 
-	void FPersistentPhysicsTask::AdvanceSolver(FPBDRigidsSolver* InSolver, float InDt)
+	void FPersistentPhysicsTask::AdvanceSolver(FPhysicsSolver* InSolver, float InDt)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_IntegrateSolver);
 

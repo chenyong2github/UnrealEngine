@@ -18,10 +18,27 @@ public:
 	/** Per-LOD render data. */
 	TIndirectArray<FSkeletalMeshLODRenderData> LODRenderData;
 
+	/** True if rhi resources are initialized */
+	bool bReadyForStreaming;
+
+	/** Const after serialization. */
+	uint8 NumInlinedLODs;
+
+	/** Const after serialization. */
+	uint8 NumOptionalLODs;
+
+	/** [RenderThread] Index of the most detailed valid LOD. */
+	uint8 CurrentFirstLODIdx;
+
+	/** [GameThread/RenderThread] Future value of CurrentFirstLODIdx. */
+	uint8 PendingFirstLODIdx;
+
 #if WITH_EDITORONLY_DATA
 	/** UV data used for streaming accuracy debug view modes. In sync for rendering thread */
 	TArray<FMeshUVChannelInfo> UVChannelDataPerMaterial;
 #endif
+
+	FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
 	void Cache(USkeletalMesh* Owner);
@@ -33,7 +50,7 @@ public:
 	void Serialize(FArchive& Ar, USkeletalMesh* Owner);
 
 	/** Initializes rendering resources. */
-	void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets);
+	void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkeletalMesh* Owner);
 
 	/** Releases rendering resources. */
 	ENGINE_API void ReleaseResources();

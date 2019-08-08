@@ -577,8 +577,31 @@ class PAKFILE_API FPakFile : FNoncopyable
 	FArchive* CreatePakReader(IFileHandle& InHandle, const TCHAR* Filename);
 	FArchive* SetupSignedPakReader(FArchive* Reader, const TCHAR* Filename);
 
+
+public:
+	/** Pak files can share a cache or have their own */
+	enum class ECacheType : uint8
+	{
+		Shared,
+		Individual,
+	};
+private:
+	/** The type of cache this pak file should have */
+	ECacheType	CacheType;
+	/** The index of this pak file into the cache array, -1 = not initialized */
+	int32		CacheIndex;
+	/** Allow the cache of a pak file to never shrink, should be used with caution, it will burn memory */
+	bool UnderlyingCacheTrimDisabled;
+
 public:
 
+	void SetUnderlyingCacheTrimDisabled(bool InUnderlyingCacheTrimDisabled) { UnderlyingCacheTrimDisabled = InUnderlyingCacheTrimDisabled; }
+	bool GetUnderlyingCacheTrimDisabled(void) { return UnderlyingCacheTrimDisabled; }
+
+	void SetCacheType(ECacheType InCacheType) { CacheType = InCacheType; }
+	ECacheType GetCacheType(void) { return CacheType; }
+	void SetCacheIndex(int32 InCacheIndex) { CacheIndex = InCacheIndex; }
+	int32 GetCacheIndex(void) { return CacheIndex; }
 #if IS_PROGRAM
 	/**
 	* Opens a pak file given its filename.
@@ -596,7 +619,7 @@ public:
 	 * @param Filename Filename.
 	 * @param bIsSigned = true if the pak is signed.
 	 */
-	FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSigned);
+	FPakFile(IPlatformFile* LowerLevel, const TCHAR* Filename, bool bIsSigned, bool bLoadIndex = true);
 
 	/**
 	 * Creates a pak file using the supplied archive.
@@ -979,12 +1002,17 @@ private:
 	/**
 	 * Initializes the pak file.
 	 */
-	void Initialize(FArchive* Reader);
+	void Initialize(FArchive* Reader, bool bLoadIndex = true);
 
 	/**
 	 * Loads and initializes pak file index.
 	 */
 	void LoadIndex(FArchive* Reader);
+
+	/**
+	 * Manually add a file to a pak file,
+	 */
+	void AddSpecialFile(FPakEntry Entry, const FString& Filename);
 
 	/**
 	 * Decodes a bit-encoded pak entry.
@@ -1621,12 +1649,17 @@ public:
 	 * @param InPakFilename Pak filename.
 	 * @param InPath Path to mount the pak at.
 	 */
-	bool Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath = NULL);
+	bool Mount(const TCHAR* InPakFilename, uint32 PakOrder, const TCHAR* InPath = NULL, bool bLoadIndex = true);
 
 	bool Unmount(const TCHAR* InPakFilename);
 
 	int32 MountAllPakFiles(const TArray<FString>& PakFolders);
 	int32 MountAllPakFiles(const TArray<FString>& PakFolders, const FString& WildCard);
+
+	/**
+	 * Make unique in memory pak files from a list of named files
+	 */
+	virtual void MakeUniquePakFilesForTheseFiles(TArray<TArray<FString>> InFiles);
 
 
 	/**

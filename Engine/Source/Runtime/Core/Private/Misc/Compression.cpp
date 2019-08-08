@@ -5,6 +5,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Parse.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/CommandLine.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
@@ -23,6 +24,7 @@ DEFINE_LOG_CATEGORY(LogCompression);
 DECLARE_STATS_GROUP( TEXT( "Compression" ), STATGROUP_Compression, STATCAT_Advanced );
 
 TMap<FName, struct ICompressionFormat*> FCompression::CompressionFormats;
+FCriticalSection FCompression::CompressionFormatsCriticalSection;
 
 
 static void *zalloc(void *opaque, unsigned int size, unsigned int num)
@@ -306,6 +308,7 @@ static ECompressionFlags CheckGlobalCompressionFlags(ECompressionFlags Flags)
 
 ICompressionFormat* FCompression::GetCompressionFormat(FName FormatName, bool bErrorOnFailure)
 {
+	FScopeLock Lock(&CompressionFormatsCriticalSection);
 	ICompressionFormat** ExistingFormat = CompressionFormats.Find(FormatName);
 	if (ExistingFormat == nullptr)
 	{
@@ -477,7 +480,7 @@ bool FCompression::UncompressMemory(FName FormatName, void* UncompressedBuffer, 
 			bUncompressSucceeded = true;
 		}
 		// Always log an error
-		UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Failed to uncompress memory (%d/%d) from address 0x%016X using format %s, this may indicate the asset is corrupt!"), CompressedSize, UncompressedSize, CompressedBuffer, *FormatName.ToString());
+		UE_LOG(LogCompression, Error, TEXT("FCompression::UncompressMemory - Failed to uncompress memory (%d/%d) from address %p using format %s, this may indicate the asset is corrupt!"), CompressedSize, UncompressedSize, CompressedBuffer, *FormatName.ToString());
 	}
 
 #if	STATS

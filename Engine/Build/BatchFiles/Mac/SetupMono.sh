@@ -5,6 +5,7 @@ sh FixMonoFiles.sh
 sh FixDependencyFiles.sh
 
 IS_MONO_INSTALLED=0
+IS_MONO_5_INSTALLED=0
 MONO_VERSION_PATH=`which mono` || true
 
 # if we can't find mono path, try one last hail mary of a standard install location
@@ -26,6 +27,7 @@ if [ ! $MONO_VERSION_PATH == "" ] && [ -f $MONO_VERSION_PATH ]; then
 	MONO_VERSION=(`echo ${MONO_VERSION:MONO_VERSION_PREFIX_LEN} |tr '.' ' '`)
 	if [ ${MONO_VERSION[0]} -ge 5 ]; then # Allow any Mono 5.x and up
 		IS_MONO_INSTALLED=1
+		IS_MONO_5_INSTALLED=1
 	elif [ ${MONO_VERSION[0]} -eq 4 ]; then
 		if [ ${MONO_VERSION[1]} -eq 0 ] && [ ${MONO_VERSION[2]} -ge 2 ]; then
 			IS_MONO_INSTALLED=1
@@ -43,6 +45,9 @@ if [ $IS_MONO_INSTALLED -eq 0 ]; then
 	export PATH=$UE_MONO_DIR/bin:$PATH
 	export MONO_PATH=$UE_MONO_DIR/lib:$MONO_PATH
 	export LD_LIBRARY_PATH=$UE_MONO_DIR/lib:$LD_LIBRARY_PATH
+else
+	export IS_MONO_INSTALLED=$IS_MONO_INSTALLED
+	export IS_MONO_5_INSTALLED=$IS_MONO_5_INSTALLED
 fi
 
 cd "$START_DIR"

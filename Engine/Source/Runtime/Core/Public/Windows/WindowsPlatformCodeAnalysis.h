@@ -101,7 +101,7 @@
 	#pragma warning(disable : 6240) // warning C6240 : (<expression> && <non-zero constant>) always evaluates to the result of <expression>. Did you intend to use the bitwise-and operator?
 
 	//PVS-Studio settings:
-	//-V::505,542,581,601,668,677,686,688,690,703,704,711,719,720,728,730,735,751,1002,1008
+	//-V::505,542,581,591,601,668,677,686,688,690,703,704,711,719,720,728,730,735,751,1002,1008
 	//-V:TRYCOMPRESSION:519,547
 	//-V:check(:501,547,560,605
 	//-V:checkf(:510

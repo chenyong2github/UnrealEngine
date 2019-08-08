@@ -27,6 +27,9 @@ void FNiagaraEditorCommands::RegisterCommands()
 	UI_COMMAND(CollapseStackToHeaders, "Collapse to Headers", "Expands all headsers and collapse all items.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::O));
 
 	UI_COMMAND(FindInCurrentView, "Find", "Contextually finds items in current view.", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::F));
+
+	UI_COMMAND(ZoomToFit, "Zoom to Fit", "Zooms and pans to fit the current selection.", EUserInterfaceActionType::Button, FInputChord(EKeys::F));
+	UI_COMMAND(ZoomToFitAll, "Zoom to Fit All", "Zooms and pans to fix all items.", EUserInterfaceActionType::Button, FInputChord(EKeys::A));
 }
 
 #undef LOCTEXT_NAMESPACE // NiagaraEditorCommands

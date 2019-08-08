@@ -496,7 +496,7 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 
 	}
 
-	UE_LOG(LogNiagaraEditor, Log, TEXT("'%s' Precompile took %f sec."), *InObj->GetOutermost()->GetName(),
+	UE_LOG(LogNiagaraEditor, Verbose, TEXT("'%s' Precompile took %f sec."), *InObj->GetOutermost()->GetName(),
 		(float)(FPlatformTime::Seconds() - StartTime));
 
 	return BasePtr;
@@ -571,13 +571,19 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::CompileScript(const F
 		else if (Message.Severity == FNiagaraCompileEventSeverity::Warning )
 		{
 		#if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
-			UE_LOG(LogNiagaraCompiler, Warning, TEXT("%s"), *Message.Message);
+			// Compiler warnings for Niagara are meant for notification and should have a UI representation, but 
+			// should be expected to still function properly and can be acted upon at the user's leisure. This makes
+			// them best logged as Display messages, as Log will not be shown in the cook.
+			UE_LOG(LogNiagaraCompiler, Display, TEXT("%s System Asset: %s"), *Message.Message, *InCompileOptions.FullName);
 		#endif
 		}
 		else if (Message.Severity == FNiagaraCompileEventSeverity::Error)
 		{
 		#if defined(NIAGARA_SCRIPT_COMPILE_LOGGING_MEDIUM)
-			UE_LOG(LogNiagaraCompiler, Error, TEXT("%s"), *Message.Message);
+			// Compiler errors for Niagara will have a strong UI impact but the game should still function properly, there 
+			// will just be oddities in the visuals. It should be acted upon, but in no way should the game be blocked from
+			// a successful cook because of it. Therefore, we do a warning.
+			UE_LOG(LogNiagaraCompiler, Warning, TEXT("%s System Asset: %s"), *Message.Message, *InCompileOptions.FullName);
 		#endif
 			// Write the error messages to the string as well so that they can be echoed up the chain.
 			if (OutGraphLevelErrorMessages.Len() > 0)
@@ -849,6 +855,7 @@ FNiagaraCompileResults FHlslNiagaraCompiler::CompileScript(const FNiagaraCompile
 					int32 NewBindingIdx = CompileResults.Data->CalledVMExternalFunctions.AddDefaulted();
 					CompileResults.Data->CalledVMExternalFunctions[NewBindingIdx].Name = *Sig->GetName();
 					CompileResults.Data->CalledVMExternalFunctions[NewBindingIdx].OwnerName = Sig->OwnerName;
+					CompileResults.Data->CalledVMExternalFunctions[NewBindingIdx].Specifiers = Sig->FunctionSpecifiers;
 
 					CompileResults.Data->CalledVMExternalFunctions[NewBindingIdx].InputParamLocations = FuncInfo.InputParamLocations;
 					CompileResults.Data->CalledVMExternalFunctions[NewBindingIdx].NumOutputs = FuncInfo.NumOutputs;

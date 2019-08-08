@@ -62,6 +62,9 @@ public:
 	bool GetAutoWrapText() const { return AutoWrapText; }
 	float GetWrapTextAt() const { return WrapTextAt; }
 
+	UFUNCTION(BlueprintSetter)
+	virtual void SetJustification(ETextJustify::Type InJustification) { Justification = InJustification; }
+
 protected:
 	/** Synchronize the properties with the given widget. A template as the Slate widgets conform to the same API, but don't derive from a common base. */
 	template <typename TWidgetType>
@@ -82,7 +85,7 @@ protected:
 	FShapedTextOptions ShapedTextOptions;
 
 	/** How the text should be aligned with the margin. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter=SetJustification, Category=Appearance)
 	TEnumAsByte<ETextJustify::Type> Justification;
 
 	/** The wrapping policy to use. */

@@ -13,8 +13,8 @@
 #include "Components/BoxComponent.h"
 #include "ChaosSolversModule.h"
 #include "ChaosStats.h"
-#include "PBDRigidsSolver.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsSolver.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
 #if INCLUDE_CHAOS && !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
@@ -22,6 +22,8 @@
 DECLARE_CYCLE_STAT(TEXT("LowLevelSweep"), STAT_LowLevelSweep, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("LowLevelRaycast"), STAT_LowLevelRaycast, STATGROUP_Chaos);
 DECLARE_CYCLE_STAT(TEXT("LowLevelOverlap"), STAT_LowLevelOverlap, STATGROUP_Chaos);
+
+#if TODO_REIMPLEMENT_SCENEQUERY_CROSSENGINE
 
 bool IsValidIndexAndTransform(const FGeometryCollectionResults& PhysResult, const Chaos::TPBDRigidParticles<float, 3>& Particles, const TManagedArray<FTransform>& TransformArray, const TArray<bool>& DisabledFlags, const int32 RigidBodyIdx, const bool bCanBeDisabled)
 {
@@ -69,7 +71,7 @@ bool IsValidIndexAndTransform(const FGeometryCollectionResults& PhysResult, cons
 	return true;
 }
 
-bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPBDRigidsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsObject* InObject, const FVector& Start, const FVector& Dir, float DeltaMag, bool bCanBeDisabled, EHitFlags OutputFlags, FHitRaycast& OutHit)
+bool LowLevelRaycastSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const FVector& Start, const FVector& Dir, float DeltaMag, bool bCanBeDisabled, EHitFlags OutputFlags, FHitRaycast& OutHit)
 {
 	using namespace Chaos;
 
@@ -137,7 +139,7 @@ static TAutoConsoleVariable<int32> CVarMaxSweepSteps(
 	TEXT("Number of steps during a sweep"),
 	ECVF_Default);
 
-bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPBDRigidsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsObject* InObject, const Chaos::TImplicitObject<float, 3>& QueryGeom, const Chaos::TParticles<float, 3>& CollisionParticles, const FTransform& StartPose, const FVector& Dir, float DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
+bool LowLevelSweepSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::TImplicitObject<float, 3>& QueryGeom, const Chaos::TParticles<float, 3>& CollisionParticles, const FTransform& StartPose, const FVector& Dir, float DeltaMag, const bool bCanBeDisabled, FHitSweep& OutHit)
 {
 	using namespace Chaos;
 
@@ -202,7 +204,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 
 	SCOPE_CYCLE_COUNTER(STAT_LowLevelOverlap);
 
-	const FGeometryCollectionPhysicsObject* PhysObject = GeomCollectionComponent.GetPhysicsObject();
+	const FGeometryCollectionPhysicsProxy* PhysObject = GeomCollectionComponent.GetPhysicsProxy();
 	if (!ensure(PhysObject))
 	{
 		return false;
@@ -215,7 +217,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 	
 	bool bFound = false;
 
-	if (Chaos::FPBDRigidsSolver* Solver = GeomCollectionComponent.ChaosSolverActor != nullptr ? GeomCollectionComponent.ChaosSolverActor->GetSolver() : GeomCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver())
+	if (Chaos::FPhysicsSolver* Solver = GeomCollectionComponent.ChaosSolverActor != nullptr ? GeomCollectionComponent.ChaosSolverActor->GetSolver() : GeomCollectionComponent.GetOwner()->GetWorld()->PhysicsScene_Chaos->GetSolver())
 	{
 		const TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();	//todo(ocohen): should these just get passed in instead of hopping through scene?
 
@@ -253,7 +255,7 @@ bool LowLevelOverlap(const UGeometryCollectionComponent& GeomCollectionComponent
 int32 UseSlowSQ = 0;
 FAutoConsoleVariableRef CVarUseSlowSQ(TEXT("p.UseSlowSQ"), UseSlowSQ, TEXT(""));
 
-void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, FPhysicsHitCallback<FHitRaycast>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& QueryFilter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCRaycast);
 	FChaosScopeSolverLock SolverScopeLock;
@@ -262,15 +264,15 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
 
-	TMap<const Chaos::FPBDRigidsSolver*, TArray<int32>> SolverIntersectionSets;
+	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
 	Chaos::TSpatialRay<float, 3> Ray(Start, Start + Dir * DeltaMagnitude);
 
 #if WITH_PHYSX
 
-	const TArray<Chaos::FPBDRigidsSolver*>& Solvers = Module->GetSolvers();
+	const TArray<Chaos::FPhysicsSolver*>& Solvers = Module->GetSolvers();
 
-	for(const Chaos::FPBDRigidsSolver* Solver : Solvers)
+	for(const Chaos::FPhysicsSolver* Solver : Solvers)
 	{
 		if (!Solver)
 		{
@@ -283,15 +285,15 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 		const Chaos::TClusterBuffer<float, 3>& Buffer = Solver->GetRigidClustering().GetBufferedData();
 
 
-		const Chaos::FPBDRigidsSolver::FSolverObjectReverseMapping& ObjectMap = Solver->GetSolverObjectReverseMapping_GameThread();
+		const Chaos::FPhysicsSolver::FPhysicsProxyReverseMapping& ObjectMap = Solver->GetPhysicsProxyReverseMapping_GameThread();
 
 		FHitRaycast Hit;
 		int32 IntersectionSetSize = IntersectionSet.Num();
 		for(int32 i = 0; i < IntersectionSet.Num(); ++i)
 		{
 			const int32 IntersectParticleIndex = IntersectionSet[i];
-			const SolverObjectWrapper& ObjectWrapper = ObjectMap.SolverObjectReverseMappingArray[IntersectParticleIndex];
-			if (!ObjectWrapper.SolverObject)
+			const PhysicsProxyWrapper& ObjectWrapper = ObjectMap.PhysicsProxyReverseMappingArray[IntersectParticleIndex];
+			if (!ObjectWrapper.PhysicsProxy)
 			{
 				const TImplicitObject<float, 3>* Object = Buffer.GeometryPtrs[IntersectParticleIndex].Get();
 				// Ignore the ground plane
@@ -341,16 +343,16 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 				continue;
 			}
 
-			if(ObjectWrapper.Type == ESolverObjectType::GeometryCollectionType && ensure(ObjectWrapper.SolverObject))
+			if(ObjectWrapper.Type == EPhysicsProxyType::GeometryCollectionType && ensure(ObjectWrapper.PhysicsProxy))
 			{
-				LowLevelRaycastSingleElement(IntersectParticleIndex, Solver, Buffer, static_cast<FGeometryCollectionPhysicsObject*>(ObjectWrapper.SolverObject), Start, Dir, DeltaMagnitude, i >= IntersectionSetSize, OutputFlags, Hit);
+				LowLevelRaycastSingleElement(IntersectParticleIndex, Solver, Buffer, static_cast<FGeometryCollectionPhysicsProxy*>(ObjectWrapper.PhysicsProxy), Start, Dir, DeltaMagnitude, i >= IntersectionSetSize, OutputFlags, Hit);
 
 				// If we registered a hit
-				if(Hit.distance != PX_MAX_REAL && ensure(ObjectWrapper.SolverObject))
+				if(Hit.distance != PX_MAX_REAL && ensure(ObjectWrapper.PhysicsProxy))
 				{
 #if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 					//todo(ocohen):hack placeholder while we convert over to non physx API
-					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.SolverObject->GetOwner());
+					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.PhysicsProxy->GetOwner());
 					check(Component);
 					if (Component->IsRegistered())
 					{
@@ -374,7 +376,7 @@ void FGeometryCollectionSQAccelerator::Raycast(const FVector& Start, const FVect
 		}
 
 		Solver->GetRigidClustering().ReleaseBufferedData();
-		Solver->ReleaseSolverObjectReverseMapping();
+		Solver->ReleasePhysicsProxyReverseMapping();
 	}
 
 #endif
@@ -384,7 +386,7 @@ DECLARE_CYCLE_STAT(TEXT("Sweep Broadphase"), STAT_SQSweepBroadPhase, STATGROUP_C
 DECLARE_CYCLE_STAT(TEXT("Sweep Narrowphase"), STAT_SQSweepNarrowPhase, STATGROUP_Chaos);
 
 //@todo(mlentine): Avoid duplicated code between this and overlap
-void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMag, FPhysicsHitCallback<FHitSweep>& HitBuffer, EHitFlags OutputFlags, FQueryFlags QueryFlags, const FCollisionFilterData& QueryFilter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+void FGeometryCollectionSQAccelerator::Sweep(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& StartTM, const FVector& Dir, const float DeltaMagnitude, ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& HitBuffer, EHitFlags OutputFlags, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
 {
 	SCOPE_CYCLE_COUNTER(STAT_GCSweep);
 	FChaosScopeSolverLock SolverScopeLock;
@@ -392,10 +394,10 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 	using namespace Chaos;
 #if WITH_PHYSX
 
-	TMap<const Chaos::FPBDRigidsSolver*, TArray<int32>> SolverIntersectionSets;
+	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
 	// Getter for intersections from the mapping above
-	auto GetIntersectionsFunc = [&](const Chaos::FPBDRigidsSolver* InSolver, const Chaos::TParticles<float, 3>& InCollisionParticles, float InDeltaMag, const FTransform& InPose) -> TArray<int32>
+	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, const Chaos::TParticles<float, 3>& InCollisionParticles, float InDeltaMag, const FTransform& InPose) -> TArray<int32>
 	{
 		SCOPE_CYCLE_COUNTER(STAT_SQSweepBroadPhase)
 
@@ -532,9 +534,9 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 		return;
 	}
 
-	const TArray<Chaos::FPBDRigidsSolver*>& Solvers = FChaosSolversModule::GetModule()->GetSolvers();
+	const TArray<Chaos::FPhysicsSolver*>& Solvers = FChaosSolversModule::GetModule()->GetSolvers();
 
-	for(const Chaos::FPBDRigidsSolver* Solver : Solvers)
+	for(const Chaos::FPhysicsSolver* Solver : Solvers)
 	{		
 		if (!Solver)
 		{
@@ -543,7 +545,7 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 
 		TArray<int32> IntersectionSet = GetIntersectionsFunc(Solver, CollisionParticles, DeltaMag, StartTM);
 
-		const Chaos::FPBDRigidsSolver::FSolverObjectReverseMapping& ObjectMap = Solver->GetSolverObjectReverseMapping_GameThread();
+		const Chaos::FPhysicsSolver::FPhysicsProxyReverseMapping& ObjectMap = Solver->GetPhysicsProxyReverseMapping_GameThread();
 		const Chaos::TClusterBuffer<float, 3>& Buffer = Solver->GetRigidClustering().GetBufferedData();
 
 
@@ -553,9 +555,9 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 			SCOPE_CYCLE_COUNTER(STAT_SQSweepNarrowPhase)
 
 			const int32 ParticleIndex = IntersectionSet[i];
-			const SolverObjectWrapper& ObjectWrapper = ObjectMap.SolverObjectReverseMappingArray[ParticleIndex];
+			const PhysicsProxyWrapper& ObjectWrapper = ObjectMap.PhysicsProxyReverseMappingArray[ParticleIndex];
 
-			if (!ObjectWrapper.SolverObject)
+			if (!ObjectWrapper.PhysicsProxy)
 			{
 				const TImplicitObject<float, 3>* Object = Buffer.GeometryPtrs[ParticleIndex].Get();
 				
@@ -606,14 +608,14 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 				continue;
 			}
 
-			if(ObjectWrapper.Type == ESolverObjectType::GeometryCollectionType && ensure(ObjectWrapper.SolverObject))
+			if(ObjectWrapper.Type == EPhysicsProxyType::GeometryCollectionType && ensure(ObjectWrapper.PhysicsProxy))
 			{
-				if(LowLevelSweepSingleElement(ParticleIndex, Solver, Buffer, static_cast<FGeometryCollectionPhysicsObject*>(ObjectWrapper.SolverObject), *Implicit, CollisionParticles, StartTM, Dir, DeltaMag, i >= IntersectionSetSize, Hit))
+				if(LowLevelSweepSingleElement(ParticleIndex, Solver, Buffer, static_cast<FGeometryCollectionPhysicsProxy*>(ObjectWrapper.PhysicsProxy), *Implicit, CollisionParticles, StartTM, Dir, DeltaMag, i >= IntersectionSetSize, Hit))
 				{
 #if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 					//todo(mlentine): This is duplicated from above and should be merged
 					//todo(ocohen):hack placeholder while we convert over to non physx API
-					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.SolverObject->GetOwner());
+					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.PhysicsProxy->GetOwner());
 					check(Component);
 
 					if (Component->IsRegistered())
@@ -639,12 +641,12 @@ void FGeometryCollectionSQAccelerator::Sweep(const FPhysicsGeometry& QueryGeom, 
 
 		Solver->GetRigidClustering().ReleaseBufferedData();
 
-		Solver->ReleaseSolverObjectReverseMapping();
+		Solver->ReleasePhysicsProxyReverseMapping();
 	}
 #endif
 }
 
-bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPBDRigidsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsObject* InObject, const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& InPose, FHitOverlap& OutHit)
+bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPhysicsSolver* InSolver, const Chaos::TClusterBuffer<float, 3>& ClusterBuffer, const FGeometryCollectionPhysicsProxy* InObject, const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& InPose, FHitOverlap& OutHit)
 {
 	using namespace Chaos;
 
@@ -678,7 +680,8 @@ bool LowLevelOverlapSingleElement(int32 InParticleIndex, const Chaos::FPBDRigids
 	return Result.Second;
 }
 
-void FGeometryCollectionSQAccelerator::Overlap(const FPhysicsGeometry& QueryGeom, const FTransform& GeomPose, FPhysicsHitCallback<FHitOverlap>& HitBuffer, FQueryFlags QueryFlags, const FCollisionFilterData& QueryFilter, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
+
+void FGeometryCollectionSQAccelerator::Overlap(const Chaos::TImplicitObject<float, 3>& QueryGeom, const FTransform& GeomPose, ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>& HitBuffer, const FQueryFilterData& QueryFilterData, ICollisionQueryFilterCallbackBase& QueryCallback) const
 {
 	return;	//todo: This is currently broken because it doesn'thandle cluster unions. Need to fix function - disabling entirely for now
 	SCOPE_CYCLE_COUNTER(STAT_GCOverlap);
@@ -686,10 +689,10 @@ void FGeometryCollectionSQAccelerator::Overlap(const FPhysicsGeometry& QueryGeom
 
 #if WITH_PHYSX
 
-	TMap<const Chaos::FPBDRigidsSolver*, TArray<int32>> SolverIntersectionSets;
+	TMap<const Chaos::FPhysicsSolver*, TArray<int32>> SolverIntersectionSets;
 
 	// Getter for intersections from the mapping above
-	auto GetIntersectionsFunc = [&](const Chaos::FPBDRigidsSolver* InSolver, Chaos::TImplicitObject<float, 3>* InGeometry, const FTransform& InPose) -> TArray<int32>*
+	auto GetIntersectionsFunc = [&](const Chaos::FPhysicsSolver* InSolver, Chaos::TImplicitObject<float, 3>* InGeometry, const FTransform& InPose) -> TArray<int32>*
 	{
 		TArray<int32>* CurrentIntersections = SolverIntersectionSets.Find(InSolver);
 
@@ -758,31 +761,31 @@ void FGeometryCollectionSQAccelerator::Overlap(const FPhysicsGeometry& QueryGeom
 	}
 
 	FChaosSolversModule* Module = FChaosSolversModule::GetModule();
-	const TArray<Chaos::FPBDRigidsSolver*> Solvers = Module->GetSolvers();
+	const TArray<Chaos::FPhysicsSolver*> Solvers = Module->GetSolvers();
 
-	for(const Chaos::FPBDRigidsSolver* Solver : Solvers)
+	for(const Chaos::FPhysicsSolver* Solver : Solvers)
 	{
 		// Collect all intersections for this solver
 		TArray<int32> IntersectionSet = Solver->GetSpatialAcceleration()->FindAllIntersections(Implicit->BoundingBox().TransformedBox(GeomPose));
 		Solver->ReleaseSpatialAcceleration();
 
-		const Chaos::FPBDRigidsSolver::FSolverObjectReverseMapping& ObjectMap = Solver->GetSolverObjectReverseMapping_GameThread();
+		const Chaos::FPhysicsSolver::FPhysicsProxyReverseMapping& ObjectMap = Solver->GetPhysicsProxyReverseMapping_GameThread();
 
 		const Chaos::TClusterBuffer<float, 3>& ClusterBuffer = Solver->GetRigidClustering().GetBufferedData();
 
 		for(int32 i = 0; i < IntersectionSet.Num(); ++i)
 		{
 			const int32 IntersectParticleIndex = IntersectionSet[i];
-			const SolverObjectWrapper& ObjectWrapper = ObjectMap.SolverObjectReverseMappingArray[IntersectParticleIndex];
+			const PhysicsProxyWrapper& ObjectWrapper = ObjectMap.PhysicsProxyReverseMappingArray[IntersectParticleIndex];
 
-			if(ObjectWrapper.Type == ESolverObjectType::GeometryCollectionType && ensure(ObjectWrapper.SolverObject))
+			if(ObjectWrapper.Type == EPhysicsProxyType::GeometryCollectionType && ensure(ObjectWrapper.PhysicsProxy))
 			{
-				if(LowLevelOverlapSingleElement(IntersectParticleIndex, Solver, ClusterBuffer, static_cast<FGeometryCollectionPhysicsObject*>(ObjectWrapper.SolverObject), *Implicit, GeomPose, Hit))
+				if(LowLevelOverlapSingleElement(IntersectParticleIndex, Solver, ClusterBuffer, static_cast<FGeometryCollectionPhysicsProxy*>(ObjectWrapper.PhysicsProxy), *Implicit, GeomPose, Hit))
 				{
 #if !WITH_IMMEDIATE_PHYSX && PHYSICS_INTERFACE_PHYSX
 					//todo(mlentine): This is duplicated from above and should be merged
 					//todo(ocohen):hack placeholder while we convert over to non physx API
-					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.SolverObject->GetOwner());
+					UGeometryCollectionComponent* Component = Cast<UGeometryCollectionComponent>(ObjectWrapper.PhysicsProxy->GetOwner());
 					check(Component);
 
 					if (Component->IsRegistered())
@@ -807,11 +810,13 @@ void FGeometryCollectionSQAccelerator::Overlap(const FPhysicsGeometry& QueryGeom
 		}
 
 		Solver->GetRigidClustering().ReleaseBufferedData();
-		Solver->ReleaseSolverObjectReverseMapping();
+		Solver->ReleasePhysicsProxyReverseMapping();
 	}
 
 #endif
 }
+
+#endif // TODO_REIMPLEMENT_SCENEQUERY_CROSSENGINE
 
 void FGeometryCollectionSQAccelerator::AddComponent(UGeometryCollectionComponent* Component)
 {

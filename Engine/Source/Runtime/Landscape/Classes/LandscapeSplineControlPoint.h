@@ -68,6 +68,12 @@ class ULandscapeSplineControlPoint : public UObject
 	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
 	float SideFalloff;
 
+	UPROPERTY(EditAnywhere, Category = LandscapeSpline, meta=(UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
+	float LeftSideFalloffFactor = 1.f;
+
+	UPROPERTY(EditAnywhere, Category = LandscapeSpline, meta = (UIMin = 0, ClampMin = 0, UIMax = 1, ClampMax = 1))
+	float RightSideFalloffFactor = 1.f;
+
 	/** Falloff at the start/end of the spline (if this point is a start or end point, otherwise ignored). */
 	UPROPERTY(EditAnywhere, Category=LandscapeSpline)
 	float EndFalloff;

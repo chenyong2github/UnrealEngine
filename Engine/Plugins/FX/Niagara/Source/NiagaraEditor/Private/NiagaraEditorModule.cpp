@@ -33,6 +33,7 @@
 #include "SNiagaraGraphPinNumeric.h"
 #include "SNiagaraGraphPinAdd.h"
 #include "NiagaraNodeConvert.h"
+#include "NiagaraNodeAssignment.h"
 #include "EdGraphSchema_Niagara.h"
 #include "TypeEditorUtilities/NiagaraFloatTypeEditorUtilities.h"
 #include "TypeEditorUtilities/NiagaraIntegerTypeEditorUtilities.h"
@@ -68,6 +69,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraTypes.h"
 #include "NiagaraSystemFactoryNew.h"
+#include "NiagaraSystemEditorData.h"
 
 #include "MovieScene/Parameters/MovieSceneNiagaraBoolParameterTrack.h"
 #include "MovieScene/Parameters/MovieSceneNiagaraFloatParameterTrack.h"
@@ -94,8 +96,11 @@
 #include "Misc/FeedbackContext.h"
 #include "Customizations/NiagaraStaticSwitchNodeDetails.h"
 #include "Customizations/NiagaraFunctionCallNodeDetails.h"
-
 #include "NiagaraNodeFunctionCall.h"
+#include "Engine/Selection.h"
+#include "NiagaraActor.h"
+#include "NiagaraNodeFunctionCall.h"
+#include "INiagaraEditorOnlyDataUtlities.h"
 
 IMPLEMENT_MODULE( FNiagaraEditorModule, NiagaraEditor );
 
@@ -109,6 +114,26 @@ const FLinearColor FNiagaraEditorModule::WorldCentricTabColorScale(0.0f, 0.0f, 0
 EAssetTypeCategories::Type FNiagaraEditorModule::NiagaraAssetCategory;
 
 //////////////////////////////////////////////////////////////////////////
+
+class FNiagaraEditorOnlyDataUtilities : public INiagaraEditorOnlyDataUtilities
+{
+	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* InOuter) const
+	{
+		return NewObject<UNiagaraScriptSource>(InOuter);
+	}
+
+	virtual UNiagaraEditorDataBase* CreateDefaultEditorData(UObject* InOuter) const
+	{
+		UNiagaraSystem* System = Cast<UNiagaraSystem>(InOuter);
+		if (System != nullptr)
+		{
+			UNiagaraSystemEditorData* SystemEditorData = NewObject<UNiagaraSystemEditorData>(InOuter);
+			SystemEditorData->SynchronizeOverviewGraphWithSystem(*System);
+			return SystemEditorData;
+		}
+		return nullptr;
+	}
+};
 
 class FNiagaraScriptGraphPanelPinFactory : public FGraphPanelPinFactory
 {
@@ -192,6 +217,7 @@ private:
 FNiagaraEditorModule::FNiagaraEditorModule() 
 	: SequencerSettings(nullptr)
 	, TestCompileScriptCommand(nullptr)
+	, DumpCompileIdDataForAssetCommand(nullptr)
 {
 }
 
@@ -431,6 +457,114 @@ void UpgradeAllNiagaraAssets()
 	GWarn->EndSlowTask();
 }
 
+void MakeIndent(int32 IndentLevel, FString& OutIndentString)
+{
+	OutIndentString.Reserve(IndentLevel * 2);
+	int32 InsertStart = OutIndentString.Len();
+	for (int32 i = 0; i < IndentLevel * 2; i++)
+	{
+		OutIndentString.AppendChar(TCHAR(' '));
+	}
+}
+
+void DumpCompileIdDataForScript(UNiagaraScript* Script, int32 IndentLevel, FString& Dump)
+{
+	FString Indent;
+	MakeIndent(IndentLevel, Indent);
+	Dump.Append(FString::Printf(TEXT("%sScript: %s\n"), *Indent, *Script->GetPathName()));
+	UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
+	TArray<UNiagaraNode*> Nodes;
+	ScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNode>(Nodes);
+	for (UNiagaraNode* Node : Nodes)
+	{
+		Dump.Append(FString::Printf(TEXT("%s%s - %s-%s\n"), *Indent, *Node->GetFullName(), *Node->NodeGuid.ToString(EGuidFormats::Digits), *Node->GetChangeId().ToString(EGuidFormats::Digits)));
+		UNiagaraNodeFunctionCall* FunctionCallNode = Cast<UNiagaraNodeFunctionCall>(Node);
+		if (FunctionCallNode != nullptr)
+		{
+			UNiagaraNodeAssignment* AssignmentNode = Cast<UNiagaraNodeAssignment>(FunctionCallNode);
+			if (AssignmentNode != nullptr)
+			{
+				Dump.Append(FString::Printf(TEXT("%sAssignment Node: %s\n"), *Indent, *FunctionCallNode->GetFunctionName()));
+				for (const FNiagaraVariable& AssignmentTarget : AssignmentNode->GetAssignmentTargets())
+				{
+					Dump.Append(FString::Printf(TEXT("%s  Assignment Target: %s - %s\n"), *Indent, *AssignmentTarget.GetName().ToString(), *AssignmentTarget.GetType().GetName()));
+				}
+			}
+			else if (FunctionCallNode->FunctionScript != nullptr)
+			{
+				Dump.Append(FString::Printf(TEXT("%sFunction Call: %s\n"), *Indent, *FunctionCallNode->GetFunctionName()));
+				DumpCompileIdDataForScript(FunctionCallNode->FunctionScript, IndentLevel + 1, Dump);
+			}
+		}
+	}
+}
+
+void DumpCompileIdDataForEmitter(UNiagaraEmitter* Emitter, int32 IndentLevel, FString& Dump)
+{
+
+	FString Indent;
+	MakeIndent(IndentLevel, Indent);
+	Dump.Append(FString::Printf(TEXT("%sEmitter: %s\n"), *Indent, *Emitter->GetUniqueEmitterName()));
+
+	TArray<UNiagaraScript*> Scripts;
+	Emitter->GetScripts(Scripts, false);
+	for (UNiagaraScript* Script : Scripts)
+	{
+		DumpCompileIdDataForScript(Script, IndentLevel + 1, Dump);
+	}
+}
+
+void DumpCompileIdDataForSystem(UNiagaraSystem* System, FString& Dump)
+{
+	Dump.Append(FString::Printf(TEXT("\nSystem %s\n"), *System->GetPathName()));
+	DumpCompileIdDataForScript(System->GetSystemSpawnScript(), 1, Dump);
+	DumpCompileIdDataForScript(System->GetSystemUpdateScript(), 1, Dump);
+	for (const FNiagaraEmitterHandle& EmitterHandle : System->GetEmitterHandles())
+	{
+		DumpCompileIdDataForEmitter(EmitterHandle.GetInstance(), 1, Dump);
+	}
+}
+
+void DumpCompileIdDataForAsset(const TArray<FString>& Arguments)
+{
+	if (Arguments.Num() > 0)
+	{
+		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+		FAssetData SystemAsset = AssetRegistryModule.Get().GetAssetByObjectPath(*Arguments[0]);
+		if (SystemAsset.IsValid() == false)
+		{
+			TArray<FAssetData> AssetsInPackage;
+			AssetRegistryModule.Get().GetAssetsByPackageName(*Arguments[0], AssetsInPackage);
+			if (AssetsInPackage.Num() == 1)
+			{
+				SystemAsset = AssetsInPackage[0];
+			}
+		}
+		if (SystemAsset.IsValid())
+		{
+			UNiagaraSystem* System = Cast<UNiagaraSystem>(SystemAsset.GetAsset());
+			if (System != nullptr)
+			{
+				FString Dump;
+				DumpCompileIdDataForSystem(System, Dump);
+				UE_LOG(LogNiagaraEditor, Log, TEXT("%s"), *Dump);
+			}
+			else
+			{
+				UE_LOG(LogNiagaraEditor, Warning, TEXT("Could not load system asset for argument: %s"), *Arguments[0]);
+			}
+		}
+		else
+		{
+			UE_LOG(LogNiagaraEditor, Warning, TEXT("Could not find asset for argument: %s"), *Arguments[0]);
+		}
+	}
+	else
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("Command required an asset reference to be passed in."));
+	}
+}
+
 class FNiagaraSystemBoolParameterTrackEditor : public FNiagaraSystemParameterTrackEditor<UMovieSceneNiagaraBoolParameterTrack, UMovieSceneBoolSection>
 {
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override
@@ -467,7 +601,10 @@ void FNiagaraEditorModule::StartupModule()
 
 	UNiagaraSettings::OnSettingsChanged().AddRaw(this, &FNiagaraEditorModule::OnNiagaraSettingsChangedEvent);
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddRaw(this, &FNiagaraEditorModule::OnPreGarbageCollection);
-
+	
+	// Any attempt to use GEditor right now will fail as it hasn't been initialized yet. Waiting for post engine init resolves that.
+	FCoreDelegates::OnPostEngineInit.AddRaw(this, &FNiagaraEditorModule::OnPostEngineInit);
+	
 	// register details customization
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomClassLayout("NiagaraComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FNiagaraComponentDetails::MakeInstance));
@@ -623,9 +760,12 @@ void FNiagaraEditorModule::StartupModule()
 		FNiagaraShaderQueueTickable::ProcessQueue();
 	}));
 
-	// Register the emitter merge handler.
+	// Register the emitter merge handler and editor data utilities.
 	ScriptMergeManager = MakeShared<FNiagaraScriptMergeManager>();
 	NiagaraModule.RegisterMergeManager(ScriptMergeManager.ToSharedRef());
+
+	EditorOnlyDataUtilities = MakeShared<FNiagaraEditorOnlyDataUtilities>();
+	NiagaraModule.RegisterEditorOnlyDataUtilities(EditorOnlyDataUtilities.ToSharedRef());
 
 	// Register the script compiler
 	ScriptCompilerHandle = NiagaraModule.RegisterScriptCompiler(INiagaraModule::FScriptCompiler::CreateLambda([this](const FNiagaraCompileRequestDataBase* CompileRequest, const FNiagaraCompileOptions& Options)
@@ -637,11 +777,6 @@ void FNiagaraEditorModule::StartupModule()
 	{
 		return Precompile(InObj);
 	}));
-
-	// Register the create default script source handler.
-	CreateDefaultScriptSourceHandle = NiagaraModule.RegisterOnCreateDefaultScriptSource(
-		INiagaraModule::FOnCreateDefaultScriptSource::CreateLambda([](UObject* Outer) { return NewObject<UNiagaraScriptSource>(Outer); }));
-
 
 	TestCompileScriptCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.TestCompileNiagaraScript"),
@@ -658,7 +793,7 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("Forces the system to refresh all it's dependencies so it won't recompile on load.  This may mark multiple assets dirty for re-saving."),
 		FConsoleCommandWithArgsDelegate::CreateStatic(&PreventSystemRecompile));
 
-	PreventSystemRecompileCommand = IConsoleManager::Get().RegisterConsoleCommand(
+	PreventAllSystemRecompilesCommand = IConsoleManager::Get().RegisterConsoleCommand(
 		TEXT("fx.PreventAllSystemRecompiles"),
 		TEXT("Loads all of the systems in the project and forces each system to refresh all it's dependencies so it won't recompile on load.  This may mark multiple assets dirty for re-saving."),
 		FConsoleCommandDelegate::CreateStatic(&PreventAllSystemRecompiles));
@@ -667,6 +802,11 @@ void FNiagaraEditorModule::StartupModule()
 		TEXT("fx.UpgradeAllNiagaraAssets"),
 		TEXT("Loads all Niagara assets and preforms any data upgrade processes required. This may mark multiple assets dirty for re-saving."),
 		FConsoleCommandDelegate::CreateStatic(&UpgradeAllNiagaraAssets));
+
+	DumpCompileIdDataForAssetCommand = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("fx.DumpCompileIdDataForAsset"),
+		TEXT("Dumps data relevant to generating the compile id for an asset."),
+		FConsoleCommandWithArgsDelegate::CreateStatic(&DumpCompileIdDataForAsset));
 
 	if (GIsEditor)
 	{
@@ -704,7 +844,12 @@ void FNiagaraEditorModule::ShutdownModule()
 	UNiagaraSettings::OnSettingsChanged().RemoveAll(this);
 
 	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
-
+	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+	
+	if (GEditor)
+	{
+		GEditor->OnExecParticleInvoked().RemoveAll(this);
+	}
 	
 	if (FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
 	{
@@ -732,7 +877,7 @@ void FNiagaraEditorModule::ShutdownModule()
 	if (NiagaraModule != nullptr)
 	{
 		NiagaraModule->UnregisterMergeManager(ScriptMergeManager.ToSharedRef());
-		NiagaraModule->UnregisterOnCreateDefaultScriptSource(CreateDefaultScriptSourceHandle);
+		NiagaraModule->UnregisterEditorOnlyDataUtilities(EditorOnlyDataUtilities.ToSharedRef());
 		NiagaraModule->UnregisterScriptCompiler(ScriptCompilerHandle);
 		NiagaraModule->UnregisterPrecompiler(PrecompilerHandle);
 	}
@@ -752,10 +897,40 @@ void FNiagaraEditorModule::ShutdownModule()
 		IConsoleManager::Get().UnregisterConsoleObject(DumpRapidIterationParametersForAsset);
 	}
 
+	if (PreventSystemRecompileCommand != nullptr)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(PreventSystemRecompileCommand);
+	}
+
+	if (PreventAllSystemRecompilesCommand != nullptr)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(PreventAllSystemRecompilesCommand);
+	}
+
+	if (DumpCompileIdDataForAssetCommand != nullptr)
+	{
+		IConsoleManager::Get().UnregisterConsoleObject(DumpCompileIdDataForAssetCommand);
+		DumpCompileIdDataForAssetCommand = nullptr;
+	}
+
 	if (UObjectInitialized() && GIsEditor)
 	{
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraEmitter::StaticClass());
 		UThumbnailManager::Get().UnregisterCustomRenderer(UNiagaraSystem::StaticClass());
+	}
+}
+
+
+void FNiagaraEditorModule::OnPostEngineInit()
+{
+	// The editor should be valid at this point.. log a warning if not!
+	if (GEditor)
+	{
+		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
+	}
+	else
+	{
+		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
 }
 
@@ -852,6 +1027,11 @@ const FNiagaraEditorCommands& FNiagaraEditorModule::Commands()
 	return FNiagaraEditorCommands::Get();
 }
 
+TSharedPtr<FNiagaraSystemViewModel> FNiagaraEditorModule::GetExistingViewModelForSystem(UNiagaraSystem* InSystem)
+{
+	return FNiagaraSystemViewModel::GetExistingViewModelForObject(InSystem);
+}
+
 void FNiagaraEditorModule::RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action)
 {
 	AssetTools.RegisterAssetTypeActions(Action);
@@ -909,6 +1089,38 @@ void FNiagaraEditorModule::OnPreGarbageCollection()
 	}
 }
 
+void FNiagaraEditorModule::OnExecParticleInvoked(const TCHAR* Str)
+{
+	// Very similar logic to UEditorEngine::Exec_Particle
+	if (FParse::Command(&Str, TEXT("RESET")))
+	{
+		TArray<AEmitter*> EmittersToReset;
+		if (FParse::Command(&Str, TEXT("SELECTED")))
+		{
+			// Reset any selected emitters in the level
+			for (FSelectionIterator It(GEditor->GetSelectedActorIterator()); It; ++It)
+			{
+				AActor* Actor = static_cast<AActor*>(*It);
+				checkSlow(Actor->IsA(AActor::StaticClass()));
+
+				ANiagaraActor* Emitter = Cast<ANiagaraActor>(Actor);
+				if (Emitter)
+				{
+					Emitter->ResetInLevel();
+				}
+			}
+		}
+		else if (FParse::Command(&Str, TEXT("ALL")))
+		{
+			// Reset ALL emitters in the level
+			for (TObjectIterator<ANiagaraActor> It; It; ++It)
+			{
+				ANiagaraActor* Emitter = *It;
+				Emitter->ResetInLevel();
+			}
+		}
+	}
+}
 PRAGMA_ENABLE_OPTIMIZATION
 
 #undef LOCTEXT_NAMESPACE

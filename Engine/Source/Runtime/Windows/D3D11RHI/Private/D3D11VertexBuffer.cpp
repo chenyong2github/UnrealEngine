@@ -163,7 +163,7 @@ void* FD3D11DynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 			// Copy the contents of the vertex buffer to the staging buffer.
 			D3D11_BOX SourceBox;
 			SourceBox.left = Offset;
-			SourceBox.right = Size;
+			SourceBox.right = Offset + Size;
 			SourceBox.top = SourceBox.front = 0;
 			SourceBox.bottom = SourceBox.back = 1;
 			Direct3DDeviceIMContext->CopySubresourceRegion(StagingVertexBuffer,0,0,0,0,VertexBuffer->Resource,0,&SourceBox);
@@ -173,6 +173,7 @@ void* FD3D11DynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate& 
 			VERIFYD3D11RESULT_EX(Direct3DDeviceIMContext->Map(StagingVertexBuffer,0,D3D11_MAP_READ,0,&MappedSubresource), Direct3DDevice);
 			LockedData.SetData(MappedSubresource.pData);
 			LockedData.Pitch = MappedSubresource.RowPitch;
+			Offset = 0;
 		}
 		else
 		{

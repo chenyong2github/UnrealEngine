@@ -9,10 +9,11 @@
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 
 #include "InputCoreTypes.h"
-#include "DisplayClusterInputStateAnalog.h"
-#include "DisplayClusterInputStateButton.h"
-#include "DisplayClusterInputStateKeyboard.h"
-#include "DisplayClusterInputStateTracker.h"
+
+#include "State/DisplayClusterInputStateAnalog.h"
+#include "State/DisplayClusterInputStateButton.h"
+#include "State/DisplayClusterInputStateKeyboard.h"
+#include "State/DisplayClusterInputStateTracker.h"
 
 #include "Misc/DisplayClusterInputLog.h"
 

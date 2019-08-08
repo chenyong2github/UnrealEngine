@@ -195,7 +195,7 @@ TArray<FDisplayClusterConfigViewport> FDisplayClusterConfigManager::GetViewports
 
 int32 FDisplayClusterConfigManager::GetViewportsAmount() const
 {
-	return static_cast<uint32>(CfgViewports.Num());
+	return CfgViewports.Num();
 }
 
 bool FDisplayClusterConfigManager::GetViewport(int32 idx, FDisplayClusterConfigViewport& viewport) const
@@ -209,6 +209,28 @@ bool FDisplayClusterConfigManager::GetViewport(const FString& id, FDisplayCluste
 }
 
 
+// Postprocess
+TArray<FDisplayClusterConfigPostprocess> FDisplayClusterConfigManager::GetPostprocess() const
+{
+	return CfgPostprocess;
+}
+
+int32 FDisplayClusterConfigManager::GetPostprocessAmount() const
+{
+	return CfgPostprocess.Num();
+}
+
+bool FDisplayClusterConfigManager::GetPostprocess(int32 idx, FDisplayClusterConfigPostprocess& postprocess) const
+{
+	return GetItem(CfgPostprocess, idx, postprocess, FString("GetPostprocess"));
+}
+
+bool FDisplayClusterConfigManager::GetPostprocess(const FString& id, FDisplayClusterConfigPostprocess& postprocess) const
+{
+	return GetItem(CfgPostprocess, id, postprocess, FString("GetPostprocess"));
+}
+
+
 // Scene nodes
 TArray<FDisplayClusterConfigSceneNode> FDisplayClusterConfigManager::GetSceneNodes() const
 {
@@ -217,7 +239,7 @@ TArray<FDisplayClusterConfigSceneNode> FDisplayClusterConfigManager::GetSceneNod
 
 int32 FDisplayClusterConfigManager::GetSceneNodesAmount() const
 {
-	return static_cast<uint32>(CfgSceneNodes.Num());
+	return CfgSceneNodes.Num();
 }
 
 bool FDisplayClusterConfigManager::GetSceneNode(int32 idx, FDisplayClusterConfigSceneNode& actor) const
@@ -309,6 +331,13 @@ void FDisplayClusterConfigManager::AddViewport(const FDisplayClusterConfigViewpo
 	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
 	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found viewport: %s"), *InCfgViewport.ToString());
 	CfgViewports.Add(InCfgViewport);
+}
+
+void FDisplayClusterConfigManager::AddPostprocess(const FDisplayClusterConfigPostprocess& InCfgPostprocess)
+{
+	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterConfig);
+	UE_LOG(LogDisplayClusterConfig, Log, TEXT("Found postprocess: %s"), *InCfgPostprocess.ToString());
+	CfgPostprocess.Add(InCfgPostprocess);
 }
 
 void FDisplayClusterConfigManager::AddCamera(const FDisplayClusterConfigCamera& InCfgCamera)
@@ -524,4 +553,30 @@ bool FDisplayClusterConfigManager::GetItem(const TArray<DataType>& container, co
 
 	item = *pFound;
 	return true;
+}
+
+FString FDisplayClusterConfigManager::GetFullPathToFile(const FString& FileName) const
+{
+	if (!FPaths::FileExists(FileName))
+	{
+		TArray<FString> OrderedBaseDirs;
+
+		//Add ordered search base dirs
+		OrderedBaseDirs.Add(FPaths::GetPath(ConfigPath));
+		OrderedBaseDirs.Add(FPaths::RootDir());
+
+		// Process base dirs in order:
+		for (auto It : OrderedBaseDirs)
+		{
+			FString FullPath = FPaths::ConvertRelativePathToFull(It, FileName);
+			if (FPaths::FileExists(FullPath))
+			{
+				return FullPath;
+			}
+		}
+
+		//@Handle error, file not found
+	}
+
+	return FileName;
 }

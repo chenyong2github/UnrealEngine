@@ -49,7 +49,7 @@ FReply FWindowsMixedRealityDetails::OnConnectButtonClicked()
 
 	unsigned int bitrate = settings->MaxBitrate;
 
-	WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(ip, bitrate);
+	WindowsMixedReality::FWindowsMixedRealityStatics::ConnectToRemoteHoloLens(ip, bitrate, settings->IsHoloLens1Remoting);
 
 	return FReply::Handled();
 }

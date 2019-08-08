@@ -137,7 +137,7 @@ namespace Audio
 		bool bRestoreIfRemoved;
 
 		/* The maximum number of sources we will try to decode or playback at once. */
-		int32 MaxChannels;
+		int32 MaxSources;
 
 		FAudioMixerOpenStreamParams()
 			: OutputDeviceIndex(INDEX_NONE)
@@ -146,7 +146,7 @@ namespace Audio
 			, AudioMixer(nullptr)
 			, SampleRate(44100)
 			, bRestoreIfRemoved(false)
-			, MaxChannels(32)
+			, MaxSources(0)
 		{}
 	};
 

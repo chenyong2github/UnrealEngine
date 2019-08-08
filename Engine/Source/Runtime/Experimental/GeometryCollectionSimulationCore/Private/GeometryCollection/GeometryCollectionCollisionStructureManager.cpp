@@ -96,7 +96,7 @@ FCollisionStructureManager::NewSimplicial(
 		if (NumParticles)
 		{
 			int32 VertexCounter = 0;
-			Simplicial->AddElements(NumParticles);
+			Simplicial->AddParticles(NumParticles);
 			for (int32 i = 0; i<NumParticles;i++)
 			{
 				if (!OutsideVertices[i].ContainsNaN())
@@ -110,7 +110,7 @@ FCollisionStructureManager::NewSimplicial(
 
 		if(!Simplicial->Size())
 		{
-			Simplicial->AddElements(1);
+			Simplicial->AddParticles(1);
 			Simplicial->X(0) = Chaos::TVector<float, 3>(0);
 		}
 
@@ -146,7 +146,7 @@ FCollisionStructureManager::NewSimplicial(
 		if (Result.Num())
 		{
 			int32 VertexCounter = 0;
-			Simplicial->AddElements(Result.Num());
+			Simplicial->AddParticles(Result.Num());
 			for (int Index = Result.Num() - 1; 0 <= Index; Index--)
 			{
 				if (!Result[Index].ContainsNaN())
@@ -160,7 +160,7 @@ FCollisionStructureManager::NewSimplicial(
 
 		if (!Simplicial->Size())
 		{
-			Simplicial->AddElements(1);
+			Simplicial->AddParticles(1);
 			Simplicial->X(0) = Chaos::TVector<float, 3>(0);
 		}
 

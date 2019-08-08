@@ -55,4 +55,5 @@ private:
 
 	bool bIsRenderResourcesInitialized = false;
 	FCriticalSection RenderingResourcesInitializationCS;
+	FCriticalSection DllAccessCS;
 };

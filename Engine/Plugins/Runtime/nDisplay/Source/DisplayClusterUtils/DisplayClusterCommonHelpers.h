@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "EngineUtils.h"
-//#include "HAL/RunnableThread.h"
 
 #include "IDisplayCluster.h"
 #include "Cluster/IDisplayClusterClusterManager.h"
@@ -296,7 +295,7 @@ namespace DisplayClusterHelpers
 
 		static UDisplayClusterCameraComponent* GetCamera(const FString& CameraId)
 		{
-			const IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
+			static const IDisplayClusterGameManager* const GameMgr = IDisplayCluster::Get().GetGameMgr();
 			if (GameMgr)
 			{
 				return GameMgr->GetCameraById(CameraId);
@@ -344,7 +343,7 @@ namespace DisplayClusterHelpers
 				return false;
 			}
 
-			const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
 			if (!ConfigMgr)
 			{
 				return false;
@@ -363,7 +362,7 @@ namespace DisplayClusterHelpers
 				return LocalViewports;
 			}
 
-			const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
 			if (!ConfigMgr)
 			{
 				return LocalViewports;
@@ -380,11 +379,38 @@ namespace DisplayClusterHelpers
 			return LocalViewports;
 		}
 
+		static TArray<FDisplayClusterConfigPostprocess> GetLocalPostprocess()
+		{
+			TArray<FDisplayClusterConfigPostprocess> LocalPostprocess;
+
+			FDisplayClusterConfigWindow LocalWindow;
+			if (!DisplayClusterHelpers::config::GetLocalWindow(LocalWindow))
+			{
+				return LocalPostprocess;
+			}
+
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			if (!ConfigMgr)
+			{
+				return LocalPostprocess;
+			}
+
+			LocalPostprocess = ConfigMgr->GetPostprocess().FilterByPredicate([&LocalWindow](const FDisplayClusterConfigPostprocess& ItemPostprocess)
+			{
+				return LocalWindow.PostprocessIds.ContainsByPredicate([ItemPostprocess](const FString& ItemId)
+				{
+					return ItemPostprocess.Id.Compare(ItemId, ESearchCase::IgnoreCase) == 0;
+				});
+			});
+
+			return LocalPostprocess;
+		}
+
 		static TArray<FDisplayClusterConfigProjection> GetLocalProjections()
 		{
 			TArray<FDisplayClusterConfigProjection> LocalProjections;
 
-			const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
 			if (!ConfigMgr)
 			{
 				return LocalProjections;
@@ -405,7 +431,7 @@ namespace DisplayClusterHelpers
 
 		static bool GetViewportProjection(const FString& ViewportId, FDisplayClusterConfigProjection& ViewportProjection)
 		{
-			const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
 			if (ConfigMgr)
 			{
 				FDisplayClusterConfigViewport CfgViewport;
@@ -421,12 +447,23 @@ namespace DisplayClusterHelpers
 			return false;
 		}
 
+		static FString GetFullPath(const FString& LocalPath)
+		{
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			if (ConfigMgr)
+			{
+				return ConfigMgr->GetFullPathToFile(LocalPath);
+			}
+
+			return LocalPath;
+		}
+
 #if 0
 		static TArray<FDisplayClusterConfigScreen> GetLocalScreens()
 		{
 			TArray<FDisplayClusterConfigScreen> LocalScreens;
 
-			const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
+			static const IDisplayClusterConfigManager* const ConfigMgr = IDisplayCluster::Get().GetConfigMgr();
 			if (!ConfigMgr)
 			{
 				return LocalScreens;

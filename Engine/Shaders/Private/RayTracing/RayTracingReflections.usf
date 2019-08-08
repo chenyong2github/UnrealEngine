@@ -86,7 +86,7 @@ uint SortTileSize;
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 uint TestPathRoughness;
-uint MinClearCoatLevel;
+float MinClearCoatLevel;
 uint MaxUnderCoatBounces;
 
 float ReflectionMinRayDistance;

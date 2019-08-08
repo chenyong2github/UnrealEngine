@@ -64,6 +64,15 @@ enum class EAnimCurveType : uint8
 	MaxAnimCurveType UMETA(Hidden)
 };
 
+UENUM()
+enum class EClothMassMode : uint8
+{
+	UniformMass,
+	TotalMass,
+	Density,
+	MaxClothMassMode UMETA(Hidden)
+};
+
 struct FAnimationEvaluationContext
 {
 	// The anim instance we are evaluating
@@ -613,6 +622,28 @@ public:
 	/** Cache AnimCurveUidVersion from Skeleton and this will be used to identify if it needs to be updated */
 	UPROPERTY(transient)
 	uint16 CachedAnimCurveUidVersion;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	EClothMassMode MassMode;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	float UniformMass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	float TotalMass;
+	
+	/**
+	 * Water: 1.0
+	 * Cotton: 0.155
+	 * Wool: 0.13
+	 * Silk: 0.133
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	float Density;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	float MinPerParticleMass;
+
 
 	/**
 	 * weight to blend between simulated results and key-framed positions

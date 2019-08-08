@@ -21,5 +21,14 @@ class IMPCDIBlueprintAPI
 
 public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get MPCDI Mesh Data"), Category = "MPCDI")
-	virtual void GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) = 0;
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get PFM Mesh Data"), Category = "MPCDI")
+	virtual bool GetPFMMeshData(const FString& PFMFile, FMPCDIGeometryExportData& MeshData, float PFMScale=1, bool bIsMPCDIAxis= true) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set MPCDI Mesh Data"), Category = "MPCDI")
+	virtual void SetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, const FMPCDIGeometryImportData& MeshData) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Reload Changed External Files"), Category = "MPCDI")
+	virtual void ReloadChangedExternalFiles() = 0;
 };

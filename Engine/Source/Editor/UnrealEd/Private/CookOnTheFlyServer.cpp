@@ -3223,6 +3223,14 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 		return true;
 	}
 
+#if UE_GC_TRACK_OBJ_AVAILABLE
+	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
+	{
+		UE_LOG(LogCook, Display, TEXT("Running out of available UObject indices (%d remaining)"), GUObjectArray.GetObjectArrayEstimatedAvailable());
+		return true;
+	}
+#endif // UE_GC_TRACK_OBJ_AVAILABLE
+
 	// don't gc if we haven't reached our min gc level yet
 	if (MemStats.UsedVirtual < MinMemoryBeforeGC)
 	{
@@ -3237,14 +3245,6 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 		UE_LOG(LogCook, Display, TEXT("Used memory high %d kb, exceeded max memory"), MemStats.UsedPhysical / 1024);
 		return true;
 	}
-
-#if UE_GC_TRACK_OBJ_AVAILABLE
-	if (GUObjectArray.GetObjectArrayEstimatedAvailable() < MinFreeUObjectIndicesBeforeGC)
-	{
-		UE_LOG(LogCook, Display, TEXT("Running out of available UObject indices (%d remaining)"), GUObjectArray.GetObjectArrayEstimatedAvailable());
-		return true;
-	}
-#endif // UE_GC_TRACK_OBJ_AVAILABLE
 
 	return false;
 }
@@ -4139,7 +4139,7 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	MinMemoryBeforeGC = MinMemoryBeforeGCInMB * 1024LL * 1024LL;
 	MinMemoryBeforeGC = FMath::Min(MaxMemoryAllowance, MinMemoryBeforeGC);
 
-	MinFreeUObjectIndicesBeforeGC = 5000;
+	MinFreeUObjectIndicesBeforeGC = 100000;
 	GConfig->GetInt(TEXT("CookSettings"), TEXT("MinFreeUObjectIndicesBeforeGC"), MinFreeUObjectIndicesBeforeGC, GEditorIni);
 	MinFreeUObjectIndicesBeforeGC = FMath::Max(MinFreeUObjectIndicesBeforeGC, 0);
 
@@ -4693,6 +4693,7 @@ bool UCookOnTheFlyServer::GetCookedIniVersionStrings(const ITargetPlatform* Targ
 
 void UCookOnTheFlyServer::OnFConfigCreated(const FConfigFile* Config)
 {
+	FScopeLock Lock(&ConfigFileCS);
 	if (IniSettingRecurse)
 	{
 		return;
@@ -4703,6 +4704,7 @@ void UCookOnTheFlyServer::OnFConfigCreated(const FConfigFile* Config)
 
 void UCookOnTheFlyServer::OnFConfigDeleted(const FConfigFile* Config)
 {
+	FScopeLock Lock(&ConfigFileCS);
 	if (IniSettingRecurse)
 	{
 		return;
@@ -7667,7 +7669,7 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 									GIsCookerLoadingPackage = false;
 								}
 
-								if (!bIsTexture)
+								if (!bIsTexture || bSaveConcurrent)
 								{
 									SCOPE_TIMER(FullLoadAndSave_BeginCache);
 									Obj->BeginCacheForCookedPlatformData(TargetPlatform);
@@ -7747,6 +7749,21 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 	} while (PackagesToLoad.Num() > 0);
 
 	ProcessedPackages.Empty();
+
+	// When saving concurrently, flush async loading since that is normally done internally in SavePackage
+	if (bSaveConcurrent)
+	{
+		UE_LOG(LogCook, Display, TEXT("Flushing async loading..."));
+		SCOPE_TIMER(FullLoadAndSave_FlushAsyncLoading);
+		FlushAsyncLoading();
+	}
+
+	if (bSaveConcurrent)
+	{
+		UE_LOG(LogCook, Display, TEXT("Waiting for async tasks..."));
+		SCOPE_TIMER(FullLoadAndSave_ProcessThreadUntilIdle);
+		FTaskGraphInterface::Get().ProcessThreadUntilIdle(ENamedThreads::GameThread);
+	}
 
 	// Wait for all shaders to finish compiling
 	if (GShaderCompilingManager)
@@ -7895,6 +7912,8 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 					{
 						FString PlatFilename = Filename.Replace(TEXT("[Platform]"), *Target->PlatformName());
 
+						UE_CLOG(GCookProgressDisplay & (int32)ECookProgressDisplayMode::PackageNames, LogCook, Display, TEXT("Cooking %s -> %s"), *Package->GetName(), *PlatFilename);
+
 						bool bSwap = (!Target->IsLittleEndian()) ^ (!PLATFORM_LITTLE_ENDIAN);
 						if (!Target->HasEditorOnlyData())
 						{
@@ -7908,6 +7927,14 @@ uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount)
 						GIsCookerLoadingPackage = true;
 						FSavePackageResultStruct SaveResult = GEditor->Save(Package, World, FlagsToCook, *PlatFilename, GError, NULL, bSwap, false, SaveFlags, Target, FDateTime::MinValue(), false);
 						GIsCookerLoadingPackage = false;
+
+						if (SaveResult == ESavePackageResult::Success && UAssetManager::IsValid())
+						{
+							if (!UAssetManager::Get().VerifyCanCookPackage(Package->GetFName()))
+							{
+								SaveResult = ESavePackageResult::Error;
+							}
+						}
 
 						const bool bSucceededSavePackage = (SaveResult == ESavePackageResult::Success || SaveResult == ESavePackageResult::GenerateStub || SaveResult == ESavePackageResult::ReplaceCompletely);
 						if (bSucceededSavePackage)

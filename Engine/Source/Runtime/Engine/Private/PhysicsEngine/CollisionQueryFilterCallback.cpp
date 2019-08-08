@@ -8,10 +8,13 @@
 #include "Components/PrimitiveComponent.h"
 #include "Collision.h"
 
-#if PHYSICS_INTERFACE_PHYSX
+#if WITH_PHYSX
 #include "PhysXInterfaceWrapper.h"
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-#include "Physics/Experimental/LLImmediateInterfaceWrapper.h"
+#endif
+
+#if INCLUDE_CHAOS
+#include "ChaosInterfaceWrapperCore.h"
+#include "Physics/Experimental/ChaosInterfaceWrapper.h"
 #endif
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::CalcQueryHitType(const FCollisionFilterData& QueryFilter, const FCollisionFilterData& ShapeFilter, bool bPreFilter)
@@ -85,25 +88,49 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::CalcQueryHitType(const FCo
 	return ECollisionQueryHitType::None;
 }
 
-ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const FPhysicsShape& Shape, const FPhysicsActor& Actor)
+#if WITH_PHYSX
+ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const physx::PxShape& Shape, const physx::PxActor& Actor)
 {
 	SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
-	FCollisionFilterData ShapeFilter = GetQueryFilterData(Shape);
+	FCollisionFilterData ShapeFilter = PhysXInterface::GetQueryFilterData(Shape);
 
 	// We usually don't have ignore components so we try to avoid the virtual getSimulationFilterData() call below. 'word2' of shape sim filter data is componentID.
 	uint32 ComponentID = 0;
 	if (IgnoreComponents.Num() > 0)
 	{
-		ComponentID = GetSimulationFilterData(Shape).Word2;
+		ComponentID = PhysXInterface::GetSimulationFilterData(Shape).Word2;
 	}
 
 	FBodyInstance* BodyInstance = nullptr;
 #if ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
-	BodyInstance = GetUserData(Actor);
+	BodyInstance = PhysXInterface::GetUserData(Actor);
 #endif // ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
 
 	return PreFilterImp(FilterData, ShapeFilter, ComponentID, BodyInstance);
 }
+#endif
+
+#if INCLUDE_CHAOS
+ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const Chaos::TPerShapeData<float,3>& Shape, const Chaos::TGeometryParticle<float,3>& Actor)
+{
+	SCOPE_CYCLE_COUNTER(STAT_Collision_PreFilter);
+	FCollisionFilterData ShapeFilter = ChaosInterface::GetQueryFilterData(Shape);
+
+	// We usually don't have ignore components so we try to avoid the virtual getSimulationFilterData() call below. 'word2' of shape sim filter data is componentID.
+	uint32 ComponentID = 0;
+	if (IgnoreComponents.Num() > 0)
+	{
+		ComponentID = ChaosInterface::GetSimulationFilterData(Shape).Word2;
+	}
+
+	FBodyInstance* BodyInstance = nullptr;
+#if ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
+	BodyInstance = ChaosInterface::GetUserData(Actor);
+#endif // ENABLE_PREFILTER_LOGGING || DETECT_SQ_HITCHES
+
+	return PreFilterImp(FilterData, ShapeFilter, ComponentID, BodyInstance);
+}
+#endif
 
 ECollisionQueryHitType FCollisionQueryFilterCallback::PreFilterImp(const FCollisionFilterData& FilterData, const FCollisionFilterData& ShapeFilter, uint32 ComponentID, const FBodyInstance* BodyInstance)
 {
@@ -228,7 +255,8 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 	}
 }
 
-ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const FPhysicsQueryHit& Hit)
+#if WITH_PHYSX
+ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const physx::PxQueryHit& Hit)
 {
 	// Unused in non-sweeps
 	if (!bIsSweep)
@@ -241,6 +269,24 @@ ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FColli
 
 	return PostFilterImp(FilterData, bIsOverlap);
 }
+#endif
+
+#if INCLUDE_CHAOS
+ECollisionQueryHitType FCollisionQueryFilterCallback::PostFilterImp(const FCollisionFilterData& FilterData, const ChaosInterface::FQueryHit& Hit)
+{
+	// Unused in non-sweeps
+	if (!bIsSweep)
+	{
+		return ECollisionQueryHitType::None;
+	}
+
+	const ChaosInterface::FLocationHit& SweepHit = (const ChaosInterface::FLocationHit&)Hit;
+	const bool bIsOverlap = ChaosInterface::HadInitialOverlap(SweepHit);
+
+	return PostFilterImp(FilterData, bIsOverlap);
+}
+#endif
+
 
 #if WITH_PHYSX
 

@@ -1,13 +1,16 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+#if WITH_PHYSX
 #include "PhysXInterfaceWrapperCore.h"
 #include "PhysXPublic.h"
 #include "Physics/PhysicsInterfaceUtils.h"
 #include "CustomPhysXPayload.h"
 #include "PhysicsInterfaceWrapperShared.h"
 
+namespace PhysXInterface
+{
+#if PHYSICS_INTERFACE_PHYSX
 /**
 * Helper to lock/unlock a scene that also makes sure to unlock everything when it goes out of scope.
 * Multiple locks on the same scene are NOT SAFE. You can't call LockRead() if already locked.
@@ -28,6 +31,7 @@ struct FScopedSceneReadLock
 
 	PxScene* SceneLock;
 };
+#endif
 
 inline PxQueryFlags StaticDynamicQueryFlags(const FCollisionQueryParams& Params)
 {
@@ -62,6 +66,7 @@ template <typename T>
 T* GetUserData(const PxShape& Shape)
 {
 	return FPhysxUserData::Get<T>(Shape.userData);
+}
 }
 
 #endif

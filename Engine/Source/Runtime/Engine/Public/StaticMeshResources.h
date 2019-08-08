@@ -115,7 +115,7 @@ private:
 	int32 DefaultNumLODs;
 	/** Maximum number of streamed LODs */
 	int32 DefaultMaxNumStreamedLODs;
-	/** Maximum number of optional LODs */
+	/** Maximum number of optional LODs (currently, need to be either 0 or > max number of LODs below MinLOD) */
 	int32 DefaultMaxNumOptionalLODs;
 	/** Default lightmap resolution. */
 	int32 DefaultLightMapResolution;
@@ -778,7 +778,7 @@ public:
 		const FMaterialRenderProxy* RenderProxy,
 		FMeshBatch& OutMeshBatch) const;
 
-	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const override
+	virtual uint8 GetCurrentFirstLODIdx_RenderThread() const final override
 	{
 		return GetCurrentFirstLODIdx_Internal();
 	}

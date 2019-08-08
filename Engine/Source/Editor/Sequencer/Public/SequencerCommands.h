@@ -256,6 +256,9 @@ public:
 	/** Toggles whether or not sections should snap to other sections. */
 	TSharedPtr< FUICommandInfo > ToggleSnapSectionTimesToSections;
 
+	/** Toggle constraining keys and sections in the play range */
+	TSharedPtr< FUICommandInfo > ToggleSnapKeysAndSectionsToPlayRange;
+
 	/** Toggles whether or not snap to key times while scrubbing. */
 	TSharedPtr< FUICommandInfo > ToggleSnapPlayTimeToKeys;
 

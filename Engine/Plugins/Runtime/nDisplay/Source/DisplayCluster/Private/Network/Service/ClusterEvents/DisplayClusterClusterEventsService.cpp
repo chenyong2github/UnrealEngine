@@ -17,14 +17,6 @@
 FDisplayClusterClusterEventsService::FDisplayClusterClusterEventsService(const FString& InAddr, const int32 InPort) :
 	FDisplayClusterService(FString("SRV_CE"), InAddr, InPort)
 {
-	ResponseErrorMissedMandatoryFields = MakeShareable(new FJsonObject());
-	ResponseErrorMissedMandatoryFields->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::MissedMandatoryFields);
-
-	ResponseErrorUnknown = MakeShareable(new FJsonObject());
-	ResponseErrorUnknown->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::UnknownError);
-
-	ResponseOk = MakeShareable(new FJsonObject());
-	ResponseOk->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::Ok);
 }
 
 FDisplayClusterClusterEventsService::~FDisplayClusterClusterEventsService()
@@ -43,9 +35,9 @@ void FDisplayClusterClusterEventsService::Shutdown()
 	return FDisplayClusterServer::Shutdown();
 }
 
-FDisplayClusterSessionBase* FDisplayClusterClusterEventsService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
+TSharedPtr<FDisplayClusterSessionBase> FDisplayClusterClusterEventsService::CreateSession(FSocket* InSocket, const FIPv4Endpoint& InEP)
 {
-	return new FDisplayClusterSessionExternal(InSocket, this, GetName() + FString("_session_external") + InEP.ToString());
+	return TSharedPtr<FDisplayClusterSessionBase>(new FDisplayClusterSessionExternal(InSocket, this, GetName() + FString("_session_external") + InEP.ToString()));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -88,7 +80,7 @@ TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::ProcessJson(const T
 	if (MandatoryFieldsExist == false)
 	{
 		UE_LOG(LogDisplayClusterNetwork, Warning, TEXT("Json message doesn't have a mandatory field"), *GetName());
-		return ResponseErrorMissedMandatoryFields;
+		return MakeResponseErrorMissedMandatoryFields();
 	}
 
 	// Convert Json request to internal cluster event structure
@@ -98,7 +90,7 @@ TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::ProcessJson(const T
 	// Emit the event
 	EmitClusterEvent(ClusterEvent);
 
-	return ResponseOk;
+	return MakeResponseOk();
 }
 
 
@@ -108,4 +100,25 @@ TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::ProcessJson(const T
 void FDisplayClusterClusterEventsService::EmitClusterEvent(const FDisplayClusterClusterEvent& Event)
 {
 	GDisplayCluster->GetPrivateClusterMgr()->EmitClusterEvent(Event, true);
+}
+
+TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::MakeResponseErrorMissedMandatoryFields()
+{
+	TSharedPtr<FJsonObject> ResponseErrorMissedMandatoryFields = MakeShared<FJsonObject>();
+	ResponseErrorMissedMandatoryFields->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::MissedMandatoryFields);
+	return ResponseErrorMissedMandatoryFields;
+}
+
+TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::MakeResponseErrorUnknown()
+{
+	TSharedPtr<FJsonObject> ResponseErrorUnknown = MakeShared<FJsonObject>();
+	ResponseErrorUnknown->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::UnknownError);
+	return ResponseErrorUnknown;
+}
+
+TSharedPtr<FJsonObject> FDisplayClusterClusterEventsService::MakeResponseOk()
+{
+	TSharedPtr<FJsonObject> ResponseOk = MakeShared<FJsonObject>();
+	ResponseOk->SetNumberField(FString(FDisplayClusterClusterEventsMsg::ArgError), (double)EDisplayClusterJsonError::Ok);
+	return ResponseOk;
 }

@@ -95,6 +95,8 @@ struct ENGINE_API FKAggregateGeom
 	/** Returns the volume of this element */
 	float GetVolume(const FVector& Scale3D) const;
 
+	FGuid MakeDDCKey() const;
+
 private:
 
 	/** Helper function for safely copying instances */

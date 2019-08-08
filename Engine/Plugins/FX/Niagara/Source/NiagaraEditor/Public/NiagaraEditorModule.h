@@ -21,6 +21,7 @@ class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
 class UMovieSceneNiagaraParameterTrack;
 struct IConsoleCommand;
+class INiagaraEditorOnlyDataUtilities;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -94,11 +95,14 @@ public:
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement& GetOnScriptToolkitsShouldFocusGraphElement() { return OnCheckScriptToolkitsShouldFocusGraphElement; };
 
+	NIAGARAEDITOR_API TSharedPtr<FNiagaraSystemViewModel> GetExistingViewModelForSystem(UNiagaraSystem* InSystem);
+
 private:
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
 	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
-
+	void OnExecParticleInvoked(const TCHAR* InStr);
+	void OnPostEngineInit();
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -127,7 +131,6 @@ private:
 	FDelegateHandle CreateVectorParameterTrackEditorHandle;
 	FDelegateHandle CreateColorParameterTrackEditorHandle;
 
-	FDelegateHandle CreateDefaultScriptSourceHandle;
 	FDelegateHandle ScriptCompilerHandle;
 	FDelegateHandle PrecompilerHandle;
 
@@ -137,6 +140,8 @@ private:
 
 	TSharedPtr<FNiagaraScriptMergeManager> ScriptMergeManager;
 
+	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
+
 	TMap<const UScriptStruct*, FOnCreateMovieSceneTrackForParameter> TypeToParameterTrackCreatorMap;
 
 	IConsoleCommand* TestCompileScriptCommand;
@@ -144,6 +149,7 @@ private:
 	IConsoleCommand* PreventSystemRecompileCommand;
 	IConsoleCommand* PreventAllSystemRecompilesCommand;
 	IConsoleCommand* UpgradeAllNiagaraAssetsCommand;
+	IConsoleCommand* DumpCompileIdDataForAssetCommand;
 
 	FOnCheckScriptToolkitsShouldFocusGraphElement OnCheckScriptToolkitsShouldFocusGraphElement;
 };

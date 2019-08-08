@@ -65,27 +65,29 @@ bool FDisplayClusterConfigClusterNode::DeserializeFromString(const FString& line
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigWindow::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d]"),
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d]"),
 		*FDisplayClusterConfigBase::ToString(),
-		DisplayClusterStrings::cfg::data::Id,                 *Id,
-		DisplayClusterStrings::cfg::data::window::Viewports,  *DisplayClusterHelpers::str::ArrayToStr(ViewportIds),
-		DisplayClusterStrings::cfg::data::window::Fullscreen, DisplayClusterHelpers::str::BoolToStr(IsFullscreen),
-		DisplayClusterStrings::cfg::data::window::WinX,       WinX,
-		DisplayClusterStrings::cfg::data::window::WinY,       WinY,
-		DisplayClusterStrings::cfg::data::window::ResX,       ResX,
-		DisplayClusterStrings::cfg::data::window::ResY,       ResY
+		DisplayClusterStrings::cfg::data::Id,                  *Id,
+		DisplayClusterStrings::cfg::data::window::Viewports,   *DisplayClusterHelpers::str::ArrayToStr(ViewportIds),
+		DisplayClusterStrings::cfg::data::window::Postprocess, *DisplayClusterHelpers::str::ArrayToStr(PostprocessIds),
+		DisplayClusterStrings::cfg::data::window::Fullscreen,  DisplayClusterHelpers::str::BoolToStr(IsFullscreen),
+		DisplayClusterStrings::cfg::data::window::WinX,        WinX,
+		DisplayClusterStrings::cfg::data::window::WinY,        WinY,
+		DisplayClusterStrings::cfg::data::window::ResX,        ResX,
+		DisplayClusterStrings::cfg::data::window::ResY,        ResY
 	);
 }
 
 bool FDisplayClusterConfigWindow::DeserializeFromString(const FString& line)
 {
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),                 Id);
-	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Viewports), FString(DisplayClusterStrings::strArrayValSeparator), ViewportIds);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::Fullscreen), IsFullscreen);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinX),       WinX);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinY),       WinY);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::ResX),       ResX);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::ResY),       ResY);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),                  Id);
+	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Viewports),   FString(DisplayClusterStrings::strArrayValSeparator), ViewportIds);
+	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Postprocess), FString(DisplayClusterStrings::strArrayValSeparator), PostprocessIds);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::Fullscreen),  IsFullscreen);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinX),        WinX);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinY),        WinY);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::ResX),        ResX);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::ResY),        ResY);
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
@@ -96,7 +98,7 @@ bool FDisplayClusterConfigWindow::DeserializeFromString(const FString& line)
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigViewport::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d]"),
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d, %s=%s]"),
 		*FDisplayClusterConfigBase::ToString(),
 		DisplayClusterStrings::cfg::data::Id, *Id,
 		DisplayClusterStrings::cfg::data::viewport::Projection, *ProjectionId,
@@ -104,7 +106,8 @@ FString FDisplayClusterConfigViewport::ToString() const
 		DisplayClusterStrings::cfg::data::viewport::PosX,       Loc.X,
 		DisplayClusterStrings::cfg::data::viewport::PosY,       Loc.Y,
 		DisplayClusterStrings::cfg::data::viewport::Width,      Size.X,
-		DisplayClusterStrings::cfg::data::viewport::Height,     Size.Y
+		DisplayClusterStrings::cfg::data::viewport::Height,     Size.Y,
+		DisplayClusterStrings::cfg::data::viewport::RTT,        DisplayClusterHelpers::str::BoolToStr(IsRTT)
 	);
 }
 
@@ -117,10 +120,34 @@ bool FDisplayClusterConfigViewport::DeserializeFromString(const FString& line)
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::PosY),       Loc.Y);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Width),      Size.X);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Height),     Size.Y);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::RTT),        IsRTT);
+
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
 
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FDisplayClusterConfigPostprocess
+//////////////////////////////////////////////////////////////////////////////////////////////
+FString FDisplayClusterConfigPostprocess::ToString() const
+{
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s]"),
+		*FDisplayClusterConfigBase::ToString(),
+		DisplayClusterStrings::cfg::data::Id, *Id,
+		DisplayClusterStrings::cfg::data::postprocess::PostprocessId, *PostprocessId,
+		*ConfigLine
+	);
+}
+
+bool FDisplayClusterConfigPostprocess::DeserializeFromString(const FString& line)
+{
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id), Id);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::postprocess::PostprocessId), PostprocessId);
+	ConfigLine = line; //Save unparsed args for custom pp parsers
+
+	return FDisplayClusterConfigBase::DeserializeFromString(line);
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterConfigSceneNode

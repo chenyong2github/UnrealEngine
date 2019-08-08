@@ -9,9 +9,9 @@
 namespace Chaos
 {
 template<class T, int d>
-class TPBDRigidDynamicSpringConstraints : public TPBDRigidDynamicSpringConstraintsBase<T, d>, public TPBDConstraintContainer<T, d>
+class TPBDRigidDynamicSpringConstraints : public TPBDRigidDynamicSpringConstraintsBase2<T, d>, public TPBDConstraintContainer<T, d>
 {
-	typedef TPBDRigidDynamicSpringConstraintsBase<T, d> Base;
+	typedef TPBDRigidDynamicSpringConstraintsBase2<T, d> Base;
 
 	using Base::Constraints;
 	using Base::Distances;
@@ -21,29 +21,29 @@ public:
 	using Base::UpdatePositionBasedState;
 
 	TPBDRigidDynamicSpringConstraints(const T InStiffness = (T)1)
-	    : TPBDRigidDynamicSpringConstraintsBase<T, d>(InStiffness) 
+	    : TPBDRigidDynamicSpringConstraintsBase2<T, d>(InStiffness) 
 	{}
 
-	TPBDRigidDynamicSpringConstraints(TArray<TVector<int32, 2>>&& InConstraints, const T InCreationThreshold = (T)1, const int32 InMaxSprings = 1, const T InStiffness = (T)1)
-	    : TPBDRigidDynamicSpringConstraintsBase<T, d>(MoveTemp(InConstraints), InCreationThreshold, InMaxSprings, InStiffness)
+	TPBDRigidDynamicSpringConstraints(TArray<TVector<TGeometryParticleHandle<T, d>*, 2>>&& InConstraints, const T InCreationThreshold = (T)1, const int32 InMaxSprings = 1, const T InStiffness = (T)1)
+	    : TPBDRigidDynamicSpringConstraintsBase2<T, d>(MoveTemp(InConstraints), InCreationThreshold, InMaxSprings, InStiffness)
 	{}
 
 	virtual ~TPBDRigidDynamicSpringConstraints() {}
 
-	CHAOS_API void UpdatePositionBasedState(const TPBDRigidParticles<T, d>& InParticles, const TArray<int32>& InIndices, const T Dt)
+	CHAOS_API void UpdatePositionBasedState(const T Dt)
 	{
-		Base::UpdatePositionBasedState(InParticles);
+		Base::UpdatePositionBasedState();
 	}
 
 	// @todo(mlentine): Why is this needed?
-	CHAOS_API void ApplyHelper(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const;
+	CHAOS_API void ApplyHelper(const T Dt, const TArray<int32>& InConstraintIndices) const;
 
-	CHAOS_API void Apply(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices) const
+	CHAOS_API void Apply(const T Dt, const TArray<int32>& InConstraintIndices) const
 	{
-		ApplyHelper(InParticles, Dt, InConstraintIndices);
+		ApplyHelper(Dt, InConstraintIndices);
 	}
 
-	CHAOS_API void ApplyPushOut(TPBDRigidParticles<T, d>& InParticles, const T Dt, const TArray<int32>& InConstraintIndices)
+	CHAOS_API void ApplyPushOut(const T Dt, const TArray<int32>& InConstraintIndices)
 	{
 
 	}

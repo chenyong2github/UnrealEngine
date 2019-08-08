@@ -64,6 +64,17 @@ struct OnDisconnectedHandler : Windows::Foundation::IUnknown
     void operator()(Microsoft::Holographic::AppRemoting::ConnectionFailureReason const& failureReason) const;
 };
 
+struct OnListeningHandler : Windows::Foundation::IUnknown
+{
+    OnListeningHandler(std::nullptr_t = nullptr) noexcept {}
+    template <typename L> OnListeningHandler(L lambda);
+    template <typename F> OnListeningHandler(F* function);
+    template <typename O, typename M> OnListeningHandler(O* object, M method);
+    template <typename O, typename M> OnListeningHandler(com_ptr<O>&& object, M method);
+    template <typename O, typename M> OnListeningHandler(weak_ref<O>&& object, M method);
+    void operator()(uint16_t port) const;
+};
+
 struct OnRecognizedSpeechHandler : Windows::Foundation::IUnknown
 {
     OnRecognizedSpeechHandler(std::nullptr_t = nullptr) noexcept {}

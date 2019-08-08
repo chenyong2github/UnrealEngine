@@ -1616,6 +1616,30 @@ FTransform FAnimationRuntime::GetComponentSpaceTransformRefPose(const FReference
 	return GetComponentSpaceTransform(RefSkeleton, RefSkeleton.GetRefBonePose(), BoneIndex);
 }
 
+const FTransform& FAnimationRuntime::GetComponentSpaceTransformWithCache(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, int32 BoneIndex, TArray<FTransform>& CachedTransforms, TArray<bool>& CachedTransformReady)
+{
+	if (!CachedTransformReady[BoneIndex])
+	{
+		CachedTransformReady[BoneIndex] = true;
+		CachedTransforms[BoneIndex] = FTransform::Identity;
+
+		if (RefSkeleton.IsValidIndex(BoneIndex))
+		{
+			int32 ParentBoneIndex = RefSkeleton.GetParentIndex(BoneIndex);
+			if (ParentBoneIndex != INDEX_NONE)
+			{
+				const FTransform& ParentComponentSpaceTransform = GetComponentSpaceTransformWithCache(RefSkeleton, BoneSpaceTransforms, ParentBoneIndex, CachedTransforms, CachedTransformReady);
+				CachedTransforms[BoneIndex] = BoneSpaceTransforms[BoneIndex] * ParentComponentSpaceTransform;
+			}
+			else
+			{
+				CachedTransforms[BoneIndex] = BoneSpaceTransforms[BoneIndex];
+			}
+		}
+	}
+	return CachedTransforms[BoneIndex];
+}
+
 void FAnimationRuntime::FillUpComponentSpaceTransforms(const FReferenceSkeleton& RefSkeleton, const TArray<FTransform> &BoneSpaceTransforms, TArray<FTransform> &ComponentSpaceTransforms)
 {
 	ComponentSpaceTransforms.Empty(BoneSpaceTransforms.Num());

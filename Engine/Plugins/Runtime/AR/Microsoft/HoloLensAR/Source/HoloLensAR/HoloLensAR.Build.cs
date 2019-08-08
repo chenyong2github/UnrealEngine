@@ -35,11 +35,13 @@ public class HoloLensAR : ModuleRules
         {
             PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.dll"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/Windows/x64", "QRCodesTrackerPlugin.winmd"));
         }
         if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
             RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));
+            RuntimeDependencies.Add(System.IO.Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.winmd"));
         }
 
         AddEngineThirdPartyPrivateStaticDependencies(Target, "WindowsMixedRealityInterop");
@@ -47,16 +49,18 @@ public class HoloLensAR : ModuleRules
 		PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
 
 		// Add a dependency to SceneUnderstanding.dll if present
-		string SceneUnderstandingPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
-		if (System.IO.File.Exists(SceneUnderstandingPath))
+		string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
+        string SceneUnderstandingWinMDPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.winmd");
+        if (System.IO.File.Exists(SceneUnderstandingDllPath) && System.IO.File.Exists(SceneUnderstandingWinMDPath))
 		{
 			PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
-			RuntimeDependencies.Add(SceneUnderstandingPath);
-			PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
+			RuntimeDependencies.Add(SceneUnderstandingDllPath);
+            RuntimeDependencies.Add(SceneUnderstandingWinMDPath);
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
 		}
-		else
-		{
-			PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
-		}
+        else
+        {
+            PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=0");
+        }
 	}
 }

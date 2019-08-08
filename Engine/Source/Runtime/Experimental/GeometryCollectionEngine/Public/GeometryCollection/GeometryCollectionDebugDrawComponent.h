@@ -24,14 +24,31 @@ namespace Chaos { template<class T, int d> class TImplicitObject; }
 namespace Chaos { template<class T, int d> class TPBDRigidParticles; }
 #endif  // #if INCLUDE_CHAOS && GEOMETRYCOLLECTION_DEBUG_DRAW
 
-// Component adding debug drawing functionality to a GeometryCollectionActor.
-// This component is automatically added to every GeometryCollectionActor.
+/**
+* FGeometryCollectionDebugDrawWarningMessage
+*   Empty structure used to embed a warning message in the UI through a detail customization.
+*/
+USTRUCT()
+struct FGeometryCollectionDebugDrawWarningMessage
+{
+	GENERATED_USTRUCT_BODY()
+};
+
+/**
+* UGeometryCollectionDebugDrawComponent
+*   Component adding debug drawing functionality to a GeometryCollectionActor.
+*   This component is automatically added to every GeometryCollectionActor.
+*/
 UCLASS(meta = (BlueprintSpawnableComponent), HideCategories = ("Tags", "Activation", "Cooking", "AssetUserData", "Collision"))
 class GEOMETRYCOLLECTIONENGINE_API UGeometryCollectionDebugDrawComponent : public UActorComponent
 {
 	GENERATED_UCLASS_BODY()
 
 public:
+
+	/** Warning message to explain that the debug draw properties have no effect until starting playing/simulating. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw")
+	FGeometryCollectionDebugDrawWarningMessage WarningMessage;
 
 	/** Enable the visualization of the rigid body ids. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw|Rigid Body")

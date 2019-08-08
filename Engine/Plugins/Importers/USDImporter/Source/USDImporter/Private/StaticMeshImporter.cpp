@@ -524,14 +524,14 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
-		if (NewMesh->SourceModels.Num() < LODIndex + 1)
+		if (NewMesh->GetNumSourceModels() < LODIndex + 1)
 		{
 			// Add one LOD 
 			NewMesh->AddSourceModel();
 
-			if (NewMesh->SourceModels.Num() < LODIndex + 1)
+			if (NewMesh->GetNumSourceModels() < LODIndex + 1)
 			{
-				LODIndex = NewMesh->SourceModels.Num() - 1;
+				LODIndex = NewMesh->GetNumSourceModels() - 1;
 			}
 		}
 
@@ -597,7 +597,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 			break;
 		}
 
-		if (!NewMesh->SourceModels.IsValidIndex(LODIndex))
+		if (!NewMesh->IsSourceModelValid(LODIndex))
 		{
 			// Add one LOD 
 			NewMesh->AddSourceModel();
@@ -607,7 +607,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 		NewMesh->CommitMeshDescription(LODIndex);
 
-		FStaticMeshSourceModel& SrcModel = NewMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = NewMesh->GetSourceModel(LODIndex);
 		SrcModel.BuildSettings.bGenerateLightmapUVs = false;
 		SrcModel.BuildSettings.bRecomputeNormals = bRecomputeNormals;
 		SrcModel.BuildSettings.bRecomputeTangents = true;

@@ -16,6 +16,7 @@ class UNiagaraScript;
 class FNiagaraCompileOptions;
 class FNiagaraCompileRequestDataBase;
 class INiagaraMergeManager;
+class INiagaraEditorOnlyDataUtilities;
 
 extern NIAGARA_API int32 GEnableVerboseNiagaraChangeIdLogging;
 
@@ -27,7 +28,6 @@ class NIAGARA_API INiagaraModule : public IModuleInterface
 public:
 #if WITH_EDITOR
 	typedef TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> CompileRequestPtr;
-	DECLARE_DELEGATE_RetVal_OneParam(class UNiagaraScriptSourceBase*, FOnCreateDefaultScriptSource, UObject*);
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FNiagaraVMExecutableData>, FScriptCompiler,const FNiagaraCompileRequestDataBase*, const FNiagaraCompileOptions&);
 	DECLARE_DELEGATE_RetVal_OneParam(CompileRequestPtr, FOnPrecompile, UObject*);
 #endif
@@ -62,17 +62,17 @@ public:
 	void TickWorld(UWorld* World, ELevelTick TickType, float DeltaSeconds);
 
 #if WITH_EDITOR
-	const INiagaraMergeManager& GetMergeManager();
+	const INiagaraMergeManager& GetMergeManager() const;
 
 	void RegisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
 	void UnregisterMergeManager(TSharedRef<INiagaraMergeManager> InMergeManager);
 
-	UNiagaraScriptSourceBase* CreateDefaultScriptSource(UObject* Outer);
+	const INiagaraEditorOnlyDataUtilities& GetEditorOnlyDataUtilities() const;
 
-	FDelegateHandle RegisterOnCreateDefaultScriptSource(FOnCreateDefaultScriptSource OnCreateDefaultScriptSource);
+	void RegisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
-	void UnregisterOnCreateDefaultScriptSource(FDelegateHandle DelegateHandle);
+	void UnregisterEditorOnlyDataUtilities(TSharedRef<INiagaraEditorOnlyDataUtilities> InEditorOnlyDataUtilities);
 
 	TSharedPtr<FNiagaraVMExecutableData> CompileScript(const FNiagaraCompileRequestDataBase* InCompileData, const FNiagaraCompileOptions& InCompileOptions);
 	FDelegateHandle RegisterScriptCompiler(FScriptCompiler ScriptCompiler);
@@ -178,7 +178,8 @@ private:
 
 #if WITH_EDITORONLY_DATA
 	TSharedPtr<INiagaraMergeManager> MergeManager;
-	FOnCreateDefaultScriptSource OnCreateDefaultScriptSourceDelegate;
+	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
+
 	FScriptCompiler ScriptCompilerDelegate;
 	FOnPrecompile ObjectPrecompilerDelegate;
 #endif

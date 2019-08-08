@@ -29,10 +29,10 @@
 #include "Widgets/Views/STreeView.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SCheckBox.h"
 
 #if !UE_BUILD_SHIPPING
-
-#include "Widgets/Input/SNumericEntryBox.h"
 
 #define LOCTEXT_NAMESPACE "STableViewTesting"
 
@@ -683,6 +683,154 @@ private:
 };
 
 /**
+ * An Item Editor used by tile view testing.
+ * It visualizes a string and edits its contents.
+ */
+class SHorizontalListItemEditor : public STableRow< TSharedPtr<FTestData> >
+{
+public:
+	
+	SLATE_BEGIN_ARGS(SHorizontalListItemEditor)
+		: _ItemToEdit()
+		{}
+
+		SLATE_EVENT(FOnCanAcceptDrop, OnCanAcceptDrop)
+		SLATE_EVENT(FOnAcceptDrop, OnAcceptDrop)
+		SLATE_EVENT(FOnDragDetected, OnDragDetected)
+		SLATE_ARGUMENT(TSharedPtr<FTestData>, ItemToEdit)
+
+	SLATE_END_ARGS()
+	
+	/**
+	 * Construct the widget
+	 *
+	 * @param InArgs   A declaration from which to construct the widget
+	 */
+	void Construct( const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView )
+	{
+		STableRow<TSharedPtr<FTestData> >::ConstructInternal( STableRow::FArguments()
+			.OnCanAcceptDrop(InArgs._OnCanAcceptDrop)
+			.OnAcceptDrop(InArgs._OnAcceptDrop)
+			.OnDragDetected(InArgs._OnDragDetected)
+			.ShowSelection(true)
+		, InOwnerTableView);
+
+		ItemToEdit = InArgs._ItemToEdit;
+
+		FSlateFontInfo ItemEditorFont = FCoreStyle::Get().GetFontStyle(TEXT("NormalFont"));
+
+		this->ChildSlot
+		[
+			SNew(SBorder)
+			.BorderImage( FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder") )
+			.BorderBackgroundColor(FLinearColor(1,1,1,0.45f))
+			.Padding(this, &SHorizontalListItemEditor::GetVariableWidth)
+			[
+				SNew(SVerticalBox)
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(4)
+				[
+					// Name
+					SNew( STextBlock )
+					.Font( ItemEditorFont )
+					.Text( this, &SHorizontalListItemEditor::OnReadText )
+				]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2)
+				[
+					// Number
+					SNew(SSpinBox<float>)
+					.MinValue(-5)
+					.MaxValue(800)
+					.Font( ItemEditorFont )
+					.Value( this, &SHorizontalListItemEditor::OnReadValue )
+					.OnValueChanged( this, &SHorizontalListItemEditor::OnWriteValue )
+				]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			.Padding(2)
+			[
+				//TextField
+				SNew( SEditableTextBox )
+				.Font( ItemEditorFont )
+				.Text( this, &SHorizontalListItemEditor::OnReadText )
+				.OnTextChanged( this, &SHorizontalListItemEditor::OnTextChanged )
+			]
+
+				+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(2)
+				[
+					//TextBlock
+					SNew( STextBlock ) .Font( ItemEditorFont ) .Text( this, &SHorizontalListItemEditor::OnReadText )
+				]
+			]
+		];
+	}
+	
+	void SpawnContextMenu( const FVector2D& SpawnLocation )
+	{
+		FSlateApplication::Get().PushMenu
+		(
+			SharedThis( this ),
+			FWidgetPath(),
+			GetPopupContent(),
+			SpawnLocation,
+			FPopupTransitionEffect( FPopupTransitionEffect::ContextMenu )
+		);
+	}
+	
+private:
+	FMargin GetVariableWidth() const
+	{
+		return FMargin(0, 0, this->ItemToEdit->GetNumber(), 0);
+	}
+
+	TSharedRef<SWidget> GetPopupContent()
+	{		
+		return SNew(STestMenu);
+	}
+
+	/** Modify the text when the widget changes it */
+	void OnTextChanged( const FText& NewText )
+	{
+		if (ItemToEdit.IsValid())
+		{
+			ItemToEdit->SetName( NewText );
+		}		
+	}
+	
+	/** @return the text being edited by this widget */
+	FText OnReadText() const
+	{
+		if ( ItemToEdit.IsValid() )
+		{
+			return ItemToEdit->GetName();
+		}
+
+		return FText::GetEmpty();
+	}
+
+	float OnReadValue() const
+	{
+		return ItemToEdit->GetNumber();
+	}
+
+	void OnWriteValue( float NewValue )
+	{
+		ItemToEdit->SetNumber(NewValue);
+	}
+
+	/** A pointer to the data item that we visualize/edit */
+	TSharedPtr<FTestData> ItemToEdit;
+};
+
+/**
  * ListTesting is a test case for lists and trees.
  */
 class STableViewTesting : public SCompoundWidget
@@ -742,7 +890,7 @@ public:
 					.Text( LOCTEXT("RebuildDataButtonLabel", "Rebuild Data") )
 					.OnClicked( this, &STableViewTesting::Rebuild_OnClicked )
 				]
-				+SHorizontalBox::Slot().AutoWidth()
+				+SHorizontalBox::Slot().AutoWidth() .Padding(10, 0, 0, 0)
 				[
 					// We set how many data items we want in our test case.
 					SNew(SNumericEntryBox<int32>)
@@ -755,6 +903,44 @@ public:
 					SNew(SButton)
 					.Text(LOCTEXT("ScrollToItemButtonLabel", "Scroll to Item"))
 					.OnClicked( this, &STableViewTesting::ScrollToIndex_OnClicked )
+				]
+				+SHorizontalBox::Slot() .FillWidth(1)
+				[
+					SNew(SSpacer)
+				]
+				+SHorizontalBox::Slot() .AutoWidth()
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &STableViewTesting::IsScrollAnimChecked)
+					.OnCheckStateChanged(this, &STableViewTesting::HandleScrollAnimCheckStateChanged)
+				]
+				+SHorizontalBox::Slot().AutoWidth() .Padding(2,0,0,0) .VAlign(VAlign_Center)
+				[
+					SNew(STextBlock).Text( LOCTEXT("AnimateScrollingLabel", "Animate Scrolling") )
+				]
+				+SHorizontalBox::Slot() .AutoWidth() .Padding(10, 0, 0, 0)
+				[
+					SNew(SCheckBox)
+					.IsChecked(this, &STableViewTesting::IsFixedItemOffsetChecked)
+					.OnCheckStateChanged(this, &STableViewTesting::HandleFixedItemOffsetCheckStateChanged)
+				]
+				+SHorizontalBox::Slot().AutoWidth()
+				[
+					SNew(SHorizontalBox)
+					.IsEnabled(this, &STableViewTesting::GetIsFixedItemOffsetEnabled)
+					+SHorizontalBox::Slot().AutoWidth() .VAlign(VAlign_Center)
+					[
+						SNew(STextBlock).Text(LOCTEXT("FixedLineScrollOffsetLabel", "Fixed Item Scroll Offset: "))
+					]
+					+SHorizontalBox::Slot().AutoWidth()
+					[
+						// We set how many data items we want in our test case.
+						SNew(SNumericEntryBox<double>)
+						.MinValue(0.)
+						.MaxValue(0.5)
+						.Value(this, &STableViewTesting::GetFixedItemOffsetValue)
+						.OnValueChanged(this, &STableViewTesting::HandleFixedItemOffsetValueChanged)
+					]
 				]
 				+SHorizontalBox::Slot() .FillWidth(1)
 				[
@@ -809,49 +995,106 @@ public:
 			.FillHeight(1)
 			[
 				SNew(SBox)
-				.HeightOverride(500.0f)
+				.HeightOverride(800.0f)
 				[
-					SNew( SSplitter )
+					SNew(SSplitter)
+					.Orientation(Orient_Vertical)
 					+ SSplitter::Slot()
-					. Value(1)
+					.Value(.6f)
 					[
-						SNew(SBorder)
-						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+						SNew( SSplitter )
+						+ SSplitter::Slot()
+						. Value(1)
 						[
-							SNew(SHorizontalBox)
-							+SHorizontalBox::Slot()
-							.AutoWidth()
+							SNew(SBorder)
+							.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 							[
-								ExternalScrollbar
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								[
+									ExternalScrollbar
+								]
+								+SHorizontalBox::Slot()
+								.FillWidth(1)
+								[
+									// The list view being tested
+									SAssignNew( ListBeingTested, SListView< TSharedPtr<FTestData> > )
+									.ExternalScrollbar( ExternalScrollbar )
+									// List view items are this tall
+									.ItemHeight(24)
+									// Tell the list view where to get its source data
+									.ListItemsSource( &Items )
+									// When the list view needs to generate a widget for some data item, use this method
+									.OnGenerateRow( this, &STableViewTesting::OnGenerateWidgetForList )
+									// What to put in the context menu
+									.OnContextMenuOpening( this, &STableViewTesting::GetListContextMenu )
+									// Single, multi or no selection
+									.SelectionMode( this, &STableViewTesting::GetSelectionMode )
+									.HeaderRow
+									(
+										SNew(SHeaderRow)
+										+ SHeaderRow::Column("Name")
+										[
+											SNew(SBorder)
+											.Padding(5)
+											[
+												SNew(STextBlock)
+												.Text(LOCTEXT("TestNameColumn", "Name"))
+											]
+										]
+										+ SHeaderRow::Column("Number") .DefaultLabel(LOCTEXT("TestNumberColumn", "Number"))
+										+ SHeaderRow::Column("TextField") .DefaultLabel(LOCTEXT("TestTextFieldColumn", "Text Field"))
+										+ SHeaderRow::Column("TextBlock") .DefaultLabel(LOCTEXT("TestTextBlockColumn", "Text Block"))
+										+ SHeaderRow::Column("AddChild") .DefaultLabel(LOCTEXT("TestAddChildColumn", "Add Child"))
+									)
+								]
 							]
-							+SHorizontalBox::Slot()
-							.FillWidth(1)
+						]
+						+ SSplitter::Slot()
+						. Value(1)
+						[
+							SNew(SBorder)
+							.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 							[
-								// The list view being tested
-								SAssignNew( ListBeingTested, SListView< TSharedPtr<FTestData> > )
-								.ExternalScrollbar( ExternalScrollbar )
-								// List view items are this tall
-								.ItemHeight(24)
-								// Tell the list view where to get its source data
+								// The tile view being tested
+								SAssignNew( TileViewBeingTested, STileView< TSharedPtr<FTestData> > )
+								// Tile view items are this wide
+								.ItemWidth(128)
+								// Tile view items are this tall
+								.ItemHeight(90)
+								// Tell the tile view where to get its source data
 								.ListItemsSource( &Items )
 								// When the list view needs to generate a widget for some data item, use this method
-								.OnGenerateRow( this, &STableViewTesting::OnGenerateWidgetForList )
+								.OnGenerateTile( this, &STableViewTesting::OnGenerateWidgetForTileView )
 								// What to put in the context menu
-								.OnContextMenuOpening( this, &STableViewTesting::GetListContextMenu )
+								.OnContextMenuOpening( this, &STableViewTesting::GetTileViewContextMenu )
 								// Single, multi or no selection
 								.SelectionMode( this, &STableViewTesting::GetSelectionMode )
+							]
+						]
+						+ SSplitter::Slot()
+						. Value(1)
+						[
+							SNew(SBorder)
+							.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+							[
+								// The TreeView being tested; mostly identical to ListView except for OnGetChildren
+								SAssignNew( TreeBeingTested, STreeView< TSharedPtr<FTestData> > )
+								.ItemHeight(24)
+								.TreeItemsSource( &Items )
+								.OnGenerateRow( this, &STableViewTesting::OnGenerateWidgetForTree )
+								// Given some DataItem, this is how we find out if it has any children and what they are.
+								.OnGetChildren( this, &STableViewTesting::OnGetChildrenForTree )
+								// What to put in the context menu
+								.OnContextMenuOpening( this, &STableViewTesting::GetTreeContextMenu )
+								// Single, multi or no selection
+								.SelectionMode( this, &STableViewTesting::GetSelectionMode )
+								.WheelScrollMultiplier(60.f)
 								.HeaderRow
 								(
 									SNew(SHeaderRow)
-									+ SHeaderRow::Column("Name")
-									[
-										SNew(SBorder)
-										.Padding(5)
-										[
-											SNew(STextBlock)
-											.Text(LOCTEXT("TestNameColumn", "Name"))
-										]
-									]
+									+ SHeaderRow::Column("Name") .DefaultLabel(LOCTEXT("TestNameColumn","Name"))
 									+ SHeaderRow::Column("Number") .DefaultLabel(LOCTEXT("TestNumberColumn", "Number"))
 									+ SHeaderRow::Column("TextField") .DefaultLabel(LOCTEXT("TestTextFieldColumn", "Text Field"))
 									+ SHeaderRow::Column("TextBlock") .DefaultLabel(LOCTEXT("TestTextBlockColumn", "Text Block"))
@@ -861,17 +1104,41 @@ public:
 						]
 					]
 					+ SSplitter::Slot()
-					. Value(1)
+					.Value(.15f)
 					[
 						SNew(SBorder)
 						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
 						[
-							// The tile view being tested
-							SAssignNew( TileViewBeingTested, STileView< TSharedPtr<FTestData> > )
+							// The horizontally-oriented list view being tested
+							SAssignNew(HorizontalListBeingTested, SListView< TSharedPtr<FTestData> > )
+							// This is a horizontally scrolling list view
+							.Orientation(Orient_Horizontal)
+							// List view items are this tall
+							//.ItemHeight(24)
+							// Tell the list view where to get its source data
+							.ListItemsSource( &Items )
+							// When the list view needs to generate a widget for some data item, use this method
+							.OnGenerateRow( this, &STableViewTesting::OnGenerateWidgetForHorizontalList )
+							// What to put in the context menu
+							.OnContextMenuOpening( this, &STableViewTesting::GetListContextMenu )
+							// Single, multi or no selection
+							.SelectionMode( this, &STableViewTesting::GetSelectionMode )
+						]
+					]
+					+ SSplitter::Slot()
+					.Value(.25f)
+					[
+						SNew(SBorder)
+						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
+						[
+							// The horizontally-oriented tile view being tested
+							SAssignNew( HorizontalTileViewBeingTested, STileView< TSharedPtr<FTestData> > )
+							// This is a horizontally scrolling tile view
+							.Orientation(Orient_Horizontal)
 							// Tile view items are this wide
 							.ItemWidth(128)
 							// Tile view items are this tall
-							.ItemHeight(75)
+							.ItemHeight(90)
 							// Tell the tile view where to get its source data
 							.ListItemsSource( &Items )
 							// When the list view needs to generate a widget for some data item, use this method
@@ -880,34 +1147,6 @@ public:
 							.OnContextMenuOpening( this, &STableViewTesting::GetTileViewContextMenu )
 							// Single, multi or no selection
 							.SelectionMode( this, &STableViewTesting::GetSelectionMode )
-						]
-					]
-					+ SSplitter::Slot()
-					. Value(1)
-					[
-						SNew(SBorder)
-						.BorderImage(FCoreStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-						[
-							// The TreeView being tested; mostly identical to ListView except for OnGetChildren
-							SAssignNew( TreeBeingTested, STreeView< TSharedPtr<FTestData> > )
-							.ItemHeight(24)
-							.TreeItemsSource( &Items )
-							.OnGenerateRow( this, &STableViewTesting::OnGenerateWidgetForTree )
-							// Given some DataItem, this is how we find out if it has any children and what they are.
-							.OnGetChildren( this, &STableViewTesting::OnGetChildrenForTree )
-							// What to put in the context menu
-							.OnContextMenuOpening( this, &STableViewTesting::GetTreeContextMenu )
-							// Single, multi or no selection
-							.SelectionMode( this, &STableViewTesting::GetSelectionMode )
-							.HeaderRow
-							(
-								SNew(SHeaderRow)
-								+ SHeaderRow::Column("Name") .DefaultLabel(LOCTEXT("TestNameColumn","Name"))
-								+ SHeaderRow::Column("Number") .DefaultLabel(LOCTEXT("TestNumberColumn", "Number"))
-								+ SHeaderRow::Column("TextField") .DefaultLabel(LOCTEXT("TestTextFieldColumn", "Text Field"))
-								+ SHeaderRow::Column("TextBlock") .DefaultLabel(LOCTEXT("TestTextBlockColumn", "Text Block"))
-								+ SHeaderRow::Column("AddChild") .DefaultLabel(LOCTEXT("TestAddChildColumn", "Add Child"))
-							)
 						]
 					]
 				]
@@ -965,9 +1204,12 @@ protected:
 			const TSharedRef<FTestData>& ItemBeingDragged = DragDropOperation->GetDraggedItem();
 			FTestData::RemoveRecursive(Items, ItemBeingDragged);
 			FTestData::InsertRecursive(Items, ItemBeingDragged, TargetItem.ToSharedRef(), DropZone);
-			this->ListBeingTested->RequestListRefresh();
-			this->TreeBeingTested->RequestTreeRefresh();
-			this->TileViewBeingTested->RequestListRefresh();
+			ListBeingTested->RequestListRefresh();
+			HorizontalListBeingTested->RequestListRefresh();
+			TreeBeingTested->RequestTreeRefresh();
+			TileViewBeingTested->RequestListRefresh();
+			HorizontalTileViewBeingTested->RequestListRefresh();
+
 			return FReply::Handled();
 		}
 		else
@@ -1103,20 +1345,20 @@ protected:
 	{
 		if (Items.IsValidIndex(ScrollToIndex))
 		{
-			if (TreeBeingTested.IsValid())
-			{
-				TreeBeingTested->RequestScrollIntoView( Items[ ScrollToIndex ] );
-				TreeBeingTested->SetSelection( Items[ ScrollToIndex ] );
-			}
+			ListBeingTested->RequestScrollIntoView(Items[ScrollToIndex]);
+			ListBeingTested->SetSelection(Items[ScrollToIndex]);
 
-			if ( TileViewBeingTested.IsValid() )
-			{
-				TileViewBeingTested->RequestScrollIntoView( Items[ ScrollToIndex ] );
-				TileViewBeingTested->SetSelection( Items[ ScrollToIndex ] );
-			}
+			HorizontalListBeingTested->RequestScrollIntoView(Items[ScrollToIndex]);
+			HorizontalListBeingTested->SetSelection(Items[ScrollToIndex]);
 
-			ListBeingTested->RequestScrollIntoView( Items[ ScrollToIndex ] );
-			ListBeingTested->SetSelection( Items[ ScrollToIndex ] );
+			TreeBeingTested->RequestScrollIntoView( Items[ ScrollToIndex ] );
+			TreeBeingTested->SetSelection( Items[ ScrollToIndex ] );
+			
+			TileViewBeingTested->RequestScrollIntoView( Items[ ScrollToIndex ] );
+			TileViewBeingTested->SetSelection( Items[ ScrollToIndex ] );
+			
+			HorizontalTileViewBeingTested->RequestScrollIntoView(Items[ScrollToIndex]);
+			HorizontalTileViewBeingTested->SetSelection(Items[ScrollToIndex]);
 		}
 
 		return FReply::Handled();
@@ -1125,15 +1367,12 @@ protected:
 	/** Request that both Tree and List refresh themselves on the next tick */
 	FReply RequestRefresh()
 	{
-		if (TreeBeingTested.IsValid())
-		{
-			TreeBeingTested->RequestTreeRefresh();
-		}
-		if (TileViewBeingTested.IsValid())
-		{
-			TileViewBeingTested->RequestListRefresh();
-		}
 		ListBeingTested->RequestListRefresh();
+		HorizontalListBeingTested->RequestListRefresh();
+		TileViewBeingTested->RequestListRefresh();
+		HorizontalTileViewBeingTested->RequestListRefresh();
+		TreeBeingTested->RequestTreeRefresh();
+
 		return FReply::Handled();
 	}
 
@@ -1179,6 +1418,16 @@ protected:
 			.ItemToEdit( InItem );
 	}
 
+	/** @return Given a data item return a new widget to represent it in the ListView */
+	TSharedRef<ITableRow> OnGenerateWidgetForHorizontalList(TSharedPtr<FTestData> InItem, const TSharedRef<STableViewBase>& OwnerTable)
+	{
+		return
+			SNew(SHorizontalListItemEditor, OwnerTable)
+			.OnCanAcceptDrop(this, &STableViewTesting::OnCanAcceptDrop_Handler)
+			.OnAcceptDrop(this, &STableViewTesting::OnAcceptDrop_Handler)
+			.OnDragDetected(this, &STableViewTesting::OnDragDetected_Handler, TWeakPtr<FTestData>(InItem))
+			.ItemToEdit(InItem);
+	}
 
 	// Tile view test
 
@@ -1219,6 +1468,60 @@ protected:
 		return (Mode.IsValid())
 			? GetSelectedModeText(Mode)
 			: FText::GetEmpty();
+	}
+
+	ECheckBoxState IsScrollAnimChecked() const
+	{
+		return bIsScrollAnimEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	void HandleScrollAnimCheckStateChanged(ECheckBoxState NewState)
+	{
+		bIsScrollAnimEnabled = NewState == ECheckBoxState::Checked;
+		
+		ListBeingTested->SetIsScrollAnimationEnabled(bIsScrollAnimEnabled);
+		HorizontalListBeingTested->SetIsScrollAnimationEnabled(bIsScrollAnimEnabled);
+		TileViewBeingTested->SetIsScrollAnimationEnabled(bIsScrollAnimEnabled);
+		HorizontalTileViewBeingTested->SetIsScrollAnimationEnabled(bIsScrollAnimEnabled);
+		TreeBeingTested->SetIsScrollAnimationEnabled(bIsScrollAnimEnabled);
+	}
+
+	ECheckBoxState IsFixedItemOffsetChecked() const
+	{
+		return bIsFixedLineScrollOffsetEnabled ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+
+	void HandleFixedItemOffsetCheckStateChanged(ECheckBoxState NewState)
+	{
+		bIsFixedLineScrollOffsetEnabled = NewState == ECheckBoxState::Checked;
+		UpdateFixedItemOffset();
+	}
+
+	bool GetIsFixedItemOffsetEnabled() const
+	{
+		return bIsFixedLineScrollOffsetEnabled;
+	}
+
+	TOptional<double> GetFixedItemOffsetValue() const
+	{
+		return FixedLineScrollOffset;
+	}
+
+	void HandleFixedItemOffsetValueChanged(double NewValue)
+	{
+		FixedLineScrollOffset = NewValue;
+		UpdateFixedItemOffset();
+	}
+
+	void UpdateFixedItemOffset()
+	{
+		TOptional<double> FixedOffset = bIsFixedLineScrollOffsetEnabled ? FixedLineScrollOffset : TOptional<double>();
+
+		ListBeingTested->SetFixedLineScrollOffset(FixedOffset);
+		HorizontalListBeingTested->SetFixedLineScrollOffset(FixedOffset);
+		TileViewBeingTested->SetFixedLineScrollOffset(FixedOffset);
+		HorizontalTileViewBeingTested->SetFixedLineScrollOffset(FixedOffset);
+		TreeBeingTested->SetFixedLineScrollOffset(FixedOffset);
 	}
 
 	void OnSelectionModeChanged( ESelectionModePtr InMode, ESelectInfo::Type )
@@ -1273,8 +1576,10 @@ protected:
 	
 	/** A pointer to the ListView being tested */
 	TSharedPtr< SListView< TSharedPtr<FTestData> > > ListBeingTested;
+	TSharedPtr< SListView< TSharedPtr<FTestData> > > HorizontalListBeingTested;
 	/** A pointer to the TileView being tested */
 	TSharedPtr< STileView< TSharedPtr<FTestData> > > TileViewBeingTested;
+	TSharedPtr< STileView< TSharedPtr<FTestData> > > HorizontalTileViewBeingTested;
 	/** A pointer to the TreeView being tested */
 	TSharedPtr< STreeView< TSharedPtr<FTestData> > > TreeBeingTested;
 	/** The data items being tested */
@@ -1292,6 +1597,9 @@ protected:
 	/** All available selection modes */
 	TArray< ESelectionModePtr > SelectionModes;
 
+	bool bIsScrollAnimEnabled = false;
+	bool bIsFixedLineScrollOffsetEnabled = false;
+	double FixedLineScrollOffset = 0.f;
 };
 
 

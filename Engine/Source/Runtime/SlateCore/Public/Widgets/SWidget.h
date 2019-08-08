@@ -26,6 +26,7 @@
 #include "SlateGlobals.h"
 #include "Types/PaintArgs.h"
 #include "FastUpdate/WidgetProxy.h"
+#include "InvalidateWidgetReason.h"
 #include "Widgets/Accessibility/SlateWidgetAccessibleTypes.h"
 
 class FActiveTimerHandle;
@@ -126,66 +127,6 @@ enum class EAccessibleType : uint8
 	Main,
 	Summary
 };
-
-/**
- * The different types of invalidation that are possible for a widget.
- */
-enum class EInvalidateWidgetReason : uint8
-{
-	None = 0,
-
-	/**
-	 * Use Layout invalidation if your widget needs to change desired size.  This is an expensive invalidation so do not use if all you need to do is redraw a widget
-	 */
-	Layout = 1 << 0,
-
-	/**
-	 * Use when the painting of widget has been altered, but nothing affecting sizing.
-	 */
-	Paint = 1 << 1,
-
-	/**
-	 * Use if just the volatility of the widget has been adjusted.
-	 */
-	Volatility = 1 << 2,
-
-	/**
-	 * A child was added or removed.   (this implies layout)
-	 */
-	ChildOrder = 1 << 3,
-
-	/** A Widgets render transform changed */
-	RenderTransform = 1 << 4,
-
-	/**
-	 * Changing visibility (this implies layout)
-	 */
-	Visibility = 1 << 5,
-
-	/**
-	 * Use Paint invalidation if you're changing a normal property involving painting or sizing.
-	 * Additionally if the property that was changed affects Volatility in anyway, it's important
-	 * that you invalidate volatility so that it can be recalculated and cached.
-	 */
-	PaintAndVolatility = Paint | Volatility,
-	/**
-	 * Use Layout invalidation if you're changing a normal property involving painting or sizing.
-	 * Additionally if the property that was changed affects Volatility in anyway, it's important
-	 * that you invalidate volatility so that it can be recalculated and cached.
-	 */
-	LayoutAndVolatility = Layout | Volatility,
-
-
-	/**
-	 * Do not use this ever unless you know what you are doing
-	 */
-	All UE_DEPRECATED(4.22, "EInvalidateWidget::All has been deprecated.  You probably wanted EInvalidateWidget::Layout but if you need more than that then use bitwise or to combine them") = 0xff
-};
-
-ENUM_CLASS_FLAGS(EInvalidateWidgetReason)
-
-// This typedefed because EInvalidateWidget will be deprecated soon
-typedef EInvalidateWidgetReason EInvalidateWidget;
 
 
 /**
@@ -714,8 +655,6 @@ public:
 	void SetCanTick(bool bInCanTick) { bInCanTick ? AddUpdateFlags(EWidgetUpdateFlags::NeedsTick) : RemoveUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
 	bool GetCanTick() const { return HasAnyUpdateFlags(EWidgetUpdateFlags::NeedsTick); }
 
-	virtual void ChildLayoutChanged(EInvalidateWidget InvalidateReason);
-
 	const FSlateWidgetPersistentState& GetPersistentState() const { return PersistentState; }
 	const FWidgetProxyHandle GetProxyHandle() const { return FastPathProxyHandle; }
 
@@ -784,8 +723,6 @@ private:
 		DesiredSize = InDesiredSize;
 	}
 
-	void LayoutChanged(EInvalidateWidget InvalidateReason);
-
 	void CreateStatID() const;
 
 	void AddUpdateFlags(EWidgetUpdateFlags FlagsToAdd)
@@ -804,9 +741,21 @@ private:
 		{
 			FastPathProxyHandle.UpdateWidgetFlags(UpdateFlags);
 		}
+
+#if WITH_SLATE_DEBUGGING
+		if (EnumHasAnyFlags(FlagsToRemove, EWidgetUpdateFlags::NeedsRepaint))
+		{
+			Debug_UpdateLastPaintFrame();
+		}
+#endif
 	}
 
 	void UpdateWidgetProxy(int32 NewLayerId, FSlateCachedElementListNode* CacheNode);
+
+#if WITH_SLATE_DEBUGGING
+	uint32 Debug_GetLastPaintFrame() const { return LastPaintFrame; }
+	void Debug_UpdateLastPaintFrame() { LastPaintFrame = GFrameNumber; }
+#endif
 
 public:
 
@@ -924,11 +873,7 @@ public:
 	 */
 	void SetEnabled(const TAttribute<bool>& InEnabledState)
 	{
-		if (!EnabledState.IdenticalTo(InEnabledState))
-		{
-			EnabledState = InEnabledState;
-			Invalidate(EInvalidateWidget::PaintAndVolatility);
-		}
+		SetAttribute(EnabledState, InEnabledState, EInvalidateWidgetReason::Paint);
 	}
 
 	/** @return Whether or not this widget is enabled */
@@ -1057,8 +1002,11 @@ public:
 	 */
 	FORCEINLINE void ForceVolatile(bool bForce)
 	{
-		bForceVolatile = bForce;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		if (bForceVolatile != bForce)
+		{
+			bForceVolatile = bForce;
+			Invalidate(EInvalidateWidgetReason::Volatility);
+		}
 	}
 
 	FORCEINLINE bool ShouldInvalidatePrepassDueToVolatility() { return bVolatilityAlwaysInvalidatesPrepass; }
@@ -1067,7 +1015,7 @@ public:
 	 * Invalidates the widget from the view of a layout caching widget that may own this widget.
 	 * will force the owning widget to redraw and cache children on the next paint pass.
 	 */
-	void Invalidate(EInvalidateWidget InvalidateReason);
+	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 
 	/**
 	 * Recalculates volatility of the widget and caches the result.  Should be called any time 
@@ -1162,11 +1110,7 @@ public:
 	/** @param InTransform the render transform to set for the widget (transforms from widget's local space). TOptional<> to allow code to skip expensive overhead if there is no render transform applied. */
 	FORCEINLINE void SetRenderTransform(TAttribute<TOptional<FSlateRenderTransform>> InTransform)
 	{
-		if(!RenderTransform.IdenticalTo(InTransform))
-		{
-			RenderTransform = InTransform;
-			Invalidate(EInvalidateWidget::LayoutAndVolatility|EInvalidateWidget::RenderTransform);
-		}
+		SetAttribute(RenderTransform, InTransform, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	}
 
 	/** @return the pivot point of the render transform. */
@@ -1178,11 +1122,7 @@ public:
 	/** @param InTransformPivot Sets the pivot point of the widget's render transform (in normalized local space). */
 	FORCEINLINE void SetRenderTransformPivot(TAttribute<FVector2D> InTransformPivot)
 	{
-		if (!RenderTransformPivot.IdenticalTo(InTransformPivot))
-		{
-			RenderTransformPivot = InTransformPivot;
-			Invalidate(EInvalidateWidget::LayoutAndVolatility | EInvalidateWidget::RenderTransform);
-		}
+		SetAttribute(RenderTransformPivot, InTransformPivot, EInvalidateWidgetReason::Layout | EInvalidateWidgetReason::RenderTransform);
 	}
 
 	/**
@@ -1529,6 +1469,9 @@ public:
 	 * Unregisters an active timer handle. This is optional, as the delegate can UnRegister itself by returning EActiveTimerReturnType::Stop.
 	 */
 	void UnRegisterActiveTimer( const TSharedRef<FActiveTimerHandle>& ActiveTimerHandle );
+	
+	/** Does this widget have any active timers? */
+	bool HasActiveTimers() const { return ActiveTimers.Num() > 0; }
 
 private:
 
@@ -1537,6 +1480,34 @@ private:
 
 	const FPointerEventHandler* GetPointerEvent(const FName EventName) const;
 	void SetPointerEvent(const FName EventName, FPointerEventHandler& InEvent);
+
+protected:
+	/**
+	 * Performs the attribute assignment and invalidates the widget minimally based on what actually changed.  So if the boundness of the attribute didn't change
+	 * volatility won't need to be recalculated.  Returns true if the value changed.
+	 */
+	template<typename TargetValueType, typename SourceValueType>
+	bool SetAttribute(TAttribute<TargetValueType>& TargetValue, const TAttribute<SourceValueType>& SourceValue, EInvalidateWidgetReason BaseInvalidationReason)
+	{
+		if (!TargetValue.IdenticalTo(SourceValue))
+		{
+			const bool bWasBound = TargetValue.IsBound();
+			const bool bBoundnessChanged = bWasBound != SourceValue.IsBound();
+			TargetValue = SourceValue;
+
+			EInvalidateWidgetReason InvalidateReason = BaseInvalidationReason;
+			if (bBoundnessChanged)
+			{
+				InvalidateReason |= EInvalidateWidgetReason::Volatility;
+			}
+
+			Invalidate(InvalidateReason);
+			return true;
+		}
+
+		return false;
+	}
+
 protected:
 	/** Dtor ensures that active timer handles are UnRegistered with the SlateApplication. */
 	virtual ~SWidget();
@@ -1629,8 +1600,13 @@ private:
 	/** Flow direction preference */
 	EFlowDirectionPreference FlowDirectionPreference;
 
+	/** The different updates this widget needs next frame. */
 	EWidgetUpdateFlags UpdateFlags;
 
+#if WITH_SLATE_DEBUGGING
+	/** The last time this widget got painted. */
+	uint32 LastPaintFrame = 0;
+#endif
 
 	mutable FSlateWidgetPersistentState PersistentState;
 

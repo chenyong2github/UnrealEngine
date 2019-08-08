@@ -4,6 +4,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
+#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 #include "GeometryCollectionDebugDrawActor.generated.h"
 
@@ -44,7 +45,7 @@ struct FGeometryCollectionDebugDrawActorSelectedRigidBody
 	GENERATED_USTRUCT_BODY()
 
 	explicit FGeometryCollectionDebugDrawActorSelectedRigidBody(int32 InId = -1) : Id(InId), Solver(nullptr), GeometryCollection(nullptr) {}
-	
+
 	/** Id of the selected rigid body whose to visualize debug informations. Use -1 to visualize all Geometry Collections. */
 	UPROPERTY(EditAnywhere, Category = "Selected Rigid Body", meta = (ClampMin="-1"))
 	int32 Id;
@@ -73,6 +74,10 @@ class GEOMETRYCOLLECTIONENGINE_API AGeometryCollectionDebugDrawActor : public AA
 {
 	GENERATED_UCLASS_BODY()
 public:
+
+	/** Warning message to explain that the debug draw properties have no effect until starting playing/simulating. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw")
+	FGeometryCollectionDebugDrawWarningMessage WarningMessage;
 
 	/** Picking tool used to select a rigid body id. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw")

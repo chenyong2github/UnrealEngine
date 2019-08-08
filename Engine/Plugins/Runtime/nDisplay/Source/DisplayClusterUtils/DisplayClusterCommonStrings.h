@@ -66,13 +66,14 @@ namespace DisplayClusterStrings
 			// Window tokens
 			namespace window
 			{
-				static constexpr auto Header     = TEXT("[window]");
-				static constexpr auto Viewports  = TEXT("viewports");
-				static constexpr auto Fullscreen = TEXT("fullscreen");
-				static constexpr auto WinX       = TEXT("WinX");
-				static constexpr auto WinY       = TEXT("WinY");
-				static constexpr auto ResX       = TEXT("ResX");
-				static constexpr auto ResY       = TEXT("ResY");
+				static constexpr auto Header       = TEXT("[window]");
+				static constexpr auto Viewports    = TEXT("viewports");
+				static constexpr auto Postprocess  = TEXT("postprocess");
+				static constexpr auto Fullscreen   = TEXT("fullscreen");
+				static constexpr auto WinX         = TEXT("WinX");
+				static constexpr auto WinY         = TEXT("WinY");
+				static constexpr auto ResX         = TEXT("ResX");
+				static constexpr auto ResY         = TEXT("ResY");
 				// + Id
 			}
 
@@ -94,6 +95,15 @@ namespace DisplayClusterStrings
 				static constexpr auto PosY       = TEXT("y");
 				static constexpr auto Width      = TEXT("width");
 				static constexpr auto Height     = TEXT("height");
+				static constexpr auto RTT        = TEXT("rtt");
+				// + Id
+			}
+
+			// Posprocess tokens
+			namespace postprocess
+			{
+				static constexpr auto Header        = TEXT("[postprocess]");
+				static constexpr auto PostprocessId = TEXT("type");
 				// + Id
 			}
 

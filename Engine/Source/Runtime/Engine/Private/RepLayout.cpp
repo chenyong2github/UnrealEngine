@@ -6221,6 +6221,12 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 
 		if (!LocalNetFieldExportGroup.IsValid())
 		{
+			if (!bIsWriting)
+			{
+				UE_LOG(LogRep, Error, TEXT("DeltaSerializeFastArrayProperty: Unable to find NetFieldExportGroup during replay playback. Class=%s, Property=%s"), *Owner->GetName(), *Parent.CachedPropertyName.ToString());
+				return false;
+			}
+
 			UE_LOG(LogRepProperties, VeryVerbose, TEXT("DeltaSerializeFastArrayProperty: Create Netfield Export Group."))
 			LocalNetFieldExportGroup = CreateNetfieldExportGroup();
 			PackageMap->AddNetFieldExportGroup(OwnerPathName, LocalNetFieldExportGroup);
@@ -6689,7 +6695,7 @@ bool FRepLayout::DeltaSerializeFastArrayProperty(FFastArrayDeltaSerializeParams&
 					ItemLayoutStart,
 					ItemLayoutEnd,
 					nullptr,
-					FastArrayHelper.GetRawPtr(0),
+					ThisElement,
 					ThisElement,
 					&GuidReferences,
 					bOutHasUnmapped,

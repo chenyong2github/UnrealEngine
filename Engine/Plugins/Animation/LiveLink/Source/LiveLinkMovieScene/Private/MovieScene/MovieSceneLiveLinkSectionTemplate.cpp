@@ -31,10 +31,9 @@ static FQualifiedFrameTime ConvertFrameTimeToTimeCodeTime(const FFrameTime& Fram
 
 static FLiveLinkWorldTime ConvertFrameTimeToLiveLinkWorldTime(const FFrameTime& FrameTime, const FFrameRate& FrameRate, const FFrameTime& FrameTimeEqualToWorldFrameTime, const FLiveLinkWorldTime& LiveLinkWorldTime)
 {
-	FLiveLinkWorldTime WorldTime;
 	FFrameTime DiffFrameTime = FrameTime - FrameTimeEqualToWorldFrameTime;
 	double DiffSeconds = FrameRate.AsSeconds(DiffFrameTime);
-	return WorldTime.Time = DiffSeconds + (LiveLinkWorldTime.Time + LiveLinkWorldTime.Offset);
+	return FLiveLinkWorldTime(DiffSeconds + LiveLinkWorldTime.GetOffsettedTime(), 0.0);
 }
 
 struct FMovieSceneLiveLinkSectionTemplatePersistentData : IPersistentEvaluationData

@@ -1,16 +1,58 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicyNvidiaOpenGL.h"
-#include "Render/Device/DisplayClusterDeviceInternals.h"
 
 #include "DisplayClusterLog.h"
+#include "Render/Device/DisplayClusterOpenGL.h"
 
+#include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
-#include "Engine/GameEngine.h"
+#include "UnrealClient.h"
+
+
+namespace
+{
+	PFNWGLSWAPINTERVALEXTPROC      DisplayCluster_wglSwapIntervalEXT_ProcAddress = nullptr;
+	PFNWGLJOINSWAPGROUPNVPROC      DisplayCluster_wglJoinSwapGroupNV_ProcAddress = nullptr;
+	PFNWGLBINDSWAPBARRIERNVPROC    DisplayCluster_wglBindSwapBarrierNV_ProcAddress = nullptr;
+	PFNWGLQUERYSWAPGROUPNVPROC     DisplayCluster_wglQuerySwapGroupNV_ProcAddress = nullptr;
+	PFNWGLQUERYMAXSWAPGROUPSNVPROC DisplayCluster_wglQueryMaxSwapGroupsNV_ProcAddress = nullptr;
+	PFNWGLQUERYFRAMECOUNTNVPROC    DisplayCluster_wglQueryFrameCountNV_ProcAddress = nullptr;
+	PFNWGLRESETFRAMECOUNTNVPROC    DisplayCluster_wglResetFrameCountNV_ProcAddress = nullptr;
+
+
+	// Copy/pasted from OpenGLDrv.cpp
+	static void DisplayClusterGetExtensionsString(FString& ExtensionsString)
+	{
+		GLint ExtensionCount = 0;
+		ExtensionsString = TEXT("");
+		if (FOpenGL::SupportsIndexedExtensions())
+		{
+			glGetIntegerv(GL_NUM_EXTENSIONS, &ExtensionCount);
+			for (int32 ExtensionIndex = 0; ExtensionIndex < ExtensionCount; ++ExtensionIndex)
+			{
+				const ANSICHAR* ExtensionString = FOpenGL::GetStringIndexed(GL_EXTENSIONS, ExtensionIndex);
+
+				ExtensionsString += TEXT(" ");
+				ExtensionsString += ANSI_TO_TCHAR(ExtensionString);
+			}
+		}
+		else
+		{
+			const ANSICHAR* GlGetStringOutput = (const ANSICHAR*)glGetString(GL_EXTENSIONS);
+			if (GlGetStringOutput)
+			{
+				ExtensionsString += GlGetStringOutput;
+				ExtensionsString += TEXT(" ");
+			}
+		}
+	}
+}
 
 
 FDisplayClusterRenderSyncPolicyNvidiaOpenGL::FDisplayClusterRenderSyncPolicyNvidiaOpenGL()
 {
+	InitializeOpenGLCapabilities();
 }
 
 FDisplayClusterRenderSyncPolicyNvidiaOpenGL::~FDisplayClusterRenderSyncPolicyNvidiaOpenGL()
@@ -19,30 +61,29 @@ FDisplayClusterRenderSyncPolicyNvidiaOpenGL::~FDisplayClusterRenderSyncPolicyNvi
 
 bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::SynchronizeClusterRendering(int32& InOutSyncInterval)
 {
-	//@todo implement hardware based solution
-	SyncBarrierRenderThread();
-	// Tell a caller that he still needs to present a frame
-	return true;
-}
+	check(IsInRenderingThread());
 
-#if 0
-bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::Initialize()
-{
-#if PLATFORM_WINDOWS
-	DisplayClusterInitCapabilitiesForGL();
-#endif
-
-	return true;
-}
-
-bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::Present(int32& InOutSyncInterval)
-{
-	if (bNvSwapInitialized == false)
+	if (bNVAPIInitialized == false)
 	{
 		// Use render barrier to guaranty that all nv barriers are initialized simultaneously
 		SyncBarrierRenderThread();
-		bNvSwapInitialized = InitializeNvidiaSwapLock();
+		bNVAPIInitialized = InitializeNvidiaSwapLock();
 	}
+
+	if (!bNVAPIInitialized)
+	{
+		return true;
+	}
+
+	if(!(GEngine && GEngine->GameViewport && GEngine->GameViewport->Viewport))
+	{
+		return false;
+	}
+
+	FOpenGLViewport* pOglViewport = static_cast<FOpenGLViewport*>(GEngine->GameViewport->Viewport->GetViewportRHI().GetReference());
+	check(pOglViewport);
+	FPlatformOpenGLContext* const pContext = pOglViewport->GetGLContext();
+	check(pContext && pContext->DeviceContext);
 
 	if (OpenGLContext)
 	{
@@ -54,27 +95,25 @@ bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::Present(int32& InOutSyncInterv
 	return true;
 }
 
-#if PLATFORM_WINDOWS
 bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeNvidiaSwapLock()
 {
-	if (bNvSwapInitialized)
+	if (bNVAPIInitialized)
 	{
 		return true;
 	}
 
 	if (!DisplayCluster_wglJoinSwapGroupNV_ProcAddress || !DisplayCluster_wglBindSwapBarrierNV_ProcAddress)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Group/Barrier functions not available"));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Group/Barrier functions not available"));
 		return false;
 	}
 
-	if (!GEngine || !GEngine->GameViewport || 
-		!GEngine->GameViewport->Viewport || 
-		!GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())
+	if (!GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport || !GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Game viewport hasn't been initialized yet"));
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Game viewport hasn't been initialized yet"));
 		return false;
 	}
+
 	FViewport* MainViewport = GEngine->GameViewport->Viewport;
 	OpenGLViewport = static_cast<FOpenGLViewport*>(MainViewport->GetViewportRHI().GetReference());
 	check(OpenGLViewport);
@@ -86,54 +125,75 @@ bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeNvidiaSwapLock()
 
 	if (!DisplayCluster_wglQueryMaxSwapGroupsNV_ProcAddress(OpenGLContext->DeviceContext, &maxGroups, &maxBarriers))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't query gr/br limits: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't query gr/br limits: %d"), glGetError());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("max_groups=%d max_barriers=%d"), (int)maxGroups, (int)maxBarriers);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("max_groups=%d max_barriers=%d"), (int)maxGroups, (int)maxBarriers);
 
 	if (!(maxGroups > 0 && maxBarriers > 0))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("There are no available groups or barriers"));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("There are no available groups or barriers"));
 		return false;
 	}
 
 	if (!DisplayCluster_wglJoinSwapGroupNV_ProcAddress(OpenGLContext->DeviceContext, 1))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't join swap group: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't join swap group: %d"), glGetError());
 		return false;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("Successfully joined the swap group: 1"));
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Successfully joined the swap group: 1"));
 	}
 
 	if (!DisplayCluster_wglBindSwapBarrierNV_ProcAddress(1, 1))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't bind to swap barrier: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't bind to swap barrier: %d"), glGetError());
 		return false;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("Successfully binded to the swap barrier: 1"));
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Successfully binded to the swap barrier: 1"));
 	}
 
 	return true;
 }
-#elif PLATFORM_LINUX
-bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeNvidiaSwapLock()
-{
-	//@todo: Implementation for Linux
-	return false;
-}
-#endif
 
+void FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeOpenGLCapabilities()
+{
+	bool bWindowsSwapControlExtensionPresent = false;
+	{
+		FString ExtensionsString;
+		DisplayClusterGetExtensionsString(ExtensionsString);
+
+		if (ExtensionsString.Contains(TEXT("WGL_EXT_swap_control")))
+		{
+			bWindowsSwapControlExtensionPresent = true;
+		}
+	}
+
+#pragma warning(push)
+#pragma warning(disable:4191)
+	if (bWindowsSwapControlExtensionPresent)
+	{
+		DisplayCluster_wglSwapIntervalEXT_ProcAddress = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+	}
+
+	DisplayCluster_wglJoinSwapGroupNV_ProcAddress = (PFNWGLJOINSWAPGROUPNVPROC)wglGetProcAddress("wglJoinSwapGroupNV");
+	DisplayCluster_wglBindSwapBarrierNV_ProcAddress = (PFNWGLBINDSWAPBARRIERNVPROC)wglGetProcAddress("wglBindSwapBarrierNV");
+	DisplayCluster_wglQuerySwapGroupNV_ProcAddress = (PFNWGLQUERYSWAPGROUPNVPROC)wglGetProcAddress("wglQuerySwapGroupNV");
+	DisplayCluster_wglQueryMaxSwapGroupsNV_ProcAddress = (PFNWGLQUERYMAXSWAPGROUPSNVPROC)wglGetProcAddress("wglQueryMaxSwapGroupsNV");
+	DisplayCluster_wglQueryFrameCountNV_ProcAddress = (PFNWGLQUERYFRAMECOUNTNVPROC)wglGetProcAddress("wglQueryFrameCountNV");
+	DisplayCluster_wglResetFrameCountNV_ProcAddress = (PFNWGLRESETFRAMECOUNTNVPROC)wglGetProcAddress("wglResetFrameCountNV");
+#pragma warning(pop)
+}
 
 void FDisplayClusterRenderSyncPolicyNvidiaOpenGL::UpdateSwapInterval(int32 InSyncInterval) const
 {
-#if PLATFORM_WINDOWS
 	/*
 	https://www.opengl.org/registry/specs/EXT/wgl_swap_control.txt
+
 	wglSwapIntervalEXT specifies the minimum number of video frame periods
 	per buffer swap for the window associated with the current context.
 	The interval takes effect when SwapBuffers or wglSwapLayerBuffer
@@ -162,10 +222,5 @@ void FDisplayClusterRenderSyncPolicyNvidiaOpenGL::UpdateSwapInterval(int32 InSyn
 
 	// Perform that each frame
 	if (!DisplayCluster_wglSwapIntervalEXT_ProcAddress(InSyncInterval))
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't set swap interval: %d"), InSyncInterval);
-
-#elif
-	//@todo: Implementation for Linux
-#endif
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Couldn't set swap interval: %d"), InSyncInterval);
 }
-#endif

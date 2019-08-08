@@ -3,27 +3,27 @@
 #include "Types/ReflectionMetadata.h"
 #include "Widgets/SWidget.h"
 
-FString FReflectionMetaData::GetWidgetPath(const SWidget* InWidget)
+FString FReflectionMetaData::GetWidgetPath(const SWidget* InWidget, bool bShort, bool bNativePathOnly)
 {
 	if (!InWidget)
 	{
 		return TEXT("None");
 	}
 
-	return GetWidgetPath(*InWidget);
+	return GetWidgetPath(*InWidget, bShort, bNativePathOnly);
 }
 
-FString FReflectionMetaData::GetWidgetPath(const SWidget& InWidget)
+FString FReflectionMetaData::GetWidgetPath(const SWidget& InWidget, bool bShort, bool bNativePathOnly)
 {
 	FString WidgetPath;
+
+	int32 bWidgetsInPath = 0;
 
 	const SWidget* CurrentWidget = &InWidget;
 	while (CurrentWidget)
 	{
-		WidgetPath.InsertAt(0, TEXT("/"));
-
 		TSharedPtr<FReflectionMetaData> MetaData = CurrentWidget->GetMetaData<FReflectionMetaData>();
-		if (MetaData.IsValid())
+		if (!bNativePathOnly && MetaData.IsValid())
 		{
 			WidgetPath.InsertAt(0, MetaData->Name.ToString());
 		}
@@ -33,6 +33,19 @@ FString FReflectionMetaData::GetWidgetPath(const SWidget& InWidget)
 		}
 
 		CurrentWidget = CurrentWidget->GetParentWidget().Get();
+
+		if (CurrentWidget)
+		{
+			WidgetPath.InsertAt(0, TEXT("/"));
+
+			bWidgetsInPath++;
+
+			if (bShort && bWidgetsInPath >= 5)
+			{
+				WidgetPath.InsertAt(0, TEXT("..."));
+				break;
+			}
+		}
 	}
 
 	return WidgetPath;

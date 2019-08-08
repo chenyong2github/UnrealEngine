@@ -8,6 +8,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/Layout/SSplitter.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SCheckBox.h"
@@ -22,6 +23,7 @@
 #include "LiveLinkSourceFactory.h"
 #include "LiveLinkSourceSettings.h"
 #include "LiveLinkSubjectSettings.h"
+#include "SLiveLinkDataView.h"
 
 #include "Editor.h"
 #include "Editor/EditorPerformanceSettings.h"
@@ -112,7 +114,7 @@ struct FLiveLinkSubjectUIEntry
 
 	bool IsSubjectEnabled() const
 	{
-		return IsSubject() ? Client->IsSubjectEnabled(SubjectKey) : false;
+		return IsSubject() ? Client->IsSubjectEnabled(SubjectKey, true) : false;
 	}
 
 	bool IsSubjectValid() const
@@ -393,6 +395,7 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 	Client = InClient;
 
 	bSelectionChangedGuard = false;
+	DetailWidgetIndex = 0;
 
 	OnSourcesChangedHandle = Client->OnLiveLinkSourcesChanged().AddSP(this, &SLiveLinkClientPanel::OnSourcesChangedHandler);
 	OnSubjectsChangedHandle = Client->OnLiveLinkSubjectsChanged().AddSP(this, &SLiveLinkClientPanel::OnSubjectsChangedHandler);
@@ -511,7 +514,18 @@ void SLiveLinkClientPanel::Construct(const FArguments& Args, FLiveLinkClient* In
 			+SSplitter::Slot()
 			.Value(0.5f)
 			[
-				SettingsDetailsView.ToSharedRef()
+				SNew(SWidgetSwitcher)
+				.WidgetIndex(this, &SLiveLinkClientPanel::GetDetailWidgetIndex)
+				+ SWidgetSwitcher::Slot()
+				[
+					//[0] Detail view for Source
+					SettingsDetailsView.ToSharedRef()
+				]
+				+ SWidgetSwitcher::Slot()
+				[
+					// [1] Detail view for Subject, Frame data & Static data
+					SAssignNew(DataDetailsView, SLiveLinkDataView, Client)
+				]
 			]
 		]
 		+SVerticalBox::Slot()
@@ -586,6 +600,11 @@ void SLiveLinkClientPanel::RefreshSourceData(bool bRefreshUI)
 	}
 }
 
+int32 SLiveLinkClientPanel::GetDetailWidgetIndex() const
+{
+	return DataDetailsView->GetSubjectKey().Source.IsValid() && !DataDetailsView->GetSubjectKey().SubjectName.IsNone() ? 1 : 0;
+}
+
 TSharedRef<ITableRow> SLiveLinkClientPanel::MakeSourceListViewWidget(FLiveLinkSourceUIEntryPtr Entry, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return SNew(SLiveLinkClientPanelSourcesRow, OwnerTable)
@@ -599,6 +618,8 @@ void SLiveLinkClientPanel::OnSourceListSelectionChanged(FLiveLinkSourceUIEntryPt
 		return;
 	}
 	TGuardValue<bool> ReentrantGuard(bSelectionChangedGuard, true);
+
+	DataDetailsView->SetSubjectKey(FLiveLinkSubjectKey());
 
 	int32 FoundSubjectEntryIndex = INDEX_NONE;
 	if(Entry.IsValid())
@@ -660,7 +681,7 @@ void SLiveLinkClientPanel::OnSubjectTreeSelectionChanged(FLiveLinkSubjectUIEntry
 		return;
 	}
 	TGuardValue<bool> ReentrantGuard(bSelectionChangedGuard, true);
-	
+
 	int32 FoundSourceIndex = INDEX_NONE;
 	bool bDetailViewSet = false;
 	if (SubjectEntry.IsValid())
@@ -669,13 +690,23 @@ void SLiveLinkClientPanel::OnSubjectTreeSelectionChanged(FLiveLinkSubjectUIEntry
 		FGuid SourceGuid = SubjectEntry->SubjectKey.Source;
 		FoundSourceIndex = SourceData.IndexOfByPredicate([SourceGuid](FLiveLinkSourceUIEntryPtr SourceEntry) { return SourceEntry->GetGuid() == SourceGuid; });
 
-		SettingsDetailsView->SetObject(SubjectEntry->GetSettings());
+		if (SubjectEntry->IsSource())
+		{
+			SettingsDetailsView->SetObject(SubjectEntry->GetSettings());
+			DataDetailsView->SetSubjectKey(FLiveLinkSubjectKey());
+		}
+		else
+		{
+			SettingsDetailsView->SetObject(nullptr);
+			DataDetailsView->SetSubjectKey(SubjectEntry->SubjectKey);
+		}
 		bDetailViewSet = true;
 	}
 
 	if (!bDetailViewSet)
 	{
 		SettingsDetailsView->SetObject(nullptr);
+		DataDetailsView->SetSubjectKey(FLiveLinkSubjectKey());
 	}
 
 	// Select the corresponding Source entry

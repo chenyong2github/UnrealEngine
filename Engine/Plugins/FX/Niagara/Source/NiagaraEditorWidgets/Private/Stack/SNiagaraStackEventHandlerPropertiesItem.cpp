@@ -25,12 +25,8 @@ void SNiagaraStackEventHandlerPropertiesItem::Construct(const FArguments& InArgs
 		+ SHorizontalBox::Slot()
 		.Padding(0)
 		[
-			SNew(STextBlock)
-			.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-			.ToolTipText_UObject(EventHandlerPropertiesItem, &UNiagaraStackEntry::GetTooltipText)
-			.Text_UObject(EventHandlerPropertiesItem, &UNiagaraStackEntry::GetDisplayName)
-			.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
-			.ColorAndOpacity(this, &SNiagaraStackEventHandlerPropertiesItem::GetTextColorForSearch)
+			SNew(SNiagaraStackDisplayName, InEventHandlerPropertiesItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
+			.ColorAndOpacity(this, &SNiagaraStackEntryWidget::GetTextColorForSearch)
 		]
 		// Reset to base Button
 		+ SHorizontalBox::Slot()

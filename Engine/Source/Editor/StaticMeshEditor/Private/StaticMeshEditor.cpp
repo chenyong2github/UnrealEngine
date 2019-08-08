@@ -1388,7 +1388,7 @@ void FStaticMeshEditor::HandleReimportAllMesh()
 		//Reimport base LOD, generated mesh will be rebuild here, the static mesh is always using the base mesh to reduce LOD
 		if (FReimportManager::Instance()->Reimport(StaticMesh, true))
 		{
-			TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->SourceModels;
+			TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
 			//Reimport all custom LODs
 			for (int32 LodIndex = 1; LodIndex < StaticMesh->GetNumLODs(); ++LodIndex)
 			{
@@ -2286,7 +2286,7 @@ void FStaticMeshEditor::RemoveCurrentUVChannel()
 	FText RemoveUVChannelText = FText::Format(LOCTEXT("ConfirmRemoveUVChannel", "Please confirm removal of UV Channel {0} from LOD {1} of {2}?"), UVChannelIndex, LODIndex, FText::FromString(StaticMesh->GetName()));
 	if (FMessageDialog::Open(EAppMsgType::YesNo, RemoveUVChannelText) == EAppReturnType::Yes)
 	{
-		FMeshBuildSettings& LODBuildSettings = StaticMesh->SourceModels[LODIndex].BuildSettings;
+		FMeshBuildSettings& LODBuildSettings = StaticMesh->GetSourceModel(LODIndex).BuildSettings;
 
 		if (LODBuildSettings.bGenerateLightmapUVs)
 		{

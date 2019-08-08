@@ -41,7 +41,7 @@ struct FMeshUpdate
 	// These will use MoveTemp to avoid another copy
 	// The interop fills these in directly
 	TArray<FVector> Vertices;
-	TArray<uint16> Indices;
+	TArray<MRMESH_INDEX_TYPE> Indices;
 };
 
 /** A set of updates to be processed at once */
@@ -153,22 +153,30 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 	}
 	SessionConfig = InSessionConfig;
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
-	// Start the camera image grabber
-	SetupCameraImageSupport();
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 
 	if (WMRInterop)
 	{
-		WMRInterop->ConnectToLocalHoloLens();
+		if (!WMRInterop->IsRemoting())
+		{
+#if PLATFORM_HOLOLENS
+			WMRInterop->ConnectToLocalHoloLens();
+#else
+			WMRInterop->ConnectToLocalWMRHeadset();
+#endif
+		}
 
 		WMRInterop->SetTrackingChangedCallback(&OnTrackingChanged_Raw);
 		// Simulate a tracking state change so we update our value
 		OnTrackingChanged_Raw(WMRInterop->GetTrackingState());
 
-#if UE_BUILD_DEBUG
 		WMRInterop->SetLogCallback(&OnLog);
-#endif
 	}
+
+#if PLATFORM_HOLOLENS
+	// Start the camera image grabber
+	SetupCameraImageSupport();
+#endif
 
 	if (SessionConfig->bGenerateMeshDataFromTrackedGeometry)
 	{
@@ -186,13 +194,19 @@ void FHoloLensARSystem::OnStartARSession(UARSessionConfig* InSessionConfig)
 	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR session started"));
 #else
 	SessionStatus.Status = EARSessionStatus::NotSupported;
-	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR requires a HoloLens to run a AR session"));
+	UE_LOG(LogHoloLensAR, Log, TEXT("HoloLens AR requires a higher sdk to run"));
 #endif
 }
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if  SUPPORTS_WINDOWS_MIXED_REALITY_AR
 void FHoloLensARSystem::SetupCameraImageSupport()
 {
+	// Remoting does not support CameraCapture currently.
+	//if (WMRInterop->IsRemoting()) //TEMP Disabling passthrough camera, it has d3d corruption bugs.
+	{
+		return;
+	}
+
 	// Start the camera capture device
 	CameraImageCapture& CameraCapture = CameraImageCapture::Get();
 #if UE_BUILD_DEBUG
@@ -214,16 +228,22 @@ void FHoloLensARSystem::OnPauseARSession()
 
 void FHoloLensARSystem::OnStopARSession()
 {
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	FWorldDelegates::OnWorldTickStart.RemoveAll(this);
 
-	if (WMRInterop)
+	// If remoting stay connected.
+	if (WMRInterop && !WMRInterop->IsRemoting())
 	{
 		WMRInterop->DisconnectFromDevice();
 	}
 
-	CameraImageCapture::Get().StopCameraCapture();
-	CameraImageCapture::Release();
+#if !PLATFORM_HOLOLENS
+	// wmr does not support CameraCapture currently.
+	if (!WMRInterop->IsRemoting())
+	{
+		CameraImageCapture::Release();
+	}
+#endif
 
 	check(WMRInterop != nullptr);
 
@@ -371,7 +391,10 @@ UARPin* FHoloLensARSystem::OnPinComponent(USceneComponent* ComponentToPin, const
 
 void FHoloLensARSystem::OnRemovePin(UARPin* PinToRemove)
 {
-	check(PinToRemove);
+	if (PinToRemove == nullptr)
+	{
+		return;
+	}
 
 	UWMRARPin* WMRARPin = Cast<UWMRARPin>(PinToRemove);
 
@@ -450,7 +473,7 @@ bool FHoloLensARSystem::OnAddRuntimeCandidateImage(UARSessionConfig* InSessionCo
 	return false;
 }
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 void FHoloLensARSystem::OnCameraImageReceived_Raw(ID3D11Texture2D* CameraFrame)
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();
@@ -486,7 +509,7 @@ void FHoloLensARSystem::OnLog(const wchar_t* LogMsg)
 	UE_LOG(LogHoloLensAR, Log, TEXT("%s"), LogMsg);
 }
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 void FHoloLensARSystem::StartMeshUpdates_Raw()
 {
 	FHoloLensARSystem* HoloLensARThis = FHoloLensModuleAR::GetHoloLensARSystem().Get();

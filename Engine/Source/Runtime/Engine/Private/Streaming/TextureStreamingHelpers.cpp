@@ -29,20 +29,28 @@ DECLARE_MEMORY_STAT_POOL(TEXT("IO Bandwidth"), STAT_Streaming14_MipIOBandwidth, 
 
 DECLARE_CYCLE_STAT(TEXT("Setup Async Task"), STAT_Streaming01_SetupAsyncTask, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Update Streaming Data"), STAT_Streaming02_UpdateStreamingData, STATGROUP_Streaming);
-DECLARE_CYCLE_STAT(TEXT("Streaming Texture"), STAT_Streaming03_StreamTextures, STATGROUP_Streaming);
+DECLARE_CYCLE_STAT(TEXT("Streaming Render Assets"), STAT_Streaming03_StreamRenderAssets, STATGROUP_Streaming);
 DECLARE_CYCLE_STAT(TEXT("Notifications"), STAT_Streaming04_Notifications, STATGROUP_Streaming);
 DECLARE_DWORD_COUNTER_STAT(TEXT("Pending 2D Update"), STAT_Streaming05_Pending2DUpdate, STATGROUP_Streaming);
 
 /** Streaming Overview stats */
 
-DECLARE_MEMORY_STAT_POOL(TEXT("Streamable Textures"),	STAT_StreamingOverview01_StreamableTextures, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
-DECLARE_MEMORY_STAT_POOL(TEXT("     Required"),			STAT_StreamingOverview02_Required, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
-DECLARE_MEMORY_STAT_POOL(TEXT("     Cached"),			STAT_StreamingOverview03_Cached, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("Streamable Render Assets"), STAT_StreamingOverview01_StreamableRenderAssets, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("     Required"), STAT_StreamingOverview02_Required, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("     Cached"), STAT_StreamingOverview03_Cached, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 DECLARE_MEMORY_STAT_POOL(TEXT("Streaming Overbudget"),	STAT_StreamingOverview04_StreamingOverbudget, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
-DECLARE_MEMORY_STAT_POOL(TEXT("Unstreambale Textures"), STAT_StreamingOverview05_UnstreamableTextures, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
-DECLARE_MEMORY_STAT_POOL(TEXT("     NeverStream"),		STAT_StreamingOverview06_NeverStream, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
-DECLARE_MEMORY_STAT_POOL(TEXT("     UI Group"),			STAT_StreamingOverview07_UIGroup, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("Unstreambale Render Assets"), STAT_StreamingOverview05_UnstreamableRenderAssets, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("     NeverStream"), STAT_StreamingOverview06_NeverStream, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("     UI Group"), STAT_StreamingOverview07_UIGroup, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 DECLARE_MEMORY_STAT_POOL(TEXT("Average Required PoolSize"),	STAT_StreamingOverview08_AverageRequiredPool, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+
+DECLARE_DWORD_COUNTER_STAT(TEXT("Number of Streamed Meshes"), STAT_StreamingOverview09_NumStreamedMeshes, STATGROUP_StreamingOverview);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Average Number of Streamed Mesh LODs"), STAT_StreamingOverview10_AvgNumStreamedLODs, STATGROUP_StreamingOverview);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Average Number of Resident Mesh LODs"), STAT_StreamingOverview11_AvgNumResidentLODs, STATGROUP_StreamingOverview);
+DECLARE_FLOAT_COUNTER_STAT(TEXT("Average Number of Evicted Mesh LODs"), STAT_StreamingOverview12_AvgNumEvictedLODs, STATGROUP_StreamingOverview);
+DECLARE_MEMORY_STAT_POOL(TEXT("Mesh LOD Bytes Streamable"), STAT_StreamingOverview13_StreamedMeshMem, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("Mesh LOD Bytes Resident"), STAT_StreamingOverview14_ResidentMeshMem, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
+DECLARE_MEMORY_STAT_POOL(TEXT("Mesh LOD Bytes Evicted"), STAT_StreamingOverview15_EvictedMeshMem, STATGROUP_StreamingOverview, FPlatformMemory::MCR_StreamingPool);
 
 DEFINE_STAT(STAT_RenderAssetStreaming_GameThreadUpdateTime);
 
@@ -244,6 +252,18 @@ ENGINE_API TAutoConsoleVariable<int32> CVarFramesForFullUpdate(
 	5,
 	TEXT("Texture streaming is time sliced per frame. This values gives the number of frames to visit all textures."));
 
+TAutoConsoleVariable<int32> CVarPrioritizeMeshRetention(
+	TEXT("r.Streaming.PrioritizeMeshRetention"),
+	0,
+	TEXT("Whether to prioritize retaining mesh LODs"),
+	ECVF_Default);
+
+TAutoConsoleVariable<int32> CVarMeshRetentionPrivilegeLevel(
+	TEXT("r.Streaming.MeshRetentionPriviledgeLevel"),
+	0,
+	TEXT("The streamer won't consider evicting mesh LODs until each streaming texture has this many mips evicted."),
+	ECVF_Default);
+
 static TAutoConsoleVariable<int32> CVarStreamingStressTest(
 	TEXT("r.Streaming.StressTest"),
 	0,
@@ -283,6 +303,8 @@ void FRenderAssetStreamingSettings::Update()
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
 	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
+	bPrioritizeMeshRetention = CVarPrioritizeMeshRetention.GetValueOnAnyThread() != 0;
+	MeshRetentionPrivilegeLevel = CVarMeshRetentionPrivilegeLevel.GetValueOnAnyThread();
 
 	MaterialQualityLevel = (int32)GetCachedScalabilityCVars().MaterialQualityLevel;
 
@@ -369,7 +391,7 @@ void FRenderAssetStreamingStats::Apply()
 
 	SET_CYCLE_COUNTER(STAT_Streaming01_SetupAsyncTask, SetupAsyncTaskCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming02_UpdateStreamingData, UpdateStreamingDataCycles);
-	SET_CYCLE_COUNTER(STAT_Streaming03_StreamTextures, StreamTexturesCycles);
+	SET_CYCLE_COUNTER(STAT_Streaming03_StreamRenderAssets, StreamRenderAssetsCycles);
 	SET_CYCLE_COUNTER(STAT_Streaming04_Notifications, CallbacksCycles);
 	INC_DWORD_STAT_BY(STAT_Streaming05_Pending2DUpdate, GPending2DUpdateCount);
 
@@ -381,14 +403,22 @@ void FRenderAssetStreamingStats::Apply()
 	GAverageRequiredPool = (int64)((double)GRequiredPoolSizeSum / (double)FMath::Max<int64>(1, GRequiredPoolSizeCount));
 #endif
 
-	SET_MEMORY_STAT(STAT_StreamingOverview01_StreamableTextures, RequiredPool + CachedMips); 
+	SET_MEMORY_STAT(STAT_StreamingOverview01_StreamableRenderAssets, RequiredPool + CachedMips); 
 	SET_MEMORY_STAT(STAT_StreamingOverview02_Required, RequiredPool);
 	SET_MEMORY_STAT(STAT_StreamingOverview03_Cached, CachedMips); 
 	SET_MEMORY_STAT(STAT_StreamingOverview04_StreamingOverbudget, FMath::Max<int64>(RequiredPool - StreamingPool, 0)); 
-	SET_MEMORY_STAT(STAT_StreamingOverview05_UnstreamableTextures, NonStreamingMips);
+	SET_MEMORY_STAT(STAT_StreamingOverview05_UnstreamableRenderAssets, NonStreamingMips);
 	SET_MEMORY_STAT(STAT_StreamingOverview06_NeverStream, GNeverStreamTextureMemory);
 	SET_MEMORY_STAT(STAT_StreamingOverview07_UIGroup, GUITextureMemory);
 	SET_MEMORY_STAT(STAT_StreamingOverview08_AverageRequiredPool, GAverageRequiredPool); 
+
+	SET_DWORD_STAT(STAT_StreamingOverview09_NumStreamedMeshes, NumStreamedMeshes);
+	SET_FLOAT_STAT(STAT_StreamingOverview10_AvgNumStreamedLODs, AvgNumStreamedLODs);
+	SET_FLOAT_STAT(STAT_StreamingOverview11_AvgNumResidentLODs, AvgNumResidentLODs);
+	SET_FLOAT_STAT(STAT_StreamingOverview12_AvgNumEvictedLODs, AvgNumEvictedLODs);
+	SET_MEMORY_STAT(STAT_StreamingOverview13_StreamedMeshMem, StreamedMeshMem);
+	SET_MEMORY_STAT(STAT_StreamingOverview14_ResidentMeshMem, ResidentMeshMem);
+	SET_MEMORY_STAT(STAT_StreamingOverview15_EvictedMeshMem, EvictedMeshMem);
 }
 
 void ResetAverageRequiredTexturePoolSize()

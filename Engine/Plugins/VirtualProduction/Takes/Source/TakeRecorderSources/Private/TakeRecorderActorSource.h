@@ -236,6 +236,8 @@ protected:
 	FMovieSceneSequenceID GetLevelSequenceID(class AActor* OtherActor) override;
 	/** Returns generic track recorder settings */
 	FTrackRecorderSettings GetTrackRecorderSettings() const override;
+	/** Returns offset that may get set when recording a skeletal mesh animation. Needed to correctly transform attached children*/
+	FTransform GetRecordedActorAnimationInitialRootTransform(class AActor* OtherActor) const override;
 
 	// ~IMovieSceneTrackRecorderHost Interface
 	

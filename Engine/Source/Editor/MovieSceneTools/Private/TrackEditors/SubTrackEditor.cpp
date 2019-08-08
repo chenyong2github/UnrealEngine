@@ -26,6 +26,8 @@
 #include "MovieSceneToolHelpers.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "MovieSceneTimeHelpers.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #include "CommonMovieSceneTools.h"
 
@@ -908,6 +910,12 @@ bool FSubTrackEditor::CanRecordNewSequence() const
 
 void FSubTrackEditor::HandleRecordNewSequence(AActor* InActorToRecord, UMovieSceneTrack* InTrack)
 {
+	// Keep track of how many people actually used record new sequence
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Sequencer.RecordNewSequence"));
+	}
+
 	FSlateApplication::Get().DismissAllMenus();
 
 	const FScopedTransaction Transaction(LOCTEXT("AddRecordNewSequence_Transaction", "Add Record New Sequence"));

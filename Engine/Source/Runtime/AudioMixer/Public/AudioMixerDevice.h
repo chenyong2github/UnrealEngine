@@ -201,6 +201,12 @@ namespace Audio
 		double GetAudioRenderThreadTime() const { return AudioThreadTimingData.AudioRenderThreadTime; }
 		double GetAudioClockDelta() const { return AudioClockDelta; }
 
+	protected:
+
+		virtual void OnListenerUpdated(const TArray<FListener>& InListeners) override;
+
+		TArray<FTransform> ListenerTransforms;
+
 	private:
 		// Resets the thread ID used for audio rendering
 		void ResetAudioRenderingThreadId();

@@ -9,6 +9,30 @@
 #include "Chaos/Transform.h"
 #include "ChaosLog.h"
 #include "Chaos/ISpatialAcceleration.h"
+#include "Templates/Models.h"
+
+template <typename T, bool>
+struct TBVHLeafTraits
+{
+};
+
+template <typename T>
+struct TBVHLeafTraits<T, true>
+{
+	using TPayloadType = typename T::TPayloadType;
+};
+
+template <typename T>
+struct TBVHLeafTraits<T, false>
+{
+	using TPayloadType = typename T::ElementType;
+};
+
+struct CComplexBVHLeaf
+{
+	template <typename T>
+	auto Requires(typename T::TPayloadType) ->void;
+};
 
 #define MIN_NUM_OBJECTS 5
 
@@ -33,13 +57,14 @@ FArchive& operator<<(FArchive& Ar, TBVHNode<T,d>& LeafNode)
 }
 
 template<class OBJECT_ARRAY, class LEAF_TYPE, class T, int d>
-class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<T,d>
+class CHAOS_API TBoundingVolumeHierarchy final : public ISpatialAcceleration<int32, T,d>
 {
   public:
 	static constexpr int32 DefaultMaxLevels = 12;
 	static constexpr bool DefaultAllowMultipleSplitting = false;
 	static constexpr bool DefaultUseVelocity = false;
 	static constexpr T DefaultDt = 0;
+	using TPayloadType = typename TBVHLeafTraits<LEAF_TYPE, TModels<CComplexBVHLeaf, LEAF_TYPE>::Value>::TPayloadType;
 
 	TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const int32 MaxLevels = DefaultMaxLevels, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
 	TBoundingVolumeHierarchy(const OBJECT_ARRAY& Objects, const TArray<uint32>& ActiveIndices, const int32 MaxLevels = DefaultMaxLevels, const bool bUseVelocity = DefaultUseVelocity, const T Dt = DefaultDt);
@@ -147,4 +172,5 @@ FArchive& operator<<(FArchive& Ar, TBoundingVolumeHierarchy<OBJECT_ARRAY, LEAF_T
 	BVH.Serialize(Ar);
 	return Ar;
 }
+
 }

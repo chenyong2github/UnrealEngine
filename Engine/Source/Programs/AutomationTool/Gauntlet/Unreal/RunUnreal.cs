@@ -13,6 +13,7 @@ using System.IO;
 using Newtonsoft.Json;
 using System.Reflection;
 using System.Text.RegularExpressions;
+using Tools.DotNETCommon;
 
 namespace Gauntlet
 {
@@ -118,9 +119,11 @@ namespace Gauntlet
 			// Default platform to the current os
 			UnrealTargetPlatform DefaultPlatform = BuildHostPlatform.Current.Platform;
 			UnrealTargetConfiguration DefaultConfiguration = UnrealTargetConfiguration.Development;
+
+			DirectoryReference UnrealPath = new DirectoryReference(Environment.CurrentDirectory);
 					
 			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
-			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.UsesSharedBuildType, Environment.CurrentDirectory, ContextOptions.Build, ContextOptions.SearchPaths });
+			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
 
 			// Setup accounts
 			SetupAccounts();

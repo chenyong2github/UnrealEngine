@@ -258,6 +258,7 @@ namespace WindowsMixedReality
 		bool GetControllerOrientationAndPosition(HMDHand hand, FRotator & OutOrientation, FVector & OutPosition);
 		bool GetHandJointOrientationAndPosition(HMDHand hand, HMDHandJoint joint, FRotator& OutOrientation, FVector& OutPosition);
 		bool PollInput();
+		bool PollHandTracking();
 
 		HMDInputPressState GetPressState(
 			HMDHand hand,
@@ -280,7 +281,7 @@ namespace WindowsMixedReality
 
 	public:
 		// Remoting
-		void ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate);
+		void ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1);
 		void DisconnectFromRemoteHoloLens();
 
 	public:

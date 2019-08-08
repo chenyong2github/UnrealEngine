@@ -727,13 +727,12 @@ UBodySetup* UMRMeshComponent::GetBodySetup()
 
 void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 {
-#if WITH_PHYSX
 	check(IsInGameThread());
-
-	UE_LOG(LogMrMesh, Log, TEXT("SendBrickData_Internal() processing brick %llu with %i triangles"), Args.BrickId, Args.Indices.Num() / 3);
-
 	const bool bHasBrickData = Args.Indices.Num() > 0 && Args.PositionData.Num() > 0;
 
+#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+	UE_LOG(LogMrMesh, Log, TEXT("SendBrickData_Internal() processing brick %llu with %i triangles"), Args.BrickId, Args.Indices.Num() / 3);
+	
 	if (!IsPendingKill() && !bNeverCreateCollisionMesh)
 	{
 		// Physics update
@@ -782,7 +781,7 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 				CookHelper.CookInfo = CookInfo;
 				CookHelper.CreatePhysicsMeshes_Concurrent();
 
-				MyBS->FinishCreatingPhysicsMeshes(CookHelper.OutNonMirroredConvexMeshes, CookHelper.OutMirroredConvexMeshes, CookHelper.OutTriangleMeshes);
+				MyBS->FinishCreatingPhysicsMeshes_PhysX(CookHelper.OutNonMirroredConvexMeshes, CookHelper.OutMirroredConvexMeshes, CookHelper.OutTriangleMeshes);
 
 				FBodyInstance* MyBI = BodyInstances[BodyIndex];
 				MyBI->TermBody();

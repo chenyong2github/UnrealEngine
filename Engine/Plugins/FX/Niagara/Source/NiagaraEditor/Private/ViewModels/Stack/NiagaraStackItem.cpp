@@ -20,9 +20,9 @@ UNiagaraStackEntry::EStackRowStyle UNiagaraStackItem::GetStackRowStyle() const
 	return UNiagaraStackEntry::EStackRowStyle::ItemHeader;
 }
 
-void UNiagaraStackItem::SetOnModifiedGroupItems(FOnModifiedGroupItems OnModifiedGroupItems)
+UNiagaraStackItem::FOnModifiedGroupItems& UNiagaraStackItem::OnModifiedGroupItems()
 {
-	ModifiedGroupItemsDelegate = OnModifiedGroupItems;
+	return ModifiedGroupItemsDelegate;
 }
 
 uint32 UNiagaraStackItem::GetRecursiveStackIssuesCount() const

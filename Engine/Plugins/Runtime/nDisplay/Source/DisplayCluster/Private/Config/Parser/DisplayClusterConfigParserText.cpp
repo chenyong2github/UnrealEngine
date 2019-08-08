@@ -67,6 +67,10 @@ void FDisplayClusterConfigParserText::ParseLine(const FString& line)
 	{
 		AddViewport(impl_parse<FDisplayClusterConfigViewport>(line));
 	}
+	else if (line.StartsWith(FString(DisplayClusterStrings::cfg::data::postprocess::Header)))
+	{
+		AddPostprocess(impl_parse<FDisplayClusterConfigPostprocess>(line));
+	}
 	else if (line.StartsWith(FString(DisplayClusterStrings::cfg::data::camera::Header)))
 	{
 		AddCamera(impl_parse<FDisplayClusterConfigCamera>(line));

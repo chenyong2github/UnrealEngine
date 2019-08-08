@@ -735,11 +735,19 @@ void FEdModeFoliage::NotifyAssetRemoved(const FAssetData& AssetInfo)
 
 void FEdModeFoliage::NotifyActorSelectionChanged(bool bSelect, const TArray<AActor*>& Selection)
 {
+	if (Selection.Num() == 0)
+	{
+		return;
+	}
+
 	GEditor->GetSelectedActors()->Modify();
 	for (AActor* Actor : Selection)
 	{
-		GEditor->SelectActor(Actor, bSelect, true, true);
+        const bool bNotify = false;
+		const bool bSelectEvenIfHidden = true;
+		GEditor->SelectActor(Actor, bSelect, bNotify, bSelectEvenIfHidden);
 	}
+	GEditor->NoteSelectionChange();
 }
 
 /** When the user changes the current tool in the UI */
@@ -3777,6 +3785,9 @@ void FFoliageUISettings::Load()
 	ActivePaletteViewMode = EFoliagePaletteViewMode::Type(ActivePaletteViewModeAsInt);
 
 	GConfig->GetFloat(TEXT("FoliageEdit"), TEXT("PaletteThumbnailScale"), PaletteThumbnailScale, GEditorPerProjectIni);
+
+	GConfig->GetBool(TEXT("FoliageEdit"), TEXT("IsInSingleInstantiationMode"), IsInSingleInstantiationMode, GEditorPerProjectIni);
+	GConfig->GetBool(TEXT("FoliageEdit"), TEXT("IsInSpawnInCurrentLevelMode"), IsInSpawnInCurrentLevelMode, GEditorPerProjectIni);
 }
 
 /** Save UI settings to ini file */
@@ -3798,6 +3809,10 @@ void FFoliageUISettings::Save()
 	GConfig->SetBool(TEXT("FoliageEdit"), TEXT("bShowPaletteItemTooltips"), bShowPaletteItemTooltips, GEditorPerProjectIni);
 	GConfig->SetInt(TEXT("FoliageEdit"), TEXT("ActivePaletteViewMode"), ActivePaletteViewMode, GEditorPerProjectIni);
 	GConfig->SetFloat(TEXT("FoliageEdit"), TEXT("PaletteThumbnailScale"), PaletteThumbnailScale, GEditorPerProjectIni);
+
+	GConfig->SetBool(TEXT("FoliageEdit"), TEXT("IsInSingleInstantiationMode"), IsInSingleInstantiationMode, GEditorPerProjectIni);
+	GConfig->SetBool(TEXT("FoliageEdit"), TEXT("IsInSpawnInCurrentLevelMode"), IsInSpawnInCurrentLevelMode, GEditorPerProjectIni);
+
 }
 
 #undef LOCTEXT_NAMESPACE

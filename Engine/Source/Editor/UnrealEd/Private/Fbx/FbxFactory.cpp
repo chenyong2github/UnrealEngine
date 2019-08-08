@@ -476,9 +476,9 @@ UObject* UFbxFactory::FactoryCreateFile
 							else
 							{
 								FbxImporter->ImportStaticMeshAsSingle(InParent, LODMeshesArray, Name, Flags, ImportUI->StaticMeshImportData, NewStaticMesh, LODIndex);
-								if (NewStaticMesh && NewStaticMesh->SourceModels.IsValidIndex(LODIndex))
+								if (NewStaticMesh && NewStaticMesh->IsSourceModelValid(LODIndex))
 								{
-									NewStaticMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+									NewStaticMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 								}
 							}
 						}
@@ -822,28 +822,32 @@ UObject* UFbxFactory::RecursiveImportNode(void* VoidFbxImporter, void* VoidNode,
 					{
 						UStaticMesh* NewStaticMesh = Cast<UStaticMesh>(CreatedObject);
 						//Add a Lod generated model
-						while (NewStaticMesh->SourceModels.Num() <= LODIndex)
+						while (NewStaticMesh->GetNumSourceModels() <= LODIndex)
 						{
 							NewStaticMesh->AddSourceModel();
 						}
 						
 						ImportANode(VoidFbxImporter, TmpVoidArray, InParent, InName, Flags, NodeIndex, Total, CreatedObject, LODIndex);
 
+						FStaticMeshSourceModel& ThisSourceModel = NewStaticMesh->GetSourceModel(LODIndex);
+
 						if (LODIndex - 1 > 0 && NewStaticMesh->IsReductionActive(LODIndex - 1))
 						{
+							const FStaticMeshSourceModel& PrevSourceModel = NewStaticMesh->GetSourceModel(LODIndex - 1);
+
 							//Do not add the LODGroup bias here, since the bias will be apply during the build
-							if (NewStaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles < 1.0f)
+							if (PrevSourceModel.ReductionSettings.PercentTriangles < 1.0f)
 							{
-								NewStaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = NewStaticMesh->SourceModels[LODIndex - 1].ReductionSettings.PercentTriangles * 0.5f;
+								ThisSourceModel.ReductionSettings.PercentTriangles = PrevSourceModel.ReductionSettings.PercentTriangles * 0.5f;
 							}
-							else if (NewStaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation > 0.0f)
+							else if (PrevSourceModel.ReductionSettings.MaxDeviation > 0.0f)
 							{
-								NewStaticMesh->SourceModels[LODIndex].ReductionSettings.MaxDeviation = NewStaticMesh->SourceModels[LODIndex - 1].ReductionSettings.MaxDeviation + 1.0f;
+								ThisSourceModel.ReductionSettings.MaxDeviation = PrevSourceModel.ReductionSettings.MaxDeviation + 1.0f;
 							}
 						}
 						else
 						{
-							NewStaticMesh->SourceModels[LODIndex].ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
+							ThisSourceModel.ReductionSettings.PercentTriangles = FMath::Pow(0.5f, (float)LODIndex);
 						}
 					}
 					else
@@ -855,9 +859,9 @@ UObject* UFbxFactory::RecursiveImportNode(void* VoidFbxImporter, void* VoidNode,
 						}
 						ImportANode(VoidFbxImporter, TmpVoidArray, InParent, InName, Flags, NodeIndex, Total, CreatedObject, LODIndex);
 						UStaticMesh* NewStaticMesh = Cast<UStaticMesh>(CreatedObject);
-						if(NewStaticMesh->SourceModels.IsValidIndex(LODIndex))
+						if(NewStaticMesh->IsSourceModelValid(LODIndex))
 						{
-							NewStaticMesh->SourceModels[LODIndex].bImportWithBaseMesh = true;
+							NewStaticMesh->GetSourceModel(LODIndex).bImportWithBaseMesh = true;
 						}
 					}
 					

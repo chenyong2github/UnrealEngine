@@ -4,6 +4,9 @@
 
 #include "DatasmithContentModule.h"
 
+#include "GameFramework/Actor.h"
+#include "Interfaces/Interface_AssetUserData.h"
+
 #if WITH_EDITORONLY_DATA
 
 bool UDatasmithAssetUserData::IsPostLoadThreadSafe() const
@@ -32,3 +35,60 @@ void UDatasmithAssetUserData::PostLoad()
 
 #endif // WITH_EDITORONLY_DATA
 
+const TCHAR* UDatasmithAssetUserData::UniqueIdMetaDataKey = TEXT("Datasmith_UniqueId");
+
+UDatasmithAssetUserData* UDatasmithAssetUserData::GetDatasmithUserData(UObject* Object)
+{
+	if (AActor* Actor = Cast<AActor>(Object))
+	{
+		Object = Actor->GetRootComponent();
+	}
+
+	if (IInterface_AssetUserData* AssetUserData = Cast<IInterface_AssetUserData>(Object))
+	{
+		return Cast<UDatasmithAssetUserData>(AssetUserData->GetAssetUserDataOfClass(UDatasmithAssetUserData::StaticClass()));
+	}
+
+	return nullptr;
+}
+
+FString UDatasmithAssetUserData::GetDatasmithUserDataValueForKey(UObject* Object, FName Key)
+{
+	if (Object)
+	{
+		if (UDatasmithAssetUserData* AssetUserData = GetDatasmithUserData(Object))
+		{
+			FString* Value = AssetUserData->MetaData.Find(Key);
+			return Value ? *Value : FString();
+		}
+	}
+	return FString();
+}
+
+bool UDatasmithAssetUserData::SetDatasmithUserDataValueForKey(UObject* Object, FName Key, const FString & Value)
+{
+	// For AActor, the interface is actually implemented by the ActorComponent
+	if (AActor* Actor = Cast<AActor>(Object))
+	{
+		Object = Actor->GetRootComponent();
+	}
+
+	if (IInterface_AssetUserData* AssetUserData = Cast<IInterface_AssetUserData>(Object))
+	{
+		UDatasmithAssetUserData* DatasmithUserData = AssetUserData->GetAssetUserData< UDatasmithAssetUserData >();
+
+		if (!DatasmithUserData)
+		{
+			DatasmithUserData = NewObject<UDatasmithAssetUserData>(Object, NAME_None, RF_Public | RF_Transactional);
+			AssetUserData->AddAssetUserData(DatasmithUserData);
+		}
+
+		// Add Datasmith meta data
+		DatasmithUserData->MetaData.Add(Key, Value);
+		DatasmithUserData->MetaData.KeySort(FNameLexicalLess());
+
+		return true;
+	}
+
+	return false;
+}

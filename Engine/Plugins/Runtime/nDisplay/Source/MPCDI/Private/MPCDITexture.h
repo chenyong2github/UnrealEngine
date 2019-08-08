@@ -3,7 +3,6 @@
 #pragma once
 
 #include "RenderResource.h"
-#include "MPCDITypes.h"
 
 
 namespace MPCDI
@@ -17,7 +16,11 @@ namespace MPCDI
 			, Height(0)
 			, PixelFormat(PF_Unknown)
 			, bReleaseData(false)
-		{ }
+		{ 
+		}
+		virtual ~FMPCDITexture()
+		{
+		}
 
 	public:
 		virtual void InitRHI() override;
@@ -32,16 +35,26 @@ namespace MPCDI
 		}
 
 		inline void* GetData() const
-		{ return Data; }
+		{ 
+			return Data; 
+		}
 
 		inline uint32_t GetWidth() const
-		{ return Width; }
+		{ 
+			return Width; 
+		}
 
 		inline uint32_t GetHeight() const
-		{ return Height; }
+		{ 
+			return Height; 
+		}
 
 		inline EPixelFormat GetPixelFormat() const
-		{ return PixelFormat; }
+		{ 
+			return PixelFormat; 
+		}
+
+		void ReleaseTextureData();
 
 	private:
 		void *Data;

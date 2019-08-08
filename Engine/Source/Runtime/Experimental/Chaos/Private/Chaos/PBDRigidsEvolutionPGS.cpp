@@ -25,6 +25,7 @@
 
 using namespace Chaos;
 
+#if CHAOS_PARTICLEHANDLE_TODO
 template<class T, int d>
 TPBDRigidsEvolutionPGS<T, d>::TPBDRigidsEvolutionPGS(TPBDRigidParticles<T, d>&& InParticles, int32 NumIterations)
     : Base(MoveTemp(InParticles), NumIterations)
@@ -180,5 +181,6 @@ void TPBDRigidsEvolutionPGS<T, d>::AdvanceOneTimeStep(const T Dt)
 }
 
 template class Chaos::TPBDRigidsEvolutionPGS<float, 3>;
+#endif
 
 #undef LOCTEXT_NAMESPACE

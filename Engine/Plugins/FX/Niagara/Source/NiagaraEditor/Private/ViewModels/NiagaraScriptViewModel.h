@@ -24,7 +24,7 @@ class FNiagaraScriptViewModel : public TSharedFromThis<FNiagaraScriptViewModel>,
 {
 public:
 	FNiagaraScriptViewModel(UNiagaraScript* InScript, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
-	FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
+	FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
 
 	~FNiagaraScriptViewModel();
 

@@ -75,9 +75,15 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 	check(Viewport);
 	if (Surface.Image == VK_NULL_HANDLE)
 	{
-		check(Viewport->AcquiredImageIndex == -1);
+		check(Viewport->AcquiredImageIndex == -1); //-V595
 		
-		Viewport->AcquireImageIndex();
+		Viewport->AcquireImageIndex(); //-V595
+		// If swapchain got invalidated (OUT_OF_DATE etc) in the above call, we may end up not having a valid viewport pointer at this point. Abort the whole thing.
+		if (Viewport == nullptr)
+		{
+			return;
+		}
+
 		int32 AcquiredImageIndex = Viewport->AcquiredImageIndex;
 		check(AcquiredImageIndex >= 0 && AcquiredImageIndex < Viewport->TextureViews.Num());
 
@@ -101,8 +107,8 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 			LayoutMgr.EndEmulatedRenderPass(CmdBuffer);
 		}
 			
-		// Add a dependency with the acquired semaphore
-		CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Viewport->AcquiredSemaphore);
+		// Wait for semaphore signal before writing to backbuffer image
+		CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, Viewport->AcquiredSemaphore);
 	}
 }
 
@@ -225,6 +231,18 @@ void FVulkanViewport::AcquireImageIndex()
 		UE_LOG(LogVulkanRHI, Fatal, TEXT("Swapchain acquire image index failed!"));
 	}
 	check(AcquiredImageIndex != -1);
+}
+
+bool FVulkanViewport::TryAcquireImageIndex()
+{
+	int NewImageIndex = DoAcquireImageIndex(this);
+	if (NewImageIndex != -1)
+	{
+		AcquiredImageIndex = NewImageIndex;
+		return true;
+	}
+
+	return false;
 }
 
 FTexture2DRHIRef FVulkanViewport::GetBackBuffer(FRHICommandListImmediate& RHICmdList)
@@ -727,6 +745,7 @@ inline static void CopyImageToBackBuffer(FVulkanCmdBuffer* CmdBuffer, bool bSour
 bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuffer* CmdBuffer, FVulkanQueue* Queue, FVulkanQueue* PresentQueue, bool bLockToVsync)
 {
 	FPlatformAtomics::AtomicStore(&LockToVsync, bLockToVsync ? 1 : 0);
+	bool bFailedToDelayAcquireBackbuffer = false;
 
 	//Transition back buffer to presentable and submit that command
 	check(CmdBuffer->IsOutsideRenderPass());
@@ -736,14 +755,20 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 		if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire && RenderingBackBuffer)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_VulkanAcquireBackBuffer);
-			AcquireImageIndex();
+			// swapchain can go out of date, do not crash at this point
+			if (LIKELY(TryAcquireImageIndex()))
+			{
+				uint32 WindowSizeX = FMath::Min(SizeX, SwapChain->InternalWidth);
+				uint32 WindowSizeY = FMath::Min(SizeY, SwapChain->InternalHeight);
 
-			uint32 WindowSizeX = FMath::Min(SizeX, SwapChain->InternalWidth);
-			uint32 WindowSizeY = FMath::Min(SizeY, SwapChain->InternalHeight);
-
-			Context->RHIPushEvent(TEXT("CopyImageToBackBuffer"), FColor::Blue);
-			CopyImageToBackBuffer(CmdBuffer, true, RenderingBackBuffer->Surface.Image, BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);
-			Context->RHIPopEvent();
+				Context->RHIPushEvent(TEXT("CopyImageToBackBuffer"), FColor::Blue);
+				CopyImageToBackBuffer(CmdBuffer, true, RenderingBackBuffer->Surface.Image, BackBufferImages[AcquiredImageIndex], SizeX, SizeY, WindowSizeX, WindowSizeY);
+				Context->RHIPopEvent();
+			}
+			else
+			{
+				bFailedToDelayAcquireBackbuffer = true;
+			}
 		}
 		else
 		{
@@ -760,11 +785,32 @@ bool FVulkanViewport::Present(FVulkanCommandListContext* Context, FVulkanCmdBuff
 
 	if (FVulkanPlatform::SupportsStandardSwapchain())
 	{
-		if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
+		if (LIKELY(!bFailedToDelayAcquireBackbuffer))
 		{
-			CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, AcquiredSemaphore);
+			if (GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire)
+			{
+				CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, AcquiredSemaphore);
+			}
+			Queue->Submit(CmdBuffer, RenderingDoneSemaphores[AcquiredImageIndex]->GetHandle());
 		}
-		Queue->Submit(CmdBuffer, RenderingDoneSemaphores[AcquiredImageIndex]->GetHandle());
+		else
+		{
+			// failing to do the delayacquire can only happen if we were in this mode to begin with
+			check(GVulkanDelayAcquireImage == EDelayAcquireImageType::DelayAcquire);
+
+			UE_LOG(LogVulkanRHI, Log, TEXT("AcquireNextImage() failed due to the outdated swapchain, not even attempting to present."));
+
+			// cannot just throw out this command buffer (needs to be submitted or other checks fail)
+			Queue->Submit(CmdBuffer);
+			RecreateSwapchain(WindowHandle);
+
+			// Swapchain creation pushes some commands - flush the command buffers now to begin with a fresh state
+			Device->SubmitCommandsAndFlushGPU();
+			Device->WaitUntilIdle();
+
+			// early exit
+			return (int32)FVulkanSwapChain::EStatus::Healthy;
+		}
 	}
 	else
 	{

@@ -128,7 +128,7 @@ public:
 	EVirtualKeyboardDismissAction VirtualKeyboardDismissAction;
 	
 	/** How the text should be aligned with the margin. */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Appearance)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetJustification, Category=Appearance)
 	TEnumAsByte<ETextJustify::Type> Justification;
 
 	/** Controls how the text within this widget should be shaped. */
@@ -175,6 +175,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "Widget")
 	bool HasError() const;
+
+	UFUNCTION(BlueprintSetter)
+	void SetJustification(ETextJustify::Type InJustification);
 
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;

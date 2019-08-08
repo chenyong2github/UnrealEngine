@@ -3,7 +3,6 @@
 // Physics engine integration utilities
 
 #include "PhysTestSerializer.h"
-#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
 #if WITH_PHYSX
 #include "PhysXIncludes.h"
@@ -199,30 +198,49 @@ void FPhysTestSerializer::CreateChaosData()
 	if (NumStatic)
 	{
 		Scene->getActors(PxActorTypeFlag::eRIGID_STATIC, Actors.GetData(), NumStatic);
+		auto NewParticles = Particles.CreateStaticParticles(NumStatic);	//question: do we want to distinguish query only and sim only actors?
+		for (uint32 Idx = 0; Idx < NumStatic; ++Idx)
+		{
+			GTParticles.Emplace(MakeUnique<TGeometryParticle<float, 3>>());
+			NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
+		}
 	}
 
 	if (NumDynamic)
 	{
 		Scene->getActors(PxActorTypeFlag::eRIGID_DYNAMIC, &Actors[NumStatic], NumDynamic);
+		auto NewParticles = Particles.CreateDynamicParticles(NumDynamic);	//question: do we want to distinguish query only and sim only actors?
+
+		for (uint32 Idx = 0; Idx < NumDynamic; ++Idx)
+		{
+			GTParticles.Emplace(MakeUnique<TPBDRigidParticle<float, 3>>());
+			NewParticles[Idx]->GTGeometryParticle() = GTParticles.Last().Get();
+		}
 	}
 
-	TPBDRigidParticles<float, 3> Particles;
-	Particles.AddParticles(NumActors);	//question: do we want to distinguish query only and sim only actors?
-
+	auto& Handles = Particles.GetParticleHandles();
 	int32 Idx = 0;
 	for (PxActor* Act : Actors)
 	{
 		//transform
 		PxRigidActor* Actor = static_cast<PxRigidActor*>(Act);
-		Particles.X(Idx) = P2UVector(Actor->getGlobalPose().p);
-		Particles.R(Idx) = P2UQuat(Actor->getGlobalPose().q);
-		Particles.V(Idx) = TVector<float, 3>(0);
-		Particles.W(Idx) + TVector<float, 3>(0);
-		Particles.P(Idx) = Particles.X(Idx);
-		Particles.Q(Idx) = Particles.R(Idx);
-		Particles.SetDisabledLowLevel(Idx, false);
+		auto& Particle = Handles.Handle(Idx);
+		auto& GTParticle = Particle->GTGeometryParticle();
+		Particle->X() = P2UVector(Actor->getGlobalPose().p);
+		Particle->R() = P2UQuat(Actor->getGlobalPose().q);
+		Particle->GTGeometryParticle()->SetX(Particle->X());
+		Particle->GTGeometryParticle()->SetR(Particle->R());
 
-		PxActorToChaosIdx.Add(Act, Idx);
+		if (auto PBDRigid = Particle->AsDynamic())
+		{
+			PBDRigid->P() = Particle->X();
+			PBDRigid->Q() = Particle->R();
+
+			PBDRigid->GTGeometryParticle()->AsDynamic()->SetP(PBDRigid->P());
+			PBDRigid->GTGeometryParticle()->AsDynamic()->SetQ(PBDRigid->R());
+		}
+
+		PxActorToChaosHandle.Add(Act, Particle.Get());
 
 		//geometry
 		TArray<TUniquePtr<TImplicitObject<float, 3>>> Geoms;
@@ -235,7 +253,6 @@ void FPhysTestSerializer::CreateChaosData()
 			if (TUniquePtr<TImplicitObjectTransformed<float, 3>> Geom = PxShapeToChaosGeom(Shape))
 			{
 				Geoms.Add(MoveTemp(Geom));
-				PxShapeToChaosImplicit.Add(Shape, Geoms.Last().Get());
 			}
 		}
 
@@ -243,19 +260,27 @@ void FPhysTestSerializer::CreateChaosData()
 		{
 			if (Geoms.Num() == 1)
 			{
-				Particles.SetDynamicGeometry(Idx, MoveTemp(Geoms[0]));
+				auto SharedGeom = TSharedPtr<TImplicitObject<float, 3>, ESPMode::ThreadSafe>(Geoms[0].Release());
+				GTParticle->SetGeometry(SharedGeom);
+				Particle->SetSharedGeometry(SharedGeom);
 			}
 			else
 			{
-				Particles.SetDynamicGeometry(Idx, MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+				GTParticle->SetGeometry(MakeUnique<TImplicitObjectUnion<float, 3>>(MoveTemp(Geoms)));
+				Particle->SetGeometry(GTParticle->Geometry());
 			}
 		}
+
+		int32 ShapeIdx = 0;
+		for (PxShape* Shape : Shapes)
+		{
+			PxShapeToChaosShapes.Add(Shape, GTParticle->ShapesArray()[ShapeIdx++].Get());
+		}
+
 		++Idx;
 	}
 
-	ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(MoveTemp(Particles));
+	ChaosEvolution = MakeUnique<TPBDRigidsEvolutionGBF<float, 3>>(Particles);
 	bChaosDataReady = true;
 #endif
 }
-
-#endif // !WITH_CHAOS_NEEDS_TO_BE_FIXED

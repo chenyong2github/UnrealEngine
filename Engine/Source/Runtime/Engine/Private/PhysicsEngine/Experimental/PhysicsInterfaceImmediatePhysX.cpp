@@ -21,7 +21,7 @@
 
 #include "PhysicsEngine/ConstraintDrives.h"
 #include "PhysicsEngine/AggregateGeom.h"
-#include "Physics/PhysicsGeometryPhysX.h"
+#include "Physics/PhysicsGeometry.h"
 #include "Engine/Engine.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
@@ -1662,7 +1662,7 @@ bool FPhysicsInterface_ImmediatePhysX::Sweep_Geom(FHitResult& OutHit, const FBod
 		{
 			if(Actor.IsValid() && InInstance->OwnerComponent != nullptr)
 			{
-				FPhysXShapeAdaptor ShapeAdaptor(InShapeRotation, InShape);
+				FPhysXShapeAdapter ShapeAdaptor(InShapeRotation, InShape);
 				
 				const FVector Delta = InEnd - InStart;
 				const float DeltaMag = Delta.Size();
@@ -1776,7 +1776,7 @@ bool FPhysicsInterface_ImmediatePhysX::Overlap_Geom(const FBodyInstance* InBodyI
 
 bool FPhysicsInterface_ImmediatePhysX::Overlap_Geom(const FBodyInstance* InBodyInstance, const FCollisionShape& InCollisionShape, const FQuat& InShapeRotation, const FTransform& InShapeTransform, FMTDResult* OutOptResult)
 {
-	FPhysXShapeAdaptor Adaptor(InShapeRotation, InCollisionShape);
+	FPhysXShapeAdapter Adaptor(InShapeRotation, InCollisionShape);
 
 	return Overlap_GeomInternal(InBodyInstance, Adaptor.GetGeometry(), InShapeTransform, OutOptResult);
 }

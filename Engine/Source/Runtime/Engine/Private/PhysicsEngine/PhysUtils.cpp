@@ -261,7 +261,7 @@ FCollisionResponseContainer::FCollisionResponseContainer(ECollisionResponse Defa
 	SetAllChannels(DefaultResponse);
 }
 
-#if WITH_CHAOS || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS
 bool FPhysScene::ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar)
 {
     return false;
@@ -359,7 +359,7 @@ bool FPhysScene::ExecPxVis(const TCHAR* Cmd, FOutputDevice* Ar)
 }
 #endif
 
-#if WITH_CHAOS || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS
 bool FPhysScene::ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar)
 {
     return false;
@@ -467,7 +467,7 @@ bool FPhysScene::ExecApexVis(const TCHAR* Cmd, FOutputDevice* Ar)
 #endif
 
 
-#if WITH_CHAOS || PHYSICS_INTERFACE_LLIMMEDIATE
+#if WITH_CHAOS
 bool FPhysicsInterface::ExecPhysCommands(const TCHAR* Cmd, FOutputDevice* Ar, UWorld* InWorld)
 {
     return false;

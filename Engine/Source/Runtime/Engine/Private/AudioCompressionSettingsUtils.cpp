@@ -28,6 +28,21 @@ FAutoConsoleVariableRef CVarCookOverrideCachingIntervalCVar(
 	TEXT("n: Time between caching intervals, in seconds."),
 	ECVF_Default);
 
+
+/**
+ * This value is the minimum potential usage of the stream cache we feasibly want to support.
+ * Setting this to 0.25, for example, cause us to potentially be using 25% of our cache size when we start evicting chunks, worst cast scenario.
+ * The trade off is that when this is increased, we add more elements to our cache, thus linearly increasing the CPU complexity of finding a chunk.
+ * A minimum cache usage of 1.0f is impossible, because it would require an infinite amount of chunks.
+ */
+static float MinimumCacheUsageCvar = 0.75f;
+FAutoConsoleVariableRef CVarMinimumCacheUsage(
+	TEXT("au.streamcaching.MinimumCacheUsage"),
+	MinimumCacheUsageCvar,
+	TEXT("This value is the minimum potential usage of the stream cache we feasibly want to support. Setting this to 0.25, for example, cause us to potentially be using 25% of our cache size when we start evicting chunks, worst cast scenario.\n")
+	TEXT("0.0: limit the number of chunks to our (Cache Size / Max Chunk Size) [0.01-0.99]: Increase our number of chunks to limit disk IO when we have lots of small sounds playing."),
+	ECVF_Default);
+
 const FPlatformRuntimeAudioCompressionOverrides* FPlatformCompressionUtilities::GetRuntimeCompressionOverridesForCurrentPlatform()
 {
 #if PLATFORM_ANDROID && !PLATFORM_LUMIN && ENABLE_PLATFORM_COMPRESSION_OVERRIDES
@@ -186,16 +201,19 @@ const FAudioStreamCachingSettings& FPlatformCompressionUtilities::GetStreamCachi
 FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStreamingManagerParams()
 {
 	const FAudioStreamCachingSettings& CacheSettings = GetStreamCachingSettingsForCurrentPlatform();
-	int32 ChunkSize = GetChunkSizeForCookOverrides(GetCookOverridesForCurrentPlatform());
+	int32 MaxChunkSize = GetMaxChunkSizeForCookOverrides(GetCookOverridesForCurrentPlatform());
 
-	// Our number of elements in the cache is CacheSize in kilobytes divided by our chunk size in kilobytes:
-	int32 NumElements = CacheSettings.CacheSizeKB / (ChunkSize / 1024);
+	// Our number of elements is tweakable based on the minimum cache usage we want to support.
+	const float MinimumCacheUsage = FMath::Clamp(MinimumCacheUsageCvar, 0.0f, 0.95f);
+	int32 MinChunkSize = (1.0f - MinimumCacheUsage) * MaxChunkSize;
+	int32 NumElements = (CacheSettings.CacheSizeKB * 1024) / MinChunkSize;
 
 	FCachedAudioStreamingManagerParams Params;
 	FCachedAudioStreamingManagerParams::FCacheDimensions CacheDimensions;
 
 	// Primary cache defined here:
-	CacheDimensions.MaxChunkSize = ChunkSize;
+	CacheDimensions.MaxChunkSize = MaxChunkSize;
+	CacheDimensions.MaxMemoryInBytes = CacheSettings.CacheSizeKB * 1024;
 	CacheDimensions.NumElements = NumElements;
 	Params.Caches.Add(CacheDimensions);
 
@@ -204,7 +222,7 @@ FCachedAudioStreamingManagerParams FPlatformCompressionUtilities::BuildCachedStr
 	return Params;
 }
 
-uint32 FPlatformCompressionUtilities::GetChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides)
+uint32 FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides)
 {
 	check(InCompressionOverrides);
 

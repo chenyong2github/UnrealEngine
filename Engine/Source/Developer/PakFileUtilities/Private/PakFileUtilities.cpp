@@ -1003,6 +1003,8 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 				Entries.Add(Input);
 			}
 		}
+
+		UE_LOG(LogPakFile, Display, TEXT("Added %d entries to add to pak file."), Entries.Num());
 	}
 	else
 	{
@@ -1034,7 +1036,6 @@ void ProcessCommandLine(const TCHAR* CmdLine, const TArray<FString>& NonOptionAr
 			Entries.Add(Input);
 		}
 	}
-	UE_LOG(LogPakFile, Display, TEXT("Added %d entries to add to pak file."), Entries.Num());
 }
 
 void CollectFilesToAdd(TArray<FPakInputPair>& OutFilesToAdd, const TArray<FPakInputPair>& InEntries, const FPakOrderMap& OrderMap, const FPakCommandLineParameters& CmdLineParameters)

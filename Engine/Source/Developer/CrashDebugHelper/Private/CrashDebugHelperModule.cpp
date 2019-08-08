@@ -46,3 +46,18 @@ ICrashDebugHelper* FCrashDebugHelperModule::Get()
 {
 	return CrashDebugHelper;
 }
+
+ICrashDebugHelper* FCrashDebugHelperModule::GetNew()
+{
+	if (CrashDebugHelper != nullptr)
+	{
+		delete CrashDebugHelper;
+		CrashDebugHelper = nullptr;
+	}
+	CrashDebugHelper = new FCrashDebugHelper();
+	if (CrashDebugHelper != nullptr)
+	{
+		CrashDebugHelper->Init();
+	}
+	return CrashDebugHelper;
+}

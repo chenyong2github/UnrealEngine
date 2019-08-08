@@ -146,6 +146,10 @@ public:
 	/** Tracks the current depth stencil access type. */
 	FExclusiveDepthStencil CurrentDSVAccessType;
 
+	/** Handle for the dummy outer occlusion query we optionally insert for performance reasons */
+	FRenderQueryRHIRef OuterOcclusionQuery;
+	bool bOuterOcclusionQuerySubmitted;
+
 	/** When a new shader is set, we discard all old constants set for the previous shader. */
 	bool bDiscardSharedConstants;
 

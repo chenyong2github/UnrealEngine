@@ -37,7 +37,7 @@ bool FGenericPlatformInstallation::NormalizeEngineRootDir(FString &RootDir)
 	return false;
 }
 
-bool FGenericPlatformInstallation::LaunchEditor(const FString &RootDirName, const FString &Arguments)
+bool FGenericPlatformInstallation::LaunchEditor(const FString& RootDirName, const FString &FileName, const FString &Arguments)
 {
 	// No default implementation
 	return false;

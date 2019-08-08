@@ -344,6 +344,7 @@ FBodyInstance::FBodyInstance()
 	, CustomSleepThresholdMultiplier(1.f)
 	, StabilizationThresholdMultiplier(1.f)
 	, PhysicsBlendWeight(0.f)
+	, ActorHandle(DefaultPhysicsActorHandle())
 {
 	MaxAngularVelocity = UPhysicsSettings::Get()->MaxAngularVelocity;
 }
@@ -437,14 +438,12 @@ void FBodyInstance::UpdateTriMeshVertices(const TArray<FVector> & NewPositions)
 			TArray<FPhysicsShapeHandle> Shapes;
 			const int32 SyncShapeCount = GetAllShapes_AssumesLocked(Shapes);
 
-			PxTriangleMeshGeometry PTriangleMeshGeometry;
 			for(FPhysicsShapeHandle& Shape : Shapes)
 			{
 				if(FPhysicsInterface::GetShapeType(Shape) == ECollisionShapeType::Trimesh)
 				{
 					FPhysicsGeometryCollection GeoCollection = FPhysicsInterface::GetGeometryCollection(Shape);
-					GeoCollection.GetTriMeshGeometry(PTriangleMeshGeometry);
-					FPhysicsInterface::SetGeometry(Shape, PTriangleMeshGeometry);
+					FPhysicsInterface::SetGeometry(Shape, GeoCollection.GetTriMeshGeometry());
 				}
 			}
 		});
@@ -1007,12 +1006,13 @@ struct FInitBodiesHelper
 	// Return to actor ref
 	void CreateActor_AssumesLocked(FBodyInstance* Instance, const FTransform& Transform) const
 	{
-		checkSlow(!Instance->ActorHandle.IsValid());
+		checkSlow(!FPhysicsInterface::IsValid(Instance->ActorHandle));
 		const ECollisionEnabled::Type CollisionType = Instance->GetCollisionEnabled();
 		const bool bDisableSim = !CollisionEnabledHasPhysics(CollisionType) && CDisableQueryOnlyActors.GetValueOnGameThread();
 
 		FActorCreationParams ActorParams;
 		ActorParams.InitialTM = Transform;
+		ActorParams.BodyInstance = Instance;
 #if USE_BODYINSTANCE_DEBUG_NAMES
 		ActorParams.DebugName = Instance->CharDebugName.IsValid() ? Instance->CharDebugName->GetData() : nullptr;
 #endif
@@ -1111,7 +1111,7 @@ struct FInitBodiesHelper
 
 			// Don't process if we've already got a body
 			// Just ask actorref
-			if(Instance->GetPhysicsActorHandle().IsValid())
+			if (FPhysicsInterface::IsValid(Instance->GetPhysicsActorHandle()))
 			{
 				Instance->OwnerComponent = nullptr;
 				Instance->BodySetup      = nullptr;
@@ -1131,7 +1131,7 @@ struct FInitBodiesHelper
 			}
 
 			// Init user data structure to point back at this instance
-			Instance->PhysxUserData = FPhysxUserData(Instance);
+			Instance->PhysicsUserData = FPhysicsUserData(Instance);
 
 			CreateActor_AssumesLocked(Instance, Transform);
 			const bool bInitFail = CreateShapes_AssumesLocked(Instance);
@@ -1154,7 +1154,7 @@ struct FInitBodiesHelper
 				continue;
 			}
 
-			FPhysicsInterface::SetActorUserData_AssumesLocked(Instance->ActorHandle, &Instance->PhysxUserData);
+			FPhysicsInterface::SetActorUserData_AssumesLocked(Instance->ActorHandle, &Instance->PhysicsUserData);
 			}
 
 		return true;
@@ -1177,7 +1177,7 @@ struct FInitBodiesHelper
 					for(FBodyInstance* BI : Bodies)
 					{
 						const FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
-						if(ActorHandle.IsValid())
+						if(FPhysicsInterface::IsValid(ActorHandle))
 						{
 							FPhysicsInterface::AddActorToAggregate_AssumesLocked(Aggregate, ActorHandle);
 						}
@@ -1190,10 +1190,21 @@ struct FInitBodiesHelper
 
 					for(FBodyInstance* BI : Bodies)
 					{
-						const FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
-						if(ActorHandle.IsValid())
+						FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
+						if(FPhysicsInterface::IsValid(ActorHandle))
 						{
 							ActorHandles.Add(ActorHandle);
+
+/*
+							With the implementation of AddActorsToScene_AssumesLocked,
+							this call duplicates the AddToSolver operation and is not necessary
+#ifdef WITH_CHAOS
+							if (BI->bSimulatePhysics)
+							{
+								PhysScene->AddActorToSolver(ActorHandle);
+							}
+#endif
+*/
 						}
 					}
 
@@ -1620,14 +1631,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 
 		// Apply scaling
 		ComputeScalingVectors(ScaleMode, InScale3D, AdjustedScale3D, AdjustedScale3DAbs);
-
-		//we need to allocate all of these here because PhysX insists on using the stack. This is wasteful, but reduces a lot of code duplication
-		PxSphereGeometry PSphereGeom;
-		PxBoxGeometry PBoxGeom;
-		PxCapsuleGeometry PCapsuleGeom;
-		PxConvexMeshGeometry PConvexGeom;
-		PxTriangleMeshGeometry PTriMeshGeom;
-
+		
 		for(FPhysicsShapeHandle& Shape : Shapes)
 		{
 			bool bInvalid = false;	//we only mark invalid if actually found geom and it's invalid scale
@@ -1650,7 +1654,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					FKSphereElem* SphereElem = ShapeElem->GetShapeCheck<FKSphereElem>();
 					ensure(ScaleMode == EScaleMode::LockedXYZ);
 
-					GeoCollection.GetSphereGeometry(PSphereGeom);
+					PxSphereGeometry& PSphereGeom = GeoCollection.GetSphereGeometry();
 					 
 					PSphereGeom.radius = FMath::Max(SphereElem->Radius * AdjustedScale3DAbs.X, FCollisionShape::MinSphereRadius());
 
@@ -1671,7 +1675,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				case ECollisionShapeType::Box:
 				{
 					FKBoxElem* BoxElem = ShapeElem->GetShapeCheck<FKBoxElem>();
-					GeoCollection.GetBoxGeometry(PBoxGeom);
+					PxBoxGeometry& PBoxGeom = GeoCollection.GetBoxGeometry();
 
 					PBoxGeom.halfExtents.x = FMath::Max((0.5f * BoxElem->X * AdjustedScale3DAbs.X), FCollisionShape::MinBoxExtent());
 					PBoxGeom.halfExtents.y = FMath::Max((0.5f * BoxElem->Y * AdjustedScale3DAbs.Y), FCollisionShape::MinBoxExtent());
@@ -1699,7 +1703,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 					float ScaleRadius = FMath::Max(AdjustedScale3DAbs.X, AdjustedScale3DAbs.Y);
 					float ScaleLength = AdjustedScale3DAbs.Z;
 
-					GeoCollection.GetCapsuleGeometry(PCapsuleGeom);
+					PxCapsuleGeometry& PCapsuleGeom = GeoCollection.GetCapsuleGeometry();
 
 					// this is a bit confusing since radius and height is scaled
 					// first apply the scale first 
@@ -1733,7 +1737,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				case ECollisionShapeType::Convex:
 				{
 					FKConvexElem* ConvexElem = ShapeElem->GetShapeCheck<FKConvexElem>();
-					GeoCollection.GetConvexGeometry(PConvexGeom);
+					PxConvexMeshGeometry& PConvexGeom = GeoCollection.GetConvexGeometry();
 
 					bool bUseNegX = CalcMeshNegScaleCompensation(AdjustedScale3D, LocalTransform);
 
@@ -1759,7 +1763,7 @@ bool FBodyInstance::UpdateBodyScale(const FVector& InScale3D, bool bForceUpdate)
 				{
 					check(ShapeElem == nullptr);	//trimesh shape doesn't have userData
 
-					GeoCollection.GetTriMeshGeometry(PTriMeshGeom);
+					PxTriangleMeshGeometry& PTriMeshGeom = GeoCollection.GetTriMeshGeometry();
 
 					// find which trimesh elems it is
 					// it would be nice to know if the order of PShapes array index is in the order of createShape
@@ -1982,7 +1986,7 @@ void FBodyInstance::SetInstanceSimulatePhysics(bool bSimulate, bool bMaintainPhy
 
 bool FBodyInstance::IsValidBodyInstance() const
 {
-	return ActorHandle.IsValid();
+	return FPhysicsInterface::IsValid(ActorHandle);
 }
 
 FTransform GetUnrealWorldTransformImp_AssumesLocked(const FBodyInstance* BodyInstance, bool bWithProjection, bool bGlobalPose)
@@ -2039,7 +2043,7 @@ void FBodyInstance::SetBodyTransform(const FTransform& NewTransform, ETeleportTy
 		return;
 	}
 
-	if(ActorHandle.IsValid())
+	if(FPhysicsInterface::IsValid(ActorHandle))
 	{
 		if(!NewTransform.IsValid())
 		{
@@ -2115,10 +2119,10 @@ FVector FBodyInstance::GetUnrealWorldVelocity() const
 FVector FBodyInstance::GetUnrealWorldVelocity_AssumesLocked() const
 {
 	FVector LinVel(EForceInit::ForceInitToZero);
-	if(ActorHandle.IsValid())
-{
+	if (FPhysicsInterface::IsValid(ActorHandle))
+	{
 		LinVel = FPhysicsInterface::GetLinearVelocity_AssumesLocked(ActorHandle);
-}
+	}
 
 	return LinVel;
 }
@@ -2244,8 +2248,8 @@ void FBodyInstance::CopyBodyInstancePropertiesFrom(const FBodyInstance* FromInst
 	check(FromInst);
 	check(FromInst->OwnerComponent.Get() == NULL);
 	check(FromInst->BodySetup.Get() == NULL);
-	check(!FromInst->ActorHandle.IsValid());
-	check(!ActorHandle.IsValid());
+	check(!FPhysicsInterface::IsValid(FromInst->ActorHandle));
+	check(!FPhysicsInterface::IsValid(ActorHandle));
 
 	*this = *FromInst;
 }
@@ -2269,24 +2273,13 @@ void FBodyInstance::CopyRuntimeBodyInstancePropertiesFrom(const FBodyInstance* F
 
 const FPhysScene* FBodyInstance::GetPhysicsScene() const
 {
-	if(ActorHandle.IsValid())
-	{
-		return FPhysicsInterface::GetCurrentScene(ActorHandle);
-	}
-	
-	return nullptr;
+	return FPhysicsInterface::GetCurrentScene(ActorHandle);
 }
 
 FPhysScene* FBodyInstance::GetPhysicsScene()
 {
-	if (ActorHandle.IsValid())
-	{
-		return FPhysicsInterface::GetCurrentScene(ActorHandle);
-	}
-
-	return nullptr;
+	return FPhysicsInterface::GetCurrentScene(ActorHandle);
 }
-
 
 FPhysicsActorHandle& FBodyInstance::GetPhysicsActorHandle()
 {
@@ -2538,11 +2531,11 @@ void FBodyInstance::UpdateMassProperties()
 	UPhysicalMaterial* PhysMat = GetSimplePhysicalMaterial();
 
 #if WITH_PHYSX
-	if(ActorHandle.IsValid() && FPhysicsInterface::IsRigidBody(ActorHandle))
+	if(FPhysicsInterface::IsValid(ActorHandle) && FPhysicsInterface::IsRigidBody(ActorHandle))
 	{
 		FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
 		{
-			check(Actor.IsValid());
+			check(FPhysicsInterface::IsValid(Actor));
 
 			if(GetNumSimShapes_AssumesLocked(Actor) > 0)
 			{
@@ -3083,14 +3076,11 @@ bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Pos, const FQuat& Ro
 
 		// Get all the shapes from the actor
 		FInlineShapeArray TargetShapes;
+
 		const int32 NumTargetShapes = FillInlineShapeArray_AssumesLocked(TargetShapes, Actor);
 
 		for(const FPhysicsShapeHandle& Shape : TargetShapes)
 		{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-			check(false);
-#else
-
 			ECollisionShapeType ShapeType = FPhysicsInterface::GetShapeType(Shape);
 			if(ShapeType == ECollisionShapeType::Heightfield || ShapeType == ECollisionShapeType::Trimesh)
 			{
@@ -3108,7 +3098,6 @@ bool FBodyInstance::OverlapTestForBodiesImpl(const FVector& Pos, const FQuat& Ro
 					return;
 				}
 			}
-#endif
 		}
 	});
 	return bHaveOverlap;
@@ -3198,7 +3187,7 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 
 	FPhysicsCommand::ExecuteRead(TargetInstance->ActorHandle, [&](const FPhysicsActorHandle& Actor)
 	{
-		if(Actor.IsValid())
+		if(FPhysicsInterface::IsValid(Actor))
 		{
 		// Get all the shapes from the actor
 			FInlineShapeArray PShapes;
@@ -3208,9 +3197,6 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 			TArray<struct FOverlapResult> TempOverlaps;
 			for (int32 ShapeIdx = 0; ShapeIdx < NumShapes; ShapeIdx++)
 			{
-#if WITH_CHAOS || WITH_IMMEDIATE_PHYSX
-				check(false);
-#else
 				FPhysicsShapeHandle& ShapeRef = PShapes[ShapeIdx];
 
 				FPhysicsGeometryCollection GeomCollection = FPhysicsInterface::GetGeometryCollection(ShapeRef);
@@ -3236,7 +3222,6 @@ bool FBodyInstance::OverlapMulti(TArray<struct FOverlapResult>& InOutOverlaps, c
 					bHaveBlockingHit = true;
 				}
 				InOutOverlaps.Append(TempOverlaps);
-#endif
 			}
 			}
 		});

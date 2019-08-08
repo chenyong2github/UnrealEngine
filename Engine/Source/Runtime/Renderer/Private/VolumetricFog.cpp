@@ -857,10 +857,20 @@ FVector GetVolumetricFogGridZParams(float NearPlane, float FarPlane, int32 GridS
 	return FVector(B, O, S);
 }
 
-FIntVector GetVolumetricFogGridSize(FIntPoint ViewRectSize)
+FIntVector GetVolumetricFogGridSize(FIntPoint ViewRectSize, int32& OutVolumetricFogGridPixelSize)
 {
 	extern int32 GLightGridSizeZ;
-	const FIntPoint VolumetricFogGridSizeXY = FIntPoint::DivideAndRoundUp(ViewRectSize, GVolumetricFogGridPixelSize);
+	FIntPoint VolumetricFogGridSizeXY;
+	int32 VolumetricFogGridPixelSize = GVolumetricFogGridPixelSize;
+	VolumetricFogGridSizeXY = FIntPoint::DivideAndRoundUp(ViewRectSize, VolumetricFogGridPixelSize);
+	if(VolumetricFogGridSizeXY.X > GMaxVolumeTextureDimensions || VolumetricFogGridSizeXY.Y > GMaxVolumeTextureDimensions) //clamp to max volume texture dimensions. only happens for extreme resolutions (~8x2k)
+	{
+		float PixelSizeX = (float)ViewRectSize.X / GMaxVolumeTextureDimensions;
+		float PixelSizeY = (float)ViewRectSize.Y / GMaxVolumeTextureDimensions;
+		VolumetricFogGridPixelSize = FMath::Max(FMath::CeilToInt(PixelSizeX), FMath::CeilToInt(PixelSizeY));
+		VolumetricFogGridSizeXY = FIntPoint::DivideAndRoundUp(ViewRectSize, VolumetricFogGridPixelSize);
+	}
+	OutVolumetricFogGridPixelSize = VolumetricFogGridPixelSize;
 	return FIntVector(VolumetricFogGridSizeXY.X, VolumetricFogGridSizeXY.Y, GVolumetricFogGridSizeZ);
 }
 
@@ -869,7 +879,8 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	const FScene* Scene = (FScene*)View.Family->Scene;
 	const FExponentialHeightFogSceneInfo& FogInfo = Scene->ExponentialFogs[0];
 
-	const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size());
+	int32 VolumetricFogGridPixelSize;
+	const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
 
 	Parameters.GridSizeInt = VolumetricFogGridSize;
 	Parameters.GridSize = FVector(VolumetricFogGridSize);
@@ -877,8 +888,8 @@ void SetupVolumetricFogGlobalData(const FViewInfo& View, FVolumetricFogGlobalDat
 	FVector ZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 	Parameters.GridZParams = ZParams;
 
-	Parameters.SVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(Parameters.GridSize) * GVolumetricFogGridPixelSize);
-	Parameters.FogGridToPixelXY = FIntPoint(GVolumetricFogGridPixelSize, GVolumetricFogGridPixelSize);
+	Parameters.SVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(Parameters.GridSize) * VolumetricFogGridPixelSize);
+	Parameters.FogGridToPixelXY = FIntPoint(VolumetricFogGridPixelSize, VolumetricFogGridPixelSize);
 	Parameters.MaxDistance = FogInfo.VolumetricFogDistance;
 
 	Parameters.HeightFogInscatteringColor = View.ExponentialFogColor;
@@ -899,14 +910,15 @@ void FViewInfo::SetupVolumetricFogUniformBufferParameters(FViewUniformShaderPara
 	{
 		const FExponentialHeightFogSceneInfo& FogInfo = Scene->ExponentialFogs[0];
 
-		const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(ViewRect.Size());
+		int32 VolumetricFogGridPixelSize;
+		const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(ViewRect.Size(), VolumetricFogGridPixelSize);
 
 		ViewUniformShaderParameters.VolumetricFogInvGridSize = FVector(1.0f / VolumetricFogGridSize.X, 1.0f / VolumetricFogGridSize.Y, 1.0f / VolumetricFogGridSize.Z);
 
 		const FVector ZParams = GetVolumetricFogGridZParams(NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 		ViewUniformShaderParameters.VolumetricFogGridZParams = ZParams;
 
-		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * GVolumetricFogGridPixelSize);
+		ViewUniformShaderParameters.VolumetricFogSVPosToVolumeUV = FVector2D(1.0f, 1.0f) / (FVector2D(VolumetricFogGridSize.X, VolumetricFogGridSize.Y) * VolumetricFogGridPixelSize);
 		ViewUniformShaderParameters.VolumetricFogMaxDistance = FogInfo.VolumetricFogDistance;
 	}
 	else
@@ -932,8 +944,9 @@ void FDeferredShadingSceneRenderer::SetupVolumetricFog()
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
-
-			const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size());
+			
+			int32 VolumetricFogGridPixelSize;
+			const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
 
 			FVolumetricFogGlobalData GlobalData;
 			SetupVolumetricFogGlobalData(View, GlobalData);
@@ -969,8 +982,9 @@ void FDeferredShadingSceneRenderer::ComputeVolumetricFog(FRHICommandListImmediat
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
 			FViewInfo& View = Views[ViewIndex];
-
-			const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size());
+			
+			int32 VolumetricFogGridPixelSize;
+			const FIntVector VolumetricFogGridSize = GetVolumetricFogGridSize(View.ViewRect.Size(), VolumetricFogGridPixelSize);
 			const FVector GridZParams = GetVolumetricFogGridZParams(View.NearClippingDistance, FogInfo.VolumetricFogDistance, VolumetricFogGridSize.Z);
 
 			//@DW - graph todo

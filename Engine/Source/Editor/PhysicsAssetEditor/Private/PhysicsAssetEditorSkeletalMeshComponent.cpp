@@ -60,7 +60,7 @@ UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshCompone
 	// this is because in phat editor, you'd like to see fixed bones to be fixed without animation force update
 	KinematicBonesUpdateType = EKinematicBonesUpdateToPhysics::SkipSimulatingBones;
 	bUpdateJointsFromAnimation = false;
-	ForcedLodModel = 1;
+	SetForcedLOD(1);
 
 	static FName CollisionProfileName(TEXT("PhysicsActor"));
 	SetCollisionProfileName(CollisionProfileName);

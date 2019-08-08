@@ -178,6 +178,15 @@ bool UEditableTextBox::HasError() const
 	return false;
 }
 
+void UEditableTextBox::SetJustification(ETextJustify::Type InJustification)
+{
+	Justification = InJustification;
+	if (MyEditableTextBlock.IsValid())
+	{
+		MyEditableTextBlock->SetJustification(InJustification);
+	}
+}
+
 void UEditableTextBox::HandleOnTextChanged(const FText& InText)
 {
 	Text = InText;

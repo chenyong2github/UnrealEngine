@@ -423,8 +423,8 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentTick);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Particles);
 
 	FScopeCycleCounter SystemStatCounter(Asset ? Asset->GetStatID(true, false) : TStatId());
 
@@ -565,6 +565,31 @@ bool UNiagaraComponent::IsPaused()const
 	return false;
 }
 
+UNiagaraDataInterface * UNiagaraComponent::GetDataInterface(const FString &Name)
+{
+
+	// @todo-threadsafety Think of a better way to do this!
+	if (!SystemInstance || SystemInstance->GetEmitters().Num() == 0 || !SystemInstance->GetEmitters()[0]->GetGPUContext())
+	{
+		return nullptr;
+	}
+	
+	FNiagaraComputeExecutionContext* GPUContext = SystemInstance->GetEmitters()[0]->GetGPUContext();
+	const TArray<FNiagaraScriptDataInterfaceCompileInfo> &DataInterfaceInfo = GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
+	const TArray<UNiagaraDataInterface*>& DataInterfaces = GPUContext->CombinedParamStore.GetDataInterfaces();
+
+	int Index = 0;
+	for (UNiagaraDataInterface* Interface : DataInterfaces)
+	{
+		if (DataInterfaceInfo[Index].Name.GetPlainNameString() == Name)
+		{			
+			return Interface;
+		}	
+		++Index;
+	}
+	return nullptr;
+}
+
 bool UNiagaraComponent::IsWorldReadyToRun() const
 {
 	// The niagara system instance assumes that a batcher exists when it is created. We need to wait until this has happened before successfully activating this system.
@@ -599,6 +624,7 @@ bool UNiagaraComponent::IsWorldReadyToRun() const
 bool UNiagaraComponent::InitializeSystem()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	if (SystemInstance.IsValid() == false)
 	{
 		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
@@ -742,6 +768,7 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 void UNiagaraComponent::Deactivate()
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 
 	//UE_LOG(LogNiagara, Log, TEXT("Deactivate: %u - %s"), this, *Asset->GetName());
 
@@ -937,6 +964,7 @@ void UNiagaraComponent::CreateRenderState_Concurrent()
 void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentSendRenderData);
 	if (SystemInstance.IsValid() && SceneProxy)
 	{

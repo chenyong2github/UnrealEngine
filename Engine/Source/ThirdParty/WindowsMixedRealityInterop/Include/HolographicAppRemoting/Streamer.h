@@ -29,4 +29,5 @@ public:
     virtual void OnConnected() = 0;
     virtual void OnDisconnected(winrt::Microsoft::Holographic::AppRemoting::ConnectionFailureReason reason) = 0;
     virtual void OnDataChannelCreated(const winrt::Microsoft::Holographic::AppRemoting::IDataChannel& dataChannel, uint8_t channelId) = 0;
+    virtual void OnListening(uint16_t port) = 0;
 };

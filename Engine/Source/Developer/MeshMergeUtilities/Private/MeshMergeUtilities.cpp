@@ -1302,7 +1302,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 					TVertexInstanceAttributesRef<FVector2D> VertexInstanceUVs = MeshSettings.RawMeshDescription->VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
 					// If we already have lightmap uvs generated or the lightmap coordinate index != 0 and available we can reuse those instead of having to generate new ones
 					if (InMeshProxySettings.bReuseMeshLightmapUVs
-						&& (ComponentsToMerge[MeshIndex]->GetStaticMesh()->SourceModels[0].BuildSettings.bGenerateLightmapUVs
+						&& (ComponentsToMerge[MeshIndex]->GetStaticMesh()->GetSourceModel(0).BuildSettings.bGenerateLightmapUVs
 							|| (ComponentsToMerge[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex != 0 && VertexInstanceUVs.GetNumElements() > 0 && VertexInstanceUVs.GetNumIndices() > ComponentsToMerge[MeshIndex]->GetStaticMesh()->LightMapCoordinateIndex)))
 					{
 						MeshSettings.CustomTextureCoordinates.Reset(VertexInstanceUVs.GetNumElements());
@@ -1942,6 +1942,12 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	TArray<float> MaterialImportanceValues;
 	FMaterialUtilities::DetermineMaterialImportance(UniqueMaterials, MaterialImportanceValues);
 
+	TMultiMap< FMeshLODKey, MaterialRemapPair > OutputMaterialsMap;
+
+	// The UV channel to use for the flattened material
+	int32 MergedMatUVChannel = INDEX_NONE;
+	UMaterialInterface* MergedMaterial = nullptr;
+
 	// If the user wants to merge materials into a single one
 	if (bMergeMaterialData)
 	{
@@ -1953,8 +1959,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		TArray<FMeshData> GlobalMeshSettings;
 		TArray<FMaterialData> GlobalMaterialSettings;
 		TArray<float> SectionMaterialImportanceValues;
-
-		TMultiMap< FMeshLODKey, MaterialRemapPair > OutputMaterialsMap;
 
 		TMap<EMaterialProperty, FIntPoint> PropertySizes;
 		for (const FPropertyEntry& Entry : MaterialOptions->Properties)
@@ -2009,7 +2013,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				MeshData.bMirrored = Component->GetComponentTransform().GetDeterminant() < 0.0f;
 				int32 MeshDataIndex = 0;
 
-				if (InSettings.bUseVertexDataForBakingMaterial && (bDoesMaterialUseVertexData || bRequiresUniqueUVs))
+				if (InSettings.bCreateMergedMaterial || (InSettings.bUseVertexDataForBakingMaterial && (bDoesMaterialUseVertexData || bRequiresUniqueUVs)))
 				{
 					MeshData.RawMeshDescription = DataTracker.GetRawMeshPtr(Key);
 
@@ -2255,6 +2259,21 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			}
 		}
 
+		// Compute UV channel to use for the merged material
+		if(InSettings.bCreateMergedMaterial)
+		{
+			for(TConstRawMeshIterator Iterator = DataTracker.GetConstRawMeshIterator(); Iterator; ++Iterator)
+			{
+				const FMeshDescription& RawMesh = Iterator.Value();
+
+				if(RawMesh.Vertices().Num())
+				{
+					const TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs = RawMesh.VertexInstanceAttributes().GetAttributesRef<FVector2D>(MeshAttribute::VertexInstance::TextureCoordinate);
+					MergedMatUVChannel = FMath::Max(MergedMatUVChannel, VertexInstanceUVs.GetNumIndices());
+				}
+			}
+		}
+
 		// Adjust UVs
 		for (int32 ComponentIndex = 0; ComponentIndex < StaticMeshComponentsToMerge.Num(); ++ComponentIndex)
 		{
@@ -2263,9 +2282,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			{
 				if (MappingPair.Key.GetMeshIndex() == ComponentIndex && !ProcessedMaterials.Contains(MappingPair.Value.Key))
 				{
-					const int32 LODIndex = MappingPair.Key.GetLODIndex();
-					// Found component entry
-
 					// Retrieve raw mesh data for this component and lod pair
 					FMeshDescription* RawMesh = DataTracker.GetRawMeshPtr(MappingPair.Key);
 
@@ -2284,7 +2300,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 							for (FVertexInstanceID VertexInstanceID : RawMesh->VertexInstances().GetElementIDs())
 							{
 								FVector2D UV = VertexInstanceUVs.Get(VertexInstanceID, UVChannelIdx);
-								if (UVChannelIdx == 0)
+								if (UVChannelIdx == 0 && !InSettings.bCreateMergedMaterial)
 								{
 									if (MeshData.CustomTextureCoordinates.Num())
 									{
@@ -2313,6 +2329,19 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 								VertexIndex++;
 							}
 						}
+
+						if (InSettings.bCreateMergedMaterial)
+						{
+							VertexInstanceUVs.SetNumIndices(MergedMatUVChannel + 1);
+
+							int32 VertexIndex = 0;
+							for(FVertexInstanceID VertexInstanceID : RawMesh->VertexInstances().GetElementIDs())
+							{
+								FVector2D UV = MeshData.CustomTextureCoordinates[VertexIndex];
+								VertexInstanceUVs.Set(VertexInstanceID, MergedMatUVChannel, UV * UVTransform.Value + UVTransform.Key);
+								VertexIndex++;
+							}
+						}
 					}
 				}
 			}
@@ -2330,14 +2359,20 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			FMeshDescriptionOperations::RemapPolygonGroups(RawMesh, RemapPolygonGroups);
 		}
 
-		UMaterialInterface* MergedMaterial = CreateProxyMaterial(InBasePackageName, MergedAssetPackageName, InBaseMaterial, InOuter, InSettings, OutMaterial, OutAssetsToSync);
-		UniqueMaterials.Empty(1);
-		UniqueMaterials.Add(MergedMaterial);
-		
-		FSectionInfo NewSection;
-		NewSection.Material = MergedMaterial;
-		NewSection.EnabledProperties.Add(GET_MEMBER_NAME_CHECKED(FStaticMeshSection, bCastShadow));
-		DataTracker.AddBakedMaterialSection(NewSection);
+		OutMaterial.UVChannel = MergedMatUVChannel;
+
+		MergedMaterial = CreateProxyMaterial(InBasePackageName, MergedAssetPackageName, InBaseMaterial, InOuter, InSettings, OutMaterial, OutAssetsToSync);
+
+		if (!InSettings.bCreateMergedMaterial)
+		{
+			UniqueMaterials.Empty(1);
+			UniqueMaterials.Add(MergedMaterial);
+
+			FSectionInfo NewSection;
+			NewSection.Material = MergedMaterial;
+			NewSection.EnabledProperties.Add(GET_MEMBER_NAME_CHECKED(FStaticMeshSection, bCastShadow));
+			DataTracker.AddBakedMaterialSection(NewSection);
+		}
 
 		for (IMeshMergeExtension* Extension : MeshMergeExtensions)
 		{
@@ -2346,8 +2381,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 	}
 
 	TArray<FMeshDescription> MergedRawMeshes;
-	TMultiMap<FMeshLODKey, MaterialRemapPair> OutputMaterialsMap;
-	CreateMergedRawMeshes(DataTracker, InSettings, StaticMeshComponentsToMerge, UniqueMaterials, CollapsedMaterialMap, OutputMaterialsMap, bMergeAllLODs, bMergeMaterialData, MergedAssetPivot, MergedRawMeshes);
+	CreateMergedRawMeshes(DataTracker, InSettings, StaticMeshComponentsToMerge, UniqueMaterials, CollapsedMaterialMap, OutputMaterialsMap, bMergeAllLODs, bMergeMaterialData && !InSettings.bCreateMergedMaterial, MergedAssetPivot, MergedRawMeshes);
 
 	// Populate mesh section map
 	FMeshSectionInfoMap SectionInfoMap;	
@@ -2384,6 +2418,11 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			SectionInfo.MaterialIndex = UniqueMaterials.IndexOfByKey(StoredSectionInfo.Material);
 			SectionInfoMap.Set(LODIndex, Index, SectionInfo);
 		}
+	}
+
+	if(InSettings.bCreateMergedMaterial)
+	{
+		OutputMaterialsMap.Reset();
 	}
 
 	// Transform physics primitives to merged mesh pivot
@@ -2570,8 +2609,8 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 			}
 		}
 
-		StaticMesh->SectionInfoMap.CopyFrom(SectionInfoMap);
-		StaticMesh->OriginalSectionInfoMap.CopyFrom(SectionInfoMap);
+		StaticMesh->GetSectionInfoMap().CopyFrom(SectionInfoMap);
+		StaticMesh->GetOriginalSectionInfoMap().CopyFrom(SectionInfoMap);
 
 		//Set the Imported version before calling the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
@@ -2596,6 +2635,19 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		}		
 
 		StaticMesh->PostEditChange();
+
+		if (InSettings.bCreateMergedMaterial)
+		{
+			//Make sure we have unique slot name here
+			FName MaterialSlotName = MergedMaterial->GetFName();
+			int32 Counter = 1;
+			while (!IsMaterialImportedNameUnique(MaterialSlotName))
+			{
+				MaterialSlotName = *(MergedMaterial->GetName() + TEXT("_") + FString::FromInt(Counter++));
+			}
+			StaticMesh->StaticMaterials.Add(FStaticMaterial(MergedMaterial, MaterialSlotName));
+			StaticMesh->UpdateUVChannelData(false);
+		}
 
 		OutAssetsToSync.Add(StaticMesh);
 		OutMergedActorLocation = MergedAssetPivot;

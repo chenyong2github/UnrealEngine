@@ -46,6 +46,7 @@ float TranslucencyMaxRayDistance;
 float TranslucencyMaxRoughness;
 uint  TranslucencyRefraction;
 float MaxNormalBias;
+float PrimaryRayBias;
 
 Texture2D SceneColorTexture;
 
@@ -103,7 +104,7 @@ void RayTracingTranslucencyRGS()
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + View.ViewRectMin;
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor);
 	uint LinearIndex = PixelCoord.y * View.BufferSizeAndInvSize.x + PixelCoord.x; // TODO: PixelCoord or DispatchThreadId
-	
+
 	RandomSequence RandSequence;
 	RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
 
@@ -112,11 +113,11 @@ void RayTracingTranslucencyRGS()
 	FGBufferData GBufferData = GetGBufferDataFromSceneTextures(UV);
 	float Depth = GBufferData.Depth;
 	float3 WorldPosition = ReconstructWorldPositionFromDepth(UV, Depth);
-	float WorldSpaceDistance = length(WorldPosition - View.WorldViewOrigin);
+	float WorldSpaceDistance = length(WorldPosition - View.WorldCameraOrigin);
 
 	// Trace rays from camera origin to (Gbuffer - epsilon) to only intersect translucent objects
 	RayDesc Ray = CreatePrimaryRay(UV);
-	Ray.TMax = WorldSpaceDistance - 0.1;
+	Ray.TMax = WorldSpaceDistance - PrimaryRayBias;
 	FRayCone RayCone = (FRayCone)0;
 	RayCone.SpreadAngle = View.EyeToPixelSpreadAngle;
 
@@ -144,7 +145,7 @@ void RayTracingTranslucencyRGS()
 		//
 		// Handle no hit condition
 		//
-		if (Payload.IsMiss())
+		if (Payload.IsMiss() || RefractionRayIndex == 0 && Payload.BlendingMode == RAY_TRACING_BLEND_MODE_OPAQUE)
 		{
 			if (bHasScattered && bAllowSkySampling)
 			{
@@ -256,7 +257,7 @@ void RayTracingTranslucencyRGS()
 	if (!bHasScattered)
 	{
 		// Use the scene radiance for ray that has not been scattered/refracted (no surface or IORin=IORout). Still apply the throughtput in case we have traversed surfaces with opacity>0.
-		PathRadiance += PathThroughput * SceneColorTexture.SampleLevel(GlobalPointClampedSampler, UV, 0).xyz;
+		PathRadiance += PathThroughput * SceneColorTexture.SampleLevel(GlobalPointClampedSampler, UV, 0).xyz / View.PreExposure;
 	}
 
 #if USE_PREEXPOSURE

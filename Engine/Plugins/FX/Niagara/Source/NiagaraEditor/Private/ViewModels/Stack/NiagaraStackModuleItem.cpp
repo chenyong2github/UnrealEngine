@@ -393,7 +393,12 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 	TArray<UNiagaraNodeFunctionCall*> FoundCalls;
 	TArray<FNiagaraModuleDependency> DependenciesNeeded;
 
-	TArray<FNiagaraStackModuleData> SystemModuleData = GetSystemViewModel()->GetStackModuleDataForEmitter(GetEmitterViewModel());
+
+	TArray<FNiagaraStackModuleData> SystemModuleData;
+	if (GetEmitterViewModel().IsValid())
+	{
+		SystemModuleData = GetSystemViewModel()->GetStackModuleDataForEmitter(GetEmitterViewModel().ToSharedRef());
+	}
 	int32 ModuleIndex = INDEX_NONE;
 	for (int i = 0; i < SystemModuleData.Num(); i++)
 	{
@@ -792,7 +797,8 @@ void UNiagaraStackModuleItem::Delete()
 				GetSystemViewModel()->NotifyDataObjectChanged(InputNode->GetDataInterface());
 			}
 		}
-		ModifiedGroupItemsDelegate.ExecuteIfBound();
+		Finalize();
+		ModifiedGroupItemsDelegate.Broadcast();
 	}
 }
 
@@ -822,7 +828,7 @@ UNiagaraNodeOutput* UNiagaraStackModuleItem::GetOutputNode() const
 
 void UNiagaraStackModuleItem::NotifyModuleMoved()
 {
-	ModifiedGroupItemsDelegate.ExecuteIfBound();
+	ModifiedGroupItemsDelegate.Broadcast();
 }
 
 bool UNiagaraStackModuleItem::CanAddInput(FNiagaraVariable InputParameter) const

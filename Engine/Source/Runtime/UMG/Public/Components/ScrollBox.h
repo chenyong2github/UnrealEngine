@@ -67,6 +67,10 @@ public:
 	/**  Disable to stop scrollbars from activating inertial overscrolling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool AllowOverscroll;
+	
+	/** True to lerp smoothly when wheel scrolling along the scroll box */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	bool bAnimateWheelScrolling = false;
 
 	/**  */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Scroll")
@@ -82,6 +86,10 @@ public:
 	/** Option to disable right-click-drag scrolling */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
 	bool bAllowRightClickDragScrolling;
+
+	/** The multiplier to apply when wheel scrolling */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Scroll")
+	float WheelScrollMultiplier = 1.f;
 
 
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
@@ -104,6 +112,12 @@ public:
 	
 	UFUNCTION(BlueprintCallable, Category = "Scroll")
 	void SetAllowOverscroll(bool NewAllowOverscroll);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetAnimateWheelScrolling(bool bShouldAnimateWheelScrolling);
+
+	UFUNCTION(BlueprintCallable, Category = "Scroll")
+	void SetWheelScrollMultiplier(float NewWheelScrollMultiplier);
 
 	/** Instantly stops any inertial scrolling that is currently in progress */
 	UFUNCTION(BlueprintCallable, Category = "Scroll")

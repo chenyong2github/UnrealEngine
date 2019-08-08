@@ -49,6 +49,7 @@
 #include "BlueprintAssetHandler.h"
 
 #include "JsonObjectConverter.h"
+#include "UObject/EditorObjectVersion.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 
@@ -111,6 +112,14 @@ inline UObject* GetAssetObject(UObject* InObject)
 }
 
 ////////////////////////////////////
+// FSearchDataVersionInfo
+FSearchDataVersionInfo FSearchDataVersionInfo::Current =
+{
+	EFiBVersion::FIB_VER_LATEST,
+	FEditorObjectVersion::LatestVersion
+};
+
+////////////////////////////////////
 // FStreamSearch
 FStreamSearch::FStreamSearch(const FString& InSearchValue)
 	: SearchValue(InSearchValue)
@@ -157,7 +166,7 @@ uint32 FStreamSearch::Run()
 		if (QueryResult.ImaginaryBlueprint.IsValid())
 		{
 			// If the Blueprint is below the version, add it to a list. The search will still proceed on this Blueprint
-			if (QueryResult.Version < MinimiumVersionRequirement)
+			if (QueryResult.VersionInfo.FiBDataVersion < MinimiumVersionRequirement)
 			{
 				++BlueprintCountBelowVersion;
 			}
@@ -334,7 +343,9 @@ namespace FiBSerializationHelpers
 	{
 		TArray<uint8> DerivedData;
 		DecodeFromStream(InStream, sizeof(Type), DerivedData);
+
 		FMemoryReader SizeOfDataAr(DerivedData);
+		SizeOfDataAr.SetCustomVersions(InStream.GetCustomVersions());
 
 		Type ReturnValue;
 		SizeOfDataAr << ReturnValue;
@@ -347,7 +358,9 @@ namespace FiBSerializationHelpers
 	{
 		TArray<uint8> DerivedData;
 		DecodeFromStream(InStream, InBytes, DerivedData);
+
 		FMemoryReader SizeOfDataAr(DerivedData);
+		SizeOfDataAr.SetCustomVersions(InStream.GetCustomVersions());
 
 		Type ReturnValue;
 		SizeOfDataAr << ReturnValue;
@@ -1634,7 +1647,30 @@ void FFindInBlueprintSearchManager::ExtractUnloadedFiBData(const FAssetData& InA
 	{
 		checkf(NewSearchData.Value.Len(), TEXT("Versioned search data was zero length!"));
 		FBufferReader ReaderStream((void*)*NewSearchData.Value, NewSearchData.Value.Len() * sizeof(TCHAR), false);
-		NewSearchData.Version = FiBSerializationHelpers::Deserialize<int32>(ReaderStream);
+		NewSearchData.VersionInfo.FiBDataVersion = FiBSerializationHelpers::Deserialize<int32>(ReaderStream);
+	}
+
+	// Determine the editor object version that the asset package was last serialized with
+	FString PackageFilename;
+	if (ensureMsgf(FPackageName::DoesPackageExist(InAssetData.PackageName.ToString(), nullptr, &PackageFilename), TEXT("FiB: Failed to map package to filename.")))
+	{
+		// Open a new file archive for reading
+		FArchive* PackageFile = IFileManager::Get().CreateFileReader(*PackageFilename);
+		if (ensureMsgf(PackageFile != nullptr, TEXT("FiB: Unable to open package to read file summary.")))
+		{
+			// Read the package file summary
+			FPackageFileSummary PackageFileSummary;
+			*PackageFile << PackageFileSummary;
+
+			// Close the file
+			delete PackageFile;
+
+			// If an editor object version exists in the package file summary, record it
+			if (const FCustomVersion* const EditorObjectVersion = PackageFileSummary.GetCustomVersionContainer().GetVersion(FEditorObjectVersion::GUID))
+			{
+				NewSearchData.VersionInfo.EditorObjectVersion = EditorObjectVersion->Version;
+			}
+		}
 	}
 
 	// Since the asset was not loaded, pull out the searchable data stored in the asset
@@ -1799,8 +1835,10 @@ FString FFindInBlueprintSearchManager::GatherBlueprintSearchMetadata(const UBlue
 	Writer->WriteObjectEnd();
 	Writer->Close();
 
-	int32 Version = EFiBVersion::FIB_VER_LATEST;
-	SearchMetaData = FiBSerializationHelpers::Serialize(Version, false) + Writer->GetSerializedLookupTable() + SearchMetaData;
+	// Build the search metadata string for the asset tag (version + LUT + JSON)
+	SearchMetaData = FiBSerializationHelpers::Serialize(FSearchDataVersionInfo::Current.FiBDataVersion, false)
+		+ Writer->GetSerializedLookupTable()
+		+ SearchMetaData;
 
 	return SearchMetaData;
 }
@@ -1856,8 +1894,11 @@ void FFindInBlueprintSearchManager::AddOrUpdateBlueprintSearchMetadata(UBlueprin
 		// Cannot successfully gather most searchable data if there is no SkeletonGeneratedClass, so don't try, leave it as whatever it was last set to
 		if (InBlueprint->SkeletonGeneratedClass != nullptr)
 		{
+			// Update search metadata string content
 			SearchArray[Index].Value = GatherBlueprintSearchMetadata(InBlueprint);
-			SearchArray[Index].Version = EFiBVersion::FIB_VER_LATEST;
+
+			// Update version info stored in database to latest
+			SearchArray[Index].VersionInfo = FSearchDataVersionInfo::Current;
 		}
 
 		// Remove it from the list of pending assets (if it exists)
@@ -1915,7 +1956,7 @@ bool FFindInBlueprintSearchManager::ContinueSearchQuery(const FStreamSearch* InS
 				// If there is FiB data, parse it into an ImaginaryBlueprint
 				if (SearchArray[SearchIdx].Value.Len() > 0)
 				{
-					SearchArray[SearchIdx].ImaginaryBlueprint = MakeShareable(new FImaginaryBlueprint(FPaths::GetBaseFilename(SearchArray[SearchIdx].AssetPath.ToString()), SearchArray[SearchIdx].AssetPath.ToString(), SearchArray[SearchIdx].ParentClass, SearchArray[SearchIdx].Interfaces, SearchArray[SearchIdx].Value, SearchArray[SearchIdx].Version != 0));
+					SearchArray[SearchIdx].ImaginaryBlueprint = MakeShareable(new FImaginaryBlueprint(FPaths::GetBaseFilename(SearchArray[SearchIdx].AssetPath.ToString()), SearchArray[SearchIdx].AssetPath.ToString(), SearchArray[SearchIdx].ParentClass, SearchArray[SearchIdx].Interfaces, SearchArray[SearchIdx].Value, SearchArray[SearchIdx].VersionInfo));
 					SearchArray[SearchIdx].Value.Empty();
 				}
 
@@ -1962,7 +2003,7 @@ float FFindInBlueprintSearchManager::GetPercentComplete(const FStreamSearch* InS
 	return ReturnPercent;
 }
 
-FString FFindInBlueprintSearchManager::QuerySingleBlueprint(UBlueprint* InBlueprint, bool bInRebuildSearchData/* = true*/)
+const FSearchData* FFindInBlueprintSearchManager::QuerySingleBlueprint(UBlueprint* InBlueprint, bool bInRebuildSearchData)
 {
 	// AddOrUpdateBlueprintSearchMetadata would fail to cache any data for a Blueprint loaded specifically for diffing, but the bigger question
 	// here in this function is how you are doing a search specifically for data within this Blueprint. This function is limited to be called
@@ -1988,7 +2029,7 @@ FString FFindInBlueprintSearchManager::QuerySingleBlueprint(UBlueprint* InBluepr
 				*ArrayIdx,
 				SearchArray.Num());
 
-			return SearchArray[*ArrayIdx].Value;
+			return &SearchArray[*ArrayIdx];
 		}
 		else if(bInRebuildSearchData)
 		{
@@ -2002,7 +2043,7 @@ FString FFindInBlueprintSearchManager::QuerySingleBlueprint(UBlueprint* InBluepr
 		// Also warn here as we do not index diff-only packages.
 		UE_LOG(LogBlueprint, Warning, TEXT("Attempted to query an old Blueprint package opened for diffing!"));
 	}
-	return FString();
+	return nullptr;
 }
 
 void FFindInBlueprintSearchManager::PauseFindInBlueprintSearch()
@@ -2233,7 +2274,7 @@ void FFindInBlueprintSearchManager::CacheAllAssets(TWeakPtr< SFindInBlueprints >
 			// Add any out-of-date Blueprints to the list
 			for (FSearchData SearchData : SearchArray)
 			{
-				if ((SearchData.Value.Len() != 0 || SearchData.ImaginaryBlueprint.IsValid()) && SearchData.Version < InOptions.MinimiumVersionRequirement)
+				if ((SearchData.Value.Len() != 0 || SearchData.ImaginaryBlueprint.IsValid()) && SearchData.VersionInfo.FiBDataVersion < InOptions.MinimiumVersionRequirement)
 				{
 					BlueprintsToUpdate.Add(SearchData.AssetPath);
 				}
@@ -2424,7 +2465,7 @@ bool FFindInBlueprintSearchManager::IsUnindexedCacheInProgress() const
 	return IsCacheInProgress() && CurrentCacheOpType == EFiBCacheOpType::CacheUnindexedAssets;
 }
 
-TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObject(bool bInIsVersioned, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable)
+TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObject(FSearchDataVersionInfo InVersionInfo, FString InJsonString, TMap<int32, FText>& OutFTextLookupTable)
 {
 	/** The searchable data is more complicated than a Json string, the Json being the main searchable body that is parsed. Below is a diagram of the full data:
 	 *  | int32 "Version" | int32 "Size" | TMap "Lookup Table" | Json String |
@@ -2441,11 +2482,18 @@ TSharedPtr< FJsonObject > FFindInBlueprintSearchManager::ConvertJsonStringToObje
 	int32 SizeOfData;
 	FBufferReader ReaderStream((void*)*InJsonString, InJsonString.Len() * sizeof(TCHAR), false);
 
-	int32 Version = 0;
-	if (bInIsVersioned)
+	// If the stream is versioned, read past the version info
+	if (InVersionInfo.FiBDataVersion > EFiBVersion::FIB_VER_BASE)
 	{
-		FiBSerializationHelpers::Deserialize<int32>(ReaderStream);
+		// Read the FiB search data version
+		const int32 Version = FiBSerializationHelpers::Deserialize<int32>(ReaderStream);
+
+		// Check that the deserialized version matches up with what's recorded in the search database
+		ensureMsgf(Version == InVersionInfo.FiBDataVersion, TEXT("FiB: JSON stream data does not match search data version from database. This is unexpected."));
 	}
+
+	// Configure the JSON stream with the proper object version for FText serialization when reading the LUT
+	ReaderStream.SetCustomVersion(FEditorObjectVersion::GUID, InVersionInfo.EditorObjectVersion, TEXT("Dev-Editor"));
 
  	// Read, as a byte string, the number of characters composing the Lookup Table for the Json.
 	SizeOfData = FiBSerializationHelpers::Deserialize<int32>(ReaderStream);

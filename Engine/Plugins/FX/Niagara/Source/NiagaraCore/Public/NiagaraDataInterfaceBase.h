@@ -22,6 +22,9 @@ struct FNiagaraDataInterfaceSetArgs
 	FNiagaraDataInterfaceProxy* DataInterface;
 	FGuid SystemInstance;
 	const NiagaraEmitterInstanceBatcher* Batcher;
+	uint32 ShaderStageIndex;
+	bool IsOutputStage;
+	bool IsIterationStage;
 };
 
 /**

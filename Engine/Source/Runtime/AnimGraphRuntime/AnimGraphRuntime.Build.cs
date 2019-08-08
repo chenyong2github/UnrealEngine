@@ -15,8 +15,6 @@ public class AnimGraphRuntime : ModuleRules
 				"CoreUObject", 
 				"Engine",
                 "AnimationCore",
-				"GeometryCollectionEngine",
-				"GeometryCollectionSimulationCore"
 			}
 		);
 
@@ -27,6 +25,8 @@ public class AnimGraphRuntime : ModuleRules
             PublicDependencyModuleNames.AddRange(
                 new string[] {
 					"ChaosSolvers",
+					"GeometryCollectionEngine",
+					"GeometryCollectionSimulationCore"
                 }
             );
         }

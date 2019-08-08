@@ -183,7 +183,7 @@ public:
 
 #if INCLUDE_CHAOS
 	TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const { return PhysScene; }
-	Chaos::FPBDRigidsSolver* GetSolver() const { return Solver; }
+	Chaos::FPhysicsSolver* GetSolver() const { return Solver; }
 #endif
 
 #if WITH_EDITOR
@@ -197,7 +197,7 @@ public:
 private:
 #if INCLUDE_CHAOS
 	TSharedPtr<FPhysScene_Chaos> PhysScene;
-	Chaos::FPBDRigidsSolver* Solver;
+	Chaos::FPhysicsSolver* Solver;
 #endif
 
 	/** Component responsible for harvesting and triggering physics-related gameplay events (hits, breaks, etc) */

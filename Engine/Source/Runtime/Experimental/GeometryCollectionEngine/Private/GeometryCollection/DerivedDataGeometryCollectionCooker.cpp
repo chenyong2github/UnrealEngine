@@ -3,7 +3,7 @@
 #include "GeometryCollection/GeometryCollectionObject.h"
 #include "GeometryCollection/GeometryCollection.h"
 #include "Serialization/MemoryWriter.h"
-#include "SolverObjects/GeometryCollectionPhysicsObject.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 #include "Chaos/ChaosArchive.h"
 #include "UObject/DestructionObjectVersion.h"
 #include "Chaos/ErrorReporter.h"

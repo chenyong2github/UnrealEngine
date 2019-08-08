@@ -65,9 +65,14 @@ namespace UnrealBuildTool
         ServerOnly,
 
 		/// <summary>
-		/// Loaded only by clients
+		/// Loaded only by clients, and commandlets, and editor....
 		/// </summary>
         ClientOnly,
+
+		/// <summary>
+		/// Loaded only by clients and editor (editor can run PIE which is kinda a commandlet)
+		/// </summary>
+		ClientOnlyNoCommandlet,
 	}
 
 	/// <summary>

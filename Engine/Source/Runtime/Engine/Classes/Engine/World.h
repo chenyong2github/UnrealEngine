@@ -1461,6 +1461,12 @@ public:
 	}
 #endif
 
+	/** Inserts a post process volume into the world in priority order */
+	void InsertPostProcessVolume(IInterface_PostProcessVolume* InVolume);
+
+	/** Removes a post process volume from the world */
+	void RemovePostProcessVolume(IInterface_PostProcessVolume* InVolume);
+
 	/** An array of post processing volumes, sorted in ascending order of priority.					*/
 	TArray< IInterface_PostProcessVolume * > PostProcessVolumes;
 
@@ -3618,6 +3624,7 @@ public:
 	// Global Callback after actors have been initialized (on any world)
 	static UWorld::FOnWorldInitializedActors OnWorldInitializedActors;
 
+	static FWorldEvent OnWorldBeginTearDown;
 private:
 	FWorldDelegates() {}
 };

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Templates/Atomic.h"
 #include "Misc/CompressionFlags.h"
+#include "HAL/CriticalSection.h"
 
 class IMemoryReadStream;
 
@@ -103,6 +104,8 @@ private:
 
 	/** Mapping of Compression FNames to their compressor objects */
 	static TMap<FName, struct ICompressionFormat*> CompressionFormats;
+	static FCriticalSection CompressionFormatsCriticalSection;
+
 };
 
 

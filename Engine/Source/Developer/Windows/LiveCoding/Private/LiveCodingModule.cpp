@@ -217,6 +217,7 @@ void FLiveCodingModule::Compile()
 		EnableForSession(true);
 		if(bStarted)
 		{
+			UpdateModules(); // Need to do this immediately rather than waiting until next tick
 			LppTriggerRecompile();
 			GIsCompileActive = true;
 		}
@@ -232,7 +233,7 @@ void FLiveCodingModule::Tick()
 {
 	if (LppWantsRestart())
 	{
-		LppRestart(lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0);
+		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
 	}
 
 	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
@@ -361,7 +362,7 @@ void FLiveCodingModule::UpdateModules()
 					}
 					else
 					{
-						LppEnableLazyLoadedModule(*FullFilePath);
+						LppWaitForToken(LppEnableLazyLoadedModule(*FullFilePath));
 					}
 					ConfiguredModules.Add(ModuleName);
 				}
@@ -375,7 +376,7 @@ void FLiveCodingModule::UpdateModules()
 			{
 				EnableModuleFileNames.Add(*EnableModule);
 			}
-			LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num());
+			LppWaitForToken(LppEnableModules(EnableModuleFileNames.GetData(), EnableModuleFileNames.Num()));
 		}
 #endif
 	}

@@ -6,6 +6,7 @@
 #include "InputCoreTypes.h"
 #include "HitProxies.h"
 #include "ComponentVisualizer.h"
+#include "Components/SplineComponent.h"
 
 class AActor;
 class FEditorViewportClient;
@@ -17,6 +18,7 @@ class FViewport;
 class SWidget;
 class USplineComponent;
 struct FViewportClick;
+struct FConvexVolume;
 
 /** Base class for clickable spline editing proxies */
 struct HSplineVisProxy : public HComponentVisProxy
@@ -85,6 +87,16 @@ public:
 	virtual bool GetCustomInputCoordinateSystem(const FEditorViewportClient* ViewportClient, FMatrix& OutMatrix) const override;
 	virtual bool HandleInputDelta(FEditorViewportClient* ViewportClient, FViewport* Viewport, FVector& DeltaTranslate, FRotator& DeltaRotate, FVector& DeltaScale) override;
 	virtual bool HandleInputKey(FEditorViewportClient* ViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event) override;
+	/** Handle click modified by Alt, Ctrl and/or Shift. The input HitProxy may not be on this component. */
+	virtual bool HandleModifiedClick(FEditorViewportClient* InViewportClient, HHitProxy* HitProxy, const FViewportClick& Click) override;
+	/** Handle box select input */
+	virtual bool HandleBoxSelect(const FBox& InBox, FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	/** Handle frustum select input */
+	virtual bool HandleFrustumSelect(const FConvexVolume& InFrustum, FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
+	/** Return whether focus on selection should focus on bounding box defined by active visualizer */
+	virtual bool HasFocusOnSelectionBoundingBox(FBox& OutBoundingBox) override;
+	/** Pass snap input to active visualizer */
+	virtual bool HandleSnapTo(const bool bInAlign, const bool bInUseLineTrace, const bool bInUseBounds, const bool bInUsePivot, AActor* InDestination) override;
 	virtual TSharedPtr<SWidget> GenerateContextMenu() const override;
 	virtual bool IsVisualizingArchetype() const override;
 	//~ End FComponentVisualizer Interface
@@ -95,6 +107,16 @@ public:
 	const TSet<int32>& GetSelectedKeys() const { return SelectedKeys; }
 
 protected:
+
+	/** Transforms selected tangent by given translation */
+	bool TransformSelectedTangent(const FVector& DeltaTranslate);
+
+	/** Transforms selected tangent by given translate, rotate and scale */
+	bool TransformSelectedKeys(const FVector& DeltaTranslate, const FRotator& DeltaRotate = FRotator::ZeroRotator, const FVector& DeltaScale = FVector::ZeroVector, bool bDuplicateKey = false);
+
+	/** Snaps edited point and rot point to given world location, up vector, and tangent */
+	void SnapTo(USplineComponent *SplineComp, int32 KeyIdx,
+		const FVector& InLocation, const FVector& InUpVector = FVector::ZeroVector, bool bInAlignUpVector = false, const FVector& InTangentVector = FVector::ZeroVector, bool bInAlignTangentVector = false);
 
 	/** Update the key selection state of the visualizer */
 	void ChangeSelectionState(int32 Index, bool bIsCtrlHeld);
@@ -111,6 +133,15 @@ protected:
 	void OnAddKey();
 	bool CanAddKey() const;
 
+	void OnSnapToNearestSplinePoint(bool bAlign);
+	bool CanSnapToNearestSplinePoint() const;
+
+	void OnSnapAll(EAxis::Type InAxis);
+	bool CanSnapAll() const;
+
+	void OnLockAxis(EAxis::Type InAxis);
+	bool IsLockAxisSet(EAxis::Type InAxis) const; 
+	
 	void OnResetToAutomaticTangent(EInterpCurveMode Mode);
 	bool CanResetToAutomaticTangent(EInterpCurveMode Mode) const;
 
@@ -131,6 +162,12 @@ protected:
 
 	/** Generate the submenu containing the available auto tangent types */
 	void GenerateTangentTypeSubMenu(FMenuBuilder& MenuBuilder) const;
+
+	/** Generate the submenu containing the available snap/align actions */
+	void GenerateSnapAlignSubMenu(FMenuBuilder& MenuBuilder) const;
+	
+	/** Generate the submenu containing the lock axis types */
+	void GenerateLockAxisSubMenu(FMenuBuilder& MenuBuilder) const;
 
 	/** Output log commands */
 	TSharedPtr<FUICommandList> SplineComponentVisualizerActions;
@@ -174,6 +211,10 @@ protected:
 
 	/** Whether we currently allow duplication when dragging */
 	bool bAllowDuplication;
+
+	/** Axis to fix when adding new spline points. Uses the value of the currently 
+	    selected spline point's X, Y, or Z value when fix is not equal to none. */
+	EAxis::Type AddKeyLockedAxis;
 
 private:
 	UProperty* SplineCurvesProperty;

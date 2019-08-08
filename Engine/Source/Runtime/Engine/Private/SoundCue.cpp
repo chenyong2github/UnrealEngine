@@ -10,24 +10,27 @@
 #include "UObject/UObjectIterator.h"
 #include "EngineUtils.h"
 #include "Sound/SoundNode.h"
-#include "Sound/SoundNodeMixer.h"
 #include "Sound/SoundNodeAssetReferencer.h"
+#include "Sound/SoundNodeMixer.h"
 #include "Sound/SoundWave.h"
-#include "Sound/SoundNodeWavePlayer.h"
 #include "Sound/SoundNodeAttenuation.h"
+#include "Sound/SoundNodeModulator.h"
 #include "Sound/SoundNodeQualityLevel.h"
-#include "Sound/SoundNodeSoundClass.h"
 #include "Sound/SoundNodeRandom.h"
+#include "Sound/SoundNodeSoundClass.h"
+#include "Sound/SoundNodeWavePlayer.h"
 #include "GameFramework/GameUserSettings.h"
 #include "AudioCompressionSettingsUtils.h"
 #include "AudioThread.h"
+#include "DSP/Dsp.h"
 #if WITH_EDITOR
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "Sound/AudioSettings.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "SoundCueGraph/SoundCueGraph.h"
 #include "SoundCueGraph/SoundCueGraphNode_Root.h"
 #include "SoundCueGraph/SoundCueGraphSchema.h"
-#endif
+#endif // WITH_EDITOR
 
 /*-----------------------------------------------------------------------------
 	USoundCue implementation.
@@ -37,7 +40,7 @@ int32 USoundCue::CachedQualityLevel = -1;
 
 #if WITH_EDITOR
 TSharedPtr<ISoundCueAudioEditor> USoundCue::SoundCueAudioEditor = nullptr;
-#endif
+#endif // WITH_EDITOR
 
 USoundCue::USoundCue(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -58,7 +61,6 @@ void USoundCue::PostInitProperties()
 
 	CacheAggregateValues();
 }
-
 
 void USoundCue::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -106,14 +108,14 @@ void USoundCue::Serialize(FStructuredArchive::FRecord Record)
 		{
 			Record << NAMED_FIELD(SoundCueGraph);
 		}
-#endif
+#endif // WITH_EDITORONLY_DATA
 	}
 #if WITH_EDITOR
 	else
 	{
 		Record << NAMED_FIELD(SoundCueGraph);
 	}
-#endif
+#endif // WITH_EDITOR
 }
 
 void USoundCue::PostLoad()
@@ -140,7 +142,7 @@ void USoundCue::PostLoad()
 		}
 	}
 	else
-#endif
+#endif // WITH_EDITOR
 	if (GEngine && *GEngine->GameUserSettingsClass)
 	{
 		EvaluateNodes(false);
@@ -278,7 +280,7 @@ void USoundCue::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyCha
 
 	CacheAggregateValues();
 }
-#endif
+#endif // WITH_EDITOR
 
 void USoundCue::RecursiveFindAttenuation( USoundNode* Node, TArray<class USoundNodeAttenuation*> &OutNodes )
 {
@@ -630,11 +632,20 @@ void USoundCue::SetSoundCueAudioEditor(TSharedPtr<ISoundCueAudioEditor> InSoundC
 	SoundCueAudioEditor = InSoundCueAudioEditor;
 }
 
-/** Gets the sound cue graph editor implementation. */
-TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
+void USoundCue::ResetGraph()
+{
+	for (const USoundNode* Node : AllNodes)
 	{
-	return SoundCueAudioEditor;
+		SoundCueGraph->RemoveNode(Node->GraphNode);
+	}
+
+	AllNodes.Reset();
+	FirstNode = nullptr;
 }
 
-
-#endif
+/** Gets the sound cue graph editor implementation. */
+TSharedPtr<ISoundCueAudioEditor> USoundCue::GetSoundCueAudioEditor()
+{
+	return SoundCueAudioEditor;
+}
+#endif // WITH_EDITOR

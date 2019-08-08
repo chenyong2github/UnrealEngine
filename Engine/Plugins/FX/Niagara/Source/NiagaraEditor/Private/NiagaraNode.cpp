@@ -6,6 +6,7 @@
 #include "NiagaraHlslTranslator.h"
 #include "GraphEditAction.h"
 #include "SNiagaraGraphNode.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNode"
 
@@ -600,6 +601,11 @@ void UNiagaraNode::RouteParameterMapAroundMe(FNiagaraParameterMapHistoryBuilder&
 UNiagaraNode::FOnNodeVisualsChanged& UNiagaraNode::OnVisualsChanged()
 {
 	return VisualsChangedDelegate;
+}
+
+void UNiagaraNode::UpdateCompileHashForNode(FSHA1& HashState) const
+{
+	HashState.Update((const uint8*)&ChangeId, sizeof(FGuid));
 }
 
 

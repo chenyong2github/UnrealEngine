@@ -47,6 +47,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = Effects)
 	uint32 bPlayEffectChainTails : 1;
 
+	void AddReferencedEffects(FReferenceCollector& Collector);
+
 protected:
 
 #if WITH_EDITORONLY_DATA

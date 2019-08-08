@@ -103,6 +103,10 @@ int32 SGridPanel::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 					MaxLayerId = FMath::Max(MaxLayerId, CurWidgetsMaxLayerId);
 				}
+				else
+				{
+					//SlateGI - RemoveContent
+				}
 			}
 		}
 	}

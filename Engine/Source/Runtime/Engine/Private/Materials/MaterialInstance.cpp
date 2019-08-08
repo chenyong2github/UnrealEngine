@@ -59,7 +59,7 @@ void CacheMaterialInstanceUniformExpressions(const UMaterialInstance* MaterialIn
  * WARNING: This function is a noop outside of the Editor!
  * @param ParentMaterial - The parent material to look for.
  */
-void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentMaterial)
+void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentMaterial, bool bRecreateUniformBuffer)
 {
 	if (GIsEditor)
 	{
@@ -73,7 +73,7 @@ void RecacheMaterialInstanceUniformExpressions(const UMaterialInterface* ParentM
 				if (MaterialInstance->Parent == ParentMaterial)
 				{
 					UE_LOG(LogMaterial,Verbose,TEXT("--> %s"), *MaterialInstance->GetFullName());
-					CacheMaterialInstanceUniformExpressions(*It);
+					CacheMaterialInstanceUniformExpressions(*It, bRecreateUniformBuffer);
 					break;
 				}
 				new (ReentranceGuards) FMICReentranceGuard(MaterialInstance);
@@ -470,18 +470,6 @@ void UMaterialInstance::InitResources()
 	GameThread_InitMIParameters(this, VectorParameterValues);
 	GameThread_InitMIParameters(this, TextureParameterValues);
 	GameThread_InitMIParameters(this, FontParameterValues);
-
-#if WITH_EDITOR
-	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
-	for (FScalarParameterValue ScalarParam : ScalarParameterValues)
-	{
-		IsScalarParameterUsedAsAtlasPosition(ScalarParam.ParameterInfo, ScalarParam.AtlasData.bIsUsedAsAtlasPosition, ScalarParam.AtlasData.Curve, ScalarParam.AtlasData.Atlas);
-		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
-		{
-			SetScalarParameterAtlasInternal(ScalarParam.ParameterInfo, ScalarParam.AtlasData);
-		}
-	}
-#endif
 
 	PropagateDataToMaterialProxy();
 
@@ -1335,7 +1323,6 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1370,7 +1357,6 @@ void UMaterialInstance::OverrideVectorParameterDefault(const FMaterialParameterI
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -1405,7 +1391,6 @@ void UMaterialInstance::OverrideScalarParameterDefault(const FMaterialParameterI
 	if (bShouldRecacheMaterialExpressions)
 	{
 		RecacheUniformExpressions(false);
-		RecacheMaterialInstanceUniformExpressions(this);
 	}
 #endif // #if WITH_EDITOR
 }
@@ -3232,6 +3217,28 @@ void UMaterialInstance::PostLoad()
 
 	Super::PostLoad();
 
+#if WITH_EDITOR
+	//recalculate any scalar params based on a curve position in an atlas in case the atlas changed
+	for (FScalarParameterValue& ScalarParam : ScalarParameterValues)
+	{
+		if (ScalarParam.AtlasData.bIsUsedAsAtlasPosition)
+		{
+			UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(ScalarParam.AtlasData.Atlas.Get());
+			UCurveLinearColor* Curve = Cast<UCurveLinearColor>(ScalarParam.AtlasData.Curve.Get());
+			if (Curve && Atlas)
+			{
+				Curve->ConditionalPostLoad();
+				Atlas->ConditionalPostLoad();
+				int32 Index = Atlas->GradientCurves.Find(Curve);
+				if (Index != INDEX_NONE)
+				{
+					ScalarParam.ParameterValue = (float)Index;
+				}
+			}
+		}
+	}
+#endif
+
 	if (FApp::CanEverRender())
 	{
 		// Resources can be processed / registered now that we're back on the main thread
@@ -3766,7 +3773,7 @@ void UMaterialInstance::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ValueSet || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::Unspecified || PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 	{
-		RecacheMaterialInstanceUniformExpressions(this);
+		RecacheMaterialInstanceUniformExpressions(this, false);
 	}
 }
 

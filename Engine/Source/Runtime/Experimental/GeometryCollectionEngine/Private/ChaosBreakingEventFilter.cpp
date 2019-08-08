@@ -3,7 +3,7 @@
 
 #if INCLUDE_CHAOS
 
-void FChaosBreakingEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const FPBDRigidsSolver::FBreakingDataArray& RawBreakingDataArray)
+void FChaosBreakingEventFilter::FilterEvents(const FTransform& ChaosComponentTransform, const Chaos::FBreakingDataArray& RawBreakingDataArray)
 {
 	FilteredDataArray.Reset();
 

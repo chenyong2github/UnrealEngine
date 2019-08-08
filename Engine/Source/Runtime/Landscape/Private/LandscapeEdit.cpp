@@ -824,6 +824,26 @@ public:
 	int32 SizeVertsSquare = 0;
 };
 
+void ULandscapeComponent::UpdateDirtyCollisionHeightData(FIntRect Region)
+{
+	// Take first value as is
+	if (LayerDirtyCollisionHeightData.IsEmpty())
+	{
+		LayerDirtyCollisionHeightData = Region;
+	}
+	else
+	{
+		// Merge min/max region
+		LayerDirtyCollisionHeightData.Include(Region.Min);
+		LayerDirtyCollisionHeightData.Include(Region.Max);
+	}
+}
+
+void ULandscapeComponent::ClearDirtyCollisionHeightData()
+{
+	LayerDirtyCollisionHeightData = FIntRect();
+}
+
 void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const HeightmapTextureMipData, const FColor* const SimpleCollisionHeightmapTextureData, int32 ComponentX1/*=0*/, int32 ComponentY1/*=0*/, int32 ComponentX2/*=MAX_int32*/, int32 ComponentY2/*=MAX_int32*/, bool bUpdateBounds/*=false*/, const FColor* XYOffsetTextureMipData/*=nullptr*/, bool bInUpdateHeightfieldRegion/*=true*/)
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
@@ -853,6 +873,18 @@ void ULandscapeComponent::UpdateCollisionHeightData(const FColor* const Heightma
 		{
 			CollisionComp->Modify();
 		}
+	}
+	else
+	{
+		// In Landscape Layers, only update dirtied collision height data
+		if (bInUpdateHeightfieldRegion && ComponentX1 == 0 && ComponentY1 == 0 && ComponentX2 == MAX_int32 && ComponentY2 == MAX_int32 && !LayerDirtyCollisionHeightData.IsEmpty())
+		{
+			ComponentX1 = LayerDirtyCollisionHeightData.Min.X;
+			ComponentY1 = LayerDirtyCollisionHeightData.Min.Y;
+			ComponentX2 = LayerDirtyCollisionHeightData.Max.X;
+			ComponentY2 = LayerDirtyCollisionHeightData.Max.Y;
+		}
+		ClearDirtyCollisionHeightData();
 	}
 
 	// Existing collision component is same type with collision
@@ -1284,7 +1316,10 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 
 	if (CollisionComp)
 	{
-		CollisionComp->Modify();
+		if (!Proxy->HasLayersContent())
+		{
+			CollisionComp->Modify();
+		}
 
 		// Simple collision is not currently supported with mesh collision components
 		const bool bUsingSimpleCollision = (SimpleCollisionMipLevel > CollisionMipLevel && SimpleCollisionWeightmapTextureMipData && !XYOffsetmapTexture);
@@ -3247,6 +3282,14 @@ bool ULandscapeInfo::GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, i
 		Comp->GetComponentExtent(MinX, MinY, MaxX, MaxY);
 	}
 	return (MinX != MAX_int32);
+}
+
+LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const
+{
+	for (auto& XYComponentPair : XYtoComponentMap)
+	{
+		Fn(XYComponentPair.Value);
+	}
 }
 
 bool ULandscapeInfo::GetSelectedExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const

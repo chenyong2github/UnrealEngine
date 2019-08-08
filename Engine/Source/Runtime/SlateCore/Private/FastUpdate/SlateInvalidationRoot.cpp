@@ -33,6 +33,7 @@ FSlateInvalidationRoot::FSlateInvalidationRoot()
 	, FastPathGenerationNumber(INDEX_NONE)
 	, bChildOrderInvalidated(false)
 	, bNeedsSlowPath(true)
+	, bNeedScreenPositionShift(false)
 {
 	FSlateApplicationBase::Get().OnInvalidateAllWidgets().AddRaw(this, &FSlateInvalidationRoot::OnInvalidateAllWidgets);
 
@@ -101,6 +102,11 @@ void FSlateInvalidationRoot::InvalidateChildOrder()
 	}
 }
 
+void FSlateInvalidationRoot::InvalidateScreenPosition()
+{
+	bNeedScreenPositionShift = true;
+}
+
 int32 RecursiveFindParentWithChildOrderChange(const TArray<FWidgetProxy>& FastWidgetPathList, const FWidgetProxy& Proxy)
 {
 	if (Proxy.bChildOrderInvalid)
@@ -163,18 +169,22 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 
 	SWidget* RootWidget = InvalidationRootWidget->Advanced_IsWindow() ? InvalidationRootWidget : &(*InvalidationRootWidget->GetAllChildren()->GetChildAt(0));
 
-	//AssignFastPathIndices(RootWidget, true);
+	if (bNeedScreenPositionShift)
+	{
+		SCOPED_NAMED_EVENT(Slate_InvalidateScreenPosition, FColor::Red);
+		AdjustWidgetsDesktopGeometry(Context.PaintArgs->GetWindowToDesktopTransform());
+		bNeedScreenPositionShift = false;
+	}
 
 	EFlowDirection NewFlowDirection = GSlateFlowDirection;
 	if (RootWidget->GetFlowDirectionPreference() == EFlowDirectionPreference::Inherit)
 	{
 		NewFlowDirection = GSlateFlowDirectionShouldFollowCultureByDefault ? FLayoutLocalization::GetLocalizedLayoutDirection() : EFlowDirection::LeftToRight;
 	}
-
 	TGuardValue<EFlowDirection> FlowGuard(GSlateFlowDirection, NewFlowDirection);
 	if (!Context.bAllowFastPathUpdate || bNeedsSlowPath || GSlateIsInInvalidationSlowPath)
 	{
-		SCOPED_NAMED_EVENT(SWidget_PaintSlowPath, FColor::Red);
+		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
 
 		//CSV_EVENT(Basic, "Slate Slow Path update");
 #if WITH_SLATE_DEBUGGING
@@ -210,9 +220,6 @@ FSlateInvalidationResult FSlateInvalidationRoot::PaintInvalidationRoot(const FSl
 	{
 		// We should not have been supplied a different root than the one we generated a path to
 		check(RootWidget == FastWidgetPathList[0].Widget);
-
-		// hack, layout caching must be disabled
-		//TGuardValue<int32> LayoutCachingGuard(GSlateLayoutCaching, 0);
 
 		Result.bRepaintedWidgets = PaintFastPath(Context);
 	}
@@ -339,7 +346,7 @@ bool FSlateInvalidationRoot::PaintFastPath(const FSlateInvalidationContext& Cont
 
 	if (bNeedsSlowPath)
 	{
-		SCOPED_NAMED_EVENT(SWidget_PaintSlowPath, FColor::Red);
+		SCOPED_NAMED_EVENT(Slate_PaintSlowPath, FColor::Red);
 		CachedMaxLayerId = PaintSlowPath(Context);
 	}
 
@@ -354,7 +361,7 @@ void FSlateInvalidationRoot::BuildNewFastPathList_Recursive(FSlateInvalidationRo
 	if (Proxy.bChildOrderInvalid)
 	{
 		NextTreeIndex = Proxy.LeafMostChildIndex != INDEX_NONE ? Proxy.LeafMostChildIndex + 1 : NextTreeIndex + 1;
-		Proxy.Widget->AssignIndicesToChildren(*this, ParentIndex, NewFastPathList, !Proxy.bInvisibleDueToParentOrSelfVisibility, Proxy.Widget->IsVolatile() || Proxy.Widget->IsVolatileIndirectly());
+		Proxy.Widget->AssignIndicesToChildren(*this, ParentIndex, NewFastPathList, !Proxy.bInvisibleDueToParentOrSelfVisibility, Proxy.Widget->IsVolatileIndirectly());
 	}
 	else
 	{ 
@@ -389,6 +396,20 @@ void FSlateInvalidationRoot::BuildNewFastPathList_Recursive(FSlateInvalidationRo
 		}
 	}
 	
+}
+
+void FSlateInvalidationRoot::AdjustWidgetsDesktopGeometry(FVector2D WindowToDesktopTransform)
+{
+	FSlateLayoutTransform WindowToDesktop(WindowToDesktopTransform);
+
+	for (FWidgetProxy& Proxy : FastWidgetPathList)
+	{
+		if (Proxy.Widget)
+		{
+			Proxy.Widget->PersistentState.DesktopGeometry = Proxy.Widget->PersistentState.AllottedGeometry;
+			Proxy.Widget->PersistentState.DesktopGeometry.AppendTransform(WindowToDesktop);
+		}
+	}
 }
 
 #define VERIFY_CHILD_ORDER 0
@@ -452,7 +473,6 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	{
 		if (bChildOrderInvalidated)
 		{
-			CSV_EVENT_GLOBAL(TEXT("Slate Sort Children"));
 			SCOPED_NAMED_EVENT(Slate_InvalidationProcessing_SortChildren, FColor::Orange);
 
 			struct FWidgetNeedingUpdate
@@ -557,14 +577,14 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 	return bWidgetsNeedRepaint;
 }
 
-void FSlateInvalidationRoot::ClearAllFastPathData(bool bInvalidationRootBeingDestroyed)
+void FSlateInvalidationRoot::ClearAllFastPathData(bool bClearResourcesImmediately)
 {
 	for (const FWidgetProxy& Proxy : FastWidgetPathList)
 	{
 		if (Proxy.Widget)
 		{
 			Proxy.Widget->PersistentState.CachedElementListNode = nullptr;
-			if (bInvalidationRootBeingDestroyed)
+			if (bClearResourcesImmediately)
 			{
 				Proxy.Widget->FastPathProxyHandle = FWidgetProxyHandle();
 			}
@@ -577,11 +597,15 @@ void FSlateInvalidationRoot::ClearAllFastPathData(bool bInvalidationRootBeingDes
 	FinalUpdateList.Empty();
 }
 
-void FSlateInvalidationRoot::OnInvalidateAllWidgets()
+void FSlateInvalidationRoot::OnInvalidateAllWidgets(bool bClearResourcesImmediately)
 {
 	InvalidateChildOrder();
 
 	InvalidationRootWidget->InvalidatePrepass();
 
+	if (bClearResourcesImmediately)
+	{
+		ClearAllFastPathData(true);
+	}
 	bNeedsSlowPath = true;
 }

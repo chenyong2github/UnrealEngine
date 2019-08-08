@@ -61,7 +61,7 @@ void* GetAllocation( void* Target, uint32 Size, uint32 Offset, uint32 Alignment 
 			FOpenGL::GenBuffers(1, &PoolVB);
 			glBindBuffer(GL_COPY_READ_BUFFER, PoolVB);
 			FOpenGL::BufferStorage(GL_COPY_READ_BUFFER, PerFrameMax * 4, NULL, GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
-			PoolPointer = (uint8*)FOpenGL::MapBufferRange(GL_COPY_READ_BUFFER, 0, PerFrameMax * 4, FOpenGL::RLM_WriteOnlyPersistent);
+			PoolPointer = (uint8*)FOpenGL::MapBufferRange(GL_COPY_READ_BUFFER, 0, PerFrameMax * 4, FOpenGL::EResourceLockMode::RLM_WriteOnlyPersistent);
 
 			FreeSpace = PerFrameMax * 4;
 
@@ -208,7 +208,7 @@ void* FOpenGLDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate&
 	}
 	else
 	{
-		if (VertexBuffer->IsDynamic() && LockMode == RLM_WriteOnly)
+		if (VertexBuffer->IsDynamic() && LockMode == EResourceLockMode::RLM_WriteOnly)
 		{
 			void *Staging = GetAllocation(VertexBuffer, Size, Offset);
 			if (Staging)
@@ -216,7 +216,7 @@ void* FOpenGLDynamicRHI::LockVertexBuffer_BottomOfPipe(FRHICommandListImmediate&
 				return Staging;
 			}
 		}
-		return (void*)VertexBuffer->Lock(Offset, Size, LockMode == RLM_ReadOnly, VertexBuffer->IsDynamic());
+		return (void*)VertexBuffer->Lock(Offset, Size, LockMode == EResourceLockMode::RLM_ReadOnly, VertexBuffer->IsDynamic());
 	}
 	RHITHREAD_GLCOMMAND_EPILOGUE_RETURN(void*);
 }

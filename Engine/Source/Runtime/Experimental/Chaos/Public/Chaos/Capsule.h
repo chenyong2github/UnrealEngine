@@ -127,7 +127,7 @@ namespace Chaos
 		TArray<TVector<T, 3>> ComputeSamplePoints(const T PointsPerUnitArea, const int32 MinPoints = 0, const int32 MaxPoints = 1000) const
 		{ return ComputeSamplePoints(FMath::Clamp(static_cast<int32>(ceil(PointsPerUnitArea * GetArea())), MinPoints, MaxPoints)); }
 
-		T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const
+		virtual T PhiWithNormal(const TVector<T, 3>& x, TVector<T, 3>& Normal) const override
 		{
 			auto Dot = FMath::Clamp(TVector<T, 3>::DotProduct(x - MPoint, MVector), (T)0., MHeight);
 			TVector<T, 3> ProjectedPoint = Dot * MVector + MPoint;
@@ -137,7 +137,7 @@ namespace Chaos
 
 		virtual const TBox<T, 3>& BoundingBox() const override { return MLocalBoundingBox; }
 
-		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal) const override
+		virtual bool Raycast(const TVector<T, 3>& StartPoint, const TVector<T, 3>& Dir, const T Length, const T Thickness, T& OutTime, TVector<T, 3>& OutPosition, TVector<T, 3>& OutNormal, int32& OutFaceIndex) const override
 		{
 			ensure(FMath::IsNearlyEqual(MVector.SizeSquared(), 1, KINDA_SMALL_NUMBER));
 			ensure(FMath::IsNearlyEqual(Dir.SizeSquared(), 1, KINDA_SMALL_NUMBER));
@@ -145,6 +145,7 @@ namespace Chaos
 
 			const T R = MRadius + Thickness;
 			const T R2 = R * R;
+			OutFaceIndex = INDEX_NONE;
 
 			//First check if we are initially overlapping
 			//Find closest point to cylinder core and check if it's inside the inflated capsule
@@ -224,7 +225,7 @@ namespace Chaos
 					const T PositionLengthOnCoreCylinder = TVector<T, 3>::DotProduct(CylinderToSpherePosition, MVector);
 					if (PositionLengthOnCoreCylinder >= 0 && PositionLengthOnCoreCylinder < MHeight)
 					{
-						OutTime = Time / Length;
+						OutTime = Time;
 						OutNormal = (CylinderToSpherePosition - MVector * PositionLengthOnCoreCylinder) / R;
 						OutPosition = SpherePosition - OutNormal * Thickness;
 						return true;
@@ -247,8 +248,8 @@ namespace Chaos
 				T Time1, Time2;
 				TVector<T, 3> Position1, Position2;
 				TVector<T, 3> Normal1, Normal2;
-				bool bHitX1 = X1Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time1, Position1, Normal1);
-				bool bHitX2 = X2Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time2, Position2, Normal2);
+				bool bHitX1 = X1Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time1, Position1, Normal1, OutFaceIndex);
+				bool bHitX2 = X2Sphere.Raycast(StartPoint, Dir, Length, Thickness, Time2, Position2, Normal2, OutFaceIndex);
 
 				if (bHitX1 && bHitX2)
 				{
@@ -338,7 +339,14 @@ namespace Chaos
 		}
 
 		static TRotation<T, 3> GetRotationOfMass()
-		{ return TRotation<T, 3>(TVector<T, 3>(0), 1); }
+		{
+			return TRotation<T, 3>(TVector<T, 3>(0), 1); 
+		}
+
+		virtual uint32 GetTypeHash() const override
+		{
+			return HashCombine(::GetTypeHash(MPoint), ::GetTypeHash(MVector));
+		}
 
 	private:
 		void InitUnionedObjects()
@@ -357,7 +365,6 @@ namespace Chaos
 			return MUnionedObjects->FindClosestIntersection(StartPoint, EndPoint, Thickness);
 		}
 
-	private:
 		TVector<T, 3> MPoint, MVector;
 		T MHeight, MRadius;
 		TBox<T, 3> MLocalBoundingBox;

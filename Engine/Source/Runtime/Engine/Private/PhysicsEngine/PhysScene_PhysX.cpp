@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX
 
 #include "Physics/PhysScene_PhysX.h"
 #include "Misc/CommandLine.h"
@@ -23,7 +23,10 @@
 
 #include "PhysicsInterfaceDeclaresCore.h"
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
+
+#if INCLUDE_CHAOS
 #include "SQAccelerator.h"
+#endif
 
 #if WITH_PHYSX
 #include "PhysXPublic.h"
@@ -963,7 +966,14 @@ void FPhysScene_PhysX::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSk
 		if (InSkelComp->bDeferredKinematicUpdate)
 		{
 			TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>* FoundItem = DeferredKinematicUpdateSkelMeshes.FindByPredicate([InSkelComp](const TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>& InItem) { return InSkelComp == InItem.Key; });
-			check(FoundItem != nullptr); // If the bool was set, we must be in the array!
+			if (!ensure(FoundItem != nullptr))// If the bool was set, we must be in the array!
+			{
+				FDeferredKinematicUpdateInfo Info;
+				Info.TeleportType = InTeleport;
+				Info.bNeedsSkinning = bNeedsSkinning;
+				DeferredKinematicUpdateSkelMeshes.Emplace(InSkelComp, Info);
+				return;
+			}
 
 			FDeferredKinematicUpdateInfo& Info = FoundItem->Value;
 
@@ -1002,7 +1012,7 @@ void FPhysScene_PhysX::ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkel
 		// Remove from map
 		int32 NumRemoved = DeferredKinematicUpdateSkelMeshes.RemoveAll([InSkelComp](const TPair<USkeletalMeshComponent*, FDeferredKinematicUpdateInfo>& InItem) { return InSkelComp == InItem.Key; });
 
-		check(NumRemoved == 1); // Should be in array if flag was set!
+		ensure(NumRemoved == 1); // Should be in array if flag was set!
 
 		// Clear flag
 		InSkelComp->bDeferredKinematicUpdate = false;
@@ -1019,7 +1029,7 @@ void FPhysScene_PhysX::UpdateKinematicsOnDeferredSkelMeshes()
 		USkeletalMeshComponent* SkelComp = DeferredKinematicUpdate.Key;
 		const FDeferredKinematicUpdateInfo& Info = DeferredKinematicUpdate.Value;
 
-		check(SkelComp->bDeferredKinematicUpdate); // Should be true if in map!
+		ensure(SkelComp->bDeferredKinematicUpdate); // Should be true if in map!
 
 		// Perform kinematic updates
 		SkelComp->UpdateKinematicBonesToAnim(SkelComp->GetComponentSpaceTransforms(), Info.TeleportType, Info.bNeedsSkinning, EAllowKinematicDeferral::DisallowDeferral);
@@ -2291,4 +2301,4 @@ int32 FPhysScene::GetNumAwakeBodies()
 
 #endif // !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
-#endif //  !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#endif //  !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX

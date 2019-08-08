@@ -533,6 +533,19 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 							Texture->Name);
 					}
 
+					{
+						// We only validate single-mip textures since we don't track production at the subresource level.
+						const bool bFailedToLoadProducedContent = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
+
+						// Untracked render targets aren't actually managed by the render target pool.
+						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && !Texture->PooledRenderTarget->IsTracked();
+
+						ensureMsgf(!bFailedToLoadProducedContent || bIsUntrackedRenderTarget,
+							TEXT("Pass '%s' attempted to bind texture '%s' as a render target without the 'Load' action specified, despite a prior pass having produced it. It's invalid to completely clobber the contents of a resource. Create a new texture instance instead."),
+							PassName,
+							Texture->Name);
+					}
+
 					/** Mark the pass as a producer for render targets with a store action. */
 					Texture->MarkAsProducedBy(Pass);
 

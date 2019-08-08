@@ -6,6 +6,9 @@ namespace Chaos
 {
 
 template <typename T, int d>
+class TGeometryParticle;
+
+template <typename T, int d>
 class TSpatialRay
 {
 public:
@@ -27,7 +30,7 @@ public:
 	This class is responsible for gathering any information it wants (for example narrow phase query results).
 	This class determines whether the acceleration structure should continue to iterate through potential instances
 */
-template <typename T>
+template <typename TPayloadType, typename T>
 class CHAOS_API ISpatialVisitor
 {
 public:
@@ -37,21 +40,21 @@ public:
 		@Instance - the instance we are potentially overlapping
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Overlap(const int32 Instance) = 0;
+	virtual bool Overlap(const TPayloadType Instance) = 0;
 
 	/** Called whenever an instance in the acceleration structure may intersect with a raycast
 		@Instance - the instance we are potentially intersecting with a raycast
 		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Raycast(const int32 Instance, T& CurLength) = 0;
+	virtual bool Raycast(const TPayloadType Instance, T& CurLength) = 0;
 
 	/** Called whenever an instance in the acceleration structure may intersect with a sweep
 		@Instance - the instance we are potentially intersecting with a sweep
 		@CurLength - the length all future intersection tests will use. A blocking intersection should update this
 		Returns true to continue iterating through the acceleration structure
 	*/
-	virtual bool Sweep(const int32 Instance, T& CurLength) = 0;
+	virtual bool Sweep(const TPayloadType Instance, T& CurLength) = 0;
 };
 
 enum class ESpatialAccelerationType
@@ -79,20 +82,20 @@ public:
 
 };
 
-template <typename T, int d>
+template <typename TPayloadType, typename T, int d>
 class CHAOS_API ISpatialAcceleration
 {
 public:
 	virtual ~ISpatialAcceleration() = default;
 
-	virtual TArray<int32> FindAllIntersections(const TBox<T, d>& Box) const = 0;
-	virtual TArray<int32> FindAllIntersections(const TSpatialRay<T,d>& Ray) const = 0;
-	virtual TArray<int32> FindAllIntersections(const TVector<T, d>& Point) const = 0;
-	virtual TArray<int32> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const = 0;
+	virtual TArray<TPayloadType> FindAllIntersections(const TBox<T, d>& Box) const = 0;
+	virtual TArray<TPayloadType> FindAllIntersections(const TSpatialRay<T,d>& Ray) const = 0;
+	virtual TArray<TPayloadType> FindAllIntersections(const TVector<T, d>& Point) const = 0;
+	virtual TArray<TPayloadType> FindAllIntersections(const TGeometryParticles<T, d>& InParticles, const int32 i) const = 0;
 
-	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<T>& Visitor) const {}
-	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
-	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
+	virtual void Raycast(const TVector<T, d>& Start, const TVector<T, d>& Dir, const T OriginalLength, ISpatialVisitor<TPayloadType, T>& Visitor) const {}
+	virtual void Sweep(const TVector<T, d>& Start, const TVector<T, d>& Dir, T OriginalLength, const TVector<T, d> QueryHalfExtents, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
+	virtual void Overlap(const TBox<T, d>& QueryBounds, ISpatialVisitor<TPayloadType, T>& Visitor, const TVector<T, d>& Scale = TVector<T, d>(1)) const {}
 
 #if !UE_BUILD_SHIPPING
 	virtual void DebugDraw(ISpacialDebugDrawInterface<T>* InInterface) const {}
@@ -102,29 +105,29 @@ public:
 };
 
 /** Helper class used to bridge virtual to template implementation of acceleration structures */
-template <typename T>
+template <typename TPayloadType, typename T>
 class TSpatialVisitor
 {
 public:
-	TSpatialVisitor(ISpatialVisitor<T>& InVisitor)
+	TSpatialVisitor(ISpatialVisitor<TPayloadType, T>& InVisitor)
 		: Visitor(InVisitor) {}
-	FORCEINLINE bool VisitOverlap(const int32 Instance)
+	FORCEINLINE bool VisitOverlap(const TPayloadType Instance)
 	{
 		return Visitor.Overlap(Instance);
 	}
 
-	FORCEINLINE bool VisitRaycast(const int32 Instance, T& CurLength)
+	FORCEINLINE bool VisitRaycast(const TPayloadType Instance, T& CurLength)
 	{
 		return Visitor.Raycast(Instance, CurLength);
 	}
 
-	FORCEINLINE bool VisitSweep(const int32 Instance, T& CurLength)
+	FORCEINLINE bool VisitSweep(const TPayloadType Instance, T& CurLength)
 	{
 		return Visitor.Sweep(Instance, CurLength);
 	}
 
 private:
-	ISpatialVisitor<T>& Visitor;
+	ISpatialVisitor<TPayloadType, T>& Visitor;
 };
 
 }

@@ -64,25 +64,14 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraScript* InScript, FText
 
 }
 
-FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
-	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(InEmitter, DisplayName, InParameterEditMode)))
-	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InEmitter, InParameterEditMode)))
-	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(Cast<UNiagaraScriptSource>(InEmitter->GraphSource), DisplayName)))
+FNiagaraScriptViewModel::FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
+	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(DisplayName, InParameterEditMode)))
+	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InParameterEditMode)))
+	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(DisplayName)))
 	, VariableSelection(MakeShareable(new FNiagaraObjectSelection()))
 	, bUpdatingSelectionInternally(false)
 	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
 {
-	TArray<UNiagaraScript*> InScripts;
-	InEmitter->GetScripts(InScripts);
-	// Because of weak pointers, we need to copy ourselves..
-	for (UNiagaraScript* Script : InScripts)
-	{
-		int32 i = Scripts.Add(Script);
-		check(Script->GetSource() == InEmitter->GraphSource);
-		Scripts[i]->OnVMScriptCompiled().AddRaw(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
-	}
-	Source = Cast<UNiagaraScriptSource>(InEmitter->GraphSource);
- 
 	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::InputViewModelSelectionChanged);
 	InputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::InputParameterValueChanged);
 	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
@@ -95,50 +84,6 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraEmitter* InEmitter, FTe
 	CompileStatuses.Empty();
 	CompileErrors.Empty();
 	CompilePaths.Empty();
-
-	for (int32 i = 0; i < Scripts.Num(); i++)
-	{
-		FString Message;
-		ENiagaraScriptCompileStatus ScriptStatus = Scripts[i]->GetLastCompileStatus();
-		if (Scripts[i].IsValid() && Scripts[i]->IsCompilable() && Scripts[i]->GetVMExecutableData().IsValid() && Scripts[i]->GetVMExecutableData().ByteCode.Num() == 0) // This is either a brand new script or failed in the past. Since we create a default working script, assume invalid.
-		{
-			LastCompileStatus = ScriptStatus;
-			Message = TEXT("Please recompile for full error stack.");
-			GraphViewModel->SetErrorTextToolTip(Message);
-		}
-		else // Possibly warnings previously, but still compiled. It *could* have been dirtied somehow, but we assume that it is up-to-date.
-		{
-			if (Scripts[i].IsValid() && Scripts[i]->IsCompilable()&& Scripts[i]->AreScriptAndSourceSynchronized())
-			{
-				LastCompileStatus = FNiagaraEditorUtilities::UnionCompileStatus(LastCompileStatus, Scripts[i]->GetLastCompileStatus());
-			}
-			else if (Scripts[i].IsValid() && !Scripts[i]->IsCompilable())
-			{
-				// Do nothing..
-				ScriptStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
-			}
-			else
-			{
-				LastCompileStatus = FNiagaraEditorUtilities::UnionCompileStatus(LastCompileStatus, ENiagaraScriptCompileStatus::NCS_Error);
-				ScriptStatus = ENiagaraScriptCompileStatus::NCS_Error;
-				Message = TEXT("Please recompile for full error stack.");
-				GraphViewModel->SetErrorTextToolTip(Message);
-			}
-		}
-
-		CompilePaths.Add(Scripts[i]->GetPathName());
-		CompileErrors.Add(Message);
-		CompileStatuses.Add(ScriptStatus);
-
-		RegisteredHandles.Add(RegisterViewModelWithMap(Scripts[i].Get(), this));
-	}
-
-	CompileTypes.SetNum(CompileStatuses.Num());
-	for (int32 i = 0; i < CompileStatuses.Num(); i++)
-	{
-		CompileTypes[i].Key = Scripts[i]->GetUsage();
-		CompileTypes[i].Value = Scripts[i]->GetUsageId();
-	}
 }
 
 void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)

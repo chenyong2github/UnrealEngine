@@ -71,7 +71,7 @@ public:
 	bool bEnableFlow;
 
 	/** Whether back-facing triangles should be ignored */
-	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Ignore back-facing"))
+	UPROPERTY(EditAnywhere, Category = Brush, meta = (DisplayName = "Ignore Back-Facing"))
 	bool bOnlyFrontFacingTriangles;
 	
 	/** Color view mode used to display Vertex Colors */

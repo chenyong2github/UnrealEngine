@@ -1,0 +1,31 @@
+#include "/Engine/Private/GammaCorrectionCommon.ush"
+
+float MPCDI_sRGBToLinear(float srgb)
+{
+	if (srgb <= 0.04045)
+		return srgb / 12.92;
+	else
+		return pow((srgb + 0.055) / 1.055, 2.4);
+}
+
+float MPCDI_LinarTosRGB(float lin)
+{
+	if (lin <= 0.0031308)
+		return lin * 12.92;
+	else
+		return 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
+}
+
+float3 MPCDI_sRGBToLinear(float3 srgb)
+{
+	return float3(MPCDI_sRGBToLinear(srgb.r),
+				  MPCDI_sRGBToLinear(srgb.g),
+				  MPCDI_sRGBToLinear(srgb.b));
+}
+
+float3 MPCDI_LinearTosRGB(float3 lin)
+{
+	return float3(MPCDI_LinarTosRGB(lin.r),
+				  MPCDI_LinarTosRGB(lin.g),
+				  MPCDI_LinarTosRGB(lin.b));
+}

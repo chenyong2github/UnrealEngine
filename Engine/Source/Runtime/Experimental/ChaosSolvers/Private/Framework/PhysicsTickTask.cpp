@@ -7,7 +7,8 @@
 #include "ChaosSolversModule.h"
 #include "Framework/Dispatcher.h"
 #include "ChaosStats.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
+#include "PhysicsCoreTypes.h"
 
 FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
 	TEXT("TaskGraph.TaskPriorities.PhysicsTickTask"),
@@ -51,15 +52,15 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 	// per-solver commands and the solver advance
 	FGraphEventRef CommandsTask = TGraphTask<FPhysicsCommandsTask>::CreateTask().ConstructAndDispatchWhenReady();
 
-	const TArray<FPBDRigidsSolver*>& SolverList = Module->GetSolvers();
+	const TArray<FPhysicsSolver*>& SolverList = Module->GetSolvers();
 
 	// List of active solvers (assume all are active for single alloc)
-	TArray<FPBDRigidsSolver*> ActiveSolvers;
+	TArray<FPhysicsSolver*> ActiveSolvers;
 	ActiveSolvers.Reserve(SolverList.Num());
 
-	for(FPBDRigidsSolver* Solver : SolverList)
+	for(FPhysicsSolver* Solver : SolverList)
 	{
-		if(Solver->HasActiveObjects())
+		if(Solver->HasActiveParticles() || Solver->HasPendingCommands())
 		{
 			ActiveSolvers.Add(Solver);
 		}
@@ -76,7 +77,7 @@ void FPhysicsTickTask::DoTask(ENamedThreads::Type CurrentThread, const FGraphEve
 
 	// For each solver spawn a new solver advance task (which will run the per-solver command buffer and then advance the solver)
 	// Record the task reference as a prerequisite for the completion
-	for(FPBDRigidsSolver* Solver : ActiveSolvers)
+	for(FPhysicsSolver* Solver : ActiveSolvers)
 	{
 		FGraphEventRef SolverTaskRef = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&SolverTaskPrerequisites).ConstructAndDispatchWhenReady(Solver, Dt);
 		CompletionTaskPrerequisites.Add(SolverTaskRef);
@@ -96,9 +97,8 @@ FPhysicsCommandsTask::FPhysicsCommandsTask()
 	Module = FChaosSolversModule::GetModule();
 	check(Module);
 
-	Chaos::IDispatcher* BaseDispatcher = Module->GetDispatcher();
-	Dispatcher = BaseDispatcher && BaseDispatcher->GetMode() == EChaosThreadingMode::TaskGraph ? static_cast<Chaos::FDispatcher<EChaosThreadingMode::TaskGraph>*>(BaseDispatcher) : nullptr;
-	check(Dispatcher);
+	Dispatcher = Module->GetDispatcher();
+	check(Dispatcher->GetMode() == EChaosThreadingMode::TaskGraph);
 }
 
 TStatId FPhysicsCommandsTask::GetStatId() const
@@ -120,29 +120,12 @@ void FPhysicsCommandsTask::DoTask(ENamedThreads::Type CurrentThread, const FGrap
 {
 	using namespace Chaos;
 
-	// Global and task-level commands (in this threading mode these are analogous as there is no task)
-	{
-		SCOPE_CYCLE_COUNTER(STAT_PhysCommands);
-		TFunction<void()> GlobalCommand;
-		while(Dispatcher->GlobalCommandQueue.Dequeue(GlobalCommand))
-		{
-			GlobalCommand();
-		}
-	}
-	
-	{
-		SCOPE_CYCLE_COUNTER(STAT_TaskCommands);
-		TFunction<void(FPersistentPhysicsTask*)> TaskCommand;
-		while(Dispatcher->TaskCommandQueue.Dequeue(TaskCommand))
-		{
-			TaskCommand(nullptr);
-		}
-	}
+	Dispatcher->Execute();
 }
 
 //////////////////////////////////////////////////////////////////////////
 
-FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(Chaos::FPBDRigidsSolver* InSolver, float InDt)
+FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(Chaos::FPhysicsSolver* InSolver, float InDt)
 	: Solver(InSolver)
 	, Dt(InDt)
 {
@@ -170,7 +153,7 @@ void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread, const 
 	StepSolver(Solver, Dt);
 }
 
-void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPBDRigidsSolver* InSolver, float InDt)
+void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPhysicsSolver* InSolver, float InDt)
 {
 	using namespace Chaos;
 
@@ -180,8 +163,8 @@ void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPBDRigidsSolver* InSolver, fl
 	{
 		SCOPE_CYCLE_COUNTER(STAT_HandleSolverCommands);
 
-		TQueue<TFunction<void(FPBDRigidsSolver*)>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
-		TFunction<void(FPBDRigidsSolver*)> Command;
+		TQueue<TFunction<void(FPhysicsSolver*)>, EQueueMode::Mpsc>& Queue = InSolver->CommandQueue;
+		TFunction<void(FPhysicsSolver*)> Command;
 		while(Queue.Dequeue(Command))
 		{
 			Command(InSolver);
@@ -190,10 +173,8 @@ void FPhysicsSolverAdvanceTask::StepSolver(Chaos::FPBDRigidsSolver* InSolver, fl
 
 	if(InSolver->bEnabled)
 	{
-		FSolverObjectStorage& Objects = InSolver->GetObjectStorage();
-
 		// Only process if we have something to actually simulate
-		if(Objects.GetNumObjects() > 0)
+		if(Solver->HasActiveParticles())
 		{
 			InSolver->AdvanceSolverBy(InDt);
 		}

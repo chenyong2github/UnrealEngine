@@ -27,12 +27,10 @@
 // Originally we were supporting 1803, but there were rendering issues specific to that version so for now we only support 1809
 #define MIN_WIN_10_VERSION_FOR_WMR 1809
 
-#if PLATFORM_HOLOLENS
-	#include "HoloLensModule.h"
+#include "WindowsMixedRealityAvailability.h"
 
-	using namespace Windows::Graphics::Holographic;
-	using namespace Windows::UI::Core;
-	using namespace Windows::ApplicationModel::Core;
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
+	#include "HoloLensModule.h"
 #endif
 
 // Control logging from here so we don't have to change the interop library to enable/disable logging
@@ -169,7 +167,7 @@ namespace WindowsMixedReality
 				FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
 				FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
 				FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
-				FPlatformProcess::GetDllHandle(_TEXT("HolographicAppRemoting.dll"));
+				FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
 				FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
 #endif // PLATFORM_64BITS && WITH_EDITOR
 
@@ -193,7 +191,14 @@ namespace WindowsMixedReality
 					"Windows Mixed Reality is not supported on this Windows version. \nNote: UE4 only supports Windows Mixed Reality on Windows 10 Release {0} or higher. Current version: {1}")),
 					FText::FromString(FString::FromInt(MIN_WIN_10_VERSION_FOR_WMR)), FText::FromString(OSVersionLabel));
 				FMessageDialog::Open(EAppMsgType::Ok, ErrorText);
-				UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
+				if (IsRunningCommandlet())
+				{
+					UE_LOG(LogWmrHmd, Warning, TEXT("%s"), *ErrorText.ToString());
+				}
+				else
+				{
+					UE_LOG(LogWmrHmd, Error, TEXT("%s"), *ErrorText.ToString());
+				}
 			}
 
 #else // !PLATFORM_HOLOLENS
@@ -219,7 +224,7 @@ namespace WindowsMixedReality
 #if WITH_WINDOWS_MIXED_REALITY
 			if (HMD)
 			{
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 				FHoloLensModuleAR::SetInterop(nullptr);
 #endif
 				HMD->Dispose(true);
@@ -251,13 +256,13 @@ namespace WindowsMixedReality
 		if (HMD)
 		{
 			IARSystemSupport* ARSystem = nullptr;
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 			ARSystem = FHoloLensModuleAR::CreateARSystem();
 #endif
 			auto WindowsMRHMD = FSceneViewExtensions::NewExtension<WindowsMixedReality::FWindowsMixedRealityHMD>(ARSystem, HMD);
 			if (WindowsMRHMD->IsInitialized())
 			{
-#if PLATFORM_HOLOLENS
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 				FHoloLensModuleAR::SetTrackingSystem(WindowsMRHMD);
 				FHoloLensModuleAR::SetInterop(HMD);
 				// Register the AR modular features
@@ -328,7 +333,9 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnBeginPlay(FWorldContext & InWorldContext)
 	{
+	#if PLATFORM_HOLOLENS
 		EnableStereo(true);
+	#endif
 
 		//start speech recognition if there are any commands we care to listen for
 		StartSpeechRecognition();
@@ -338,7 +345,9 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::OnEndPlay(FWorldContext & InWorldContext)
 	{
+	#if PLATFORM_HOLOLENS
 		EnableStereo(false);
+	#endif
 
 		StopSpeechRecognition();
 
@@ -513,7 +522,7 @@ namespace WindowsMixedReality
 		}
 
 		// Restore windows focus to game window to preserve keyboard/mouse input.
-		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine)
+		if ((currentWornState == EHMDWornState::Type::Worn) && GEngine && GEngine->GameViewport)
 		{
 			HWND gameHWND = (HWND)GEngine->GameViewport->GetWindow()->GetNativeWindow()->GetOSWindowHandle();
 
@@ -543,7 +552,12 @@ namespace WindowsMixedReality
 #endif
 
 		CachedWorldToMetersScale = WorldContext.World()->GetWorldSettings()->WorldToMeters;
-		RefreshTrackingToWorldTransform(WorldContext);
+
+		// Only refresh this based on the game world.  When remoting there is also an editor world, which we do not want to have affect the transform.
+		if (WorldContext.World()->IsGameWorld())
+		{
+			RefreshTrackingToWorldTransform(WorldContext);
+		}
 
 		return true;
 	}
@@ -794,8 +808,8 @@ namespace WindowsMixedReality
 			}
 
 			HMD->EnableStereo(stereo);
-#if PLATFORM_HOLOLENS
-			HMD->SetInteractionManager(Windows::UI::Input::Spatial::SpatialInteractionManager::GetForCurrentView());
+#if SUPPORTS_WINDOWS_MIXED_REALITY_GESTURES
+			HMD->SetInteractionManagerForCurrentView();
 #endif
 
 			InitializeHolographic();
@@ -1094,7 +1108,9 @@ namespace WindowsMixedReality
 
 	bool FWindowsMixedRealityHMD::HasVisibleAreaMesh() const
 	{
-		return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
+		//re-enable this when we're not running on the simulator once we can query for platform type
+		return false;
+		//return VisibleAreaMesh[0].IsValid() && VisibleAreaMesh[1].IsValid();
 	}
 
 	void FWindowsMixedRealityHMD::DrawVisibleAreaMesh_RenderThread(FRHICommandList& RHICmdList, EStereoscopicPass StereoPass) const
@@ -1269,6 +1285,9 @@ namespace WindowsMixedReality
 			return;
 		}
 
+		// Update currentFrame in the interop
+		HMD->UpdateCurrentFrame();
+
 		CreateHMDDepthTexture(RHICmdList);
 		if (!HMD->CreateRenderingParameters(stereoDepthTexture))
 		{
@@ -1421,7 +1440,7 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::StartSpeechRecognition()
 	{
-#if WITH_WINDOWS_MIXED_REALITY
+#if WITH_WINDOWS_MIXED_REALITY && SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION
 		StopSpeechRecognition();
 
 		//get all speech keywords
@@ -1452,7 +1471,7 @@ namespace WindowsMixedReality
 
 	void FWindowsMixedRealityHMD::StopSpeechRecognition()
 	{
-#if WITH_WINDOWS_MIXED_REALITY
+#if WITH_WINDOWS_MIXED_REALITY && SUPPORTS_WINDOWS_MIXED_REALITY_SPEECH_RECOGNITION
 		//remove keys from "speech" namespace
 		EKeys::RemoveKeysWithCategory(FInputActionSpeechMapping::GetKeyCategory());
 #endif
@@ -1576,6 +1595,17 @@ namespace WindowsMixedReality
 		return true;
 	}
 
+	bool FWindowsMixedRealityHMD::PollHandTracking()
+	{
+		if (!bIsStereoEnabled)
+		{
+			return false;
+		}
+
+		HMD->PollHandTracking();
+		return true;
+	}
+
 	HMDInputPressState WindowsMixedReality::FWindowsMixedRealityHMD::GetPressState(HMDHand hand, HMDInputControllerButtons button)
 	{
 		return HMD->GetPressState(hand, button);
@@ -1631,14 +1661,14 @@ namespace WindowsMixedReality
 	}
 
 	// Remoting
-	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate)
+	void FWindowsMixedRealityHMD::ConnectToRemoteHoloLens(const wchar_t* ip, unsigned int bitrate, bool isHoloLens1)
 	{
 #if WITH_EDITOR
 		D3D11Device = InternalGetD3D11Device();
 
 #if WITH_WINDOWS_MIXED_REALITY
 		HMD->SetLogCallback(WindowsMixedRealityHMD::LogForInterop);
-		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate);
+		HMD->ConnectToRemoteHoloLens(D3D11Device.GetReference(), ip, bitrate, isHoloLens1);
 #endif
 #endif
 	}

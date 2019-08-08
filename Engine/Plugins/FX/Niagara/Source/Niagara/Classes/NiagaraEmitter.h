@@ -267,6 +267,14 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (EditCondition = "bLimitDeltaTime"))
 	float MaxDeltaTimePerTick;
 
+	/** Get the max number of iteration that the CS is going to be launched. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	uint32 MaxUpdateIterations;
+
+	/** Get the max number of iteration that the CS is going to be launched. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter")
+	TSet<uint32> SpawnStages;
+
 	/** Whether to limit the max tick delta time or not. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Emitter", meta = (InlineEditConditionToggle))
 	uint32 bLimitDeltaTime : 1;

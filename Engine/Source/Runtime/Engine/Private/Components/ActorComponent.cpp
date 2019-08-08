@@ -197,8 +197,8 @@ void UActorComponent::PostInitProperties()
 				if (HasAnyInternalFlags(EInternalObjectFlags::AsyncLoading))
 				{
 					// Async loading components cannot be pending kill, or the async loading code will assert when trying to postload them.
-					// Instead, wait until the linker is set and invalidate the export so it does not proceed to load
-					bInvalidateExportWhenLinkerIsSet = true;
+					// Instead, wait until the postload and mark pending kill at that time
+					bMarkPendingKillOnPostLoad = true;
 				}
 				else
 #endif // WITH_EDITOR
@@ -277,6 +277,14 @@ void UActorComponent::PostLoad()
 		// For a brief period of time we were inadvertently storing these for all components, need to clear it out
 		UCSModifiedProperties.Empty();
 	}
+
+#if WITH_EDITOR
+	if (bMarkPendingKillOnPostLoad)
+	{
+		MarkPendingKill();
+		bMarkPendingKillOnPostLoad = false;
+	}
+#endif // WITH_EDITOR
 }
 
 bool UActorComponent::Rename( const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags )
@@ -551,17 +559,6 @@ bool UActorComponent::CallRemoteFunction( UFunction* Function, void* Parameters,
 
 /** FComponentReregisterContexts for components which have had PreEditChange called but not PostEditChange. */
 static TMap<TWeakObjectPtr<UActorComponent>,FComponentReregisterContext*> EditReregisterContexts;
-
-void UActorComponent::PostLinkerChange()
-{
-	Super::PostLinkerChange();
-
-	if (bInvalidateExportWhenLinkerIsSet)
-	{
-		FLinkerLoad::InvalidateExport(this);
-		bInvalidateExportWhenLinkerIsSet = false;
-	}
-}
 
 bool UActorComponent::Modify( bool bAlwaysMarkDirty/*=true*/ )
 {

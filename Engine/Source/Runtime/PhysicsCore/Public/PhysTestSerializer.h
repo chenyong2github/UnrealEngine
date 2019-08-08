@@ -5,11 +5,9 @@
 #include "CoreMinimal.h"
 #include "PhysicsInterfaceDeclaresCore.h"
 
-#if  !WITH_CHAOS_NEEDS_TO_BE_FIXED
-
-
 #if INCLUDE_CHAOS
-#include "Chaos/PBDRigidsEvolution.h"
+#include "Chaos/PBDRigidsEvolutionGBF.h"
+#include "Chaos/ParticleHandle.h"
 #endif
 #include "SQCapture.h"
 
@@ -73,7 +71,9 @@ public:
 
 #if INCLUDE_CHAOS
 			GetChaosData();
+#if WITH_PHYSX
 			SQCapture->CreateChaosData();
+#endif
 #endif
 		}
 		return SQCapture.Get();
@@ -105,8 +105,8 @@ public:
 #endif
 
 #if WITH_PHYSX && INCLUDE_CHAOS
-	int32 PhysXActorToChaosIdx(physx::PxActor* Actor) const { return PxActorToChaosIdx.FindChecked(Actor); }
-	Chaos::TImplicitObject<float,3>* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosImplicit.FindRef(Shape); }
+	Chaos::TGeometryParticle<float,3>* PhysXActorToChaosHandle(physx::PxActor* Actor) const { return PxActorToChaosHandle.FindChecked(Actor)->GTGeometryParticle(); }
+	Chaos::TPerShapeData<float,3>* PhysXShapeToChaosImplicit(physx::PxShape* Shape) const { return PxShapeToChaosShapes.FindRef(Shape); }
 #endif
 
 private:
@@ -124,6 +124,8 @@ private:
 
 #if INCLUDE_CHAOS
 	TUniquePtr<Chaos::TPBDRigidsEvolutionGBF<float, 3>> ChaosEvolution;
+	Chaos::TPBDRigidsSOAs<float, 3> Particles;
+	TArray <TUniquePtr<Chaos::TGeometryParticle<float, 3>>> GTParticles;
 #endif
 
 #if WITH_PHYSX
@@ -145,11 +147,9 @@ private:
 #endif
 
 #if WITH_PHYSX && INCLUDE_CHAOS
-	TMap<physx::PxActor*, int32> PxActorToChaosIdx;
-	TMap<physx::PxShape*, Chaos::TImplicitObject<float, 3>*> PxShapeToChaosImplicit;
+	TMap<physx::PxActor*, Chaos::TGeometryParticleHandle<float, 3>*> PxActorToChaosHandle;
+	TMap<physx::PxShape*, Chaos::TPerShapeData<float, 3>*> PxShapeToChaosShapes;
 #endif
 };
-
-#endif
 
 #endif

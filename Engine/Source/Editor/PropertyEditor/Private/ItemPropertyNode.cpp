@@ -38,48 +38,49 @@ uint8* FItemPropertyNode::GetValueBaseAddress( uint8* StartAddress )
 
 		uint8* ValueBaseAddress = ParentNode->GetValueBaseAddress(StartAddress);
 
-		if ( OuterArrayProp != NULL )
+		if (OuterArrayProp != nullptr)
 		{
 			FScriptArrayHelper ArrayHelper(OuterArrayProp, ValueBaseAddress);
-			if ( ValueBaseAddress != NULL && ArrayIndex < ArrayHelper.Num() )
+			if (ValueBaseAddress != nullptr && ArrayHelper.Num() > 0)
 			{
 				return ArrayHelper.GetRawPtr() + ArrayOffset;
 			}
-
-			return NULL;
 		}
-		else if (OuterSetProp != NULL)
+		else if (OuterSetProp != nullptr)
 		{
 			FScriptSetHelper SetHelper(OuterSetProp, ValueBaseAddress);
-			if (ValueBaseAddress != NULL && SetHelper.Num())
+			if (ValueBaseAddress != nullptr)
 			{
 				int32 ActualIndex = SetHelper.FindInternalIndex(ArrayIndex);
-				return SetHelper.GetElementPtr(ActualIndex);
+				if (ActualIndex != INDEX_NONE)
+				{
+					return SetHelper.GetElementPtr(ActualIndex);
+				}
 			}
-
-			return NULL;
 		}
-		else if (OuterMapProp != NULL)
+		else if (OuterMapProp != nullptr)
 		{
 			FScriptMapHelper MapHelper(OuterMapProp, ValueBaseAddress);
-			if (ValueBaseAddress != NULL && MapHelper.Num() > 0)
+			if (ValueBaseAddress != nullptr)
 			{
 				int32 ActualIndex = MapHelper.FindInternalIndex(ArrayIndex);
-				uint8* PairPtr = MapHelper.GetPairPtr(ActualIndex);
-				return MyProperty->ContainerPtrToValuePtr<uint8>(PairPtr);
+				if (ActualIndex != INDEX_NONE)
+				{
+					uint8* PairPtr = MapHelper.GetPairPtr(ActualIndex);
+					return MyProperty->ContainerPtrToValuePtr<uint8>(PairPtr);
+				}
 			}
-
-			return NULL;
 		}
 		else
 		{
 			uint8* ValueAddress = ParentNode->GetValueAddress(StartAddress);
-			if (ValueAddress != NULL && ParentNode->GetProperty() != MyProperty)
+			if (ValueAddress != nullptr && ParentNode->GetProperty() != MyProperty)
 			{
 				// if this is not a fixed size array (in which the parent property and this property are the same), we need to offset from the property (otherwise, the parent already did that for us)
 				ValueAddress = Property->ContainerPtrToValuePtr<uint8>(ValueAddress);
 			}
-			if ( ValueAddress != NULL )
+
+			if (ValueAddress != nullptr)
 			{
 				ValueAddress += ArrayOffset;
 			}
@@ -87,7 +88,7 @@ uint8* FItemPropertyNode::GetValueBaseAddress( uint8* StartAddress )
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 /**
@@ -112,6 +113,16 @@ uint8* FItemPropertyNode::GetValueAddress( uint8* StartAddress )
 	{
 		FScriptArrayHelper ArrayHelper(ArrayProperty,Result);
 		Result = ArrayHelper.GetRawPtr();
+	}
+	else if (Result && SetProperty)
+	{
+		FScriptSetHelper SetHelper(SetProperty, Result);
+		Result = SetHelper.GetElementPtr(0);
+	}
+	else if (Result && MapProperty)
+	{
+		FScriptMapHelper MapHelper(MapProperty, Result);
+		Result = MapHelper.GetPairPtr(0);
 	}
 
 	return Result;
@@ -521,6 +532,13 @@ FText FItemPropertyNode::GetDisplayName() const
 			
 			// Sets and maps do not have a display index.
 			UProperty* ParentProperty = ParentNode->GetProperty();
+
+			// Also handle UArray's having the ArraySizeEnum entry...
+			if (ArraySizeEnum == nullptr && Cast<UArrayProperty>(ParentProperty) != nullptr && ParentProperty->HasMetaData(NAME_ArraySizeEnum))
+			{
+				ArraySizeEnum = FindObject<UEnum>(NULL, *ParentProperty->GetMetaData(NAME_ArraySizeEnum));
+			}
+
 			if (Cast<USetProperty>(ParentProperty) == nullptr &&  Cast<UMapProperty>(ParentProperty) == nullptr)
 			{
 				// This item is a member of an array, its display name is its index 

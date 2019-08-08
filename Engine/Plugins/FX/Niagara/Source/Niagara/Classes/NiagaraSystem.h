@@ -166,9 +166,6 @@ public:
 	/** Gets editor specific data stored with this system. */
 	const UNiagaraEditorDataBase* GetEditorData() const;
 
-	/** Sets editor specific data stored with this system. */
-	void SetEditorData(UNiagaraEditorDataBase* InEditorData);
-
 	/** Internal: The thumbnail image.*/
 	UPROPERTY()
 	class UTexture2D* ThumbnailImage;

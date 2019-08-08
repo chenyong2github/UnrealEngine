@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -72,7 +72,9 @@ static int (*ALSA_snd_pcm_hw_params_set_period_size_near)
   (snd_pcm_t *, snd_pcm_hw_params_t *, snd_pcm_uframes_t *, int *);
 static int (*ALSA_snd_pcm_hw_params_get_period_size)
   (const snd_pcm_hw_params_t *, snd_pcm_uframes_t *, int *);
-static int (*ALSA_snd_pcm_hw_params_set_periods_near)
+static int (*ALSA_snd_pcm_hw_params_set_periods_min)
+  (snd_pcm_t *, snd_pcm_hw_params_t *, unsigned int *, int *);
+static int (*ALSA_snd_pcm_hw_params_set_periods_first)
   (snd_pcm_t *, snd_pcm_hw_params_t *, unsigned int *, int *);
 static int (*ALSA_snd_pcm_hw_params_get_periods)
   (const snd_pcm_hw_params_t *, unsigned int *, int *);
@@ -148,7 +150,8 @@ load_alsa_syms(void)
     SDL_ALSA_SYM(snd_pcm_hw_params_set_rate_near);
     SDL_ALSA_SYM(snd_pcm_hw_params_set_period_size_near);
     SDL_ALSA_SYM(snd_pcm_hw_params_get_period_size);
-    SDL_ALSA_SYM(snd_pcm_hw_params_set_periods_near);
+    SDL_ALSA_SYM(snd_pcm_hw_params_set_periods_min);
+    SDL_ALSA_SYM(snd_pcm_hw_params_set_periods_first);
     SDL_ALSA_SYM(snd_pcm_hw_params_get_periods);
     SDL_ALSA_SYM(snd_pcm_hw_params_set_buffer_size_near);
     SDL_ALSA_SYM(snd_pcm_hw_params_get_buffer_size);
@@ -448,7 +451,7 @@ static void
 ALSA_CloseDevice(_THIS)
 {
     if (this->hidden->pcm_handle) {
-	/* Wait for the submitted audio to drain
+        /* Wait for the submitted audio to drain
            ALSA_snd_pcm_drop() can hang, so don't use that.
          */
         Uint32 delay = ((this->spec.samples * 1000) / this->spec.freq) * 2;
@@ -465,14 +468,14 @@ ALSA_set_buffer_size(_THIS, snd_pcm_hw_params_t *params)
 {
     int status;
     snd_pcm_hw_params_t *hwparams;
-    snd_pcm_uframes_t bufsize;
     snd_pcm_uframes_t persize;
+    unsigned int periods;
 
     /* Copy the hardware parameters for this setup */
     snd_pcm_hw_params_alloca(&hwparams);
     ALSA_snd_pcm_hw_params_copy(hwparams, params);
 
-    /* Prioritize matching the period size to the requested buffer size */
+    /* Attempt to match the period size to the requested buffer size */
     persize = this->spec.samples;
     status = ALSA_snd_pcm_hw_params_set_period_size_near(
                 this->hidden->pcm_handle, hwparams, &persize, NULL);
@@ -480,10 +483,16 @@ ALSA_set_buffer_size(_THIS, snd_pcm_hw_params_t *params)
         return(-1);
     }
 
-    /* Next try to restrict the parameters to having only two periods */
-    bufsize = this->spec.samples * 2;
-    status = ALSA_snd_pcm_hw_params_set_buffer_size_near(
-                    this->hidden->pcm_handle, hwparams, &bufsize);
+    /* Need to at least double buffer */
+    periods = 2;
+    status = ALSA_snd_pcm_hw_params_set_periods_min(
+                this->hidden->pcm_handle, hwparams, &periods, NULL);
+    if ( status < 0 ) {
+        return(-1);
+    }
+
+    status = ALSA_snd_pcm_hw_params_set_periods_first(
+                this->hidden->pcm_handle, hwparams, &periods, NULL);
     if ( status < 0 ) {
         return(-1);
     }
@@ -498,9 +507,9 @@ ALSA_set_buffer_size(_THIS, snd_pcm_hw_params_t *params)
 
     /* This is useful for debugging */
     if ( SDL_getenv("SDL_AUDIO_ALSA_DEBUG") ) {
-        unsigned int periods = 0;
+        snd_pcm_uframes_t bufsize;
 
-        ALSA_snd_pcm_hw_params_get_periods(hwparams, &periods, NULL);
+        ALSA_snd_pcm_hw_params_get_buffer_size(hwparams, &bufsize);
 
         fprintf(stderr,
             "ALSA: period size = %ld, periods = %u, buffer size = %lu\n",
@@ -798,7 +807,7 @@ ALSA_HotplugThread(void *arg)
         ALSA_Device *seen;
         ALSA_Device *prev;
 
-        if (ALSA_snd_device_name_hint(-1, "pcm", &hints) != -1) {
+        if (ALSA_snd_device_name_hint(-1, "pcm", &hints) == 0) {
             int i, j;
             const char *match = NULL;
             int bestmatch = 0xFFFF;

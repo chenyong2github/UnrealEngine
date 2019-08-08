@@ -216,6 +216,7 @@ void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResou
 
 void FNiagaraWorldManager::Tick(float DeltaSeconds)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Niagara);
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManTick);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
@@ -225,7 +226,7 @@ void FNiagaraWorldManager::Tick(float DeltaSeconds)
 	SkeletalMeshGeneratedData.TickGeneratedData(DeltaSeconds);
 
 	// Cache player view locations for all system instances to access
-	CachedPlayerViewLocations.Reset();
+	bCachedPlayerViewLocationsValid = true;
 	if (World->GetPlayerControllerIterator())
 	{
 		for ( FConstPlayerControllerIterator Iterator=World->GetPlayerControllerIterator(); Iterator; ++Iterator)
@@ -266,14 +267,25 @@ void FNiagaraWorldManager::Tick(float DeltaSeconds)
 		SystemSimulations.Remove(DeadSystem);
 	}
 
-	// Enqueue fence for deferred deletion
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
+	// Clear cached player view location list, it should never be used outside of the world tick
+	bCachedPlayerViewLocationsValid = false;
+	CachedPlayerViewLocations.Reset();
 
-	// Remove instances from previous frame
-	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	// Enqueue fence for deferred deletion if we need to wait on anything
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
 	{
-		SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
-		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.BeginFence();
 	}
-	DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+
+	// Remove instances from oldest frame making sure they aren't in use on the RT
+	DeferredDeletionQueueIndex = (DeferredDeletionQueueIndex + 1) % NumDeferredQueues;
+	if ( DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Num() > 0 )
+	{
+		if ( !DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.IsFenceComplete() )
+		{
+			SCOPE_CYCLE_COUNTER(STAT_NiagaraWorldManWaitOnRender);
+			DeferredDeletionQueue[DeferredDeletionQueueIndex].Fence.Wait();
+		}
+		DeferredDeletionQueue[DeferredDeletionQueueIndex].Queue.Empty();
+	}
 }

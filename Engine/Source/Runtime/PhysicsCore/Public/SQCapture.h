@@ -3,8 +3,6 @@
 #pragma once
 
 #include "PhysicsInterfaceDeclaresCore.h"
-#if !WITH_CHAOS_NEEDS_TO_BE_FIXED
-
 #include "CoreMinimal.h"
 #include "ChaosSQTypes.h"
 #include "PhysicsInterfaceWrapperShared.h"
@@ -12,9 +10,13 @@
 #include "PhysicsInterfaceDeclaresCore.h"
 #include "PhysXInterfaceWrapperCore.h"
 #include "CollisionQueryFilterCallbackCore.h"
+#include "ChaosInterfaceWrapperCore.h"
 
 
 class FPhysTestSerializer;
+struct FSweepHit;
+struct FRaycastHit;
+struct FOverlapHit;
 
 //Allows us to capture a scene query with either physx or chaos and then load it into either format for testing purposes
 struct PHYSICSCORE_API FSQCapture
@@ -43,15 +45,15 @@ struct PHYSICSCORE_API FSQCapture
 
 #if INCLUDE_CHAOS
 	void StartCaptureChaos(const Chaos::TImplicitObject<float, 3>& InQueryGeom, const FTransform& InStartTM, const FVector& InDir, float InDeltaMag, EHitFlags InOutputFlags);
-	void EndCaptureChaos(const FPhysicsHitCallback<FSweepHit>& Results);
+	void EndCaptureChaos(const ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>& Results);
+#endif
+
+#if INCLUDE_CHAOS
+	ECollisionQueryHitType GetFilterResult(const Chaos::TPerShapeData<float,3>* Shape, const Chaos::TGeometryParticle<float,3>* Actor) const;
 #endif
 
 #if WITH_PHYSX
 	ECollisionQueryHitType GetFilterResult(const physx::PxShape* Shape, const physx::PxActor* Actor) const;
-#endif
-
-#if INCLUDE_CHAOS
-	ECollisionQueryHitType GetFilterResult(const Chaos::TImplicitObject<float,3>& Shape, const int32 ActorIdx, const int32 ShapeIdx) const;
 #endif
 	
 	FVector Dir;
@@ -64,9 +66,9 @@ struct PHYSICSCORE_API FSQCapture
 	TUniquePtr<ICollisionQueryFilterCallbackBase> FilterCallback;
 
 #if WITH_PHYSX
-	FDynamicHitBuffer<PxSweepHit> PhysXSweepBuffer;
-	FDynamicHitBuffer<PxRaycastHit> PhysXRaycastBuffer;
-	FDynamicHitBuffer<PxOverlapHit> PhysXOverlapBuffer;
+	PhysXInterface::FDynamicHitBuffer<PxSweepHit> PhysXSweepBuffer;
+	PhysXInterface::FDynamicHitBuffer<PxRaycastHit> PhysXRaycastBuffer;
+	PhysXInterface::FDynamicHitBuffer<PxOverlapHit> PhysXOverlapBuffer;
 	PxGeometryHolder PhysXGeometry;
 #endif
 
@@ -75,14 +77,14 @@ struct PHYSICSCORE_API FSQCapture
 	const Chaos::TImplicitObject<float, 3>* ChaosGeometry;
 #if WITH_PHYSX
 	//for now just use physx hit buffer
-	FDynamicHitBuffer<FSweepHit> ChaosSweepBuffer;
-	TArray<FSweepHit> ChaosSweepTouches;
+	ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosSweepBuffer;
+	TArray<ChaosInterface::FSweepHit> ChaosSweepTouches;
 
-	FDynamicHitBuffer<FRaycastHit> ChaosRaycastBuffer;
-	TArray<FRaycastHit> ChaosRaycastTouches;
+	ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit> ChaosRaycastBuffer;
+	TArray<ChaosInterface::FRaycastHit> ChaosRaycastTouches;
 
-	FDynamicHitBuffer<FOverlapHit> ChaosOverlapBuffer;
-	TArray<FOverlapHit> ChaosOverlapTouches;
+	ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit> ChaosOverlapBuffer;
+	TArray<ChaosInterface::FOverlapHit> ChaosOverlapTouches;
 #endif
 #endif
 
@@ -122,7 +124,7 @@ private:
 	void SerializePhysXHitType(FArchive& Ar, T& Hit);
 
 	template <typename THit>
-	void SerializePhysXBuffers(FArchive& Ar, int32 Version, FDynamicHitBuffer<THit>& PhysXBuffer);
+	void SerializePhysXBuffers(FArchive& Ar, int32 Version, PhysXInterface::FDynamicHitBuffer<THit>& PhysXBuffer);
 
 	struct FPhysXSerializerData
 	{
@@ -136,7 +138,7 @@ private:
 	};
 	TUniquePtr<FPhysXSerializerData> AlignedDataHelper;
 
-	TMap<physx::PxActor*, TArray<TPair<physx::PxShape*, ECollisionQueryHitType>>> ActorToShapeHitsArray;
+	TMap<physx::PxActor*, TArray<TPair<physx::PxShape*, ECollisionQueryHitType>>> PxActorToShapeHitsArray;
 
 	//only valid during capture when serializing out runtime structures that already use non transient data
 	TMap<physx::PxActor*, physx::PxActor*> NonTransientToTransientActors;
@@ -146,11 +148,9 @@ private:
 	FPhysTestSerializer& PhysSerializer;
 
 #if INCLUDE_CHAOS
-	TMap<int32, TArray<ECollisionQueryHitType>> ChaosActorToHitsArray;
+	TMap<Chaos::TGeometryParticle<float,3>*, TArray<TPair<Chaos::TPerShapeData<float,3>*, ECollisionQueryHitType>>> ChaosActorToShapeHitsArray;
 #endif
 	bool bDiskDataIsChaos;
 	bool bChaosDataReady;
 	bool bPhysXDataReady;
 };
-
-#endif

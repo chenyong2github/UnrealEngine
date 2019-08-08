@@ -7,11 +7,11 @@
 #include "NiagaraEmitterHandle.h"
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterEditorData.h"
-#include "NiagaraOverviewNodeStackItem.h"
+#include "NiagaraOverviewNode.h"
 #include "EdGraphSchema_NiagaraSystemOverview.h"
 #include "EdGraph/EdGraph.h"
 
-static const float SystemOverviewNodePadding = 300.0f;
+static const float SystemOverviewNodePadding = 250.0f;
 
 const FName UNiagaraSystemEditorFolder::GetFolderName() const
 {
@@ -64,6 +64,7 @@ UNiagaraSystemEditorData::UNiagaraSystemEditorData(const FObjectInitializer& Obj
 	OwnerTransform.SetLocation(FVector(0.0f, 0.0f, 0.0f));
 	PlaybackRangeMin = 0;
 	PlaybackRangeMax = 10;
+	bSystemIsPlaceholder = false;
 }
 
 void UNiagaraSystemEditorData::PostInitProperties()
@@ -78,6 +79,8 @@ void UNiagaraSystemEditorData::PostInitProperties()
 
 void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 {
+	UNiagaraSystem* OwningSystem = CastChecked<UNiagaraSystem>(InOwner, ECastCheckedType::NullChecked);
+
 	if (RootFolder == nullptr)
 	{
 		RootFolder = NewObject<UNiagaraSystemEditorFolder>(this, TEXT("RootFolder"), RF_Transactional);
@@ -91,13 +94,14 @@ void UNiagaraSystemEditorData::PostLoadFromOwner(UObject* InOwner)
 
 	if (NiagaraVer < FNiagaraCustomVersion::PlaybackRangeStoredOnSystem)
 	{
-		UpdatePlaybackRangeFromEmitters(OwningSystem);
+		UpdatePlaybackRangeFromEmitters(*OwningSystem);
 	}
 
 	if (SystemOverviewGraph == nullptr)
 	{
 		SystemOverviewGraph = NewObject<UEdGraph>(this, "NiagaraOverview", RF_Transactional);
 		SystemOverviewGraph->Schema = UEdGraphSchema_NiagaraSystemOverview::StaticClass();
+		SynchronizeOverviewGraphWithSystem(*OwningSystem);
 	}
 }
 
@@ -127,14 +131,35 @@ UEdGraph* UNiagaraSystemEditorData::GetSystemOverviewGraph() const
 	return SystemOverviewGraph;	
 }
 
-void UNiagaraSystemEditorData::UpdatePlaybackRangeFromEmitters(UNiagaraSystem* OwnerSystem)
+const FNiagaraGraphViewSettings& UNiagaraSystemEditorData::GetSystemOverviewGraphViewSettings() const
 {
-	if (OwnerSystem->GetEmitterHandles().Num() > 0)
+	return OverviewGraphViewSettings;
+}
+
+void UNiagaraSystemEditorData::SetSystemOverviewGraphViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings)
+{
+	OverviewGraphViewSettings = InOverviewGraphViewSettings;
+}
+
+bool UNiagaraSystemEditorData::GetOwningSystemIsPlaceholder() const
+{
+	return bSystemIsPlaceholder;
+}
+
+void UNiagaraSystemEditorData::SetOwningSystemIsPlaceholder(bool bInSystemIsPlaceholder, UNiagaraSystem& OwnerSystem)
+{
+	bSystemIsPlaceholder = bInSystemIsPlaceholder;
+	SynchronizeOverviewGraphWithSystem(OwnerSystem);
+}
+
+void UNiagaraSystemEditorData::UpdatePlaybackRangeFromEmitters(UNiagaraSystem& OwnerSystem)
+{
+	if (OwnerSystem.GetEmitterHandles().Num() > 0)
 	{
 		float EmitterPlaybackRangeMin = TNumericLimits<float>::Max();
 		float EmitterPlaybackRangeMax = TNumericLimits<float>::Lowest();
 
-		for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem->GetEmitterHandles())
+		for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem.GetEmitterHandles())
 		{
 			UNiagaraEmitterEditorData* EmitterEditorData = Cast<UNiagaraEmitterEditorData>(EmitterHandle.GetInstance()->EditorData);
 			if (EmitterEditorData != nullptr)
@@ -149,105 +174,112 @@ void UNiagaraSystemEditorData::UpdatePlaybackRangeFromEmitters(UNiagaraSystem* O
 	}
 }
 
-void UNiagaraSystemEditorData::InitSystemOverviewGraph()
+void FindOuterNodes(const TArray<UNiagaraOverviewNode*> OverviewNodes, UNiagaraOverviewNode*& OutLeft, UNiagaraOverviewNode*& OutRight)
 {
-	float NextNodePosX = 0.0;
-
-	FGraphNodeCreator<UNiagaraOverviewNodeStackItem> SystemOverviewNodeCreator(*SystemOverviewGraph);
-	UNiagaraOverviewNodeStackItem* SystemOverviewNode = SystemOverviewNodeCreator.CreateNode(false);
-	SystemOverviewNode->Initialize(OwningSystem);
-
-	SystemOverviewNode->NodePosX = NextNodePosX;
-	SystemOverviewNode->NodePosY = 0.0;
-	NextNodePosX += SystemOverviewNodePadding;
-
-	SystemOverviewNodeCreator.Finalize();
-
-	for (const FNiagaraEmitterHandle& Handle : OwningSystem->GetEmitterHandles())
+	if (OverviewNodes.Num() > 0)
 	{
-		FGraphNodeCreator<UNiagaraOverviewNodeStackItem> EmitterOverviewNodeCreator(*SystemOverviewGraph);
-		UNiagaraOverviewNodeStackItem* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
-		EmitterOverviewNode->Initialize(OwningSystem, Handle.GetId());
-
-		EmitterOverviewNode->NodePosX = NextNodePosX;
-		EmitterOverviewNode->NodePosY = 0.0;
-		NextNodePosX += SystemOverviewNodePadding;
-
-		EmitterOverviewNodeCreator.Finalize();
-	}
-}
-
-const FVector2D UNiagaraSystemEditorData::GetGoodPlaceForNewOverviewNode() const
-{
-	TArray<UNiagaraOverviewNodeStackItem*> OverviewNodes;
-	SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNodeStackItem>(OverviewNodes);
-	const TArray<FNiagaraEmitterHandle>& EmitterHandles = OwningSystem->GetEmitterHandles();
-
-	// Find the last created Emitter overview node location and place next to that. 
-	if (EmitterHandles.Num() > 1)
-	{
-		const FGuid PreviousEmitterHandleGuid = EmitterHandles.Last(1).GetId();
-		for (const UNiagaraOverviewNodeStackItem* PerOverviewNode : OverviewNodes)
+		OutLeft = OverviewNodes[0];
+		OutRight = OutLeft;
+		for (int32 i = 1; i < OverviewNodes.Num(); i++)
 		{
-			if (PreviousEmitterHandleGuid == PerOverviewNode->GetEmitterHandleGuid())
+			UNiagaraOverviewNode* Current = OverviewNodes[i];
+			if (Current->NodePosX < OutLeft->NodePosX)
 			{
-				return FVector2D(PerOverviewNode->NodePosX + SystemOverviewNodePadding, PerOverviewNode->NodePosY);
+				OutLeft = Current;
+			}
+			if (Current->NodePosX > OutRight->NodePosX)
+			{
+				OutRight = Current;
 			}
 		}
 	}
-	return SystemOverviewGraph->GetGoodPlaceForNewNode();
-}
-
-bool UNiagaraSystemEditorData::GetSystemOverviewGraphIsValid() const
-{
-	TArray<UEdGraphNode*> Nodes;
-	SystemOverviewGraph->GetNodesOfClass(Nodes);
-	if (Nodes.Num() > 0)
+	else
 	{
-		return true;
-	}
-	return false;
-}
-
-void UNiagaraSystemEditorData::Initialize(UNiagaraSystem* OwnerSystem, bool bEditingSystem)
-{
-	OwningSystem = OwnerSystem;
-
-	if (bEditingSystem && GetSystemOverviewGraphIsValid() == false)
-	{
-		InitSystemOverviewGraph();
+		OutLeft = nullptr;
+		OutRight = nullptr;
 	}
 }
 
-void UNiagaraSystemEditorData::SystemOverviewHandleAdded(const FGuid AddedHandleGuid) const
+void UNiagaraSystemEditorData::SynchronizeOverviewGraphWithSystem(UNiagaraSystem& OwnerSystem)
 {
-	SystemOverviewGraph->Modify();
+	float NextNodePosX = 0.0;
 
-	const FVector2D NewNodeLocation = GetGoodPlaceForNewOverviewNode();
+	TArray<UNiagaraOverviewNode*> OverviewNodes;
+	SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNode>(OverviewNodes);
 
-	FGraphNodeCreator<UNiagaraOverviewNodeStackItem> EmitterOverviewNodeCreator(*SystemOverviewGraph);
-	UNiagaraOverviewNodeStackItem* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
-	EmitterOverviewNode->Initialize(OwningSystem, AddedHandleGuid);
+	UNiagaraOverviewNode* LeftNode;
+	UNiagaraOverviewNode* RightNode;
+	FindOuterNodes(OverviewNodes, LeftNode, RightNode);
 
-	EmitterOverviewNode->NodePosX = NewNodeLocation.X;
-	EmitterOverviewNode->NodePosY = NewNodeLocation.Y;
-
-	EmitterOverviewNodeCreator.Finalize();
-
-	//@TODO System Overview: if we have a ref to the SGraphEditor here, then focus the new node
-}
-
-void UNiagaraSystemEditorData::SystemOverviewHandlesRemoved() const
-{
-	TArray<UNiagaraOverviewNodeStackItem*> CurrentOverviewNodes;
-	SystemOverviewGraph->GetNodesOfClass<UNiagaraOverviewNodeStackItem>(CurrentOverviewNodes);
-	for (UNiagaraOverviewNodeStackItem* OverviewNode : CurrentOverviewNodes)
+	// Validate system node.
+	int32 SystemNodeIndex = OverviewNodes.IndexOfByPredicate([] (UNiagaraOverviewNode* OverviewNode) { return OverviewNode->GetEmitterHandleGuid().IsValid() == false; });
+	if (SystemNodeIndex != INDEX_NONE)
 	{
-		const FGuid OverviewNodeGuid = OverviewNode->GetEmitterHandleGuid();
-		// If the OverviewNode's EmitterHandleGuid is valid (not representing a system) and is not in the current array of the owning System's EmitterHandles, that node can be removed.
-		if (OverviewNodeGuid.IsValid() && false == OwningSystem->GetEmitterHandles().ContainsByPredicate([&OverviewNodeGuid](const FNiagaraEmitterHandle& Handle) {return Handle.GetId() == OverviewNodeGuid; }))
+		if (bSystemIsPlaceholder)
 		{
-			SystemOverviewGraph->RemoveNode(OverviewNode);
+			// Systems which are placeholder are for editing emitter assets and shouldn't have system nodes in their overview graph.
+			UNiagaraOverviewNode* SystemNode = OverviewNodes[SystemNodeIndex];
+			SystemNode->DestroyNode();
 		}
+
+		// Remove the node from the list to track which nodes are no longer used.
+		OverviewNodes.RemoveAt(SystemNodeIndex);
+	}
+	else
+	{
+		if(bSystemIsPlaceholder == false)
+		{
+			FGraphNodeCreator<UNiagaraOverviewNode> SystemOverviewNodeCreator(*SystemOverviewGraph);
+			UNiagaraOverviewNode* SystemOverviewNode = SystemOverviewNodeCreator.CreateNode(false);
+			SystemOverviewNode->Initialize(&OwnerSystem);
+
+			FVector2D SystemOverviewNodeLocation = LeftNode != nullptr
+				? FVector2D(LeftNode->NodePosX - SystemOverviewNodePadding, LeftNode->NodePosY)
+				: SystemOverviewGraph->GetGoodPlaceForNewNode();
+			SystemOverviewNode->NodePosX = SystemOverviewNodeLocation.X;
+			SystemOverviewNode->NodePosY = SystemOverviewNodeLocation.Y;
+
+			SystemOverviewNodeCreator.Finalize();
+
+			if (RightNode == nullptr)
+			{
+				RightNode = SystemOverviewNode;
+			}
+		}
+	}
+
+	// Validate emitter nodes.
+	for (const FNiagaraEmitterHandle& EmitterHandle : OwnerSystem.GetEmitterHandles())
+	{
+		int32 EmitterNodeIndex = OverviewNodes.IndexOfByPredicate([&EmitterHandle] (UNiagaraOverviewNode* OverviewNode) { return OverviewNode->GetEmitterHandleGuid() == EmitterHandle.GetId(); });
+		if (EmitterNodeIndex != INDEX_NONE)
+		{
+			// If a node for this emitter exists already, remove it from the collection so that we can track nodes for emitters which no longer exist.
+			OverviewNodes.RemoveAt(EmitterNodeIndex);
+		}
+		else
+		{
+			FGraphNodeCreator<UNiagaraOverviewNode> EmitterOverviewNodeCreator(*SystemOverviewGraph);
+			UNiagaraOverviewNode* EmitterOverviewNode = EmitterOverviewNodeCreator.CreateNode(false);
+			EmitterOverviewNode->Initialize(&OwnerSystem, EmitterHandle.GetId());
+
+			FVector2D EmitterOverviewNodeLocation = RightNode != nullptr
+				? FVector2D(RightNode->NodePosX + SystemOverviewNodePadding, RightNode->NodePosY)
+				: SystemOverviewGraph->GetGoodPlaceForNewNode();
+
+			checkf(EmitterOverviewNode != nullptr, TEXT("Emitter overview node creation failed!"));
+			EmitterOverviewNode->NodePosX = EmitterOverviewNodeLocation.X;
+			EmitterOverviewNode->NodePosY = EmitterOverviewNodeLocation.Y;
+
+			EmitterOverviewNodeCreator.Finalize();
+
+			RightNode = EmitterOverviewNode;
+		}
+	}
+
+	// If there are any nodes remaining in the list they're no longer being used so destroy them.
+	for (UNiagaraOverviewNode* OverviewNode : OverviewNodes)
+	{
+		OverviewNode->DestroyNode();
 	}
 }

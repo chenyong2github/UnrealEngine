@@ -80,6 +80,9 @@ LPP_NS_BEGIN
 
 enum RestartBehaviour
 {
+	// BEGIN EPIC MODS - Use UE4 codepath for termination to ensure logs are flushed and session analytics are sent
+	LPP_RESTART_BEHAVIOR_REQUEST_EXIT,				// FPlatforMisc::RequestExit(true)
+	// END EPIC MODS
 	LPP_RESTART_BEHAVIOUR_DEFAULT_EXIT,				// ExitProcess()
 	LPP_RESTART_BEHAVIOUR_EXIT_WITH_FLUSH,			// exit()
 	LPP_RESTART_BEHAVIOUR_EXIT,						// _Exit()

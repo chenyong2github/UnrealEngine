@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -76,7 +76,7 @@ Emscripten_CreateCursor(SDL_Surface* surface, int hot_x, int hot_y)
         return NULL;
     }
 
-    cursor_url = (const char *)MAIN_THREAD_EM_ASM_INT({
+    cursor_url = (const char *)EM_ASM_INT({
         var w = $0;
         var h = $1;
         var hot_x = $2;
@@ -208,16 +208,16 @@ Emscripten_ShowCursor(SDL_Cursor* cursor)
             curdata = (Emscripten_CursorData *) cursor->driverdata;
 
             if(curdata->system_cursor) {
-                MAIN_THREAD_EM_ASM({
+                EM_ASM_INT({
                     if (Module['canvas']) {
-                        Module['canvas'].style['cursor'] = Module['Pointer_stringify']($0);
+                        Module['canvas'].style['cursor'] = UTF8ToString($0);
                     }
                     return 0;
                 }, curdata->system_cursor);
             }
         }
         else {
-            MAIN_THREAD_EM_ASM(
+            EM_ASM(
                 if (Module['canvas']) {
                     Module['canvas'].style['cursor'] = 'none';
                 }

@@ -23,14 +23,13 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) override;
 
-#if 0
-protected:
+private:
 	// Joins swap groups and binds to a swap barrier
 	bool InitializeNvidiaSwapLock();
+	void InitializeOpenGLCapabilities();
 	void UpdateSwapInterval(int32 InSyncInterval) const;
 
 private:
 	FOpenGLViewport* OpenGLViewport = nullptr;
 	FPlatformOpenGLContext* OpenGLContext = nullptr;
-#endif
 };

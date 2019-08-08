@@ -25,7 +25,7 @@
 #define GET_EFFECT_SETTINGS(EFFECT_NAME) \
 		U##EFFECT_NAME##Preset* _Preset = CastChecked<U##EFFECT_NAME##Preset>(Preset); \
 		F##EFFECT_NAME##Settings Settings = _Preset->GetSettings(); \
-	
+
 #define EFFECT_PRESET_METHODS(EFFECT_NAME) \
 		virtual FText GetAssetActionName() const override { return FText::FromString(#EFFECT_NAME); } \
 		virtual UClass* GetSupportedClass() const override { return EFFECT_PRESET_NAME(EFFECT_NAME)::StaticClass(); } \
@@ -82,6 +82,8 @@ public:
 	void Update();
 
 	void SetPreset(USoundEffectPreset* Inpreset);
+
+	USoundEffectPreset* GetPreset();
 
 	/** Removes the instance from the preset. */
 	void ClearPreset();

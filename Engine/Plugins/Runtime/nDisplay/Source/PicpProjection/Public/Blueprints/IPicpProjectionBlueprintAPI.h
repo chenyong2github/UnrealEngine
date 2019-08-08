@@ -34,8 +34,14 @@ public:
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get Viewport Count"), Category = "PICP")
 	virtual int GetViewportCount() = 0;
 
-	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set Projection Data Listener"), Category = "PICP")
-	virtual void SetProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) = 0;
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Add Projection Data Listener"), Category = "PICP")
+	virtual void AddProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Remove Projection Data Listener"), Category = "PICP")
+	virtual void RemoveProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) = 0;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Clean Projection Data Listener"), Category = "PICP")
+	virtual void CleanProjectionDataListener(TScriptInterface<IPicpProjectionFrustumDataListener> Listener) = 0;
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Blend Frames"), Category = "PICP")
 	virtual void BlendCameraFrameCaptures(UTexture* SrcFrame, UTextureRenderTarget2D* DstFrame, UTextureRenderTarget2D* Result) = 0;
@@ -48,4 +54,10 @@ public:
 
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Capture Final Warped Frame"), Category = "PICP")
 	virtual void SetWarpTextureCaptureState(UTextureRenderTarget2D* dstTexture, const FString& ViewportId, const int ViewIdx, bool bCaptureNow) = 0;
+
+	/**
+	 * Creates a new render target and initializes it to the specified dimensions
+	 */
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Enable mips for Texture Render Target"), Category = "PICP")
+	virtual void EnableTextureRenderTargetMips(UTextureRenderTarget2D* Texture) = 0;
 };

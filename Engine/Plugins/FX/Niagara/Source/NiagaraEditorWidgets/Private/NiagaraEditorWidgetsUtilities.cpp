@@ -47,6 +47,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		{
 			return "NiagaraEditor.Stack.EventIconHighlighted";
 		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
+		{
+			return "NiagaraEditor.Stack.RenderIconHighlighted";
+		}
 	}
 	else
 	{
@@ -65,6 +69,10 @@ FName FNiagaraStackEditorWidgetsUtilities::GetIconNameForExecutionSubcategory(FN
 		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Event)
 		{
 			return "NiagaraEditor.Stack.EventIcon";
+		}
+		else if (ExecutionSubcategoryName == UNiagaraStackEntry::FExecutionSubcategoryNames::Render)
+		{
+			return "NiagaraEditor.Stack.RenderIcon";
 		}
 	}
 

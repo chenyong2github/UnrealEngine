@@ -25,6 +25,8 @@
 #include "SkeletalMeshLODSettings.h"
 #include "Animation/NodeMappingProviderInterface.h"
 #include "Animation/SkinWeightProfile.h"
+#include "Engine/StreamableRenderAsset.h"
+#include "RenderAssetUpdate.h"
 
 #include "SkeletalMesh.generated.h"
 
@@ -44,6 +46,7 @@ class FSkeletalMeshLODModel;
 class FSkeletalMeshLODRenderData;
 class FSkinWeightVertexBuffer;
 struct FSkinWeightProfileInfo;
+class FSkeletalMeshUpdate;
 
 #if WITH_APEX_CLOTHING
 
@@ -450,7 +453,7 @@ namespace NSSkeletalMeshSourceFileLabels
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  */
 UCLASS(hidecategories=Object, BlueprintType)
-class ENGINE_API USkeletalMesh : public UObject, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
+class ENGINE_API USkeletalMesh : public UStreamableRenderAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -595,6 +598,18 @@ public:
 	FPerPlatformBool DisableBelowMinLodStripping;
 
 #if WITH_EDITORONLY_DATA
+	/** Whether we can stream the LODs of this mesh */
+	UPROPERTY(EditAnywhere, Category=LODSettings, meta=(DisplayName="Stream LODs"))
+	FPerPlatformBool bSupportLODStreaming;
+
+	/** Maximum number of LODs that can be streamed */
+	UPROPERTY(EditAnywhere, Category=LODSettings)
+	FPerPlatformInt MaxNumStreamedLODs;
+
+	/** Maximum number of LODs below min LOD level that can be saved to optional pak (currently, need to be either 0 or > num of LODs below MinLod) */
+	UPROPERTY(EditAnywhere, Category=LODSettings)
+	FPerPlatformInt MaxNumOptionalLODs;
+
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, AssetRegistrySearchable, BlueprintSetter = SetLODSettings, Category = LODSettings)
 	USkeletalMeshLODSettings* LODSettings;
 
@@ -850,6 +865,11 @@ protected:
 	FOnMeshChanged OnMeshChanged;
 #endif
 
+	TRefCountPtr<FSkeletalMeshUpdate> PendingUpdate;
+
+	friend struct FSkeletalMeshUpdateContext;
+	friend class FSkeletalMeshUpdate;
+
 private:
 	/** 
 	 *	Array of named socket locations, set up in editor and used as a shortcut instead of specifying 
@@ -922,6 +942,34 @@ public:
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void GetPreloadDependencies(TArray<UObject*>& OutDeps) override;
 	//~ End UObject Interface.
+
+	//~ Begin UStreamableRenderAsset Interface.
+	virtual int32 GetLODGroupForStreaming() const final override;
+	virtual int32 GetNumMipsForStreaming() const final override;
+	virtual int32 GetNumNonStreamingMips() const final override;
+	virtual int32 CalcNumOptionalMips() const final override;
+	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override;
+	virtual bool GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFilename) const final override;
+	virtual bool IsReadyForStreaming() const final override;
+	virtual int32 GetNumResidentMips() const final override;
+	virtual int32 GetNumRequestedMips() const final override;
+	virtual bool CancelPendingMipChangeRequest() final override;
+	virtual bool HasPendingUpdate() const final override;
+	virtual bool IsPendingUpdateLocked() const final override;
+	virtual bool StreamOut(int32 NewMipCount) final override;
+	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	virtual bool UpdateStreamingStatus(bool bWaitForMipFading = false) final override;
+	//~ End UStreamableRenderAsset Interface.
+
+	void LinkStreaming();
+	void UnlinkStreaming();
+
+	/**
+	* Cancels any pending static mesh streaming actions if possible.
+	* Returns when no more async loading requests are in flight.
+	*/
+	static void CancelAllPendingStreamingActions();
+
 
 	/** Setup-only routines - not concerned with the instance. */
 
@@ -1243,7 +1291,7 @@ public:
 	/* 
 	 * Returns total number of LOD
 	 */
-	int32 GetLODNum() const { return LODInfo.Num();  }
+	int32 GetLODNum() const { check(LODInfo.Num() <= MAX_MESH_LOD_COUNT); return LODInfo.Num();  }
 
 public:
 	const TArray<FSkinWeightProfileInfo>& GetSkinWeightProfiles() const { return SkinWeightProfiles; }

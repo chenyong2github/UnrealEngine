@@ -224,7 +224,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		}
 
 		//Commit the FMeshDescription to the source model we just created
-		int32 SourceModelIndex = StaticMesh->SourceModels.Num() - 1;
+		int32 SourceModelIndex = StaticMesh->GetNumSourceModels() - 1;
 		FMeshDescription* MeshDescription = StaticMesh->CreateMeshDescription(SourceModelIndex);
 		if (ensure(MeshDescription))
 		{
@@ -312,7 +312,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 		// enable/disable section collision according to settings
 		MeshSectionInfo.bEnableCollision = Data->MergeData->InProxySettings.bCreateCollision;
 
-		StaticMesh->SectionInfoMap.Set(0, SectionIndex, MeshSectionInfo);
+		StaticMesh->GetSectionInfoMap().Set(0, SectionIndex, MeshSectionInfo);
 		SectionIndex++;
 	}
 

@@ -218,7 +218,7 @@ bool FLandscapeEditDataInterface::GetComponentsInRegion(int32 X1, int32 Y1, int3
 	return bNotLocked;
 }
 
-void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData, const uint8* InHeightAlphaBlendData, const uint8* InHeightFlagsData, bool InCreateComponents, UTexture2D* InHeightmap, UTexture2D* InXYOffsetmapTexture,
+void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, int32 Y2, const uint16* InData, int32 InStride, bool InCalcNormals, const uint16* InNormalData, const uint16* InHeightAlphaBlendData, const uint8* InHeightFlagsData, bool InCreateComponents, UTexture2D* InHeightmap, UTexture2D* InXYOffsetmapTexture,
 											   bool InUpdateBounds, bool InUpdateCollision, bool InGenerateMips)
 {
 	const int32 NumVertsX = 1 + X2 - X1;
@@ -388,9 +388,10 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 							}
 							else if (InHeightAlphaBlendData)
 							{
-								const uint8& HeightAlphaBlend = InHeightAlphaBlendData[DataIndex];
-								TexData.B = HeightAlphaBlend;
-								TexData.A = InHeightFlagsData ? InHeightFlagsData[DataIndex] : 3;
+								const uint16& HeightAlphaBlend = InHeightAlphaBlendData[DataIndex];
+								TexData.B = HeightAlphaBlend >> 8;
+								TexData.A = HeightAlphaBlend & 0xFC;
+								TexData.A |= (InHeightFlagsData ? InHeightFlagsData[DataIndex] : 3) & 0x3;
 							}
 						}
 					}
@@ -459,6 +460,11 @@ void FLandscapeEditDataInterface::SetHeightData(int32 X1, int32 Y1, int32 X2, in
 							XYOffsetMipData);
 					}
 				}
+			}
+			else
+			{
+				// In Layer, cumulate dirty collision region (will be used next time UpdateCollisionHeightData is called)
+				Component->UpdateDirtyCollisionHeightData(FIntRect(ComponentX1, ComponentY1, ComponentX2, ComponentY2));
 			}
 			
 			// Update GUID for Platform Data
@@ -971,16 +977,16 @@ uint16 FLandscapeEditDataInterface::GetHeightMapData(const ULandscapeComponent* 
 	return ((((uint16)TexData.R) << 8) | TexData.G);
 }
 
-uint8 FLandscapeEditDataInterface::GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
+uint16 FLandscapeEditDataInterface::GetHeightMapAlphaBlendData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
 {
 	const FColor& TexData = GetHeightMapColor(Component, TexU, TexV, TextureData);
-	return TexData.B;
+	return ((((uint16)TexData.B) << 8) | TexData.A) & 0xFFFC;
 }
 
 uint8 FLandscapeEditDataInterface::GetHeightMapFlagsData(const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData /*= NULL*/)
 {
 	const FColor& TexData = GetHeightMapColor(Component, TexU, TexV, TextureData);
-	return TexData.A;
+	return TexData.A & 0x3;
 }
 
 template<typename TDataAccess, typename TGetHeightMapDataFunction>
@@ -1486,7 +1492,7 @@ void FLandscapeEditDataInterface::GetHeightDataTempl(int32& ValidX1, int32& Vali
 template<typename TDataAccess>
 void FLandscapeEditDataInterface::GetHeightAlphaBlendDataTempl(int32& ValidX1, int32& ValidY1, int32& ValidX2, int32& ValidY2, TDataAccess& StoreData)
 {
-	GetHeightDataInternal(ValidX1, ValidY1, ValidX2, ValidY2, StoreData, [&](const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData)->uint8 { return GetHeightMapAlphaBlendData(Component, TexU, TexV, TextureData); });
+	GetHeightDataInternal(ValidX1, ValidY1, ValidX2, ValidY2, StoreData, [&](const ULandscapeComponent* Component, int32 TexU, int32 TexV, FColor* TextureData)->uint16 { return GetHeightMapAlphaBlendData(Component, TexU, TexV, TextureData); });
 }
 
 template<typename TDataAccess>
@@ -1506,14 +1512,14 @@ void FLandscapeEditDataInterface::GetHeightData(int32& X1, int32& Y1, int32& X2,
 	GetHeightDataTempl(X1, Y1, X2, Y2, ArrayStoreData);
 }
 
-void FLandscapeEditDataInterface::GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint8* Data, int32 Stride)
+void FLandscapeEditDataInterface::GetHeightAlphaBlendData(int32& X1, int32& Y1, int32& X2, int32& Y2, uint16* Data, int32 Stride)
 {
 	if (Stride == 0)
 	{
 		Stride = (1 + X2 - X1);
 	}
 
-	TArrayDataAccess<uint8> ArrayStoreData(X1, Y1, Data, Stride);
+	TArrayDataAccess<uint16> ArrayStoreData(X1, Y1, Data, Stride);
 	GetHeightAlphaBlendDataTempl(X1, Y1, X2, Y2, ArrayStoreData);
 }
 

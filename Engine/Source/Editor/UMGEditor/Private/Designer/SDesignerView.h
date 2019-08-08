@@ -213,6 +213,9 @@ private:
 	FSlateColor GetDesignerOutlineColor() const;
 	FText GetDesignerOutlineText() const;
 
+	FText GetCursorPositionText() const;
+	EVisibility GetCursorPositionTextVisibility() const;
+
 	// Handles drawing selection and other effects a SPaintSurface widget injected into the hierarchy.
 	int32 HandleEffectsPainting(const FOnPaintHandlerParams& PaintArgs);
 	void DrawSelectionAndHoverOutline(const FOnPaintHandlerParams& PaintArgs);

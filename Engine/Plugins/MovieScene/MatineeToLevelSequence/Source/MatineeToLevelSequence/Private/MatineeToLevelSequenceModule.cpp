@@ -78,6 +78,8 @@
 #include "MovieSceneTimeHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "Engine/StaticMeshActor.h"
+#include "EngineAnalytics.h"
+#include "Interfaces/IAnalyticsProvider.h"
 
 #define LOCTEXT_NAMESPACE "MatineeToLevelSequence"
 
@@ -212,7 +214,7 @@ protected:
 
 		// Pop open a dialog asking whether the user to convert and launcher sequencer or no
 		FSuppressableWarningDialog::FSetupInfo Info( 
-			LOCTEXT("MatineeToLevelSequencePrompt", "Matinee is now a legacy tool. Would you like to continue opening Matinee or convert your Matinee to a Level Sequence Asset?"), 
+			LOCTEXT("MatineeToLevelSequencePrompt", "As of 4.23, Matinee is no longer supported by UE4 and will be removed from the engine in the near future. Once removed, you will no longer be able to run a Matinee or open Matinee.\n\nWould you like to continue opening Matinee or convert your Matinee to a Level Sequence Asset?"), 
 			LOCTEXT("MatineeToLevelSequenceTitle", "Convert Matinee to Level Sequence Asset"), 
 			TEXT("MatineeToLevelSequence") );
 		Info.ConfirmText = LOCTEXT("MatineeToLevelSequence_ConfirmText", "Open Matinee");
@@ -237,6 +239,12 @@ protected:
 	/** Callback for converting a matinee to a level sequence asset. */
 	void OnConvertMatineeToLevelSequence(TArray<TWeakObjectPtr<AActor> > ActorsToConvert)
 	{
+		// Keep track of how many people actually used the tool to convert assets over.
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Matinee.ConversionTool.MatineeActorConverted"));
+		}
+
 		TArray<TWeakObjectPtr<ALevelSequenceActor> > NewActors;
 
 		int32 NumWarnings = 0;

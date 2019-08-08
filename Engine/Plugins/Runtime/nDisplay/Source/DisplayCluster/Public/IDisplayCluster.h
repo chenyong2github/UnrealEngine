@@ -35,7 +35,8 @@ public:
 	*/
 	static inline IDisplayCluster& Get()
 	{
-		return FModuleManager::LoadModuleChecked<IDisplayCluster>(IDisplayCluster::ModuleName);
+		//return FModuleManager::LoadModuleChecked<IDisplayCluster>(IDisplayCluster::ModuleName);
+		return FModuleManager::GetModuleChecked<IDisplayCluster>(IDisplayCluster::ModuleName);
 	}
 
 	/**

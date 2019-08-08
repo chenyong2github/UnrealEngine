@@ -102,7 +102,7 @@ public:
 
 				// Create a buffer to decode into that's of the appropriate size
 				TArray<uint8> DecodeBuffer;
-				DecodeBuffer.AddUninitialized(ByteSize);
+				DecodeBuffer.AddZeroed(ByteSize);
 
 				// skip the first buffers if we've already decoded them during Precache:
 				if (DecodeTaskData.bSkipFirstBuffer)

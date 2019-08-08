@@ -51,13 +51,8 @@ void SNiagaraStackModuleItem::Construct(const FArguments& InArgs, UNiagaraStackM
 			.VAlign(VAlign_Center)
 			.Padding(0)
 			[
-				SNew(STextBlock)
-				.TextStyle(FNiagaraEditorWidgetsStyle::Get(), "NiagaraEditor.Stack.ItemText")
-				.ToolTipText_UObject(ModuleItem, &UNiagaraStackEntry::GetTooltipText)
-				.Text_UObject(ModuleItem, &UNiagaraStackEntry::GetDisplayName)
-				.HighlightText_UObject(InStackViewModel, &UNiagaraStackViewModel::GetCurrentSearchText)
+				SNew(SNiagaraStackDisplayName, InModuleItem, *InStackViewModel, "NiagaraEditor.Stack.ItemText")
 				.ColorAndOpacity(this, &SNiagaraStackModuleItem::GetTextColorForSearch)
-				.IsEnabled_UObject(ModuleItem, &UNiagaraStackModuleItem::GetIsEnabled)
 			]
 			// Stack issues icon
 			+ SHorizontalBox::Slot()

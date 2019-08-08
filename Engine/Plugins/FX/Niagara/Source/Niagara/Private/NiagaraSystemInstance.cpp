@@ -12,6 +12,7 @@
 #include "NiagaraRenderer.h"
 #include "Templates/AlignmentTemplates.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "GameFramework/PlayerController.h"
 
 
 DECLARE_CYCLE_STAT(TEXT("System Activate [GT]"), STAT_NiagaraSystemActivate, STATGROUP_Niagara);
@@ -1094,7 +1095,9 @@ void FNiagaraSystemInstance::InitDataInterfaces()
 			if (!bResult)
 			{
 				UE_LOG(LogNiagara, Error, TEXT("Error initializing data interface \"%s\" for system. %u | %s"), *Interface->GetPathName(), Component, *Component->GetAsset()->GetName());
-			}
+			}		
+
+			
 		}
 		else
 		{
@@ -1171,40 +1174,78 @@ void FNiagaraSystemInstance::TickDataInterfaces(float DeltaSeconds, bool bPostSi
 float FNiagaraSystemInstance::GetLODDistance()
 {
 	check(Component);
-	FVector CurrPos = Component->GetComponentLocation();
 #if WITH_EDITOR
 	if (Component->bEnablePreviewLODDistance)
 	{
 		return Component->PreviewLODDistance;
 	}
-	else
 #endif
+
+	constexpr float DefaultLODDistance = 0.0f;
+
+	FNiagaraWorldManager* WorldManager = GetWorldManager();
+	if ( WorldManager == nullptr )
 	{
-		constexpr float DefaultLODDistance = 0.0f;
+		return DefaultLODDistance;
+	}
 
-		FNiagaraWorldManager* WorldManager = GetWorldManager();
-		if ( WorldManager == nullptr )
-		{
-			return DefaultLODDistance;
-		}
+	const FVector EffectLocation = Component->GetComponentLocation();
 
+	// If we are inside the WorldManager tick we will use the cache player view locations as we can be ticked on different threads
+	if (WorldManager->CachedPlayerViewLocationsValid())
+	{
 		TArrayView<const FVector> PlayerViewLocations = WorldManager->GetCachedPlayerViewLocations();
-		if ( PlayerViewLocations.Num() == 0 )
+		if (PlayerViewLocations.Num() == 0)
 		{
 			return DefaultLODDistance;
 		}
 
+		// We are being ticked inside the WorldManager and can safely use the list of cached player view locations
 		float LODDistanceSqr = FMath::Square(WORLD_MAX);
 		for (const FVector& ViewLocation : PlayerViewLocations)
 		{
-			const float DistanceToEffectSqr = FVector(ViewLocation - CurrPos).SizeSquared();
-			if (DistanceToEffectSqr < LODDistanceSqr)
-			{
-				LODDistanceSqr = DistanceToEffectSqr;
-			}
+			const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+			LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
 		}
 		return FMath::Sqrt(LODDistanceSqr);
 	}
+
+	// If we are not inside the WorldManager tick (solo tick) we must look over the player view locations manually
+	ensureMsgf(IsInGameThread(), TEXT("FNiagaraSystemInstance::GetLODDistance called in potentially thread unsafe way"));
+
+	if ( UWorld* World = Component->GetWorld() )
+	{
+		TArray<FVector, TInlineAllocator<8> > PlayerViewLocations;
+		if (World->GetPlayerControllerIterator())
+		{
+			for (FConstPlayerControllerIterator Iterator = World->GetPlayerControllerIterator(); Iterator; ++Iterator)
+			{
+				APlayerController* PlayerController = Iterator->Get();
+				if (PlayerController && PlayerController->IsLocalPlayerController())
+				{
+					FVector* ViewLocation = new(PlayerViewLocations) FVector;
+					FRotator ViewRotation;
+					PlayerController->GetPlayerViewPoint(*ViewLocation, ViewRotation);
+				}
+			}
+		}
+		else
+		{
+			PlayerViewLocations = World->ViewLocationsRenderedLastFrame;
+		}
+
+		if (PlayerViewLocations.Num() > 0)
+		{
+			float LODDistanceSqr = FMath::Square(WORLD_MAX);
+			for (const FVector& ViewLocation : PlayerViewLocations)
+			{
+				const float DistanceToEffectSqr = FVector(ViewLocation - EffectLocation).SizeSquared();
+				LODDistanceSqr = FMath::Min(LODDistanceSqr, DistanceToEffectSqr);
+			}
+			return FMath::Sqrt(LODDistanceSqr);
+		}
+	}
+	return DefaultLODDistance;
 }
 
 void FNiagaraSystemInstance::TickInstanceParameters(float DeltaSeconds)

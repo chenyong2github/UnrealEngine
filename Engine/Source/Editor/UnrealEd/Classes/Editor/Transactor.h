@@ -116,7 +116,7 @@ protected:
 				else
 				{
 					DataOffset = FMath::Min(DataOffset, InOffset);
-					DataSize = InOffset + InSize - DataOffset;
+					DataSize = FMath::Max(InOffset + InSize - DataOffset, DataSize);
 				}
 			}
 

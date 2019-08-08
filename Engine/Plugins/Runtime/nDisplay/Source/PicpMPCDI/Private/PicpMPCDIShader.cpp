@@ -14,12 +14,24 @@
 #include "MPCDIData.h"
 #include "MPCDIShader.h"
 
-
-
-static TAutoConsoleVariable<int32> CVarPicpEnableSinglePassRender(
-	TEXT("nDisplay.render.picp.EnableSinglePassRender"),
-	1,
-	TEXT("Single render pass for PICP (0 = disabled)"),
+// Select picp shader
+enum class EVarPicpMPCDIShaderType : uint8
+{
+	Default=0,
+	DefaultNoBlend,
+	Passthrough,
+	ForceMultiPassRender,
+	Disable,
+};
+static TAutoConsoleVariable<int32> CVarPicpMPCDIShaderType(
+	TEXT("nDisplay.render.picp.shader"),
+	(int)EVarPicpMPCDIShaderType::Default,
+	TEXT("Select shader for picp:\n")
+	TEXT(" 0: Warp shader (used by default)\n")
+	TEXT(" 1: Warp shader with disabled blend maps\n")
+	TEXT(" 2: Passthrough shader\n")
+	TEXT(" 3: Force Multi-Pass render shaders\n")
+	TEXT(" 4: Disable all shaders\n"),
 	ECVF_RenderThreadSafe
 );
 
@@ -29,11 +41,9 @@ static TAutoConsoleVariable<int32> CVarPicpEnableSinglePassRender(
 // Implement shaders inside UE4
 IMPLEMENT_SHADER_TYPE(, FPicpWarpVS, MPCDIShaderFileName, TEXT("MainVS"), SF_Vertex);
 
-IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIPassThroughtPS, MPCDIShaderFileName, TEXT("PassThrought_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIPassthroughPS,  MPCDIShaderFileName, TEXT("Passthrough_PS"),  SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpAndBlendPS, MPCDIShaderFileName, TEXT("WarpAndBlend_PS"), SF_Pixel);
 
-//Control code by MACRO:
-//!fixme shader code customization other methods?
 IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpAndBlendBgPS,            MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpAndBlendBgOverlayPS,     MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
 
@@ -47,6 +57,21 @@ IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpAndBlendOneCameraBackPS,      MPCDIOv
 IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpAndBlendOneCameraFrontPS,     MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpAndBlendOneCameraNonePS,      MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
 
+// No Blend case:
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpPS,          MPCDIShaderFileName, TEXT("WarpAndBlend_PS"), SF_Pixel);
+
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpBgPS,        MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpBgOverlayPS, MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
+
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpCameraPS,    MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpCameraOverlayPS, MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOverlay_PS"), SF_Pixel);
+
+IMPLEMENT_SHADER_TYPE(template<>, FPicpMPCDIWarpOverlayPS,   MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendViewportOverlay_PS"), SF_Pixel);
+
+IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpOneCameraFullPS,  MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpOneCameraBackPS,  MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpOneCameraFrontPS, MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<>, FPicpWarpOneCameraNonePS,  MPCDIOverlayShaderFileName, TEXT("PicpMPCDIWarpAndBlendOneCameraFull_PS"), SF_Pixel);
 
 
 
@@ -96,14 +121,14 @@ static EPicpShaderType GetPixelShaderType(FMPCDIData *MPCDIData)
 	{
 		switch (MPCDIData->GetProfileType())
 		{
-		case EMPCDIProfileType::mpcdi_A3D:
+		case IMPCDI::EMPCDIProfileType::mpcdi_A3D:
 			return EPicpShaderType::WarpAndBlend;
 
-		case EMPCDIProfileType::Invalid:
-		case EMPCDIProfileType::mpcdi_SL:
-		case EMPCDIProfileType::mpcdi_2D:
-		case EMPCDIProfileType::mpcdi_3D:
-			return EPicpShaderType::PassThrought;
+		case IMPCDI::EMPCDIProfileType::Invalid:
+		case IMPCDI::EMPCDIProfileType::mpcdi_SL:
+		case IMPCDI::EMPCDIProfileType::mpcdi_2D:
+		case IMPCDI::EMPCDIProfileType::mpcdi_3D:
+			return EPicpShaderType::Passthrough;
 		};
 	}
 
@@ -139,7 +164,6 @@ static bool CompleteWarpTempl(
 		GetViewportRect(TextureWarpData, MPCDIRegion, MPCDIViewportRect);
 
 		RHICmdList.SetViewport(MPCDIViewportRect.Min.X, MPCDIViewportRect.Min.Y, 0.0f, MPCDIViewportRect.Max.X, MPCDIViewportRect.Max.Y, 1.0f);
-		//DrawClearQuad(RHICmdList, FLinearColor::Black);
 	}
 
 
@@ -170,7 +194,7 @@ static bool CompleteWarpTempl(
 
 	if (PicpProjectionOverlayViewportData != nullptr && CameraIndex >= 0 && PicpProjectionOverlayViewportData->Cameras.Num() > CameraIndex)
 	{
-		FPicpProjectionOverlayCamera* Cam = PicpProjectionOverlayViewportData->Cameras[CameraIndex];
+		FPicpProjectionOverlayCamera Camera = PicpProjectionOverlayViewportData->Cameras[CameraIndex];
 
 		static const FMatrix Game2Render(
 			FPlane(0, 0, 1, 0),
@@ -180,42 +204,49 @@ static bool CompleteWarpTempl(
 		static const FMatrix Render2Game =
 			Game2Render.Inverse();
 
-		FRotationTranslationMatrix CameraTranslationMatrix(Cam->ViewRot, Cam->ViewLoc);
+		FRotationTranslationMatrix CameraTranslationMatrix(Camera.ViewRot, Camera.ViewLoc);
 
 		FMatrix WorldToCamera = CameraTranslationMatrix.Inverse();
 
-		FMatrix UVMatrix = WorldToCamera * Game2Render * Cam->Prj;
+		FMatrix UVMatrix = WorldToCamera * Game2Render * Camera.Prj;
 
-		Cam->RuntimeCameraProjection = UVMatrix * MPCDIData->GetTextureMatrix() *MPCDIRegion.GetRegionMatrix();
+		Camera.RuntimeCameraProjection = UVMatrix * MPCDIData->GetTextureMatrix() *MPCDIRegion.GetRegionMatrix();
 
-		PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), Cam);
+		PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), &Camera);
 	}
 
 	switch (PixelShaderType)
 	{
 	case EPicpShaderType::WarpAndBlendAddOverlay:
+	case EPicpShaderType::WarpAddOverlay:
 		if (PicpProjectionOverlayViewportData != nullptr)
 		{
-			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), PicpProjectionOverlayViewportData->ViewportOver, nullptr);
+			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), &PicpProjectionOverlayViewportData->ViewportOver, nullptr);
 		}
 		break;
 	case EPicpShaderType::WarpAndBlendAddCameraOverlay:
+	case EPicpShaderType::WarpAddCameraOverlay:
 		if(PicpProjectionOverlayViewportData!=nullptr)
 		{
-			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), PicpProjectionOverlayViewportData->ViewportOver, nullptr);
+			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), &PicpProjectionOverlayViewportData->ViewportOver, nullptr);
 		}
 	case EPicpShaderType::WarpAndBlendBgOverlay:
+	case EPicpShaderType::WarpBgOverlay:
 		if (PicpProjectionOverlayViewportData != nullptr)
 		{
-			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), PicpProjectionOverlayViewportData->ViewportUnder, nullptr);
+			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), &PicpProjectionOverlayViewportData->ViewportUnder, nullptr);
 		}
 		break;
 	case EPicpShaderType::WarpAndBlendOneCameraFull:
 	case EPicpShaderType::WarpAndBlendOneCameraBack:
 	case EPicpShaderType::WarpAndBlendOneCameraFront:
+
+	case EPicpShaderType::WarpOneCameraFull:
+	case EPicpShaderType::WarpOneCameraBack:
+	case EPicpShaderType::WarpOneCameraFront:
 		if (PicpProjectionOverlayViewportData != nullptr)
 		{
-			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), PicpProjectionOverlayViewportData->ViewportOver, PicpProjectionOverlayViewportData->ViewportUnder);
+			PixelShader->SetPicpParameters(RHICmdList, PixelShader->GetPixelShader(), &PicpProjectionOverlayViewportData->ViewportOver, &PicpProjectionOverlayViewportData->ViewportUnder);
 		}
 		break;
 	default:
@@ -227,8 +258,6 @@ static bool CompleteWarpTempl(
 
 	PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), TextureWarpData.SrcTexture);
 	PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), MPCDIRegion);
-	//!PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), ShaderInputData);
-		
 	PixelShader->SetParameters(RHICmdList, PixelShader->GetPixelShader(), ShaderInputData.UVMatrix, StereoMatrix);
 
 	{
@@ -244,15 +273,6 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 {
 	check(IsInRenderingThread());
 
-	// Map ProfileType to shader type to use
-	EPicpShaderType PixelShaderType = GetPixelShaderType(MPCDIData);
-	if (EPicpShaderType::Invalid == PixelShaderType)
-	{
-		//@todo: handle error
-		return false;
-	}
-
-
 	MPCDI::FMPCDIRegion* MPCDIRegion = nullptr;
 	if (MPCDIData && MPCDIData->IsValid())
 	{
@@ -265,6 +285,34 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 		return false;
 	}
 
+	// Map ProfileType to shader type to use
+	EPicpShaderType PixelShaderType = GetPixelShaderType(MPCDIData);
+	if (EPicpShaderType::Invalid == PixelShaderType)
+	{
+		//@todo: handle error
+		return false;
+	}
+
+	bool bIsBlendDisabled = !MPCDIRegion->AlphaMap.IsInitialized();
+	bool bIsRenderSinglePass = ViewportOverlayData->Cameras.Num()==1;
+
+	const EVarPicpMPCDIShaderType ShaderType = (EVarPicpMPCDIShaderType)CVarPicpMPCDIShaderType.GetValueOnAnyThread();
+
+	switch (ShaderType) {
+	case EVarPicpMPCDIShaderType::DefaultNoBlend:
+		bIsBlendDisabled = true;
+		break;
+	case EVarPicpMPCDIShaderType::Passthrough:
+		PixelShaderType = EPicpShaderType::Passthrough;
+		break;
+	case EVarPicpMPCDIShaderType::ForceMultiPassRender:
+		bIsRenderSinglePass = false;
+		break;
+	case EVarPicpMPCDIShaderType::Disable:
+		return false;
+		break;
+	};
+
 	{
 		// Do single warp render pass
 		bool bIsRenderSuccess = false;
@@ -273,9 +321,9 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 		{
 			switch (PixelShaderType)
 			{
-			case EPicpShaderType::PassThrought:
-				ShaderInputData.UVMatrix = FMatrix::Identity;
-				bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::PassThrought>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);
+			case EPicpShaderType::Passthrough:
+				ShaderInputData.UVMatrix = FMatrix::Identity;				
+				bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::Passthrough>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);
 				break;
 
 			case EPicpShaderType::WarpAndBlend:
@@ -284,8 +332,6 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 				if (ViewportOverlayData)
 				{// Use overlay render tricks:					
 					// First pass render bg
-					bool bIsRenderSinglePass = ((CVarPicpEnableSinglePassRender.GetValueOnAnyThread() != 0) && ViewportOverlayData->Cameras.Num() == 1);
-
 					if (bIsRenderSinglePass)
 					{
 						//One pass solution:
@@ -293,36 +339,77 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 						{
 							if (ViewportOverlayData->iViewportOverUsed())
 							{
-								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraFull>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								if (bIsBlendDisabled)
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpOneCameraFull>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
+								else
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraFull>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
 							}
 							else
 							{
-								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraBack>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								if (bIsBlendDisabled)
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpOneCameraBack>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
+								else
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraBack>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
 							}
 						}
 						else
 						{
 							if (ViewportOverlayData->iViewportOverUsed())
 							{
-								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraFront>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								if (bIsBlendDisabled)
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpOneCameraFront>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
+								else
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraFront>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
 							}
 							else
 							{
-								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraNone>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								if (bIsBlendDisabled)
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpOneCameraNone>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
+								else
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendOneCameraNone>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, 0, EColorOPMode::Default);
+								}
 							}
 						}						
 					}
 					else
 					{
-						//Complex multipass solution
-											//@todo: add optimization in single shader
+						//Complex multipass solution						
 						if (ViewportOverlayData->iViewportUnderUsed())
 						{
-							bIsRenderSuccess = CompleteWarpTempl <EPicpShaderType::WarpAndBlendBgOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							if (bIsBlendDisabled)
+							{
+								bIsRenderSuccess = CompleteWarpTempl <EPicpShaderType::WarpBgOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							}
+							else
+							{
+								bIsRenderSuccess = CompleteWarpTempl <EPicpShaderType::WarpAndBlendBgOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							}
 						}
 						else
 						{
-							bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendBg>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							if (bIsBlendDisabled)
+							{
+								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpBg>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							}
+							else
+							{
+								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendBg>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::Default);
+							}
 						}
 
 						//Second pass (now all cams on second pass, @todo add first cam on single pass with bg
@@ -333,7 +420,14 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 							int RenderPass = 0;
 							for (auto& It : ViewportOverlayData->Cameras)
 							{
-								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendAddCamera>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, CameraIndex, EColorOPMode::AddAlpha);
+								if (bIsBlendDisabled)
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAddCamera>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, CameraIndex, EColorOPMode::AddAlpha);
+								}
+								else
+								{
+									bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendAddCamera>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, CameraIndex, EColorOPMode::AddAlpha);
+								}
 
 								RenderPass++;
 								CameraIndex++; //! fixme
@@ -342,13 +436,27 @@ bool FPicpMPCDIShader::ApplyWarpBlend(FRHICommandListImmediate& RHICmdList, IMPC
 
 						if (ViewportOverlayData->iViewportOverUsed())
 						{
-							bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendAddOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::AddInvAlpha);
+							if (bIsBlendDisabled)
+							{
+								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAddOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::AddInvAlpha);
+							}
+							else
+							{
+								bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlendAddOverlay>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, ViewportOverlayData, -1, EColorOPMode::AddInvAlpha);
+							}
 						}
 					}
 				}
 				else
 				{// Use default render 
-					bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);
+					if (bIsBlendDisabled)
+					{
+						bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::Warp>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);
+					}
+					else
+					{
+						bIsRenderSuccess = CompleteWarpTempl<EPicpShaderType::WarpAndBlend>(RHICmdList, TextureWarpData, ShaderInputData, *MPCDIRegion, MPCDIData, nullptr, 0, EColorOPMode::Default);
+					}
 				}
 			};
 		}

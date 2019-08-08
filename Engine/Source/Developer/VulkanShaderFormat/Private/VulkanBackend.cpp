@@ -3390,7 +3390,10 @@ class FGenerateVulkanVisitor : public ir_visitor
 			{
 				ralloc_asprintf_append(buffer, "#extension GL_EXT_tessellation_shader : enable\n");
 			}
-
+			else if (ParseState->target == compute_shader)
+			{
+				ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
+			}
 		}
 
 		if (bShouldEmitMultiview && (state->target == vertex_shader || state->target == fragment_shader))

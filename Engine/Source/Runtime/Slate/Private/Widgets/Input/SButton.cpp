@@ -352,6 +352,8 @@ void SButton::OnMouseEnter( const FGeometry& MyGeometry, const FPointerEvent& Mo
 
 void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
 {
+	const bool bWasHovered = IsHovered();
+	
 	// Call parent implementation
 	SWidget::OnMouseLeave( MouseEvent );
 
@@ -362,7 +364,10 @@ void SButton::OnMouseLeave( const FPointerEvent& MouseEvent )
 		Release();
 	}
 
-	OnUnhovered.ExecuteIfBound();
+	if (bWasHovered)
+	{
+		OnUnhovered.ExecuteIfBound();
+	}
 
 	Invalidate(EInvalidateWidget::Layout);
 }
@@ -510,6 +515,8 @@ void SButton::SetButtonStyle(const FButtonStyle* ButtonStyle)
 
 	HoveredSound = Style->HoveredSlateSound;
 	PressedSound = Style->PressedSlateSound;
+
+	Invalidate(EInvalidateWidget::Layout);
 }
 
 void SButton::SetClickMethod(EButtonClickMethod::Type InClickMethod)

@@ -122,20 +122,24 @@ void FStompFrame::Encode(FStompBuffer& Out) const
 		// According to the spec, the CONNECT command should not escape metacharacters for backwards compatibility.
 		bool bShouldEscapeFrameHeader = Command != ConnectCommand;
 
-		FTCHARToUTF8 CommandEncoded(*Command.ToString());
+		FString CommandString = Command.ToString();
+		CommandString.ToUpperInline();
+		FTCHARToUTF8 CommandEncoded(*CommandString);
 		AppendArray(Out, (uint8*)CommandEncoded.Get(), CommandEncoded.Length(), bShouldEscapeFrameHeader);
 		Out.Add('\n');
 
-		for(auto Element : Header)
+		for (const TPair<FName, FString>& Element : Header)
 		{
-			FTCHARToUTF8 HeaderNameEncoded(*Element.Key.ToString().ToLower());
+			FString ElementKeyString = Element.Key.ToString();
+			ElementKeyString.ToLowerInline();
+			FTCHARToUTF8 HeaderNameEncoded(*ElementKeyString);
 			FTCHARToUTF8 HeaderValueEncoded(*Element.Value);
 			AppendArray(Out, (uint8*)HeaderNameEncoded.Get(), HeaderNameEncoded.Length(), bShouldEscapeFrameHeader);
 			Out.Add(':');
 			AppendArray(Out, (uint8*)HeaderValueEncoded.Get(), HeaderValueEncoded.Length(), bShouldEscapeFrameHeader);
 			Out.Add('\n');
-
 		}
+
 		Out.Add('\n');
 		Out.Append(Body);
 		Out.Add('\0');
@@ -169,7 +173,7 @@ void FStompFrame::Decode(const uint8* In, SIZE_T Length)
 
 	if (Index >= Length)
 	{
-		UE_LOG(LogStomp, Warning, TEXT("Stomp command '%s' received without any headers"), *Command.ToString());
+		UE_LOG(LogStomp, Warning, TEXT("Stomp command '%s' received without any headers"), *Command.ToString().ToUpper());
 		return;
 	}
 

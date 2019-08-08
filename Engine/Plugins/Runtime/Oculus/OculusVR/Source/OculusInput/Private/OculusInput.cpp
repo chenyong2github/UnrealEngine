@@ -191,7 +191,7 @@ void FOculusInput::SendControllerEvents()
 
 	if(IOculusHMDModule::IsAvailable() && ovrp_GetInitialized() && FApp::HasVRFocus())
 	{
-		if (MessageHandler.IsValid())
+		if (MessageHandler.IsValid() && GEngine->XRSystem->GetHMDDevice())
 		{
 			OculusHMD::FOculusHMD* OculusHMD = static_cast<OculusHMD::FOculusHMD*>(GEngine->XRSystem->GetHMDDevice());
 			ovrp_Update3(ovrpStep_Render, OculusHMD->GetNextFrameNumber(), 0.0);

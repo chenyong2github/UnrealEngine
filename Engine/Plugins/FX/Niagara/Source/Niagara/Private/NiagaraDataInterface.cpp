@@ -79,7 +79,7 @@ void UNiagaraDataInterface::ValidateFunction(const FNiagaraFunctionSignature& Fu
 	TArray<FNiagaraFunctionSignature> DIFuncs;
 	GetFunctions(DIFuncs);
 
-	if (!DIFuncs.Contains(Function))
+	if (!DIFuncs.ContainsByPredicate([&](const FNiagaraFunctionSignature& Sig) { return Sig.EqualsIgnoringSpecifiers(Function); }))
 	{
 		//We couldn't find this signature in the list of available functions.
 		//Lets try to find one with the same name whose parameters may have changed.
@@ -116,17 +116,21 @@ bool UNiagaraDataInterfaceCurveBase::CompareLUTS(const TArray<float>& OtherLUT) 
 {
 	if (ShaderLUT.Num() == OtherLUT.Num())
 	{
+		bool bMatched = true;
 		for (int32 i = 0; i < ShaderLUT.Num(); i++)
 		{
-			if (false == FMath::IsNearlyEqual(ShaderLUT[i], OtherLUT[i]))
+			if (false == FMath::IsNearlyEqual(ShaderLUT[i], OtherLUT[i], 0.0001f))
 			{
-				return false;
+				bMatched = false;
+				UE_LOG(LogNiagara, Log, TEXT("First LUT mismatch found on comparison - LUT[%d] = %.9f  Other = %.9f \t%.9f"), i, ShaderLUT[i], OtherLUT[i], fabsf(ShaderLUT[i] - OtherLUT[i]));
+				break;
 			}
 		}
-		return true;
+		return bMatched;
 	}
 	else
 	{
+		UE_LOG(LogNiagara, Log, TEXT("Table sizes don't match"));
 		return false;
 	}
 }

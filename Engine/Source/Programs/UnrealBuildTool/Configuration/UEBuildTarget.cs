@@ -611,8 +611,29 @@ namespace UnrealBuildTool
 				throw new BuildException("{0} does not support the {1} platform.", Descriptor.Name, Descriptor.Platform.ToString());
 			}
 
+			// Make sure this target type is supported
+			if (!InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Downloaded))
+			{
+				if (InstalledPlatformInfo.IsValid(RulesObject.Type, Descriptor.Platform, Descriptor.Configuration, EProjectType.Code, InstalledPlatformState.Supported))
+				{
+					throw new BuildException("Download support for building {0} {1} targets from the launcher.", Descriptor.Platform, RulesObject.Type);
+				}
+				else if(!InstalledPlatformInfo.IsValid(RulesObject.Type, null, null, EProjectType.Code, InstalledPlatformState.Supported))
+				{
+					throw new BuildException("{0} targets are not currently supported from this engine distribution.", RulesObject.Type);
+				}
+				else if (!InstalledPlatformInfo.IsValid(RulesObject.Type, RulesObject.Platform, null, EProjectType.Code, InstalledPlatformState.Supported))
+				{
+					throw new BuildException("The {0} platform is not supported from this engine distribution.", RulesObject.Platform);
+				}
+				else
+				{
+					throw new BuildException("Targets cannot be built in the {0} configuration with this engine distribution.", RulesObject.Configuration);
+				}
+			}
+
 			// If we're using the shared build environment, make sure all the settings are valid
-			if(RulesObject.BuildEnvironment == TargetBuildEnvironment.Shared)
+			if (RulesObject.BuildEnvironment == TargetBuildEnvironment.Shared)
 			{
 				ValidateSharedEnvironment(RulesAssembly, Descriptor.Name, RulesObject);
 			}

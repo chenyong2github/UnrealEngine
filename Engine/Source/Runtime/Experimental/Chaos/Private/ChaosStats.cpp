@@ -28,7 +28,7 @@ DEFINE_STAT(STAT_SkelMeshUpdateAnim);
 DEFINE_STAT(STAT_DispatchEventNotifies);
 DEFINE_STAT(STAT_DispatchCollisionEvents);
 DEFINE_STAT(STAT_DispatchBreakEvents);
-DEFINE_STAT(STAT_CacheResults);
+DEFINE_STAT(STAT_BufferPhysicsResults);
 DEFINE_STAT(STAT_FlipResults);
 DEFINE_STAT(STAT_CacheResultGeomCollection);
 DEFINE_STAT(STAT_CacheResultStaticMesh);
@@ -42,6 +42,7 @@ DEFINE_STAT(STAT_DisableCollisions);
 DEFINE_STAT(STAT_EvolutionAndKinematicUpdate);
 DEFINE_STAT(STAT_AdvanceEventWaits);
 DEFINE_STAT(STAT_ResetCollisionRule);
+DEFINE_STAT(STAT_EventDataGathering)
 
 DEFINE_STAT(STAT_ParamUpdateObject);
 DEFINE_STAT(STAT_ParamUpdateField);

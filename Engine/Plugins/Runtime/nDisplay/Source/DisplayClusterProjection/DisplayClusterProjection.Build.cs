@@ -11,11 +11,8 @@ public class DisplayClusterProjection : ModuleRules
 			new string[]
 			{
 				"DisplayClusterProjection/Private",
-                "../../../../Source/Runtime/Renderer/Private",
-                "../../../../Source/Runtime/Engine/Classes/Components",
-                "../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-                "../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-
+				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
+				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
 			}
 		);
 
@@ -24,13 +21,7 @@ public class DisplayClusterProjection : ModuleRules
 			{
 				"Core",
 				"CoreUObject",
-                "D3D11RHI",
-				"DisplayCluster",
 				"Engine",
-				"HeadMountedDisplay",
-				"MPCDI",
-				"RenderCore",
-				"RHI",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
@@ -38,8 +29,16 @@ public class DisplayClusterProjection : ModuleRules
 			{
 				"ApplicationCore",
 				"Core",
+				"Composure",
 				"CoreUObject",
+				"D3D11RHI",
+				"DisplayCluster",
 				"Engine",
+				"HeadMountedDisplay",
+				"MPCDI",
+				"Projects",
+				"RenderCore",
+				"RHI",
 			}
 		);
 
@@ -48,25 +47,30 @@ public class DisplayClusterProjection : ModuleRules
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
-        AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
+		AddEngineThirdPartyPrivateStaticDependencies(Target, "IntelMetricsDiscovery");
 
-        AddThirdPartyDependencies(ROTargetRules);
-    }
+		AddThirdPartyDependencies(ROTargetRules);
+	}
 
 
-    public bool AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
-    {
-		string ModulePath = Path.GetDirectoryName(UnrealBuildTool.RulesCompiler.GetFileNameFromType(GetType()));
-		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModulePath, "../../ThirdParty/"));
+	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
+	{
+		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/"));
 
 		string PathInc = string.Empty;
+		string PathDll = string.Empty;
 
 		// EasyBlend
 		PathInc = Path.Combine(ThirdPartyPath, "EasyBlend", "Include");
+		PathDll = Path.Combine(ThirdPartyPath, "EasyBlend", "DLL");
+		
 		PublicIncludePaths.Add(PathInc);
-			   
-        return true;
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			RuntimeDependencies.Add(Path.Combine(PathDll, "mplEasyBlendSDKDX1164.dll"));
+		}
 	}
 }

@@ -343,7 +343,11 @@ namespace AutomationTool
 					}
 					else
 					{
-						ObjectDescription = HelpAttribute.Description;
+						if (!String.IsNullOrEmpty(ObjectDescription))
+						{
+							ObjectDescription += Environment.NewLine;
+						}
+						ObjectDescription += HelpAttribute.Description;
 					}
 				}
 			}

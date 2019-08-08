@@ -98,8 +98,10 @@ FVorbisAudioInfo::FVorbisAudioInfo()
 	, SrcBufferDataSize(0)
 	, BufferOffset(0)
 	, CurrentBufferChunkOffset(0)
+	, CurrentStreamingChunkData(nullptr)
 	, CurrentStreamingChunkIndex(INDEX_NONE)
 	, NextStreamingChunkIndex(0)
+	, CurrentStreamingChunksSize(0)
 	, bHeaderParsed(false)
 {
 	// Make sure we have properly allocated a VFWrapper
@@ -192,16 +194,28 @@ size_t FVorbisAudioInfo::ReadStreaming(void *Ptr, uint32 Size )
 
 	while (NumBytesRead < Size)
 	{
-		const uint8* CurrentStreamingChunkData = nullptr;
-		uint32 CurrentStreamingChunksSize = 0;
-
-		if (CurrentStreamingChunkIndex != NextStreamingChunkIndex)
+		if (!CurrentStreamingChunkData || CurrentStreamingChunkIndex != NextStreamingChunkIndex)
 		{
 			CurrentStreamingChunkIndex = NextStreamingChunkIndex;
-			CurrentBufferChunkOffset = 0;
+
+			check(CurrentStreamingChunkIndex >= 0);
+
+			if (static_cast<uint32>(CurrentStreamingChunkIndex) >= StreamingSoundWave->GetNumChunks())
+			{
+				CurrentStreamingChunkData = nullptr;
+				CurrentStreamingChunksSize = 0;
+			}
+			else
+			{
+				CurrentStreamingChunkData = GetLoadedChunk(StreamingSoundWave, CurrentStreamingChunkIndex, CurrentStreamingChunksSize);
+			}
+
+			if (CurrentStreamingChunkData)
+			{
+				check(CurrentStreamingChunkIndex < StreamingSoundWave->RunningPlatformData->Chunks.Num());
+				CurrentBufferChunkOffset = 0;
+			}
 		}
-		
-		GetChunkPtr(CurrentStreamingChunkData, CurrentStreamingChunksSize);
 
 		// No chunk data -- either looping or something else happened with stream
 		if (!CurrentStreamingChunkData)
@@ -540,8 +554,6 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 
 	FScopeLock ScopeLock(&VorbisCriticalSection);
 
-	TotalNumChunks = Wave->GetNumChunks();
-
 	if (!VFWrapper)
 	{
 		UE_LOG(LogAudio, Error, TEXT("FVorbisAudioInfo::StreamCompressedInfoInternal failed due to no vorbis wrapper for sound '%s'."), *Wave->GetName());
@@ -570,26 +582,25 @@ bool FVorbisAudioInfo::StreamCompressedInfoInternal(USoundWave* Wave, struct FSo
 	return bHeaderParsed;
 }
 
-void FVorbisAudioInfo::GetChunkPtr(const uint8*& OutPtr, uint32& OutSize)
+const uint8* FVorbisAudioInfo::GetLoadedChunk(USoundWave* InSoundWave, uint32 ChunkIndex, uint32& OutChunkSize)
 {
-	check(StreamingSoundWave);
-
-	if (CurrentStreamingChunkIndex == 0)
+	if (!InSoundWave || ChunkIndex >= InSoundWave->GetNumChunks())
 	{
-		TArrayView<const uint8> ZerothChunk = StreamingSoundWave->GetZerothChunk();
-		OutPtr = ZerothChunk.GetData();
-		OutSize = ZerothChunk.Num();
+		UE_LOG(LogAudio, Error, TEXT("Error calling GetLoadedChunk for ChunkIndex %d!"), ChunkIndex);
+		OutChunkSize = 0;
+		return nullptr;
 	}
-	else if (((uint32)CurrentStreamingChunkIndex) < StreamingSoundWave->GetNumChunks())
+	else if (ChunkIndex == 0)
 	{
-		CurrentStreamingChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(StreamingSoundWave, CurrentStreamingChunkIndex);
-		OutPtr = CurrentStreamingChunkHandle.GetData();
-		OutSize = CurrentStreamingChunkHandle.Num();
+		TArrayView<const uint8> ZerothChunk = InSoundWave->GetZerothChunk();
+		OutChunkSize = ZerothChunk.Num();
+		return ZerothChunk.GetData();
 	}
 	else
 	{
-		OutPtr = nullptr;
-		OutSize = 0;
+		CurCompressedChunkHandle = IStreamingManager::Get().GetAudioStreamingManager().GetLoadedChunk(InSoundWave, ChunkIndex);
+		OutChunkSize = CurCompressedChunkHandle.Num();
+		return CurCompressedChunkHandle.GetData();
 	}
 }
 
@@ -626,10 +637,11 @@ bool FVorbisAudioInfo::StreamCompressedData(uint8* InDestination, bool bLooping,
 		if( BytesActuallyRead <= 0 )
 		{
 			// if we read 0 bytes or there was an error, instead of assuming we looped, lets write out zero's.
-			// this means that the chunk wasn't loaded in time
-			const bool bHitEOF = ((uint32) CurrentStreamingChunkIndex) >= StreamingSoundWave->GetNumChunks();
+			// this means that the chunk wasn't loaded in time.
 
-			if (!bHitEOF)
+			check(StreamingSoundWave->GetNumChunks() < ((uint32)TNumericLimits<int32>::Max()));
+
+			if (NextStreamingChunkIndex < static_cast<int32>(StreamingSoundWave->GetNumChunks()))
 			{
 				// zero out the rest of the buffer
 				FMemory::Memzero(InDestination, BufferSize);

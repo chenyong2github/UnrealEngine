@@ -1,7 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if WITH_PHYSX && PHYSICS_INTERFACE_PHYSX
+#if WITH_PHYSX
 #include "PhysXPublicCore.h"
 #include "PhysicsInterfaceUtilsCore.h"
 #include "PhysicsInterfaceWrapperShared.h"
@@ -47,58 +47,6 @@ inline PxQueryFlags U2PQueryFlags(FQueryFlags Flags)
 	}
 
 	return (PxQueryFlags)Result;
-}
-
-FORCEINLINE bool HadInitialOverlap(const PxLocationHit& Hit)
-{
-	return Hit.hadInitialOverlap();
-}
-
-FORCEINLINE PxShape* GetShape(const PxLocationHit& Hit)
-{
-	return Hit.shape;
-}
-
-FORCEINLINE PxShape* GetShape(const PxOverlapHit& Hit)
-{
-	return Hit.shape;
-}
-
-FORCEINLINE PxRigidActor* GetActor(const PxLocationHit& Hit)
-{
-	return Hit.actor;
-}
-
-FORCEINLINE PxRigidActor* GetActor(const PxOverlapHit& Hit)
-{
-	return Hit.actor;
-}
-
-FORCEINLINE float GetDistance(const PxLocationHit& Hit)
-{
-	return Hit.distance;
-}
-
-template <typename HitType>
-HitType* GetBlock(PxHitCallback<HitType>& Callback)
-{
-	return &Callback.block;
-}
-
-template <typename HitType>
-bool GetHasBlock(const PxHitCallback<HitType>& Callback)
-{
-	return Callback.hasBlock;
-}
-
-FORCEINLINE FVector GetPosition(const PxLocationHit& Hit)
-{
-	return P2UVector(Hit.position);
-}
-
-FORCEINLINE FVector GetNormal(const PxLocationHit& Hit)
-{
-	return P2UVector(Hit.normal);
 }
 
 FORCEINLINE PxHitFlags U2PHitFlags(const FHitFlags& Flags)
@@ -173,6 +121,61 @@ FORCEINLINE EHitFlags P2UHitFlags(const PxHitFlags& Flags)
 	return Result.HitFlags;
 }
 
+namespace PhysXInterface
+{
+
+FORCEINLINE bool HadInitialOverlap(const PxLocationHit& Hit)
+{
+	return Hit.hadInitialOverlap();
+}
+
+FORCEINLINE PxShape* GetShape(const PxLocationHit& Hit)
+{
+	return Hit.shape;
+}
+
+FORCEINLINE PxShape* GetShape(const PxOverlapHit& Hit)
+{
+	return Hit.shape;
+}
+
+FORCEINLINE PxRigidActor* GetActor(const PxLocationHit& Hit)
+{
+	return Hit.actor;
+}
+
+FORCEINLINE PxRigidActor* GetActor(const PxOverlapHit& Hit)
+{
+	return Hit.actor;
+}
+
+FORCEINLINE float GetDistance(const PxLocationHit& Hit)
+{
+	return Hit.distance;
+}
+
+template <typename HitType>
+HitType* GetBlock(PxHitCallback<HitType>& Callback)
+{
+	return &Callback.block;
+}
+
+template <typename HitType>
+bool GetHasBlock(const PxHitCallback<HitType>& Callback)
+{
+	return Callback.hasBlock;
+}
+
+FORCEINLINE FVector GetPosition(const PxLocationHit& Hit)
+{
+	return P2UVector(Hit.position);
+}
+
+FORCEINLINE FVector GetNormal(const PxLocationHit& Hit)
+{
+	return P2UVector(Hit.normal);
+}
+
 FORCEINLINE FHitFlags GetFlags(const PxLocationHit& Hit)
 {
 	return P2UHitFlags(Hit.flags);
@@ -229,58 +232,6 @@ FORCEINLINE_DEBUGGABLE bool IsInvalidFaceIndex(PxU32 faceIndex)
 {
 	checkfSlow(GetInvalidPhysicsFaceIndex() == 0xFFFFffff, TEXT("Engine code needs fixing: PhysX invalid face index sentinel has changed or is not part of default PxQueryHit!"));
 	return (faceIndex == 0xFFFFffff);
-}
-
-FORCEINLINE uint32 GetTriangleMeshExternalFaceIndex(const PxShape& Shape, uint32 InternalFaceIndex)
-{
-	PxTriangleMeshGeometry TriangleMeshGeometry;
-	if (Shape.getTriangleMeshGeometry(TriangleMeshGeometry))
-	{
-		if (TriangleMeshGeometry.triangleMesh && InternalFaceIndex < TriangleMeshGeometry.triangleMesh->getNbTriangles())
-		{
-			if (const PxU32* TriangleRemap = TriangleMeshGeometry.triangleMesh->getTrianglesRemap())
-			{
-				return TriangleRemap[InternalFaceIndex];
-			}
-		}
-	}
-
-	return GetInvalidPhysicsFaceIndex();
-}
-
-FORCEINLINE float GetRadius(const PxCapsuleGeometry& Capsule)
-{
-	return Capsule.radius;
-}
-
-FORCEINLINE float GetHalfHeight(const PxCapsuleGeometry& Capsule)
-{
-	return Capsule.halfHeight;
-}
-
-FORCEINLINE PxTransform GetGlobalPose(const PxRigidActor& RigidActor)
-{
-	return RigidActor.getGlobalPose();
-}
-
-FORCEINLINE uint32 GetNumShapes(const PxRigidActor& RigidActor)
-{
-	return RigidActor.getNbShapes();
-}
-
-FORCEINLINE void GetShapes(const PxRigidActor& RigidActor, PxShape** ShapesBuffer, uint32 NumShapes)
-{
-	RigidActor.getShapes(ShapesBuffer, sizeof(ShapesBuffer[0]) * NumShapes);
-}
-
-FORCEINLINE void SetActor(PxActorShape& Hit, PxRigidActor* Actor)
-{
-	Hit.actor = Actor;
-}
-
-FORCEINLINE void SetShape(PxActorShape& Hit, PxShape* Shape)
-{
-	Hit.shape = Shape;
 }
 
 template <typename T>
@@ -353,34 +304,6 @@ public:
 	}
 };
 
-template <typename HitType>
-FORCEINLINE_DEBUGGABLE bool Insert(PxHitCallback<HitType>& Callback, const HitType& Hit, bool bBlocking)
-{
-	if (!Callback.hasBlock || GetDistance(Hit) < GetDistance(Callback.block))
-	{
-		if (bBlocking)
-		{
-			Callback.block = Hit;
-			Callback.hasBlock = true;
-		}
-		else
-		{
-			if (Callback.maxNbTouches > 0)
-			{
-				Callback.processTouches(&Hit, 1);
-
-			}
-		}
-	}
-
-	return true;
-}
-
-template <typename HitType>
-FORCEINLINE bool InsertOverlap(PxHitCallback<HitType>& Callback, const HitType& Hit)
-{
-	return Callback.processTouches(&Hit, 1);
-}
 
 /** We use this struct so that if no conversion is needed in another API, we can avoid the copy (if we think that's critical) */
 struct FPhysicsRaycastInputAdapater
@@ -423,33 +346,62 @@ struct FPhysicsOverlapInputAdapater
 	PxTransform GeomPose;
 };
 
-template <typename HitType>
-FORCEINLINE void SetBlock(PxHitCallback<HitType>& Callback, const HitType& Hit)
+FORCEINLINE uint32 GetTriangleMeshExternalFaceIndex(const PxShape& Shape, uint32 InternalFaceIndex)
 {
-	Callback.block = Hit;
-}
-
-template <typename HitType>
-FORCEINLINE void SetHasBlock(PxHitCallback<HitType>& Callback, bool bHasBlock)
-{
-	Callback.hasBlock = bHasBlock;
-}
-
-template <typename HitType>
-FORCEINLINE void ProcessTouches(PxHitCallback<HitType>& Callback, const TArray<HitType>& TouchingHits)
-{
-	Callback.processTouches(TouchingHits.GetData(), TouchingHits.Num());
-}
-
-template <typename HitType>
-FORCEINLINE void FinalizeQuery(PxHitCallback<HitType>& Callback)
-{
-	if (Callback.nbTouches)
+	PxTriangleMeshGeometry TriangleMeshGeometry;
+	if (Shape.getTriangleMeshGeometry(TriangleMeshGeometry))
 	{
-		Callback.processTouches(Callback.touches, Callback.nbTouches);
+		if (TriangleMeshGeometry.triangleMesh && InternalFaceIndex < TriangleMeshGeometry.triangleMesh->getNbTriangles())
+		{
+			if (const PxU32* TriangleRemap = TriangleMeshGeometry.triangleMesh->getTrianglesRemap())
+			{
+				return TriangleRemap[InternalFaceIndex];
+			}
+		}
 	}
 
-	Callback.finalizeQuery();
+	return PhysXInterface::GetInvalidPhysicsFaceIndex();
 }
+
+FORCEINLINE float GetRadius(const PxCapsuleGeometry& Capsule)
+{
+	return Capsule.radius;
+}
+
+FORCEINLINE float GetHalfHeight(const PxCapsuleGeometry& Capsule)
+{
+	return Capsule.halfHeight;
+}
+
+FORCEINLINE PxTransform GetGlobalPose(const PxRigidActor& RigidActor)
+{
+	return RigidActor.getGlobalPose();
+}
+
+FORCEINLINE uint32 GetNumShapes(const PxRigidActor& RigidActor)
+{
+	return RigidActor.getNbShapes();
+}
+
+FORCEINLINE void GetShapes(const PxRigidActor& RigidActor, PxShape** ShapesBuffer, uint32 NumShapes)
+{
+	RigidActor.getShapes(ShapesBuffer, sizeof(ShapesBuffer[0]) * NumShapes);
+}
+
+FORCEINLINE void SetActor(PxActorShape& Hit, PxRigidActor* Actor)
+{
+	Hit.actor = Actor;
+}
+
+FORCEINLINE void SetShape(PxActorShape& Hit, PxShape* Shape)
+{
+	Hit.shape = Shape;
+}
+
+}
+
+#if PHYSICS_INTERFACE_PHYSX
+using namespace PhysXInterface;
+#endif
 
 #endif

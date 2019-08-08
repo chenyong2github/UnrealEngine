@@ -7,6 +7,7 @@
 #include "DisplayClusterBlueprintAPIImpl.generated.h"
 
 struct FDisplayClusterClusterEvent;
+struct FPostProcessSettings;
 
 
 /**
@@ -68,7 +69,8 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// Config API
 	//////////////////////////////////////////////////////////////////////////////////////////////
-
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get local viewports"), Category = "DisplayCluster|Config")
+	virtual void GetLocalViewports(bool IsRTT, TArray<FString>& ViewportIDs, TArray<FString>& ViewportTypes, TArray<FIntPoint>& ViewportLocations, TArray<FIntPoint>& ViewportSizes) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -189,6 +191,18 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set viewport camera"), Category = "DisplayCluster|Render")
 	virtual void SetViewportCamera(const FString& InCameraId, const FString& InViewportId) override;
+	
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
+	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post override settings for viewport"), Category = "DisplayCluster|Render")
+	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set start post processing settings for viewport"), Category = "DisplayCluster|Render")
+	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
+
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get viewport rectangle"), Category = "DisplayCluster|Render")
+	virtual bool GetViewportRect(const FString& ViewportID, FIntPoint& ViewportLoc, FIntPoint& ViewportSize) override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////

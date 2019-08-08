@@ -18,7 +18,7 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(struct FPropertyChangedChainEvent& PropertyChangedEvent) override;
 #endif
-	   
+
 	UFractureUniformSettings()
 		: NumberVoronoiSitesMin(20)
 		, NumberVoronoiSitesMax(20)
@@ -26,10 +26,11 @@ public:
 	{}
 
 
-	/** Number of Voronoi sites - Uniform Voronoi Method */
+	/** Minimum Number of Voronoi sites - A random number will be chosen between the Min and Max for each bone you have selected */
 	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Minimum Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
 	int32 NumberVoronoiSitesMin;
 
+	/** Maximum Number of Voronoi sites - A random number will be chosen between the Min and Max for each bone you have selected */
 	UPROPERTY(EditAnywhere, Category = UniformVoronoi, meta = (DisplayName = "Maximum Voronoi Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
 	int32 NumberVoronoiSitesMax;
 

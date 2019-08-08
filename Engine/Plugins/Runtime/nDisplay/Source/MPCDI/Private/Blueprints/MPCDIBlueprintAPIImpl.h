@@ -21,10 +21,32 @@ class UMPCDIAPIImpl
 
 public:
 	/**
-	* Binds multiple device channels to multiple keys
+	* Return MPCDI mesh data
 	*
-	* @return true if success
 	*/
 	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get MPCDI Mesh Data"), Category = "MPCDI")
-	virtual void GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) override;
+	virtual bool GetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, FMPCDIGeometryExportData& MeshData) override;
+
+	/**
+	* Return PFM mesh data
+	*
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Get PFM Mesh Data"), Category = "MPCDI")
+	virtual bool GetPFMMeshData(const FString& PFMFile, FMPCDIGeometryExportData& MeshData, float PFMScale = 1, bool bIsMPCDIAxis = true) override;
+
+	/**
+	* Set MPCDI mesh data at runtime
+	*
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Set MPCDI Mesh Data"), Category = "MPCDI")
+	virtual void SetMPCDIMeshData(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, const FMPCDIGeometryImportData& MeshData) override;
+
+	/**
+	* Reload changed external files
+	*
+	*/
+	UFUNCTION(BlueprintCallable, meta = (DisplayName = "Reload Changed External Files"), Category = "MPCDI")
+	virtual void ReloadChangedExternalFiles() override;
+
+
 };

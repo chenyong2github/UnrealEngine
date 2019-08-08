@@ -862,11 +862,17 @@ void UNiagaraScript::SetVMCompilationResults(const FNiagaraVMExecutableDataId& I
 	
 	if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_Error)
 	{
-		UE_LOG(LogNiagara, Error, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		// Compiler errors for Niagara will have a strong UI impact but the game should still function properly, there 
+		// will just be oddities in the visuals. It should be acted upon, but in no way should the game be blocked from
+		// a successful cook because of it. Therefore, we do a warning.
+		UE_LOG(LogNiagara, Warning, TEXT("%s System Asset: %s"), *CachedScriptVM.ErrorMsg, *GetPathName());
 	}
 	else if (CachedScriptVM.LastCompileStatus == ENiagaraScriptCompileStatus::NCS_UpToDateWithWarnings)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("%s"), *CachedScriptVM.ErrorMsg);
+		// Compiler warnings for Niagara are meant for notification and should have a UI representation, but 
+		// should be expected to still function properly and can be acted upon at the user's leisure. This makes
+		// them best logged as Display messages, as Log will not be shown in the cook.
+		UE_LOG(LogNiagara, Display, TEXT("%s System Asset: %s"), *CachedScriptVM.ErrorMsg, *GetPathName());
 	}
 
 	// The compilation process only references via soft references any parameter collections. This resolves those 
@@ -1112,6 +1118,19 @@ void UNiagaraScript::BeginCacheForCookedPlatformData(const ITargetPlatform *Targ
 			}
 		}
 	}
+}
+
+bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (ShouldCacheShadersForCooking())
+	{
+		if (UNiagaraSystem* SystemOwner = FindRootSystem())
+		{
+			return !SystemOwner->HasOutstandingCompilationRequests();
+		}
+	}
+
+	return true;
 }
 
 void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatform, TArray<FNiagaraShaderScript*>& InOutCachedResources)

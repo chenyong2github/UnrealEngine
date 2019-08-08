@@ -391,6 +391,10 @@ extern RHI_API TRHIGlobal<int32> GMaxShadowDepthBufferSizeY;
 /** The maximum size allowed for 2D textures in both dimensions. */
 extern RHI_API TRHIGlobal<int32> GMaxTextureDimensions;
 
+/** The maximum size allowed for 3D textures in all three dimensions. */
+extern RHI_API TRHIGlobal<int32> GMaxVolumeTextureDimensions;
+
+
 FORCEINLINE uint32 GetMax2DTextureDimension()
 {
 	return GMaxTextureDimensions;

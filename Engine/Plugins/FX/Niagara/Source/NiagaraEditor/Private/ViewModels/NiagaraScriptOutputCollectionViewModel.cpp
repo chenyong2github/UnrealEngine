@@ -53,42 +53,13 @@ FNiagaraScriptOutputCollectionViewModel::FNiagaraScriptOutputCollectionViewModel
 	}
 }
 
-FNiagaraScriptOutputCollectionViewModel::FNiagaraScriptOutputCollectionViewModel(UNiagaraEmitter* InEmitter, ENiagaraParameterEditMode InParameterEditMode)
+FNiagaraScriptOutputCollectionViewModel::FNiagaraScriptOutputCollectionViewModel(ENiagaraParameterEditMode InParameterEditMode)
 	: FNiagaraParameterCollectionViewModel(InParameterEditMode)
 	, DisplayName(LOCTEXT("DisplayName", "Outputs"))
 {
-	TArray<UNiagaraScript*> InScripts;
-	InEmitter->GetScripts(InScripts);
-	// Because of weak pointers, we need to copy ourselves..
-	for (UNiagaraScript* Script : InScripts)
-	{
-		Scripts.Add(Script);
-		ensure(Script->GetSource() == InEmitter->GraphSource);
-	}
-	UNiagaraScriptSource* Source = Cast<UNiagaraScriptSource>(InEmitter->GraphSource);
-
-	if (Source)
-	{
-		Graph = Source->NodeGraph;
-		bCanHaveNumericParameters = false;
-		
-		OutputNode = Graph->FindOutputNode(ENiagaraScriptUsage::ParticleSpawnScript);
-	}
-	else
-	{
-		Graph = nullptr;
-		OutputNode = nullptr;
-		bCanHaveNumericParameters = false;
-	}
-	RefreshParameterViewModels();
-
-	if (Graph.IsValid())
-	{
-		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
-		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
-	}
+	Graph = nullptr;
+	OutputNode = nullptr;
+	bCanHaveNumericParameters = false;
 }
 
 FNiagaraScriptOutputCollectionViewModel::~FNiagaraScriptOutputCollectionViewModel()

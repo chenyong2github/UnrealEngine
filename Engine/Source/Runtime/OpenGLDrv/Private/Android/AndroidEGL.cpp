@@ -1715,6 +1715,7 @@ extern FCriticalSection GAndroidWindowLock;
 
 void BlockOnLostWindowRenderCommand(TSharedPtr<FEvent, ESPMode::ThreadSafe> RTBlockedTrigger)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_BlockOnLostWindowRenderCommand);
 	check(IsInRenderingThread());
 
 	// Hold GC scope guard, as GC will timeout if anything waits for RT fences.

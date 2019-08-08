@@ -49,7 +49,7 @@ void FConcertServerSequencerManager::HandleSequencerStateEvent(const FConcertSes
 	// Forward the message to the other clients
 	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 	ClientIds.Remove(InEventContext.SourceEndpointId);
-	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered);
+	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 }
 
 void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerOpenEvent& InEvent)
@@ -62,7 +62,7 @@ void FConcertServerSequencerManager::HandleSequencerOpenEvent(const FConcertSess
 	// Forward the message to the other clients
 	TArray<FGuid> ClientIds = LiveSession->GetSession().GetSessionClientEndpointIds();
 	ClientIds.Remove(InEventContext.SourceEndpointId);
-	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered);
+	LiveSession->GetSession().SendCustomEvent(InEvent, ClientIds, EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 }
 
 void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSessionContext& InEventContext, const FConcertSequencerCloseEvent& InEvent)
@@ -77,13 +77,13 @@ void FConcertServerSequencerManager::HandleSequencerCloseEvent(const FConcertSes
 			FConcertSequencerCloseEvent CloseEvent;
 			CloseEvent.bMasterClose = false;
 			CloseEvent.SequenceObjectPath = InEvent.SequenceObjectPath;
-			LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 			SequencerStates.Remove(*InEvent.SequenceObjectPath);
 		}
 		// if a sequence was close while it was the master, forward it to client
 		else if (InEvent.bMasterClose)
 		{
-			LiveSession->GetSession().SendCustomEvent(InEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+			LiveSession->GetSession().SendCustomEvent(InEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered | EConcertMessageFlags::UniqueId);
 		}
 	}
 }
@@ -102,7 +102,7 @@ void FConcertServerSequencerManager::HandleSessionClientChanged(IConcertServerSe
 				// Forward the close event to clients
 				FConcertSequencerCloseEvent CloseEvent;
 				CloseEvent.SequenceObjectPath = It->Key.ToString();
-				LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered);
+				LiveSession->GetSession().SendCustomEvent(CloseEvent, LiveSession->GetSession().GetSessionClientEndpointIds(), EConcertMessageFlags::ReliableOrdered|EConcertMessageFlags::UniqueId);
 
 				It.RemoveCurrent();
 			}

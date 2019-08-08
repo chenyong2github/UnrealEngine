@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Rendering/RenderingCommon.h"
+#include "RenderingThread.h"
 #include "Interfaces/ISlateRHIRendererModule.h"
 #include "SlateElementVertexBuffer.h"
 
@@ -37,6 +38,7 @@ private:
 	virtual ISlateUpdatableInstanceBufferRenderProxy* GetRenderProxy() const override final { return Proxy; }
 	virtual void Update(FSlateInstanceBufferData& Data) override final;
 	// END ISlateUpdatableInstanceBuffer
+
 
 private:
 	uint32 NumInstances;

@@ -213,7 +213,7 @@ void FConcertLocalEndpoint::InternalQueueResponse(const TSharedRef<IConcertRespo
 	}
 }
 
-void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags)
+void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& Event, const FGuid& Endpoint, EConcertMessageFlags Flags, const TMap<FName, FString>& Annotations)
 {
 	// Fill sending info
 	SetMessageSendingInfo(Event);
@@ -237,7 +237,7 @@ void FConcertLocalEndpoint::InternalQueueEvent(const TSharedRef<IConcertEvent>& 
 		}
 	}
 
-	SendMessage(Event, RemoteEndpoint.ToSharedRef(), Event->GetCreationDate());
+	SendMessage(Event, RemoteEndpoint.ToSharedRef(), Event->GetCreationDate(), Annotations);
 }
 
 void FConcertLocalEndpoint::InternalPublishEvent(const TSharedRef<IConcertEvent>& Event)
@@ -427,7 +427,7 @@ void FConcertLocalEndpoint::PublishMessage(const TSharedRef<IConcertMessage>& Me
 	);
 }
 
-void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow)
+void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Message, const FConcertRemoteEndpointRef& RemoteEndpoint, const FDateTime& UtcNow, const TMap<FName, FString>& Annotations)
 {
 	if (!MessageEndpoint.IsValid())
 	{
@@ -443,6 +443,7 @@ void FConcertLocalEndpoint::SendMessage(const TSharedRef<IConcertMessage>& Messa
 		Message->ConstructMessage(), // Should be deleted by MessageBus
 		Message->GetMessageType(),
 		Message->IsReliable() ? EMessageFlags::Reliable : EMessageFlags::None,
+		Annotations, 
 		nullptr, // No Attachment
 		TArrayBuilder<FMessageAddress>().Add(RemoteEndpoint->GetAddress()),
 		FTimespan::Zero(), // No Delay
@@ -470,7 +471,7 @@ void FConcertLocalEndpoint::InternalHandleMessage(const TSharedRef<IMessageConte
 
 	// Setup Context
 	const FConcertMessageData* Message = (const FConcertMessageData*)Context->GetMessage();
-	const FConcertMessageContext ConcertContext(Message->ConcertEndpointId, UtcNow, Message, MessageTypeInfo);
+	const FConcertMessageContext ConcertContext(Message->ConcertEndpointId, UtcNow, Message, MessageTypeInfo, Context->GetAnnotations());
 	Logger.LogMessageReceived(ConcertContext, EndpointContext.EndpointId);
 
 	// Special endpoint discovery message handling, process discovery before passing down the message

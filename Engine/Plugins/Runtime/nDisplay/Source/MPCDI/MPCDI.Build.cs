@@ -15,48 +15,33 @@ public class MPCDI : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"Projects"
-			});
+				"Projects",
+            });
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"CoreUObject",
-				"Engine",
+				"DisplayCluster",
 				"RenderCore",
 				"RHI",
 				"UtilityShaders"
 			}
 		);
 
-		PrivateIncludePaths.AddRange(
-			new string[] {
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private/Windows"
-			});
-
 		if (Target.bBuildEditor == true)
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
 
-		PublicAdditionalLibraries.Add("opengl32.lib");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "UElibPNG");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "zlib");
 
 		AddThirdPartyDependencies(ROTargetRules);
 	}
 
-	public bool AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
+	public void AddThirdPartyDependencies(ReadOnlyTargetRules ROTargetRules)
 	{
-		string ModulePath = Path.GetDirectoryName(UnrealBuildTool.RulesCompiler.GetFileNameFromType(GetType()));
-		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModulePath, "../../ThirdParty/"));
+		string ThirdPartyPath = Path.GetFullPath(Path.Combine(ModuleDirectory, "../../ThirdParty/"));
 
 		string PathLib = string.Empty;
 		string PathInc = string.Empty;
@@ -76,7 +61,5 @@ public class MPCDI : ModuleRules
 		PublicIncludePaths.Add(Path.Combine(PathInc, "Creators"));
 		PublicIncludePaths.Add(Path.Combine(PathInc, "IO"));
 		PublicIncludePaths.Add(Path.Combine(PathInc, "Utils"));
-
-		return true;
 	}
 }

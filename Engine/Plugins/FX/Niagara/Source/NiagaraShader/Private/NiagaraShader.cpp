@@ -299,6 +299,9 @@ FShaderCompileJob* FNiagaraShaderType::BeginCompileShader(
 	NewJob->Input.Environment.SetDefine(TEXT("GPU_SIMULATION"), 1);
 	NewJob->Input.Environment.SetDefine(TEXT("NIAGARA_MAX_GPU_SPAWN_INFOS"), NIAGARA_MAX_GPU_SPAWN_INFOS);
 	NewJob->Input.Environment.IncludeVirtualPathToContentsMap.Add(TEXT("/Engine/Generated/NiagaraEmitterInstance.ush"), Script->HlslOutput);
+
+	static const auto UseShaderStagesCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("fx.UseShaderStages"));
+	NewJob->Input.Environment.SetDefine(TEXT("USE_SHADER_STAGES"), UseShaderStagesCVar->GetInt());
 	
 	AddReferencedUniformBufferIncludes(NewJob->Input.Environment, NewJob->Input.SourceFilePrefix, (EShaderPlatform)Target.Platform);
 	
@@ -1278,7 +1281,8 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 	InstanceCountsParam.Bind(ParameterMap, TEXT("InstanceCounts"));
 	ReadInstanceCountOffsetParam.Bind(ParameterMap, TEXT("ReadInstanceCountOffset"));
 	WriteInstanceCountOffsetParam.Bind(ParameterMap, TEXT("WriteInstanceCountOffset"));
-
+	
+	SimStartParam.Bind(ParameterMap, TEXT("SimStart"));
 	EmitterTickCounterParam.Bind(ParameterMap, TEXT("EmitterTickCounter"));
 	EmitterSpawnInfoOffsetsParam.Bind(ParameterMap, TEXT("EmitterSpawnInfoOffsets"));
 	EmitterSpawnInfoParamsParam.Bind(ParameterMap, TEXT("EmitterSpawnInfoParams"));
@@ -1289,6 +1293,8 @@ void FNiagaraShader::BindParams(const FShaderParameterMap &ParameterMap)
 
 	NumSpawnedInstancesParam.Bind(ParameterMap, TEXT("SpawnedInstances"));
 	UpdateStartInstanceParam.Bind(ParameterMap, TEXT("UpdateStartInstance"));
+	ShaderStageIndexParam.Bind(ParameterMap, TEXT("ShaderStageIndex"));
+	IterationInterfaceCount.Bind(ParameterMap, TEXT("IterationInterfaceCount"));
 
 	ComponentBufferSizeReadParam.Bind(ParameterMap, TEXT("ComponentBufferSizeRead"));
 	ComponentBufferSizeWriteParam.Bind(ParameterMap, TEXT("ComponentBufferSizeWrite"));
@@ -1347,12 +1353,15 @@ bool FNiagaraShader::Serialize(FArchive& Ar)
 	Ar << ReadInstanceCountOffsetParam;
 	Ar << WriteInstanceCountOffsetParam;
 
+	Ar << SimStartParam;
 	Ar << EmitterTickCounterParam;
 	Ar << EmitterSpawnInfoOffsetsParam;
 	Ar << EmitterSpawnInfoParamsParam;
 
 	Ar << NumSpawnedInstancesParam;
 	Ar << UpdateStartInstanceParam;
+	Ar << ShaderStageIndexParam;
+	Ar << IterationInterfaceCount;
 	Ar << ComponentBufferSizeReadParam;
 	Ar << ComponentBufferSizeWriteParam;
 

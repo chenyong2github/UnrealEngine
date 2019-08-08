@@ -233,7 +233,7 @@ UStaticMesh* FAbcImporter::CreateStaticMeshFromSample(UObject* InParent, const F
 		GenerateMeshDescriptionFromSample(Sample, MeshDescription, StaticMesh);
 
 		// Get the first LOD for filling it up with geometry, only support one LOD
-		FStaticMeshSourceModel& SrcModel = StaticMesh->SourceModels[LODIndex];
+		FStaticMeshSourceModel& SrcModel = StaticMesh->GetSourceModel(LODIndex);
 		// Set build settings for the static mesh
 		SrcModel.BuildSettings.bRecomputeNormals = false;
 		SrcModel.BuildSettings.bRecomputeTangents = false;

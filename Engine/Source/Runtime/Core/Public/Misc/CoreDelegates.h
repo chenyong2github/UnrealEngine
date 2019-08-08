@@ -181,8 +181,13 @@ public:
 
 	// Callback when an ensure has occurred
 	static FOnHandleSystemEnsure OnHandleSystemEnsure;
+
 	// Callback when an error (crash) has occurred
 	static FOnHandleSystemError OnHandleSystemError;
+
+	// Callback when an error (crash) has occurred. Runs before the crash reporter.
+	// This should be used very carefully.
+	static FOnHandleSystemError OnBeforeHandleSystemError;
 
 	// Called when an actor label is changed
 	static FOnActorLabelChanged OnActorLabelChanged;
@@ -543,6 +548,10 @@ public:
 	// Return true for to launch the url
 	DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldLaunchUrl, const TCHAR* /* URL */);
 	static FShouldLaunchUrl ShouldLaunchUrl;
+
+	/** Sent when GC finish destroy takes more time than expected */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGCFinishDestroyTimeExtended, const FString&);
+	static FOnGCFinishDestroyTimeExtended OnGCFinishDestroyTimeExtended;
 
 private:
 

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "HoloLensAvailability.h"
+#include "WindowsMixedRealityAvailability.h"
 #include "IXRTrackingSystem.h"
 #include "ARSystem.h"
 #include "ARPin.h"
@@ -111,7 +111,7 @@ public:
 private:
 	//~ Tracking notification callback
 
-#if PLATFORM_HOLOLENS && SUPPORTS_HOLOLENS_1_0
+#if SUPPORTS_WINDOWS_MIXED_REALITY_AR
 	/** Starts the camera with the desired settings */
 	void SetupCameraImageSupport();
 	/** Starts the interop layer mesh observer that will notify us of mesh changes */

@@ -62,7 +62,8 @@ enum class ERCAccess : uint8
 struct FRCObjectReference
 {
 	FRCObjectReference()
-		: Object(nullptr)
+		: Access(ERCAccess::NO_ACCESS)
+		, Object(nullptr)
 		, Property(nullptr)
 	{}
 
@@ -142,4 +143,11 @@ public:
 	 * @return true if the deserialization succeeded
 	 */
 	virtual bool SetObjectProperties(const FRCObjectReference& ObjectAccess, IStructDeserializerBackend& Backend) = 0;
+
+	/**
+	 * Reset the property or the object the Object Reference is pointing to
+	 * @param ObjectAccess the object reference to reset, it should be a write access reference
+	 * @return true if the reset succeeded.
+	 */
+	virtual bool ResetObjectProperties(const FRCObjectReference& ObjectAccess) = 0;
 };

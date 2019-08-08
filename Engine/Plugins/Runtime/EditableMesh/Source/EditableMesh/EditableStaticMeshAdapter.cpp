@@ -20,20 +20,10 @@ UEditableStaticMeshAdapter::UEditableStaticMeshAdapter()
 	  StaticMeshLODIndex( 0 ),
 	  RecreateRenderStateContext(),
 	  CachedBoundingBoxAndSphere( FVector::ZeroVector, FVector::ZeroVector, 0.0f ),
-	  bUpdateCollisionNeeded( false )
+	  bUpdateCollisionNeeded( false ),
+	  bRecreateSimplifiedCollision( true )
 {
 }
-
-void UEditableStaticMeshAdapter::BeginDestroy()
-{
-	Super::BeginDestroy();
-
-	if (StaticMesh)
-	{
-		StaticMesh->ReleaseResources();
-	}
-}
-
 
 
 inline void UEditableStaticMeshAdapter::EnsureIndexBufferIs32Bit()
@@ -1041,7 +1031,10 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 	// @todo mesheditor collision: We're wiping the existing simplified collision and generating a simple bounding
 	// box collision, since that's the best we can do without impacting performance.  We always using visibility (complex)
 	// collision for traces while mesh editing (for hover/selection), so simplified collision isn't really important.
-	const bool bRecreateSimplifiedCollision = true;
+	if ( !bRecreateSimplifiedCollision )
+	{
+		return;
+	}
 
 	if( StaticMesh->BodySetup == nullptr )
 	{
@@ -1059,27 +1052,21 @@ void UEditableStaticMeshAdapter::UpdateCollision()
 	// NOTE: We don't bother calling Modify() on the BodySetup as EndModification() will rebuild this guy after every undo
 	// BodySetup->Modify();
 
-	if( bRecreateSimplifiedCollision )
+	if( BodySetup->AggGeom.GetElementCount() > 0 )
 	{
-		if( BodySetup->AggGeom.GetElementCount() > 0 )
-		{
-			BodySetup->RemoveSimpleCollision();
-		}
+		BodySetup->RemoveSimpleCollision();
 	}
 
 	BodySetup->InvalidatePhysicsData();
 
-	if( bRecreateSimplifiedCollision )
-	{
-		const FBoxSphereBounds Bounds = StaticMesh->GetBounds();
+	const FBoxSphereBounds Bounds = StaticMesh->GetBounds();
 
-		FKBoxElem BoxElem;
-		BoxElem.Center = Bounds.Origin;
-		BoxElem.X = Bounds.BoxExtent.X * 2.0f;
-		BoxElem.Y = Bounds.BoxExtent.Y * 2.0f;
-		BoxElem.Z = Bounds.BoxExtent.Z * 2.0f;
-		BodySetup->AggGeom.BoxElems.Add( BoxElem );
-	}
+	FKBoxElem BoxElem;
+	BoxElem.Center = Bounds.Origin;
+	BoxElem.X = Bounds.BoxExtent.X * 2.0f;
+	BoxElem.Y = Bounds.BoxExtent.Y * 2.0f;
+	BoxElem.Z = Bounds.BoxExtent.Z * 2.0f;
+	BodySetup->AggGeom.BoxElems.Add( BoxElem );
 
 	// Update all static mesh components that are using this mesh
 	// @todo mesheditor perf: This is a pretty heavy operation, and overlaps with what we're already doing in RecreateRenderStateContext
@@ -1710,7 +1697,7 @@ void UEditableStaticMeshAdapter::OnCreatePolygonGroups( const UEditableMesh* Edi
 			Info.bEnableCollision = StaticMeshSection.bEnableCollision;
 			Info.bCastShadow = StaticMeshSection.bCastShadow;
 			Info.MaterialIndex = StaticMeshSection.MaterialIndex;
-			StaticMesh->SectionInfoMap.Set( StaticMeshLODIndex, LODSectionIndex, Info );
+			StaticMesh->GetSectionInfoMap().Set( StaticMeshLODIndex, LODSectionIndex, Info );
 #endif
 		}
 
@@ -1812,14 +1799,14 @@ void UEditableStaticMeshAdapter::OnDeletePolygonGroups( const UEditableMesh* Edi
 
 #if WITH_EDITORONLY_DATA
 			// SectionInfoMap must be re-indexed to account for the removed Section
-			uint32 NumSectionInfo = StaticMesh->SectionInfoMap.GetSectionNumber( StaticMeshLODIndex );
+			uint32 NumSectionInfo = StaticMesh->GetSectionInfoMap().GetSectionNumber( StaticMeshLODIndex );
 			for ( uint32 Index = RenderingSectionIndex + 1; Index < NumSectionInfo; ++Index )
 			{
-				FMeshSectionInfo SectionInfo = StaticMesh->SectionInfoMap.Get( StaticMeshLODIndex, Index );
-				StaticMesh->SectionInfoMap.Set( StaticMeshLODIndex, Index - 1, SectionInfo );
+				FMeshSectionInfo SectionInfo = StaticMesh->GetSectionInfoMap().Get( StaticMeshLODIndex, Index );
+				StaticMesh->GetSectionInfoMap().Set( StaticMeshLODIndex, Index - 1, SectionInfo );
 			}
 			// And remove the last SectionInfo from the map which is now invalid
-			StaticMesh->SectionInfoMap.Remove( StaticMeshLODIndex, NumSectionInfo - 1 );
+			StaticMesh->GetSectionInfoMap().Remove( StaticMeshLODIndex, NumSectionInfo - 1 );
 #endif
 		}
 

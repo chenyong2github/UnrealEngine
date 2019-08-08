@@ -4,6 +4,9 @@
 #include "GlobalEditorNotification.h"
 #include "LandscapeProxy.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Framework/Application/SlateApplication.h"
+#include "UnrealEdGlobals.h"
+#include "Editor/UnrealEdEngine.h"
 
 /** Notification class for grassmmap rendering. */
 class FGrassRenderingNotificationImpl : public FGlobalEditorNotification
@@ -19,7 +22,8 @@ FGrassRenderingNotificationImpl GGrassRenderingNotification;
 
 bool FGrassRenderingNotificationImpl::ShouldShowNotification(const bool bIsNotificationAlreadyActive) const
 {
-	return ALandscapeProxy::TotalComponentsNeedingGrassMapRender > 0;
+	// Avoid showing the notification when a user is interacting as it causes a focus lost event which prevents them from dragging
+	return ALandscapeProxy::TotalComponentsNeedingGrassMapRender > 0 && !(FSlateApplication::Get().HasAnyMouseCaptor() || GUnrealEd->IsUserInteracting());
 }
 
 void FGrassRenderingNotificationImpl::SetNotificationText(const TSharedPtr<SNotificationItem>& InNotificationItem) const

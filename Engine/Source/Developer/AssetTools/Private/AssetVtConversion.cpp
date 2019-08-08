@@ -157,7 +157,7 @@ void FVTConversionWorker::FindAllTexturesAndMaterials_Iteration(TArray<UMaterial
 		bool bIsVirtualTextureValid = true;
 		for (UMaterialInterface* Material : MaterialsUsingTexture)
 		{
-			if (!IsVirtualTextureValidForMaterial(Material, Tex2D))
+			if (!bConvertBackward && !IsVirtualTextureValidForMaterial(Material, Tex2D))
 			{
 				AuditTrail.Add(Tex2D, FAuditTrail(
 					Material,
@@ -516,9 +516,9 @@ static void MarkTextureExpressionModified(UMaterialExpressionTextureBase* Expres
 	Expression->PostEditChangeProperty(TextureChangeEvent);
 }
 
-void FVTConversionWorker::DoConvert(bool backwards)
+void FVTConversionWorker::DoConvert()
 {
-	const bool bVirtualTextureEnable = !backwards;
+	const bool bVirtualTextureEnable = !bConvertBackward;
 
 	FScopedSlowTask SlowTask(2.0f, LOCTEXT("ConvertToVT_Progress_ConvertingTexturesAndMaterials", "Converting textures and materials..."));
 	SlowTask.MakeDialog();

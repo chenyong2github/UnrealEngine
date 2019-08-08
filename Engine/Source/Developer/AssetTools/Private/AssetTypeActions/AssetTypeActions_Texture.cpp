@@ -396,6 +396,7 @@ public:
 
 	void SetBackwards(bool bSetBackwards)
 	{
+		Worker.SetConversionDirection(bBackwards);
 		bBackwards = bSetBackwards;
 	}
 
@@ -713,7 +714,7 @@ private:
 
 		if (ButtonID == FConvertToVTDlg::EResult::Confirm)
 		{
-			Worker.DoConvert(bBackwards);
+			Worker.DoConvert();
 		}
 
 		return FReply::Handled();
@@ -859,8 +860,8 @@ FConvertToVTDlg::FConvertToVTDlg(const TArray<UTexture2D *> &Textures, bool bBac
 				.ParentWindow(DialogWindow)
 			];
 
-		DialogWidget->SetUserTextures(Textures);
 		DialogWidget->SetBackwards(bBackwards);
+		DialogWidget->SetUserTextures(Textures);
 		DialogWindow->SetContent(DialogWrapper.ToSharedRef());
 	}
 }

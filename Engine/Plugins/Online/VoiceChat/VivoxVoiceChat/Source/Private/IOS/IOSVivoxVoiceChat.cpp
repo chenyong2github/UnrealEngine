@@ -4,6 +4,7 @@
 
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
+#include "Misc/EmbeddedCommunication.h"
 #include "IOS/IOSAppDelegate.h"
 
 TUniquePtr<FVivoxVoiceChat> CreateVivoxObject()
@@ -104,6 +105,20 @@ void FIOSVivoxVoiceChat::StopRecording(FDelegateHandle Handle)
 	{
 		EnableVoiceChat(false);
 	}
+}
+
+void FIOSVivoxVoiceChat::InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0)
+{
+	[FIOSAsyncTask CreateTaskWithBlock:^bool()
+	{
+		if (Func)
+		{
+			(*Func)(Arg0);
+		}
+		return true;
+	}];
+	
+	FEmbeddedCommunication::WakeGameThread();
 }
 
 void FIOSVivoxVoiceChat::onConnectCompleted(const VivoxClientApi::Uri& Server)

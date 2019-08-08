@@ -1,2 +1,2 @@
-HolographicAppRemoting.dll
+Microsoft.Holographic.AppRemoting.dll
 PerceptionDevice.dll

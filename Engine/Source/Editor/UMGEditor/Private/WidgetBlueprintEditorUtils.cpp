@@ -34,6 +34,7 @@
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Components/Widget.h"
 #include "Blueprint/WidgetNavigation.h"
+#include "UObject/ScriptInterface.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
@@ -429,9 +430,9 @@ void FWidgetBlueprintEditorUtils::DeleteWidgets(UWidgetBlueprint* Blueprint, TSe
 	}
 }
 
-INamedSlotInterface* FWidgetBlueprintEditorUtils::FindNamedSlotHostForContent(UWidget* WidgetTemplate, UWidgetTree* WidgetTree)
+TScriptInterface<INamedSlotInterface> FWidgetBlueprintEditorUtils::FindNamedSlotHostForContent(UWidget* WidgetTemplate, UWidgetTree* WidgetTree)
 {
-	return Cast<INamedSlotInterface>(FindNamedSlotHostWidgetForContent(WidgetTemplate, WidgetTree));
+	return TScriptInterface<INamedSlotInterface>(FindNamedSlotHostWidgetForContent(WidgetTemplate, WidgetTree));
 }
 
 UWidget* FWidgetBlueprintEditorUtils::FindNamedSlotHostWidgetForContent(UWidget* WidgetTemplate, UWidgetTree* WidgetTree)
@@ -514,12 +515,12 @@ void FWidgetBlueprintEditorUtils::FindAllAncestorNamedSlotHostWidgetsForContent(
 	}
 }
 
-bool FWidgetBlueprintEditorUtils::RemoveNamedSlotHostContent(UWidget* WidgetTemplate, INamedSlotInterface* NamedSlotHost)
+bool FWidgetBlueprintEditorUtils::RemoveNamedSlotHostContent(UWidget* WidgetTemplate, TScriptInterface<INamedSlotInterface> NamedSlotHost)
 {
 	return ReplaceNamedSlotHostContent(WidgetTemplate, NamedSlotHost, nullptr);
 }
 
-bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTemplate, INamedSlotInterface* NamedSlotHost, UWidget* NewContentWidget)
+bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTemplate, TScriptInterface<INamedSlotInterface> NamedSlotHost, UWidget* NewContentWidget)
 {
 	TArray<FName> SlotNames;
 	NamedSlotHost->GetSlotNames(SlotNames);
@@ -530,6 +531,8 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 		{
 			if (SlotContent == WidgetTemplate)
 			{
+				NewContentWidget->Modify();
+				NamedSlotHost.GetObject()->Modify();
 				NamedSlotHost->SetContentForSlot(SlotName, NewContentWidget);
 				return true;
 			}
@@ -542,7 +545,7 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 bool FWidgetBlueprintEditorUtils::FindAndRemoveNamedSlotContent(UWidget* WidgetTemplate, UWidgetTree* WidgetTree)
 {
 	UWidget* NamedSlotHostWidget = FindNamedSlotHostWidgetForContent(WidgetTemplate, WidgetTree);
-	if ( INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(NamedSlotHostWidget) )
+	if (TScriptInterface<INamedSlotInterface> NamedSlotHost = TScriptInterface<INamedSlotInterface>(NamedSlotHostWidget) )
 	{
 		NamedSlotHostWidget->Modify();
 		return RemoveNamedSlotHostContent(WidgetTemplate, NamedSlotHost);
@@ -614,8 +617,7 @@ void FWidgetBlueprintEditorUtils::WrapWidgets(TSharedRef<FWidgetBlueprintEditor>
 		if (CurrentSlot)
 		{
 			// If this is a named slot, we need to properly remove and reassign the slot content
-			INamedSlotInterface* NamedSlotHost = Cast<INamedSlotInterface>(CurrentSlot);
-			if (NamedSlotHost != nullptr)
+			if (TScriptInterface<INamedSlotInterface> NamedSlotHost = TScriptInterface<INamedSlotInterface>(CurrentSlot))
 			{
 				CurrentSlot->SetFlags(RF_Transactional);
 				CurrentSlot->Modify();
@@ -891,6 +893,10 @@ void FWidgetBlueprintEditorUtils::ReplaceWidgetWithChildren(TSharedRef<FWidgetBl
 
 			BP->WidgetTree->Modify();
 			BP->WidgetTree->RootWidget = FirstChildTemplate;
+		}
+		else if (TScriptInterface<INamedSlotInterface> NamedSlotHost = FindNamedSlotHostForContent(ExistingPanelTemplate, BP->WidgetTree))
+		{
+			ReplaceNamedSlotHostContent(ExistingPanelTemplate, NamedSlotHost, FirstChildTemplate);
 		}
 		else
 		{

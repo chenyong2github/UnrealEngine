@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
-#include "/Engine/Private/GammaCorrectionCommon.ush"
-
+#include "MPCDIUtils.ush"
 
 //Draw rectangle support
 float4 DrawRectanglePosScaleBias;
@@ -50,49 +49,6 @@ struct OutputPS
 	float4 Color : SV_Target0;
 };
 
-float3 ApplyPicpTextureGammaCorrection(float3 Color)
-{
-	float3 OutColor = ApplyGammaCorrection(Color, 2.2);
-	       OutColor = LinearToSrgb(OutColor);
-
-	return OutColor;
-}
-
-float4 ApplyPicpTextureGammaCorrection(float4 Color)
-{
-	return float4(ApplyPicpTextureGammaCorrection(Color.xyz), Color.w);
-}
-
-
-float sRGBToLinearMPCDI(float srgb)
-{
-	if (srgb <= 0.04045)
-		return srgb / 12.92;
-	else
-		return pow((srgb + 0.055) / 1.055, 2.4);
-}
-
-float MPCDILinarTosRGB(float lin)
-{
-	if (lin <= 0.0031308)
-		return lin * 12.92;
-	else
-		return 1.055 * pow(lin, 1.0 / 2.4) - 0.055;
-}
-
-float3 sRGBToLinearMPCDI(float3 srgb)
-{
-	return float3(sRGBToLinearMPCDI(srgb.r),
-				  sRGBToLinearMPCDI(srgb.g),
-				  sRGBToLinearMPCDI(srgb.b));
-}
-
-float3 MPCDILinearTosRGB(float3 lin)
-{
-	return float3(MPCDILinarTosRGB(lin.r),
-				  MPCDILinarTosRGB(lin.g),
-				  MPCDILinarTosRGB(lin.b));
-}
 
 /** Used for calculating vertex positions and UVs when drawing with DrawRectangle */
 void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPosition, out float2 OutTexCoord)
@@ -105,7 +61,7 @@ void DrawRectangle(in float4 InPosition, in float2 InTexCoord, out float4 OutPos
 
 float4 ApplyBlending(float3 color, OutputVS IN, float ColorAlphaValue)
 {
-	color = sRGBToLinearMPCDI(color);
+	color = MPCDI_sRGBToLinear(color);
 
 	// Load alpha
 	float alpha = pow(AlphaMap.Sample(AlphaMapSampler, IN.UV.xy).r, AlphaEmbeddedGamma);
@@ -115,7 +71,7 @@ float4 ApplyBlending(float3 color, OutputVS IN, float ColorAlphaValue)
 
 	color = (color*alpha*(1 - beta)) + beta;
 
-	return float4(MPCDILinearTosRGB(color), ColorAlphaValue);
+	return float4(MPCDI_LinearTosRGB(color), ColorAlphaValue);
 }
 
 
@@ -128,7 +84,7 @@ OutputVS MainVS( InputVS IN)
 	return OUT;
 }
 
-OutputPS PassThrought_PS( OutputVS IN )
+OutputPS Passthrough_PS( OutputVS IN )
 {
 	OutputPS OUT;
 	float4 UV = mul(IN.UV, MultiViewportMatrix);
@@ -149,10 +105,16 @@ OutputPS WarpAndBlend_PS( OutputVS IN )
 	// Load from color map
 	float3 Color = PostprocessInput0.Sample(PostprocessInput0Sampler, UV.xy/UV.w).rgb;
 
+#if RENDER_CASE_APPLYBLENDING
 	// Apply blending
-	OUT.Color = ApplyBlending(Color, IN, 1.0f);
+	OUT.Color = ApplyBlending(Color, IN, 1.f);
+#else
+	// No blending
+	OUT.Color = float4(Color, 1.f);
+#endif
 	return OUT;
 }
+
 
 float Pow2(float X)
 {
@@ -165,8 +127,6 @@ float2       CameraSoftEdge;
 float4x4     CameraProjectionMatrix;
 Texture2D    CameraMap;
 SamplerState CameraMapSampler;
-//Texture2D    CameraOverlayMap;
-//SamplerState CameraOverlayMapSampler;
 
 Texture2D    ViewportOverlayMap;
 SamplerState ViewportOverlayMapSampler;
@@ -196,7 +156,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 #if RENDER_CASE_VIEWPORT_OVERLAY
 	float4 ViewportOverlayUVW = mul(WarpedUV, TextureProjectionMatrix);
 	float2 ViewportOverlayUV = ViewportOverlayUVW.xy / ViewportOverlayUVW.w;
-	float4 ViewportOverlayColor = ApplyPicpTextureGammaCorrection(ViewportOverlayMap.Sample(ViewportOverlayMapSampler, ViewportOverlayUV).rgba);
+	float4 ViewportOverlayColor = ViewportOverlayMap.Sample(ViewportOverlayMapSampler, ViewportOverlayUV).rgba;
 #endif
 
 #if RENDER_CASE_CAMERA
@@ -204,8 +164,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 	float4 CameraUVW = mul(WarpedUV, CameraProjectionMatrix);
 	float2 CameraUV = CameraUVW.xy / CameraUVW.w;
 	// Load from Cameramap
-	float3 CameraBaseColor        = ApplyPicpTextureGammaCorrection(CameraMap.Sample(CameraMapSampler, CameraUV).rgb);
-	//float4 CameraOverlayColor = CameraOverlayMap.Sample(CameraOverlayMapSampler, CameraUV).rgb;
+	float3 CameraBaseColor        = CameraMap.Sample(CameraMapSampler, CameraUV).rgb;
 
 	float4 CameraColor = float4(CameraBaseColor, 0);
 
@@ -213,8 +172,7 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 	{//Defined texel:
 		float2 ToEdge = (CameraUV.xy * 2) - 1.0f; // -1..1
 		float Weight = 1 - max(abs(ToEdge.x), abs(ToEdge.y));
-		// Near clip Plane tests
-		//! UV.z <= UV.w &&
+		// Near clip Plane tests		
 		if (Weight >= 0)
 		{
 			float2 ToSoftEdge = saturate((abs(ToEdge) - 1.0f + CameraSoftEdge) / CameraSoftEdge);
@@ -246,9 +204,13 @@ OutputPS PicpMPCDIWarpAndBlendOverlay_PS(OutputVS IN)
 	//!fixme: add LUT here
 
 
-
+#if RENDER_CASE_APPLYBLENDING
 	// Apply final mpcdi color blending
 	OUT.Color = ApplyBlending(OutColor.xyz, IN, OutColor.w);
+#else
+	// No blending
+	OUT.Color = OutColor;
+#endif
 	return OUT;
 }
 
@@ -264,14 +226,18 @@ OutputPS PicpMPCDIWarpAndBlendViewportOverlay_PS(OutputVS IN)
 	float4 OverlayUVW = mul(WarpedUV, TextureProjectionMatrix);
 	float2 OverlayUV = OverlayUVW.xy / OverlayUVW.w;
 	
-	float4 ViewportOverlayColor = ApplyPicpTextureGammaCorrection(ViewportOverlayMap.Sample(ViewportOverlayMapSampler, OverlayUV).rgba);
+	float4 ViewportOverlayColor = ViewportOverlayMap.Sample(ViewportOverlayMapSampler, OverlayUV).rgba;
 
 	//!fixme: add LUT here
 
 
-
+#if RENDER_CASE_APPLYBLENDING
 	// Apply final mpcdi color blending
 	OUT.Color = ApplyBlending(ViewportOverlayColor.xyz, IN, ViewportOverlayColor.w);
+#else
+	// No blending
+	OUT.Color = ViewportOverlayColor;
+#endif
 	return OUT;
 }
 
@@ -324,27 +290,28 @@ OutputPS PicpMPCDIWarpAndBlendOneCameraFull_PS(OutputVS IN)
 	}
 
 	float4 OutColor = ViewportBaseColor;
-
-	//Color correction
-	//OutColor.xyz = ApplyGammaCorrection(sRGBToLinear(OutColor.xyz), 1);
-
 	
 #if USE_OVERLAY_BACK	
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(ViewportOverlayBackColor.xyz), saturate(1.0f - ViewportOverlayBackColor.w));
+	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayBackColor.xyz, saturate(1.0f - ViewportOverlayBackColor.w));
 #endif
 
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(CameraColor.xyz),  CameraColor.w);
+	OutColor.xyz = lerp(OutColor.xyz, CameraColor.xyz,  CameraColor.w);
 
 #if USE_OVERLAY_FRONT
-	OutColor.xyz = lerp(OutColor.xyz, ApplyPicpTextureGammaCorrection(ViewportOverlayColor.xyz), saturate(1.0f - ViewportOverlayColor.w));
+	OutColor.xyz = lerp(OutColor.xyz, ViewportOverlayColor.xyz, saturate(1.0f - ViewportOverlayColor.w));
 #endif
 
 	//!fixme: add LUT here
 
 
-
+#if RENDER_CASE_APPLYBLENDING
 	// Apply final mpcdi color blending
 	OUT.Color = ApplyBlending(OutColor.xyz, IN, OutColor.w);
+#else
+	// No blending
+	OUT.Color = OutColor;
+#endif
+
 	return OUT;
 }
 

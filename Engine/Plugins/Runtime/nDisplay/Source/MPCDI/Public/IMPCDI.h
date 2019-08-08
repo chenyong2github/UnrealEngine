@@ -20,6 +20,44 @@ public:
 	static constexpr auto ModuleName = TEXT("MPCDI");
 
 public:
+
+	enum EMPCDIProfileType: uint8
+	{
+		mpcdi_2D = 0, // 2D mode
+		mpcdi_3D,     // 3D mode
+		mpcdi_A3D,    // Advanced 3D mode
+		mpcdi_SL,     // Shader lamps
+		Invalid,
+	};
+
+	struct ConfigParser
+	{
+		FString  ConfigLineStr;// Saved viewport config line string
+		FString  MPCDIFileName; // Single mpcdi file name
+
+		FString  BufferId;
+		FString  RegionId;
+
+		FString  OriginType;
+
+		// Support external pfm (warp)  and png(blend) files
+		EMPCDIProfileType  MPCDIType;
+
+		FString  PFMFile;
+		float    PFMFileScale;
+		bool     bIsUnrealGameSpace;
+
+		FString  AlphaFile;
+		float AlphaGamma;
+
+		FString  BetaFile;
+
+		inline bool IsExtConfig() const
+		{ 
+			return !PFMFile.IsEmpty(); 
+		}
+	};
+
 	struct FRegionLocator
 	{
 		// MPCDI data indices
@@ -28,23 +66,32 @@ public:
 		int RegionIndex = -1;
 
 		inline bool isValid() const
-		{ return FileIndex >= 0 && BufferIndex >= 0 && RegionIndex >= 0; }
+		{ 
+			return FileIndex >= 0 && BufferIndex >= 0 && RegionIndex >= 0; 
+		}
 	};
 
 	struct FFrustum
 	{
+		// Frustum projection angles
+		struct FAngles
+		{
+			float Left, Right, Top, Bottom;
+			FAngles()
+			{
+			};
+
+			FAngles(float& top, float& bottom, float& left, float& right) : Left(left), Right(right), Top(top), Bottom(bottom)
+			{
+			};
+		};
+
 		// Frustum origins Input data:
 		FVector OriginLocation;  // Current camera Origin location
 		FVector OriginEyeOffset; // Offset from OriginLocation to Eye view location
 
-		// Output runtime calc data:
-
-		// Frustum projection angles
-		struct Angles {
-			float Left, Right, Top, Bottom;
-			Angles() {};
-			Angles(float& top, float& bottom, float& left, float& right) : Left(left), Right(right), Top(top), Bottom(bottom) {};
-		} ProjectionAngles;
+		// Output runtime calc data: 
+		FAngles ProjectionAngles;
 
 		// Frustum projection matrix
 		FMatrix  ProjectionMatrix;
@@ -59,11 +106,22 @@ public:
 		FMatrix  UVMatrix;
 
 		float    WorldScale;
-		bool     bIsValid : 1;
+		bool     bIsValid;
+
+		inline FVector GetEyeLocation() const
+		{
+			return OriginLocation + OriginEyeOffset;
+		}
+
+		inline bool IsEyeLocationEqual(const FFrustum& InFrustum, float Precision) const
+		{
+			return (GetEyeLocation() - InFrustum.GetEyeLocation()).Size() < Precision;
+		}
 
 		FFrustum()
 			: FFrustum(FVector(0.f, 0.f, 0.f), FVector(0.f, 0.f, 0.f))
-		{ }
+		{ 
+		}
 
 		FFrustum(const FVector &InOriginLocation, const FVector& InOriginEyeOffset)
 			: OriginLocation(InOriginLocation)
@@ -72,7 +130,8 @@ public:
 			, UVMatrix(FMatrix::Identity)
 			, WorldScale(1.f)
 			, bIsValid(false)
-		{ }
+		{ 
+		}
 	};
 
 	struct FTextureWarpData
@@ -188,4 +247,102 @@ public:
 	* @return - ptr if success
 	*/
 	virtual TSharedPtr<FMPCDIData> GetMPCDIData(IMPCDI::FShaderInputData& ShaderInputData) = 0;
+
+	//! Support ext warp&blend calibration files
+	/**
+	* Create new mpcdi file + buffer + region (region is empty, for custom setup)
+	*
+	* @param MPCDIFile  - Fullpath unique mpcdi file name
+	* @param BufferName - Buffer unique name
+	* @param RegionName - region unique name
+	* @param OutRegionLocator - return unique region identifier
+	*
+	* @return - true if success
+	*           false, if region already exist
+	*/
+	virtual bool CreateCustomRegion(const FString& MPCDIFile, const FString& BufferName, const FString& RegionName, IMPCDI::FRegionLocator& OutRegionLocator) = 0;
+
+	/**
+	* Change mpcdi profile type for custom warpblend (for owned mpcdi file)
+	*
+	* @param InRegionLocator - region locator
+	*
+	* @return - true if success
+	*/
+	virtual bool SetMPCDIProfileType(const IMPCDI::FRegionLocator& InRegionLocator, const EMPCDIProfileType ProfileType) = 0;
+
+	/**
+	* Load warp map data from external PFM file, used custom scale and axis orientation (by default asis in mpcdi orientation)
+	*
+	* @param InRegionLocator - region locator
+	* @param PFMFile - full path to PFM file
+	* @param WorldScale - world scale multiplier to UE4 game (value=100 from meters->sm)
+	* @param bIsUnrealGameSpace - let=true, if you dont want to apply axis conversion from mpcdi space
+	*
+	* @return - true if success
+	*/
+	virtual bool LoadPFM(const IMPCDI::FRegionLocator& InRegionLocator, const FString& PFMFile, const float WorldScale, bool bIsUnrealGameSpace=false) = 0;
+	
+	/**
+	* Load warp map data from array, used custom scale and axis orientation (by default asis in mpcdi orientation)
+	*
+	* @param InRegionLocator - region locator
+	* @param PFMPoints - PFM points, row-by-row
+	* @param DimW - Row width
+	* @param DimH - Rows count
+	* @param WorldScale - world scale multiplier to UE4 game (value=100 from meters->sm)
+	* @param bIsUnrealGameSpace - let=true, if you dont want to apply axis conversion from mpcdi space
+	*
+	* @return - true if success
+	*/
+	virtual bool LoadPFMGeometry(const IMPCDI::FRegionLocator& InRegionLocator, const TArray<FVector>& PFMPoints, int DimW, int DimH, const float WorldScale, bool bIsUnrealGameSpace = false) = 0;
+
+	/**
+	* Load alpha map from external PNG file
+	*
+	* @param InRegionLocator - region locator
+	* @param PFMFile - full path to PNG file
+	* @param GammaValue - alpha map gamme value
+	*
+	* @return - true if success
+	*/
+	virtual bool LoadAlphaMap(const IMPCDI::FRegionLocator& InRegionLocator, const FString& PNGFile, float GammaValue) = 0;
+
+	/**
+	* Load beta map from external PNG file
+	*
+	* @param InRegionLocator - region locator
+	* @param PFMFile - full path to PNG file	
+	*
+	* @return - true if success
+	*/
+	virtual bool LoadBetaMap(const IMPCDI::FRegionLocator& InRegionLocator, const FString& PNGFile) = 0;
+
+
+	/**
+	* Helper. Load config data from string
+	*
+	* @param InConfigLineStr - config string
+	* @param OutCfgData - result condig data 
+	*
+	* @return - true if success
+	*/
+	virtual bool LoadConfig(const FString& InConfigLineStr, ConfigParser& OutCfgData) = 0;
+
+	/**
+	* Helper. Load or create mpcdi data
+	*
+	* @param CfgData - Initialized config dta for viewport
+	* @param OutRegionLocator - region locator
+	*
+	* @return - true if success
+	*/
+	virtual bool Load(const ConfigParser& CfgData, IMPCDI::FRegionLocator& OutRegionLocator) = 0;
+
+	/**
+	* Helper. Reload all data from changed external files
+	*
+	*/
+	virtual void ReloadAll() = 0;
+	virtual void ReloadAll_RenderThread() = 0;
 };

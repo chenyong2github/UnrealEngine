@@ -75,6 +75,10 @@ public:
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 	// End UActorComponent
 	
+	// Begin UObject interface
+	virtual bool IsDestructionThreadSafe() const override { return false; }
+	// End UObject
+
 	/**
 	 * Presses a key as if the mouse/pointer were the source of it.  Normally you would just use
 	 * Left/Right mouse button for the Key.  However - advanced uses could also be imagined where you

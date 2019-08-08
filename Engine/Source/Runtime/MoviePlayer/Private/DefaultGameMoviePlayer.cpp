@@ -856,7 +856,7 @@ void FMoviePlayerWidgetRenderer::DrawWindow(float DeltaTime)
 
 	int32 MaxLayerId = 0;
 	{
-		FPaintArgs PaintArgs(&VirtualRenderWindow.Get(), *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
+		FPaintArgs PaintArgs(nullptr, *HittestGrid, FVector2D::ZeroVector, FSlateApplication::Get().GetCurrentTime(), FSlateApplication::Get().GetDeltaTime());
 
 		// Paint the window
 		MaxLayerId = VirtualRenderWindow->Paint(

@@ -157,6 +157,7 @@ namespace Audio
 		FChannelMapInfo ChannelMaps[(int32) ESubmixChannelFormat::Count];
 
 		float PreviousAzimuth;
+		mutable float PreviousPlaybackPercent;
 
 		FSpatializationParams SpatializationParams;
 

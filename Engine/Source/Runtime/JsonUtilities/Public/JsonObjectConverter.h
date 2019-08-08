@@ -21,6 +21,9 @@ public:
 	/** Parse an FText from a json object (assumed to be of the form where keys are culture codes and values are strings) */
 	static bool GetTextFromObject(const TSharedRef<FJsonObject>& Obj, FText& TextOut);
 
+	/** Convert a Json value to text (takes some hints from the value name) */
+	static bool GetTextFromField(const FString& FieldName, const TSharedPtr<FJsonValue>& FieldValue, FText& TextOut);
+
 public: // UStruct -> JSON
 
 	/**

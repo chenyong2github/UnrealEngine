@@ -512,7 +512,7 @@ namespace Audio
 			const int32 NumRead = FMath::Min<int32>(NumToCopy, Capacity - ReadIndex);
 			FMemory::Memcpy(OutBuffer, &SrcBuffer[ReadIndex], NumRead * sizeof(SampleType));
 				
-			FMemory::Memcpy(&OutBuffer[NumRead], &SrcBuffer[0], (NumSamples - NumRead) * sizeof(SampleType));
+			FMemory::Memcpy(&OutBuffer[NumRead], &SrcBuffer[0], (NumToCopy - NumRead) * sizeof(SampleType));
 
 			check(NumSamples < ((uint32)TNumericLimits<int32>::Max()));
 

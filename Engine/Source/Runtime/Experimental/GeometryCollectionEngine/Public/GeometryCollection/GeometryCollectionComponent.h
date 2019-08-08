@@ -15,7 +15,6 @@
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 #include "GeometryCollection/GeometryCollectionSimulationCoreTypes.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "Physics/Experimental/PhysScene_LLImmediate.h"
 #include "GeometryCollection/GeometryDynamicCollection.h"
 #include "GeometryCollectionObject.h"
 #include "GeometryCollection/RecordedTransformTrack.h"
@@ -33,7 +32,7 @@
 
 struct FGeometryCollectionConstantData;
 struct FGeometryCollectionDynamicData;
-class FGeometryCollectionPhysicsObject;
+class FGeometryCollectionPhysicsProxy;
 class UGeometryCollectionComponent;
 class UBoxComponent;
 class UGeometryCollectionCache;
@@ -280,6 +279,7 @@ public:
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
 	virtual void BeginPlay() override;
 	virtual void EndPlay(EEndPlayReason::Type ReasonEnd) override;
+
 	//~ Begin UActorComponent Interface. 
 
 
@@ -494,7 +494,7 @@ public:
 #if INCLUDE_CHAOS
 	const TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const;
 	AChaosSolverActor* GetPhysicsSolverActor() const;
-	const FGeometryCollectionPhysicsObject* GetPhysicsObject() const { return PhysicsObject; }
+	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
 #endif  // #if INCLUDE_CHAOS
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
@@ -596,10 +596,10 @@ private:
 	bool IsObjectLoading;
 
 #if WITH_EDITORONLY_DATA
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<int32> SelectedBones;
 
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	TArray<int32> HighlightedBones;
 #endif
 
@@ -614,7 +614,7 @@ private:
 	//@todo(mlentine): Don't have one per geo collection
 	TUniquePtr<Chaos::TChaosPhysicsMaterial<float>> ChaosMaterial;
 
-	FGeometryCollectionPhysicsObject* PhysicsObject;
+	FGeometryCollectionPhysicsProxy* PhysicsProxy;
 	TUniquePtr<FGeometryDynamicCollection> DynamicCollection;
 	TArray<FManagedArrayBase**> CopyOnWriteAttributeList;
 
@@ -625,7 +625,7 @@ private:
 #endif
 
 	// Temporary storage for body setup in order to initialise a dummy body instance
-	UPROPERTY(transient)
+	UPROPERTY(Transient)
 	UBodySetup* DummyBodySetup;
 
 #if WITH_EDITORONLY_DATA

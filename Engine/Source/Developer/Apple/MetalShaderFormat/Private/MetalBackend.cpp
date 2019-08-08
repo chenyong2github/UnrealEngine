@@ -1259,7 +1259,7 @@ protected:
 						ralloc_asprintf_append(buffer, "/*ir_var_out, is_patch_constant*/");
 					}
 				}
-				else if ((var->mode == ir_var_auto || var->mode == ir_var_temporary) && var->type->is_array())
+				else if ((var->mode == ir_var_auto || var->mode == ir_var_temporary) && var->type->is_array() && (Backend.bIsDesktop != EMetalGPUSemanticsImmediateDesktop))
 				{
 					ralloc_asprintf_append(buffer, "ue4::safe_array<");
 					print_type_pre(var->type->element_type());

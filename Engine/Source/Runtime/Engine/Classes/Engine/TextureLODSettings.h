@@ -35,6 +35,7 @@ struct ENGINE_API FTextureLODGroup
 		, MinMagFilter(NAME_Aniso)
 		, MipFilter(NAME_Point)
 		, MipLoadOptions(ETextureMipLoadOptions::AllMips)
+		, DuplicateNonOptionalMips(false)
 	{
 		SetupGroup();
 	}
@@ -100,6 +101,9 @@ struct ENGINE_API FTextureLODGroup
 
 	UPROPERTY()
 	ETextureMipLoadOptions MipLoadOptions;
+
+	UPROPERTY()
+	bool DuplicateNonOptionalMips;
 
 	void SetupGroup();
 };

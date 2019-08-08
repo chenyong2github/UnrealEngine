@@ -122,7 +122,8 @@ namespace UnrealBuildTool
                 case ModuleHostType.CookedOnly:
                 case ModuleHostType.ServerOnly:
                 case ModuleHostType.ClientOnly:
-                    return UHTModuleType.EngineRuntime;
+				case ModuleHostType.ClientOnlyNoCommandlet:
+					return UHTModuleType.EngineRuntime;
 				case ModuleHostType.Developer:
 					return UHTModuleType.EngineDeveloper;
 				case ModuleHostType.Editor:
@@ -144,6 +145,7 @@ namespace UnrealBuildTool
                 case ModuleHostType.CookedOnly:
                 case ModuleHostType.ServerOnly:
                 case ModuleHostType.ClientOnly:
+				case ModuleHostType.ClientOnlyNoCommandlet:
                     return UHTModuleType.GameRuntime;
 				case ModuleHostType.Developer:
 					return UHTModuleType.GameDeveloper;

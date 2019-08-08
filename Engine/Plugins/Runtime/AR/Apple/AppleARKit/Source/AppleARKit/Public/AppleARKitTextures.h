@@ -32,7 +32,10 @@ public:
 	virtual void Init(float InTimestamp, CVPixelBufferRef InCameraImage);
 
 	/** Queues the conversion on the render thread */
-	virtual void Init_RenderThread(CVPixelBufferRef InCameraImage);
+	virtual void Init_RenderThread();
+
+    /** Store off the camera image for a later resource update */
+	void EnqueueNewCameraImage(CVPixelBufferRef InCameraImage);
 #endif
 
 	virtual EAppleTextureType GetTextureType() const override { return EAppleTextureType::PixelBuffer; }
@@ -50,6 +53,8 @@ private:
 #if PLATFORM_MAC || PLATFORM_IOS
 	/** The Apple specific representation of the ar camera image */
 	CVPixelBufferRef CameraImage;
+	CVPixelBufferRef NewCameraImage;
+	FCriticalSection PendingImageLock;
 #endif
 };
 

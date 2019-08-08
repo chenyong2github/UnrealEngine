@@ -34,3 +34,18 @@ TArray<UDatasmithCustomActionBase*> FDatasmithCustomActionManager::GetApplicable
 	return ApplicableActions;
 }
 
+TArray<UDatasmithCustomActionBase*> FDatasmithCustomActionManager::GetApplicableActions(const TArray<AActor*>& SelectedActors)
+{
+	TArray<UDatasmithCustomActionBase*> ApplicableActions;
+
+	for (const TStrongObjectPtr<UDatasmithCustomActionBase>& Action : RegisteredActions)
+	{
+		if (Action.IsValid() && Action->CanApplyOnActors(SelectedActors))
+		{
+			ApplicableActions.Add(Action.Get());
+		}
+	}
+
+	return ApplicableActions;
+}
+

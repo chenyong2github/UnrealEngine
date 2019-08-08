@@ -222,7 +222,7 @@ public:
 	FNiagaraDataBuffer& BeginSimulate();
 
 	/** Ends a simulation pass and sets the current simulation state. */
-	void EndSimulate();
+	void EndSimulate(bool SetCurrentData = true);
 
 	/** Allocates space for NumInstances in the current destination buffer. */
 	void Allocate(int32 NumInstances, bool bMaintainExisting = false);

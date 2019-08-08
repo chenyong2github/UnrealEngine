@@ -129,7 +129,6 @@ public:
 
 protected:
 	// Begin SWidget overrides.
-	virtual void ChildLayoutChanged(EInvalidateWidget InvalidateReason) override;
 	virtual FVector2D ComputeDesiredSize(float) const override;
 	float ComputeDesiredWidth() const;
 	float ComputeDesiredHeight() const;
@@ -162,4 +161,3 @@ private:
 
 	TAttribute<FOptionalSize> MaxAspectRatio;
 };
-

@@ -51,13 +51,13 @@ namespace AutomationTool.DeviceReservation
 		/// </summary>
 		/// <param name="InWorkingDirectory">Working directory which contains the devices.xml and reservations.xml files. Usually a network share.</param>
 		/// <param name="InDeviceTypes">An array of device types to reserve, one for each device requested. These must match the device types listed in devices.xml.</param>
-		public DeviceReservationAutoRenew(string InReservationBaseUri, int RetryMax, params string[] InDeviceTypes)
+		public DeviceReservationAutoRenew(string InReservationBaseUri, int RetryMax, string PoolID, params string[] InDeviceTypes)
 		{
 			ReservationBaseUri = new Uri(InReservationBaseUri);
 
 			// Make a device reservation for all the required device types.
 			// This blocks until the reservation is successful.
-			ActiveReservation = Reservation.Create(ReservationBaseUri, InDeviceTypes, ReserveTime, RetryMax);
+			ActiveReservation = Reservation.Create(ReservationBaseUri, InDeviceTypes, ReserveTime, RetryMax, PoolID);
 
 			// Resolve the device IPs
 			ReservedDevices = new List<Device>();
@@ -203,6 +203,7 @@ namespace AutomationTool.DeviceReservation
 			public string Hostname;
 			public TimeSpan Duration;
 			public string ReservationDetails;
+			public string PoolID;
 		}
 
 		private static string SanitizeErrorMessage(string Message)
@@ -221,7 +222,7 @@ namespace AutomationTool.DeviceReservation
 			return Message;
 		}
 
-		public static Reservation Create(Uri BaseUri, string[] DeviceTypes, TimeSpan Duration, int RetryMax = 5)
+		public static Reservation Create(Uri BaseUri, string[] DeviceTypes, TimeSpan Duration, int RetryMax = 5, string PoolID = "")
 		{
 			bool bFirst = true;
 			TimeSpan RetryTime = TimeSpan.FromMinutes(1);
@@ -247,7 +248,8 @@ namespace AutomationTool.DeviceReservation
 						DeviceTypes = DeviceTypes,
 						Hostname = Environment.MachineName,
 						Duration = Duration,
-						ReservationDetails = ReservationDetails
+						ReservationDetails = ReservationDetails,
+						PoolID = PoolID
 					});
 				}
 				catch (WebException WebEx)

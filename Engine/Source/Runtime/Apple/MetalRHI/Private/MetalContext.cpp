@@ -1104,7 +1104,7 @@ void FMetalContext::FinishFrame(bool const bImmediateContext)
 	{
 		StateCache.Reset();
 	}
-	
+
 #if ENABLE_METAL_GPUPROFILE
 	FPlatformTLS::SetTlsValue(CurrentContextTLSSlot, nullptr);
 #endif

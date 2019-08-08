@@ -4,6 +4,7 @@
 #include "NiagaraEmitter.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraScriptSourceBase.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 #include "NiagaraScriptViewModel.h"
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraObjectSelection.h"
@@ -31,14 +32,13 @@ namespace NiagaraCommands
 
 const float Megabyte = 1024.0f * 1024.0f;
 
-FNiagaraEmitterViewModel::FNiagaraEmitterViewModel(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
-	: Emitter(InEmitter)
-	, Simulation(InSimulation)
-	, SharedScriptViewModel(MakeShareable(new FNiagaraScriptViewModel(InEmitter, LOCTEXT("SharedDisplayName", "Graph"), ENiagaraParameterEditMode::EditAll)))
+FNiagaraEmitterViewModel::FNiagaraEmitterViewModel()
+	: Emitter(nullptr)
+	, Simulation(nullptr)
+	, SharedScriptViewModel(MakeShared<FNiagaraScriptViewModel>(LOCTEXT("SharedDisplayName", "Graph"), ENiagaraParameterEditMode::EditAll))
 	, bUpdatingSelectionInternally(false)
 	, ExecutionStateEnum(StaticEnum<ENiagaraExecutionState>())
 {	
-	SetEmitter(InEmitter);
 }
 
 void FNiagaraEmitterViewModel::Cleanup()
@@ -58,11 +58,17 @@ void FNiagaraEmitterViewModel::Cleanup()
 	RemoveScriptEventHandlers();
 }
 
-bool FNiagaraEmitterViewModel::Set(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
+bool FNiagaraEmitterViewModel::Initialize(UNiagaraEmitter* InEmitter, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
 {
 	SetEmitter(InEmitter);
 	SetSimulation(InSimulation);
 	return true;
+}
+
+void FNiagaraEmitterViewModel::Reset()
+{
+	SetEmitter(nullptr);
+	SetSimulation(nullptr);
 }
 
 FNiagaraEmitterViewModel::~FNiagaraEmitterViewModel()
@@ -80,6 +86,7 @@ void FNiagaraEmitterViewModel::SetEmitter(UNiagaraEmitter* InEmitter)
 	{
 		Emitter->OnEmitterVMCompiled().RemoveAll(this);
 		Emitter->OnPropertiesChanged().RemoveAll(this);
+		UnregisterViewModelWithMap(RegisteredHandle);
 	}
 
 	UnregisterViewModelWithMap(RegisteredHandle);
@@ -104,16 +111,24 @@ void FNiagaraEmitterViewModel::SetEmitter(UNiagaraEmitter* InEmitter)
 	OnEmitterChanged().Broadcast();
 }
 
+TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> FNiagaraEmitterViewModel::GetSimulation() const
+{
+	return Simulation;
+}
 
 void FNiagaraEmitterViewModel::SetSimulation(TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation)
 {
 	Simulation = InSimulation;
 }
 
-
 UNiagaraEmitter* FNiagaraEmitterViewModel::GetEmitter()
 {
 	return Emitter.Get();
+}
+
+bool FNiagaraEmitterViewModel::HasParentEmitter() const
+{
+	return Emitter.IsValid() && Emitter->GetParent() != nullptr;
 }
 
 const UNiagaraEmitter* FNiagaraEmitterViewModel::GetParentEmitter() const
@@ -137,6 +152,14 @@ FText FNiagaraEmitterViewModel::GetParentPathNameText() const
 		return FText::FromString(Emitter->GetParent()->GetPathName());
 	}
 	return FText();
+}
+
+void FNiagaraEmitterViewModel::RemoveParentEmitter()
+{
+	FScopedTransaction ScopedTransaction(LOCTEXT("RemoveParentEmitterTransaction", "Remove Parent Emitter"));
+	Emitter->Modify();
+	Emitter->RemoveParent();
+	OnParentRemovedDelegate.Broadcast();
 }
 
 FText FNiagaraEmitterViewModel::GetStatsText() const
@@ -321,6 +344,11 @@ FNiagaraEmitterViewModel::FOnPropertyChanged& FNiagaraEmitterViewModel::OnProper
 FNiagaraEmitterViewModel::FOnScriptCompiled& FNiagaraEmitterViewModel::OnScriptCompiled()
 {
 	return OnScriptCompiledDelegate;
+}
+
+FNiagaraEmitterViewModel::FOnParentRemoved& FNiagaraEmitterViewModel::OnParentRemoved()
+{
+	return OnParentRemovedDelegate;
 }
 
 FNiagaraEmitterViewModel::FOnScriptGraphChanged& FNiagaraEmitterViewModel::OnScriptGraphChanged()

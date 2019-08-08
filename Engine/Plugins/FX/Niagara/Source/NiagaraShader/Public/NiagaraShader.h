@@ -108,6 +108,7 @@ public:
 	FShaderUniformBufferParameter EmitterConstantBufferParam;
 	FShaderUniformBufferParameter DataInterfaceUniformBufferParam;
 	FShaderUniformBufferParameter ViewUniformBufferParam;
+	FShaderParameter SimStartParam;
 	FShaderParameter EmitterTickCounterParam;
 	FShaderParameter EmitterSpawnInfoOffsetsParam;
 	FShaderParameter EmitterSpawnInfoParamsParam;
@@ -116,6 +117,8 @@ public:
 	FShaderParameter CopyInstancesBeforeStartParam;
 	FShaderParameter NumSpawnedInstancesParam;
 	FShaderParameter UpdateStartInstanceParam;
+	FShaderParameter ShaderStageIndexParam;
+	FShaderParameter IterationInterfaceCount;
 	FShaderParameter ComponentBufferSizeReadParam;
 	FShaderParameter ComponentBufferSizeWriteParam;
 	FRWShaderParameter EventIntUAVParams[MAX_CONCURRENT_EVENT_DATASETS];

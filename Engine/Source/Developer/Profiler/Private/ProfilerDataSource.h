@@ -690,7 +690,7 @@ protected:
 -----------------------------------------------------------------------------*/
 
 /** Enumerates event graph columns index. */
-enum EEventPropertyIndex
+enum class EEventPropertyIndex : uint32
 {
 	/** Stat name must be the first column, because of the expander arrow. */
 	StatName,
@@ -968,7 +968,7 @@ public:
 
 protected:
 	/** Contains all properties of the event graph sample class. */
-	static FEventProperty Properties[ EEventPropertyIndex::InvalidOrMax ];
+	static FEventProperty Properties[ (uint32)EEventPropertyIndex::InvalidOrMax ];
 
 	/** Contains all properties of the event graph sample class, indexed by the name of the property, stored as FName -> FEventProperty&. */
 	static TMap<FName,const FEventProperty*> NamedProperties;

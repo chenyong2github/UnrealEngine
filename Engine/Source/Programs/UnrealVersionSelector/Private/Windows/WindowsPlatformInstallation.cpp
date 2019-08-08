@@ -213,9 +213,19 @@ private:
 	}
 };
 
-bool FWindowsPlatformInstallation::LaunchEditor(const FString &RootDirName, const FString &Arguments)
+bool FWindowsPlatformInstallation::LaunchEditor(const FString &RootDirName, const FString& ExplicitFileName, const FString &Arguments)
 {
-	FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), *(RootDirName / TEXT("Engine/Binaries/Win64/UE4Editor.exe")), *Arguments);
+	FString FileName;
+	if (ExplicitFileName.IsEmpty())
+	{
+		FileName = RootDirName / TEXT("Engine/Binaries/Win64/UE4Editor.exe");
+	}
+	else
+	{
+		FileName = ExplicitFileName;
+	}
+
+	FString CommandLine = FString::Printf(TEXT("\"%s\" %s"), *FileName, *Arguments);
 
 	STARTUPINFO StartupInfo;
 	ZeroMemory(&StartupInfo, sizeof(StartupInfo));

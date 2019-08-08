@@ -35,7 +35,7 @@ public:
 
 	void SetCameraTexture(UARTextureCameraImage* InCameraImage);
 
-	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView);
+	void RenderVideoOverlay_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneView& InView, struct FAppleARKitFrame& Frame, const EDeviceScreenOrientation DeviceOrientation);
 	bool GetPassthroughCameraUVs_RenderThread(TArray<FVector2D>& OutUVs, const EDeviceScreenOrientation DeviceOrientation);
 
 	void SetOverlayTexture(UARTextureCameraImage* InCameraImage);
@@ -47,6 +47,10 @@ private:
 
 	UMaterialInstanceDynamic* MID_CameraOverlay;
 	UMaterialInterface* RenderingOverlayMaterial;
+
+	// Cache UV offset to be used by GetPassthroughCameraUVs_RenderThread
+	FVector2D UVOffset;
+
+	FVertexBufferRHIRef OverlayVertexBufferRHI[2];
 	FIndexBufferRHIRef IndexBufferRHI;
-	FVertexBufferRHIRef VertexBufferRHI;
 };

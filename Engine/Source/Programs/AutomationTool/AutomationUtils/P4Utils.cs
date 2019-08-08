@@ -3058,7 +3058,7 @@ namespace AutomationTool
 			string CommandLine = String.Format("-z tag fstat {0}", CommandUtils.MakePathSafeToUseWithCommandLine(DepotFile));
 
 			string Output;
-			if(!LogP4Output(out Output, CommandLine, AllowSpew: false) || Output.Contains("no such file(s)"))
+			if(!LogP4Output(out Output, CommandLine, AllowSpew: false) || !Output.Contains("headRev"))
 			{
 				return false;
 			}

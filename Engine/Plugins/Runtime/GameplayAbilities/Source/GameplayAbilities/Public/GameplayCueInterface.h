@@ -190,6 +190,9 @@ struct GAMEPLAYABILITIES_API FMinimalGameplayCueReplicationProxy
 	/** Will broadcast the OnRemove event for all currently active cues */
 	void RemoveAllCues();
 
+	/** If true, we will skip updating the Owner ASC if we replicate on a connection owned by the ASC */
+	void SetRequireNonOwningNetConnection(bool b) { bRequireNonOwningNetConnection = b; }
+
 	/** Called to init parameters */
 	TFunction<void(FGameplayCueParameters&, UAbilitySystemComponent*)> InitGameplayCueParametersFunc;
 
@@ -208,6 +211,9 @@ private:
 	UAbilitySystemComponent* Owner = nullptr;
 
 	int32 LastSourceArrayReplicationKey = -1;
+
+	bool bRequireNonOwningNetConnection = false;
+	bool bCachedModifiedOwnerTags = false;
 };
 
 template<>

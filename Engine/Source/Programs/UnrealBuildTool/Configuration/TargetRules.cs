@@ -315,13 +315,13 @@ namespace UnrealBuildTool
 		/// Whether to use the Chaos physics interface. This overrides the physx flags to disable APEX and NvCloth
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-        public bool bUseChaos = false;
+		public bool bUseChaos = false;
 
 		/// <summary>
-		/// Whether to include the immediate mode physics interface. This overrides the physx flags to disable APEX and NvCloth
+		/// Whether to compile in checked chaos features for debugging
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
-		public bool bCompileImmediatePhysics = false;
+		public bool bUseChaosChecked = false;
 
 		/// <summary>
 		/// Whether scene query acceleration is done by UE4. The physx scene query structure is still created, but we do not use it.
@@ -1750,14 +1750,14 @@ namespace UnrealBuildTool
 			get { return Inner.bCompileChaos; }
 		}
 
-        public bool bUseChaos
-        {
-            get { return Inner.bUseChaos; }
-        }
-
-        public bool bCompileImmediatePhysics
+		public bool bUseChaos
 		{
-			get { return Inner.bCompileImmediatePhysics; }
+			get { return Inner.bUseChaos; }
+		}
+
+		public bool bUseChaosChecked
+		{
+			get { return Inner.bUseChaosChecked; }
 		}
 
 		public bool bCustomSceneQueryStructure

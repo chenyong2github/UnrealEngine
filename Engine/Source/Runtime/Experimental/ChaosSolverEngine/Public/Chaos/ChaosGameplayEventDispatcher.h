@@ -5,6 +5,7 @@
 #include "ChaosEventListenerComponent.h"
 #include "PhysicsPublic.h"
 #include "ChaosNotifyHandlerInterface.h"
+#include "EventsData.h"
 #include "ChaosGameplayEventDispatcher.generated.h"
 
 struct FBodyInstance;
@@ -71,7 +72,8 @@ class CHAOSSOLVERENGINE_API UChaosGameplayEventDispatcher : public UChaosEventLi
 
 public:
 
-	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
+	virtual void BeginPlay() override;
+	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 
 private:
 
@@ -132,6 +134,16 @@ private:
 	float LastBreakingDataTime = -1.f;
 
 	void DispatchPendingCollisionNotifies();
+
+#if INCLUDE_CHAOS
+	void RegisterChaosEvents();
+	void UnregisterChaosEvents();
+
+	// Chaos Event Handlers
+	void HandleCollisionEvents(const Chaos::FCollisionEventData& CollisionData);
+	void HandleBreakingEvents(const Chaos::FBreakingEventData& BreakingData);
+#endif
+
 };
 
 

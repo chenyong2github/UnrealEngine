@@ -115,6 +115,7 @@ protected:
 	void CreateSwapchain();
 	void DestroySwapchain();
 	void AcquireImageIndex();
+	bool TryAcquireImageIndex();
 
 	void RecreateSwapchain(void* NewNativeWindow);
 	void RecreateSwapchainFromRT(EPixelFormat PreferredPixelFormat);

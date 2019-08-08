@@ -1585,6 +1585,7 @@ int32 UPkgInfoCommandlet::Main( const FString& Params )
 			if (Reader)
 			{
 				TGuardValue<bool> GuardAllowUnversionedContentInEditor(GAllowUnversionedContentInEditor, true);
+				TGuardValue<int32> GuardAllowCookedContentInEditor(GAllowCookedDataInEditorBuilds, 1);
 				UPackage* LoadedPackage = LoadPackage(Package, *Filename, LOAD_NoVerify, Reader);
 				if (LoadedPackage)
 				{

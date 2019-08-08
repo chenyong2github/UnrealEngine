@@ -2,6 +2,8 @@
 
 #include "DataprepCoreUtils.h"
 
+#include "IDataprepProgressReporter.h"
+
 #include "UObject/UObjectHash.h"
 
 #if WITH_EDITOR
@@ -72,3 +74,19 @@ void FDataprepCoreUtils::PurgeObjects(TArray<UObject*> Objects)
 	}
 }
 
+FDataprepProgressTask::FDataprepProgressTask(IDataprepProgressReporter& InReporter, const FText& InDescription, float InAmountOfWork, float InIncrementOfWork)
+	: Reporter( InReporter )
+	, DefaultIncrementOfWork( InIncrementOfWork )
+{
+	Reporter.PushTask( InDescription, InAmountOfWork );
+}
+
+FDataprepProgressTask::~FDataprepProgressTask()
+{
+	Reporter.PopTask();
+}
+
+void FDataprepProgressTask::ReportNextStep(const FText & InMessage, float InIncrementOfWork )
+{
+	Reporter.ReportProgress( InIncrementOfWork, InMessage );
+}

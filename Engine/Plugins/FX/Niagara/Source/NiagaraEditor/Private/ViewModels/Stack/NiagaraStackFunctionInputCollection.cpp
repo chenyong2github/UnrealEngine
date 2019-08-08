@@ -81,7 +81,9 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 {
 	TSet<const UEdGraphPin*> HiddenPins;
 	TArray<const UEdGraphPin*> InputPins;
-	FCompileConstantResolver ConstantResolver(GetEmitterViewModel()->GetEmitter());
+	FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid() 
+		? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter()) 
+		: FCompileConstantResolver();
 	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();

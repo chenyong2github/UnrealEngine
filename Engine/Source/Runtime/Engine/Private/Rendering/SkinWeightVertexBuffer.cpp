@@ -4,6 +4,7 @@
 #include "EngineUtils.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 #include "RenderUtils.h"
+#include "SkeletalMeshTypes.h"
 
 ///
 
@@ -96,8 +97,7 @@ FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer)
 {
 	FStripDataFlags StripFlags(Ar);
 
-	Ar << VertexBuffer.bExtraBoneInfluences;
-	Ar << VertexBuffer.NumVertices;
+	VertexBuffer.SerializeMetaData(Ar);
 
 	if (Ar.IsLoading() || VertexBuffer.WeightData == NULL)
 	{
@@ -124,28 +124,76 @@ FArchive& operator<<(FArchive& Ar, FSkinWeightVertexBuffer& VertexBuffer)
 	return Ar;
 }
 
-void FSkinWeightVertexBuffer::InitRHI()
+void FSkinWeightVertexBuffer::SerializeMetaData(FArchive& Ar)
 {
-	check(WeightData);
-	FResourceArrayInterface* ResourceArray = WeightData->GetResourceArray();
-	if (ResourceArray->GetResourceDataSize() > 0)
+	Ar.UsingCustomVersion(FSkeletalMeshCustomVersion::GUID);
+	if (Ar.CustomVer(FSkeletalMeshCustomVersion::GUID) < FSkeletalMeshCustomVersion::SplitModelAndRenderData)
+	{
+		check(Ar.IsLoading());
+		Ar << bExtraBoneInfluences << NumVertices;
+	}
+	else
+	{
+		Ar << bExtraBoneInfluences << Stride << NumVertices;
+	}
+}
+
+void FSkinWeightVertexBuffer::CopyMetaData(const FSkinWeightVertexBuffer& Other)
+{
+	bExtraBoneInfluences = Other.bExtraBoneInfluences;
+	Stride = Other.Stride;
+	NumVertices = Other.NumVertices;
+}
+
+template <bool bRenderThread>
+FVertexBufferRHIRef FSkinWeightVertexBuffer::CreateRHIBuffer_Internal()
+{
+	if (NumVertices)
 	{
 		// Create the vertex buffer.
+		FResourceArrayInterface* ResourceArray = WeightData ? WeightData->GetResourceArray() : nullptr;
+		const uint32 SizeInBytes = ResourceArray ? ResourceArray->GetResourceDataSize() : 0;
+		const uint32 BuffFlags = BUF_Static | BUF_ShaderResource;
 		FRHIResourceCreateInfo CreateInfo(ResourceArray);
+		CreateInfo.bWithoutNativeResource = !WeightData;
 
 		// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
-		VertexBufferRHI = RHICreateVertexBuffer(ResourceArray->GetResourceDataSize(), BUF_Static | BUF_ShaderResource, CreateInfo);
-
-		bool bSRV = GSupportsResourceView && GPixelFormats[PF_R32_UINT].Supported;
-		// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
-		// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
-		// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
-		bSRV |= GetNeedsCPUAccess();
-
-		if (bSRV)
+		if (bRenderThread)
 		{
-			SRVValue = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_UINT);
+			return RHICreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
 		}
+		else
+		{
+			return RHIAsyncCreateVertexBuffer(SizeInBytes, BuffFlags, CreateInfo);
+		}
+	}
+	return nullptr;
+}
+
+FVertexBufferRHIRef FSkinWeightVertexBuffer::CreateRHIBuffer_RenderThread()
+{
+	return CreateRHIBuffer_Internal<true>();
+}
+
+FVertexBufferRHIRef FSkinWeightVertexBuffer::CreateRHIBuffer_Async()
+{
+	return CreateRHIBuffer_Internal<false>();
+}
+
+void FSkinWeightVertexBuffer::InitRHI()
+{
+	// BUF_ShaderResource is needed for support of the SkinCache (we could make is dependent on GEnableGPUSkinCacheShaders or are there other users?)
+	VertexBufferRHI = CreateRHIBuffer_RenderThread();
+
+	bool bSRV = VertexBufferRHI && GSupportsResourceView && GPixelFormats[PF_R32_UINT].Supported;
+	// When bAllowCPUAccess is true, the meshes is likely going to be used for Niagara to spawn particles on mesh surface.
+	// And it can be the case for CPU *and* GPU access: no differenciation today. That is why we create a SRV in this case.
+	// This also avoid setting lots of states on all the members of all the different buffers used by meshes. Follow up: https://jira.it.epicgames.net/browse/UE-69376.
+	bSRV |= GetNeedsCPUAccess();
+
+	if (bSRV)
+	{
+		SRVValue = RHICreateShaderResourceView(WeightData ? VertexBufferRHI : nullptr, 4, PF_R32_UINT);
 	}
 }
 

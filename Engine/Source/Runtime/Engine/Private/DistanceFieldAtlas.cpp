@@ -211,7 +211,7 @@ void FDistanceFieldVolumeTextureAtlas::ListMeshDistanceFields() const
 		Stats.MemoryBytes = AtlasMemory + BackingMemory;
 		Stats.Mesh = Texture->GetStaticMesh();
 #if WITH_EDITORONLY_DATA
-		Stats.ResolutionScale = Stats.Mesh->SourceModels[0].BuildSettings.DistanceFieldResolutionScale;
+		Stats.ResolutionScale = Stats.Mesh->GetSourceModel(0).BuildSettings.DistanceFieldResolutionScale;
 #else
 		Stats.ResolutionScale = -1;
 #endif

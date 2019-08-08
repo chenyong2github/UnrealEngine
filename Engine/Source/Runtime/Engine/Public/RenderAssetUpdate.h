@@ -35,6 +35,7 @@ public:
 		TT_None,	// No thread.
 		TT_Render,	// The render thread.
 		TT_Async,	// An async work thread.
+		TT_GameThread, // The game thread
 		TT_GameRunningAsync	// The game thread running async work.
 	};
 
@@ -131,9 +132,11 @@ protected:
 		bIsCancelled = true;
 	}
 
+	void ScheduleGTTask();
 	void ScheduleRenderTask();
 	void ScheduleAsyncTask();
 
+	friend class FRenderAssetUpdateTickGTTask;
 
 	/** An async task used to call tick on the pending update. */
 	class FMipUpdateTask : public FNonAbandonableTask
@@ -163,6 +166,9 @@ protected:
 	/** Critical Section. */
 	FCriticalSection CS;
 
+	/** Number of Ticks scheduled on the game thread. */
+	int32 ScheduledGTTasks;
+
 	/** Number of Ticks scheduled on the render thread. */
 	int32 ScheduledRenderTasks;
 
@@ -177,6 +183,9 @@ protected:
 
 	/** Whether the task has been cancelled because the update could not proceed or because the user called Abort(). */
 	bool bIsCancelled;
+
+	/** Defer execution even if a task pushes a new task on the same thread. */
+	bool bDeferExecution;
 
 	/** The state of the work yet to be performed to complete the update or cancelation. */
 	volatile ETaskState TaskState;

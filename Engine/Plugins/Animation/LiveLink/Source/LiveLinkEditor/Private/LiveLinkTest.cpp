@@ -60,10 +60,8 @@ bool FLiveLinkInterpolationTest::RunTest(const FString& Parameters)
 	FrameB.MetaData.SceneTime.Rate = FFrameRate(24, 1);
 	FrameA.MetaData.SceneTime.Time.FrameNumber = IntA;
 	FrameB.MetaData.SceneTime.Time.FrameNumber = IntB;
-	FrameA.WorldTime.Offset = 0.0;
-	FrameB.WorldTime.Offset = 0.0;
-	FrameA.WorldTime.Time = 1000.0;
-	FrameB.WorldTime.Time = 4000.0;
+	FrameA.WorldTime = FLiveLinkWorldTime(1000.0, 0.0);
+	FrameB.WorldTime = FLiveLinkWorldTime(4000.0, 0.0);
 
 	FrameA.NotInterpolated = IntA;
 	FrameB.NotInterpolated = IntB;
@@ -124,7 +122,7 @@ bool FLiveLinkInterpolationTest::RunTest(const FString& Parameters)
 
 	//TestEqual(TEXT("MetaData.StringMetaData"), FrameR.MetaData.StringMetaData, FrameA.MetaData.StringMetaData);
 	//TestEqual(TEXT("MetaData.SceneTime"), FrameR.MetaData.SceneTime, FrameA.MetaData.SceneTime);
-	TestEqual(TEXT("WorldTime"), FrameR.WorldTime.Time, 2000.0);
+	TestEqual(TEXT("WorldTime"), FrameR.WorldTime.GetOffsettedTime(), 2000.0);
 
 	TestEqual(TEXT("NotInterpolated"), FrameR.NotInterpolated, FrameA.NotInterpolated);
 	TestEqual(TEXT("SingleVector"), FrameR.SingleVector, VectorR);

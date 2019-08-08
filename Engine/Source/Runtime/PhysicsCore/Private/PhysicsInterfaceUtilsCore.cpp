@@ -72,120 +72,7 @@ ECollisionShapeType P2UCollisionShapeType(PxGeometryType::Enum InPType)
 	return ECollisionShapeType::None;
 }
 
-uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDir)
-{
-#if PHYSICS_INTERFACE_PHYSX
-	PxConvexMeshGeometry convexGeom;
-	PxVec3 PUnitDir = U2PVector(UnitDir);
-	if (PHit.shape->getConvexMeshGeometry(convexGeom))
-	{
-		//PhysX has given us the most correct face. However, we actually want the most useful face which is the one with the most opposed normal within some radius.
-		//So for example, if we are sweeping against a corner we should take the plane that is most opposing, even if it's not the exact one we hit.
-		static const float FindFaceInRadius = 1.f; // tolerance to determine how far from the actual contact point we want to search.
-
-		PxTransform actorPose;
-		bool bFoundKinematicTarget = false;
-
-		if (PxRigidDynamic* rigidDynamic = PHit.actor->is<PxRigidDynamic>())
-		{
-			if (rigidDynamic->getRigidBodyFlags() & PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES)
-			{
-				bFoundKinematicTarget = rigidDynamic->getKinematicTarget(actorPose);
-			}
-		}
-
-		if (!bFoundKinematicTarget)
-		{
-			actorPose = PHit.actor->getGlobalPose();
-		}
-
-		const PxTransform pose = actorPose * PHit.shape->getLocalPose();
-		const PxVec3 impactPos(PHit.position);
-		{
-			//This is copied directly from PxFindFace. However, we made some modifications in order to favor 'most opposing' faces.
-			static const PxReal gEpsilon = .01f;
-			PX_ASSERT(PUnitDir.isFinite());
-			PX_ASSERT(PUnitDir.isNormalized());
-			PX_ASSERT(impactPos.isFinite());
-			PX_ASSERT(pose.isFinite());
-
-			const PxVec3 impact = impactPos - PUnitDir * gEpsilon;
-
-			const PxVec3 localPoint = pose.transformInv(impact);
-			const PxVec3 localDir = pose.rotateInv(PUnitDir);
-
-			// Create shape to vertex scale transformation matrix
-			const PxMeshScale& meshScale = convexGeom.scale;
-			const PxMat33 rot(meshScale.rotation);
-			PxMat33 shape2VertexSkew = rot.getTranspose();
-			const PxMat33 diagonal = PxMat33::createDiagonal(PxVec3(1.0f / meshScale.scale.x, 1.0f / meshScale.scale.y, 1.0f / meshScale.scale.z));
-			shape2VertexSkew = shape2VertexSkew * diagonal;
-			shape2VertexSkew = shape2VertexSkew * rot;
-
-			const PxU32 nbPolys = convexGeom.convexMesh->getNbPolygons();
-			// BEGIN EPIC MODIFICATION Improved selection of 'most opposing' face
-			bool bMinIndexValid = false;
-			PxU32 minIndex = 0;
-			PxReal maxD = -PX_MAX_REAL;
-			PxU32 maxDIndex = 0;
-			PxReal minNormalDot = PX_MAX_REAL;
-
-			for (PxU32 j = 0; j < nbPolys; j++)
-			{
-				PxHullPolygon hullPolygon;
-				convexGeom.convexMesh->getPolygonData(j, hullPolygon);
-
-				// transform hull plane into shape space
-				PxPlane plane;
-				const PxVec3 tmp = shape2VertexSkew.transformTranspose(PxVec3(hullPolygon.mPlane[0], hullPolygon.mPlane[1], hullPolygon.mPlane[2]));
-				const PxReal denom = 1.0f / tmp.magnitude();
-				plane.n = tmp * denom;
-				plane.d = hullPolygon.mPlane[3] * denom;
-
-				PxReal d = plane.distance(localPoint);
-				// Track plane that impact point is furthest point (will be out fallback normal)
-				if (d > maxD)
-				{
-					maxDIndex = j;
-					maxD = d;
-				}
-
-				//Because we are searching against a convex hull, we will never get multiple faces that are both in front of the contact point _and_ have an opposing normal (except the face we hit).
-				//However, we may have just missed a plane which is now "behind" the contact point while still being inside the radius
-				if (d < -FindFaceInRadius)
-					continue;
-
-				// Calculate direction dot plane normal
-				const PxReal normalDot = plane.n.dot(localDir);
-				// If this is more opposing than our current 'most opposing' normal, update 'most opposing'
-				if (normalDot < minNormalDot)
-				{
-					minIndex = j;
-					bMinIndexValid = true;
-					minNormalDot = normalDot;
-				}
-			}
-
-			// If we found at least one face that we are considered 'on', use best normal
-			if (bMinIndexValid)
-			{
-				return minIndex;
-			}
-			// Fallback is the face that we are most in front of
-			else
-			{
-				return maxDIndex;
-			}
-		}
-	}
-
-	return PHit.faceIndex;	//If no custom logic just return whatever face index they initially had
-#endif
-	ensure(false);
-	return 0;
-}
-
-FPhysXShapeAdaptor::FPhysXShapeAdaptor(const FQuat& Rot, const FCollisionShape& CollisionShape)
+FPhysXShapeAdapter::FPhysXShapeAdapter(const FQuat& Rot, const FCollisionShape& CollisionShape)
 	: Rotation(FQuat::Identity)
 {
 	// Perform other kinds of zero-extent queries as zero-extent sphere queries
@@ -268,3 +155,116 @@ DEFINE_STAT(STAT_PhysSceneWriteLock);
 #endif
 
 #endif
+
+uint32 FindFaceIndex(const FHitLocation& PHit, const FVector& UnitDir)
+{
+#if PHYSICS_INTERFACE_PHYSX
+	PxConvexMeshGeometry convexGeom;
+	PxVec3 PUnitDir = U2PVector(UnitDir);
+	if(PHit.shape->getConvexMeshGeometry(convexGeom))
+	{
+		//PhysX has given us the most correct face. However, we actually want the most useful face which is the one with the most opposed normal within some radius.
+		//So for example, if we are sweeping against a corner we should take the plane that is most opposing, even if it's not the exact one we hit.
+		static const float FindFaceInRadius = 1.f; // tolerance to determine how far from the actual contact point we want to search.
+
+		PxTransform actorPose;
+		bool bFoundKinematicTarget = false;
+
+		if(PxRigidDynamic* rigidDynamic = PHit.actor->is<PxRigidDynamic>())
+		{
+			if(rigidDynamic->getRigidBodyFlags() & PxRigidBodyFlag::eUSE_KINEMATIC_TARGET_FOR_SCENE_QUERIES)
+			{
+				bFoundKinematicTarget = rigidDynamic->getKinematicTarget(actorPose);
+			}
+		}
+
+		if(!bFoundKinematicTarget)
+		{
+			actorPose = PHit.actor->getGlobalPose();
+		}
+
+		const PxTransform pose = actorPose * PHit.shape->getLocalPose();
+		const PxVec3 impactPos(PHit.position);
+		{
+			//This is copied directly from PxFindFace. However, we made some modifications in order to favor 'most opposing' faces.
+			static const PxReal gEpsilon = .01f;
+			PX_ASSERT(PUnitDir.isFinite());
+			PX_ASSERT(PUnitDir.isNormalized());
+			PX_ASSERT(impactPos.isFinite());
+			PX_ASSERT(pose.isFinite());
+
+			const PxVec3 impact = impactPos - PUnitDir * gEpsilon;
+
+			const PxVec3 localPoint = pose.transformInv(impact);
+			const PxVec3 localDir = pose.rotateInv(PUnitDir);
+
+			// Create shape to vertex scale transformation matrix
+			const PxMeshScale& meshScale = convexGeom.scale;
+			const PxMat33 rot(meshScale.rotation);
+			PxMat33 shape2VertexSkew = rot.getTranspose();
+			const PxMat33 diagonal = PxMat33::createDiagonal(PxVec3(1.0f / meshScale.scale.x, 1.0f / meshScale.scale.y, 1.0f / meshScale.scale.z));
+			shape2VertexSkew = shape2VertexSkew * diagonal;
+			shape2VertexSkew = shape2VertexSkew * rot;
+
+			const PxU32 nbPolys = convexGeom.convexMesh->getNbPolygons();
+			// BEGIN EPIC MODIFICATION Improved selection of 'most opposing' face
+			bool bMinIndexValid = false;
+			PxU32 minIndex = 0;
+			PxReal maxD = -PX_MAX_REAL;
+			PxU32 maxDIndex = 0;
+			PxReal minNormalDot = PX_MAX_REAL;
+
+			for(PxU32 j = 0; j < nbPolys; j++)
+			{
+				PxHullPolygon hullPolygon;
+				convexGeom.convexMesh->getPolygonData(j, hullPolygon);
+
+				// transform hull plane into shape space
+				PxPlane plane;
+				const PxVec3 tmp = shape2VertexSkew.transformTranspose(PxVec3(hullPolygon.mPlane[0], hullPolygon.mPlane[1], hullPolygon.mPlane[2]));
+				const PxReal denom = 1.0f / tmp.magnitude();
+				plane.n = tmp * denom;
+				plane.d = hullPolygon.mPlane[3] * denom;
+
+				PxReal d = plane.distance(localPoint);
+				// Track plane that impact point is furthest point (will be out fallback normal)
+				if(d > maxD)
+				{
+					maxDIndex = j;
+					maxD = d;
+				}
+
+				//Because we are searching against a convex hull, we will never get multiple faces that are both in front of the contact point _and_ have an opposing normal (except the face we hit).
+				//However, we may have just missed a plane which is now "behind" the contact point while still being inside the radius
+				if(d < -FindFaceInRadius)
+					continue;
+
+				// Calculate direction dot plane normal
+				const PxReal normalDot = plane.n.dot(localDir);
+				// If this is more opposing than our current 'most opposing' normal, update 'most opposing'
+				if(normalDot < minNormalDot)
+				{
+					minIndex = j;
+					bMinIndexValid = true;
+					minNormalDot = normalDot;
+				}
+			}
+
+			// If we found at least one face that we are considered 'on', use best normal
+			if(bMinIndexValid)
+			{
+				return minIndex;
+			}
+			// Fallback is the face that we are most in front of
+			else
+			{
+				return maxDIndex;
+			}
+		}
+	}
+
+	return PHit.faceIndex;	//If no custom logic just return whatever face index they initially had
+#endif
+	ensure(false);
+	return 0;
+}

@@ -40,10 +40,17 @@ namespace MPCDI
 
 	void FMPCDIBlendTexture::LoadCustomMap(EPixelFormat InPixelFormat, int InWidth, int InHeight, int BufferSize, void *InTextureData)
 	{
+		ReleaseTextureData();
+
 		void *TextureData = FMemory::Malloc(BufferSize);
 		memcpy(TextureData, InTextureData, BufferSize);
 
 		SetTextureData(TextureData, InWidth, InHeight, InPixelFormat);
+
+		if (IsInitialized()) 
+		{
+			BeginUpdateResourceRHI(this);
+		}
 		BeginInitResource(this);
 	}
 

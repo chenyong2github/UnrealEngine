@@ -10,11 +10,7 @@ public class PicpMPCDI : ModuleRules
 			new string[] {
 				"PicpMPCDI/Private",
 				"PicpProjection/Private",
-				"MPCDI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private",
-				"../../../../../Engine/Source/Runtime/Windows/D3D11RHI/Private/Windows",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private",
-				"../../../../../Engine/Source/Runtime/D3D12RHI/Private/Windows"
+				"MPCDI/Private"				
 			});
 
 		PublicDependencyModuleNames.AddRange(
@@ -23,21 +19,16 @@ public class PicpMPCDI : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"Projects",
-				"DisplayCluster",
-				"PicpProjection",
-				"MPCDI",
 			});
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
-				"Core",
-				"CoreUObject",
-				"Engine",
+				"MPCDI",
+				"PicpProjection",
+				"Projects",				
 				"RenderCore",
-				"DisplayCluster",
-				"RHI",
+                "RHI",
 				"UtilityShaders"
 			}
 		);
@@ -46,10 +37,5 @@ public class PicpMPCDI : ModuleRules
 		{
 			PrivateDependencyModuleNames.Add("UnrealEd");
 		}
-
-		PublicAdditionalLibraries.Add("opengl32.lib");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "OpenGL");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX11");
-		AddEngineThirdPartyPrivateStaticDependencies(Target, "DX12");
 	}
 }

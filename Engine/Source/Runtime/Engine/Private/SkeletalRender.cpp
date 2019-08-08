@@ -24,9 +24,9 @@ FSkeletalMeshObject
 -----------------------------------------------------------------------------*/
 
 FSkeletalMeshObject::FSkeletalMeshObject(USkinnedMeshComponent* InMeshComponent, FSkeletalMeshRenderData* InSkelMeshRenderData, ERHIFeatureLevel::Type InFeatureLevel)
-:	MinDesiredLODLevel(0)
+:	MinDesiredLODLevel(InSkelMeshRenderData->CurrentFirstLODIdx)
 ,	MaxDistanceFactor(0.f)
-,	WorkingMinDesiredLODLevel(0)
+,	WorkingMinDesiredLODLevel(MinDesiredLODLevel)
 ,	WorkingMaxDistanceFactor(0.f)
 ,   bHasBeenUpdatedAtLeastOnce(false)
 #if RHI_RAYTRACING
@@ -70,7 +70,7 @@ FSkeletalMeshObject::~FSkeletalMeshObject()
 {
 }
 
-void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber)
+void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const FBoxSphereBounds& Bounds, int32 FrameNumber, uint8 CurFirstLODIdx)
 {
 	static const auto* SkeletalMeshLODRadiusScale = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.SkeletalMeshLODRadiusScale"));
 	float LODScale = FMath::Clamp(SkeletalMeshLODRadiusScale->GetValueOnRenderThread(), 0.25f, 1.0f);
@@ -107,6 +107,14 @@ void FSkeletalMeshObject::UpdateMinDesiredLODLevel(const FSceneView* View, const
 				break;
 			}
 		}
+	}
+
+	NewLODLevel = FMath::Max<int32>(NewLODLevel, CurFirstLODIdx);
+	if (!LastFrameNumber)
+	{
+		// We don't have last frame value on the first call to FSkeletalMeshObject::UpdateMinDesiredLODLevel so
+		// just reuse current frame value. Otherwise, MinDesiredLODLevel may get stale value in the update code below
+		WorkingMinDesiredLODLevel = NewLODLevel;
 	}
 
 	// Different path for first-time vs subsequent-times in this function (ie splitscreen)

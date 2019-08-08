@@ -5,6 +5,11 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "PhysicsEngine/ShapeElem.h"
+
+#if WITH_CHAOS
+#include "Chaos/Serializable.h"
+#endif
+
 #include "ConvexElem.generated.h"
 
 struct FDynamicMeshVertex;
@@ -13,6 +18,12 @@ struct FKBoxElem;
 namespace physx
 {
 	class PxConvexMesh;
+}
+
+namespace Chaos
+{
+	template <typename T, int d>
+	class TImplicitObject;
 }
 
 /** One convex hull, used for simplified collision. */
@@ -40,33 +51,17 @@ private:
 	/** Convex mesh for this body, flipped across X, created from cooked data in CreatePhysicsMeshes */
 	physx::PxConvexMesh*   ConvexMeshNegX;
 
+#if WITH_CHAOS
+	TUniquePtr<Chaos::TImplicitObject<float, 3>> ChaosConvex;
+#endif
+
 public:
 
+	ENGINE_API FKConvexElem();
+	ENGINE_API FKConvexElem(const FKConvexElem& Other);
+	ENGINE_API ~FKConvexElem();
 
-	FKConvexElem()
-		: FKShapeElem(EAggCollisionShape::Convex)
-		, ElemBox(ForceInit)
-		, Transform(FTransform::Identity)
-		, ConvexMesh(NULL)
-		, ConvexMeshNegX(NULL)
-	{}
-
-	FKConvexElem(const FKConvexElem& Other)
-		: ConvexMesh(nullptr)
-		, ConvexMeshNegX(nullptr)
-	{
-		CloneElem(Other);
-	}
-
-	const FKConvexElem& operator=(const FKConvexElem& Other)
-	{
-		ensureMsgf(ConvexMesh == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
-		ensureMsgf(ConvexMeshNegX == nullptr, TEXT("We are leaking memory. Why are we calling the assignment operator on an element that has already allocated resources?"));
-		ConvexMesh = nullptr;
-		ConvexMeshNegX = nullptr;
-		CloneElem(Other);
-		return *this;
-	}
+	ENGINE_API const FKConvexElem& operator=(const FKConvexElem& Other);
 
 	ENGINE_API void	DrawElemWire(class FPrimitiveDrawInterface* PDI, const FTransform& ElemTM, const float Scale, const FColor Color) const;
 
@@ -108,6 +103,14 @@ public:
 	/** Set the PhysX convex mesh to use for this element */
 	ENGINE_API void SetMirroredConvexMesh(physx::PxConvexMesh* InMesh);
 
+#if WITH_CHAOS
+	ENGINE_API const TUniquePtr<Chaos::TImplicitObject<float, 3>>& GetChaosConvexMesh() const;
+
+	ENGINE_API void SetChaosConvexMesh(TUniquePtr<Chaos::TImplicitObject<float, 3>>&& InChaosConvex);
+
+	ENGINE_API void ResetChaosConvexMesh();
+#endif
+
 	/** Get current transform applied to convex mesh vertices */
 	FTransform GetTransform() const
 	{
@@ -132,11 +135,5 @@ public:
 
 private:
 	/** Helper function to safely copy instances of this shape*/
-	void CloneElem(const FKConvexElem& Other)
-	{
-		Super::CloneElem(Other);
-		VertexData = Other.VertexData;
-		ElemBox = Other.ElemBox;
-		Transform = Other.Transform;
-	}
+	void CloneElem(const FKConvexElem& Other);
 };

@@ -127,6 +127,7 @@
 #include "AdvancedCopyCustomization.h"
 #include "SAdvancedCopyReportDialog.h"
 #include "AssetToolsSettings.h"
+#include "AssetVtConversion.h"
 
 
 #define LOCTEXT_NAMESPACE "AssetTools"
@@ -2927,6 +2928,20 @@ void UAssetToolsImpl::FixupReferencers(const TArray<UObjectRedirector*>& Objects
 void UAssetToolsImpl::OpenEditorForAssets(const TArray<UObject*>& Assets)
 {
 	FAssetEditorManager::Get().OpenEditorForAssets(Assets);
+}
+
+void UAssetToolsImpl::ConvertVirtualTextures(const TArray<UTexture2D *>& Textures, bool bConvertBackToNonVirtual, const TArray<UMaterial *>* RelatedMaterials /* = nullptr */) const
+{
+	FVTConversionWorker VirtualTextureConversionWorker(bConvertBackToNonVirtual);
+	VirtualTextureConversionWorker.UserTextures = Textures;
+	//We want all given texture to be added, so we put a minimum texture size of 0
+	VirtualTextureConversionWorker.FilterList(0);
+	if (RelatedMaterials)
+	{
+		VirtualTextureConversionWorker.Materials.Append(*RelatedMaterials);
+	}
+
+	VirtualTextureConversionWorker.DoConvert();
 }
 
 void UAssetToolsImpl::BeginAdvancedCopyPackages(const TArray<FName>& InputNamesToCopy, const FString& TargetPath) const

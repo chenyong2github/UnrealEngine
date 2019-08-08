@@ -6,11 +6,7 @@
 
 #include "Chaos/Framework/DebugSubstep.h"
 #include "Templates/Function.h"
-
-namespace Chaos
-{
-	class FPBDRigidsSolver;
-}  // namespace Chaos
+#include "Chaos/Declares.h"
 
 #if CHAOS_DEBUG_SUBSTEP
 #include "Async/AsyncWork.h"
@@ -55,19 +51,19 @@ namespace Chaos
 		~FDebugSolverTasks() { Shutdown(); }
 
 		/** Add debug task entry for the specified solver. */
-		void Add(FPBDRigidsSolver* Solver);
+		void Add(FPhysicsSolver* Solver);
 
 		/** Remove the debug task entry for the specified solver, and delete its task if any was created. */
-		void Remove(FPBDRigidsSolver* Solver);
+		void Remove(FPhysicsSolver* Solver);
 
 		/** Run the specified step function in one go within the current thread, or in a debug thread substep by substep depending on the Solver's DebugSustep status. */
-		void DebugStep(FPBDRigidsSolver* Solver, TFunction<void()> StepFunction);
+		void DebugStep(FPhysicsSolver* Solver, TFunction<void()> StepFunction);
 
 		/** Shutdown all debug threads. */
 		void Shutdown();
 
 	private:
-		TMap<FPBDRigidsSolver*, FAsyncTask<FDebugSolverTask>*> SolverToTaskMap;
+		TMap<FPhysicsSolver*, FAsyncTask<FDebugSolverTask>*> SolverToTaskMap;
 	};
 }  // namespace Chaos
 
@@ -84,10 +80,10 @@ namespace Chaos
 		FDebugSolverTasks() {}
 		~FDebugSolverTasks() {}
 
-		void Add(FPBDRigidsSolver* /*Solver*/) {}
-		void Remove(FPBDRigidsSolver* /*Solver*/) {}
+		void Add(FPhysicsSolver* /*Solver*/) {}
+		void Remove(FPhysicsSolver* /*Solver*/) {}
 
-		FORCEINLINE void DebugStep(FPBDRigidsSolver* /*Solver*/, TFunction<void()> StepFunction) { StepFunction(); }
+		FORCEINLINE void DebugStep(FPhysicsSolver* /*Solver*/, TFunction<void()> StepFunction) { StepFunction(); }
 
 		void Shutdown() {}
 	};

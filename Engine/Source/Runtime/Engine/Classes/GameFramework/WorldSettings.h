@@ -796,6 +796,8 @@ public:
 	FORCEINLINE class APlayerState* GetPauserPlayerState() const { return PauserPlayerState; }
 	FORCEINLINE virtual void SetPauserPlayerState(class APlayerState* PlayerState) { PauserPlayerState = PlayerState; }
 
+	virtual void RewindForReplay() override;
+
 private:
 
 	// Hidden functions that don't make sense to use on this class.

@@ -1617,12 +1617,12 @@ void FVivoxVoiceChat::onAudioUnitAfterCaptureAudioRead(const VivoxClientApi::Uri
 	if (InitialTargetUri.IsValid())
 	{
 		FScopeLock Lock(&AfterCaptureAudioReadLock);
-		OnVoiceChatAfterCaptureAudioReadDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount), AudioFrameRate, ChannelsPerFrame);
+		OnVoiceChatAfterCaptureAudioReadDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount * ChannelsPerFrame), AudioFrameRate, ChannelsPerFrame);
 	}
 	else
 	{
 		FScopeLock Lock(&AudioRecordLock);
-		OnVoiceChatRecordSamplesAvailableDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount), AudioFrameRate, ChannelsPerFrame);
+		OnVoiceChatRecordSamplesAvailableDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount * ChannelsPerFrame), AudioFrameRate, ChannelsPerFrame);
 	}
 }
 
@@ -1631,7 +1631,7 @@ void FVivoxVoiceChat::onAudioUnitBeforeCaptureAudioSent(const VivoxClientApi::Ur
 	if (InitialTargetUri.IsValid())
 	{
 		FScopeLock Lock(&BeforeCaptureAudioSentLock);
-		OnVoiceChatBeforeCaptureAudioSentDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount), AudioFrameRate, ChannelsPerFrame, bSpeaking);
+		OnVoiceChatBeforeCaptureAudioSentDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount * ChannelsPerFrame), AudioFrameRate, ChannelsPerFrame, bSpeaking);
 	}
 }
 
@@ -1640,7 +1640,7 @@ void FVivoxVoiceChat::onAudioUnitBeforeRecvAudioRendered(const VivoxClientApi::U
 	if (InitialTargetUri.IsValid())
 	{
 		FScopeLock Lock(&BeforeRecvAudioRenderedLock);
-		OnVoiceChatBeforeRecvAudioRenderedDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount), AudioFrameRate, ChannelsPerFrame, bSilence);
+		OnVoiceChatBeforeRecvAudioRenderedDelegate.Broadcast(MakeArrayView(PcmFrames, PcmFrameCount * ChannelsPerFrame), AudioFrameRate, ChannelsPerFrame, bSilence);
 	}
 }
 

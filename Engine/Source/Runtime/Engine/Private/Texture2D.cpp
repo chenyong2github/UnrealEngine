@@ -483,8 +483,8 @@ bool UTexture2D::GetMipDataFilename(const int32 MipIndex, FString& OutBulkDataFi
 			OutBulkDataFilename = PlatformData->Mips[MipIndex].BulkData.GetFilename();
 #else
 			OutBulkDataFilename = PlatformData->CachedPackageFileName;
-			const int32 NumOptionalMips = CalcNumOptionalMips();
-			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, MipIndex < NumOptionalMips ? TEXT(".uptnl") : TEXT(".ubulk"));
+			bool UseOptionalBulkDataFileName = PlatformData->Mips[MipIndex].BulkData.GetBulkDataFlags() & BULKDATA_OptionalPayload;
+			OutBulkDataFilename = FPaths::ChangeExtension(OutBulkDataFilename, UseOptionalBulkDataFileName ? TEXT(".uptnl") : TEXT(".ubulk"));
 #endif
 			return true;
 		}
@@ -676,6 +676,12 @@ void UTexture2D::CancelPendingTextureStreaming()
 	}
 
 	// No need to call FlushResourceStreaming(), since calling CancelPendingMipChangeRequest has an immediate effect.
+}
+
+bool UTexture2D::IsReadyForAsyncPostLoad() const
+{
+	return !PlatformData || PlatformData->IsReadyForAsyncPostLoad();
+
 }
 
 void UTexture2D::PostLoad()

@@ -205,10 +205,10 @@ LPP_DLL_API(void) LppSetBuildArguments(const wchar_t* arguments)
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Support for lazy-loading modules
-LPP_DLL_API(void) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll)
+LPP_DLL_API(void*) LppEnableLazyLoadedModule(const wchar_t* nameOfExeOrDll)
 {
 	HMODULE baseAddress = GetModuleHandle(nameOfExeOrDll);
-	g_startupThread->EnableLazyLoadedModule(nameOfExeOrDll, baseAddress);
+	return g_startupThread->EnableLazyLoadedModule(nameOfExeOrDll, baseAddress);
 }
 // END EPIC MOD
 
