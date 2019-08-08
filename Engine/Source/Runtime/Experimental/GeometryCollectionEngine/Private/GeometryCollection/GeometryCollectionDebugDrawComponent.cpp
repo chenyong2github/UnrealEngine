@@ -16,89 +16,12 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDraw, Log, All);
 
-// Constants
-namespace GeometryCollectionDebugDrawComponentConstants
-{
-	static const FLinearColor DarkerTintFactor(1.0f, 1.0f, 0.7f);  // Darker HSV multiplier
-	static const FLinearColor LighterTintFactor(1.0f, 1.0f, 2.0f);  // Lighter HSV multiplier
-
-	static const FLinearColor RigidBodyTint(0.8f, 0.1f, 0.1f);  // Red
-	static const FLinearColor ClusteringTint(0.6, 0.4f, 0.2f);  // Orange
-	static const FLinearColor GeometryTint(0.4f, 0.2f, 0.6f);  // Purple
-	static const FLinearColor SingleFaceTint(0.6, 0.2f, 0.4f);  // Pink
-	static const FLinearColor VertexTint(0.2f, 0.4f, 0.6f);  // Blue
-
-	static const FColor RigidBodyIdsColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor RigidBodyCollisionColorDefault = RigidBodyTint.ToFColor(true);
-	static const FColor RigidBodyInertiaColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor RigidBodyVelocityColorDefault = (RigidBodyTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor RigidBodyForceColorDefault = (RigidBodyTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor RigidBodyInfoColorDefault = (RigidBodyTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor TransformIndexColorDefault = (ClusteringTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor LevelColorDefault = (ClusteringTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor ParentColorDefault = ClusteringTint.ToFColor(true);
-	static const FColor GeometryIndexColorDefault = (GeometryTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor BoundingBoxColorDefault = (GeometryTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor FaceColorDefault = GeometryTint.ToFColor(true);
-	static const FColor FaceIndexColorDefault = (GeometryTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor FaceNormalColorDefault = (GeometryTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor SingleFaceColorDefault = (SingleFaceTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor VertexColorDefault = VertexTint.ToFColor(true);
-	static const FColor VertexIndexColorDefault = (VertexTint.LinearRGBToHSV() * LighterTintFactor).HSVToLinearRGB().ToFColor(true);
-	static const FColor VertexNormalColorDefault = (VertexTint.LinearRGBToHSV() * DarkerTintFactor).HSVToLinearRGB().ToFColor(true);
-}
-
 // Static member variables
 UGeometryCollectionDebugDrawComponent* UGeometryCollectionDebugDrawComponent::RenderLevelSetOwner = nullptr;
 int32 UGeometryCollectionDebugDrawComponent::LastRenderedId = INDEX_NONE;
 
 UGeometryCollectionDebugDrawComponent::UGeometryCollectionDebugDrawComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, bShowRigidBodyIds(false)
-	, bShowRigidBodyTransforms(false)
-	, bShowRigidBodyCollisions(false)
-	, bShowRigidBodyInertias(false)
-	, bShowRigidBodyVelocities(false)
-	, bShowRigidBodyForces(false)
-	, bShowRigidBodyInfos(false)
-	, RigidBodyIdColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyIdsColorDefault)
-	, RigidBodyTransformScale(1.0f)
-	, RigidBodyCollisionColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyCollisionColorDefault)
-	, RigidBodyInertiaColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyInertiaColorDefault)
-	, RigidBodyVelocityColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyVelocityColorDefault)
-	, RigidBodyForceColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyForceColorDefault)
-	, RigidBodyInfoColor(GeometryCollectionDebugDrawComponentConstants::RigidBodyInfoColorDefault)
-	, bShowTransformIndices(false)
-	, bShowTransforms(false)
-	, bShowLevels(false)
-	, bShowParents(false)
-	, bShowConnectivityEdges(false)
-	, TransformIndexColor(GeometryCollectionDebugDrawComponentConstants::TransformIndexColorDefault)
-	, TransformScale(1.0f)
-	, LevelColor(GeometryCollectionDebugDrawComponentConstants::LevelColorDefault)
-	, ParentColor(GeometryCollectionDebugDrawComponentConstants::ParentColorDefault)
-	, ConnectivityEdgeThickness(1.0f)
-	, bShowGeometryIndices(false)
-	, bShowGeometryTransforms(false)
-	, bShowBoundingBoxes(false)
-	, bShowFaces(false)
-	, bShowFaceIndices(false)
-	, bShowFaceNormals(false)
-	, bShowSingleFace(false)
-	, SingleFaceIndex(0)
-	, bShowVertices(false)
-	, bShowVertexIndices(false)
-	, bShowVertexNormals(false)
-	, GeometryIndexColor(GeometryCollectionDebugDrawComponentConstants::GeometryIndexColorDefault)
-	, GeometryTransformScale(1.0f)
-	, BoundingBoxColor(GeometryCollectionDebugDrawComponentConstants::BoundingBoxColorDefault)
-	, FaceColor(GeometryCollectionDebugDrawComponentConstants::FaceColorDefault)
-	, FaceIndexColor(GeometryCollectionDebugDrawComponentConstants::FaceIndexColorDefault)
-	, FaceNormalColor(GeometryCollectionDebugDrawComponentConstants::FaceNormalColorDefault)
-	, SingleFaceColor(GeometryCollectionDebugDrawComponentConstants::SingleFaceColorDefault)
-	, VertexColor(GeometryCollectionDebugDrawComponentConstants::VertexColorDefault)
-	, VertexIndexColor(GeometryCollectionDebugDrawComponentConstants::VertexIndexColorDefault)
-	, VertexNormalColor(GeometryCollectionDebugDrawComponentConstants::VertexNormalColorDefault)
 	, GeometryCollectionDebugDrawActor(nullptr)
 	, GeometryCollectionRenderLevelSetActor(nullptr)
 	, GeometryCollectionComponent(nullptr)
@@ -234,37 +157,6 @@ void UGeometryCollectionDebugDrawComponent::TickComponent(float DeltaTime, enum 
 #endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
 }
 
-#if WITH_EDITOR
-void UGeometryCollectionDebugDrawComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-#if GEOMETRYCOLLECTION_DEBUG_DRAW
-	if (GeometryCollectionComponent)
-	{
-		const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName(): NAME_None;
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UGeometryCollectionDebugDrawComponent, SingleFaceIndex))
-		{
-			const int32 NumFaces = GeometryCollectionComponent->GetNumElements(FGeometryCollection::FacesGroup);
-			SingleFaceIndex = FMath::Clamp(SingleFaceIndex, 0, NumFaces - 1);
-		}
-	}
-
-	// Update selection and visibility
-	OnDebugDrawPropertiesChanged(false);
-#endif  // #if GEOMETRYCOLLECTION_DEBUG_DRAW
-
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-bool UGeometryCollectionDebugDrawComponent::CanEditChange(const UProperty* InProperty) const
-{
-	if (HasBegunPlay())
-	{
-		return false;
-	}
-	return Super::CanEditChange(InProperty);
-}
-#endif  // #if WITH_EDITOR
-
 #if GEOMETRYCOLLECTION_DEBUG_DRAW
 bool UGeometryCollectionDebugDrawComponent::OnDebugDrawPropertiesChanged(bool bForceVisibilityUpdate)
 {
@@ -398,146 +290,131 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawTick()
 	check(GeometryCollectionComponent->RestCollection);
 	check(GeometryCollectionDebugDrawActor);
 
-	AActor* const Actor = GetOwner();
-	check(Actor);
+	const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
+	const bool bIsOneSelected = bIsSelected && !GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection;
+	const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
+		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE &&
+			GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
 
 	// Compute world space geometry and cluster transforms
 	TArray<FTransform> ClusterTransforms;
 	TArray<FTransform> GeometryTransforms;
 	ComputeTransforms(ClusterTransforms, GeometryTransforms);
 
-	const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
-	const bool bIsOneSelected = bIsSelected && !GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection;
-	const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
-		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE && 
-		 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
-
-	// Clustering
-	if (!bShowTransformIndices && GeometryCollectionDebugDrawActor->bShowTransformIndex && bIsOneSelected)
+	if (bIsOneSelected)
 	{
-		GeometryCollectionDebugDrawActor->DrawTransformIndex(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, TransformIndexColor);
+		if (GeometryCollectionDebugDrawActor->bShowTransformIndex)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransformIndex(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->TransformIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransform(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->TransformScale);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowParent)
+		{
+			GeometryCollectionDebugDrawActor->DrawParent(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->ParentColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowLevel)
+		{
+			GeometryCollectionDebugDrawActor->DrawLevel(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->LevelColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertices)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->VertexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertexIndices)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertexIndices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->VertexIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertexNormals)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertexNormals(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->VertexNormalColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaces)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaces(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->FaceColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaceIndices)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaceIndices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->FaceIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaceNormals)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaceNormals(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->FaceNormalColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowGeometryIndex)
+		{
+			GeometryCollectionDebugDrawActor->DrawGeometryIndex(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->GeometryIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowGeometryTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransform(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->GeometryTransformScale);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowBoundingBox)
+		{
+			GeometryCollectionDebugDrawActor->DrawBoundingBox(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryCollectionDebugDrawActor->BoundingBoxColor);
+		}
 	}
-	else if (bShowTransformIndices || (GeometryCollectionDebugDrawActor->bShowTransformIndex && bAreAllSelected))
+	else if (bAreAllSelected)
 	{
-		GeometryCollectionDebugDrawActor->DrawTransformIndices(ClusterTransforms, GeometryCollectionComponent, TransformIndexColor);
+		if (GeometryCollectionDebugDrawActor->bShowTransformIndex)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransformIndices(ClusterTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->TransformIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransforms(ClusterTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->TransformScale);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowParent)
+		{
+			GeometryCollectionDebugDrawActor->DrawParents(ClusterTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->ParentColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowLevel)
+		{
+			GeometryCollectionDebugDrawActor->DrawLevels(ClusterTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->LevelColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertices)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertices(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->VertexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertexIndices)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertexIndices(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->VertexIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowVertexNormals)
+		{
+			GeometryCollectionDebugDrawActor->DrawVertexNormals(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->VertexNormalColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaces)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaces(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->FaceColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaceIndices)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaceIndices(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->FaceIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowFaceNormals)
+		{
+			GeometryCollectionDebugDrawActor->DrawFaceNormals(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->FaceNormalColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowGeometryIndex)
+		{
+			GeometryCollectionDebugDrawActor->DrawGeometryIndices(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->GeometryIndexColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowGeometryTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawTransforms(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->GeometryTransformScale);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowBoundingBox)
+		{
+			GeometryCollectionDebugDrawActor->DrawBoundingBoxes(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->BoundingBoxColor);
+		}
 	}
-
-	if (!bShowTransforms && GeometryCollectionDebugDrawActor->bShowTransform && bIsOneSelected)
+	// Draw single face
+	if (bIsSelected && GeometryCollectionDebugDrawActor->bShowSingleFace)
 	{
-		GeometryCollectionDebugDrawActor->DrawTransform(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, TransformScale);
-	}
-	else if (bShowTransforms || (GeometryCollectionDebugDrawActor->bShowTransform && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawTransforms(ClusterTransforms, GeometryCollectionComponent, TransformScale);
-	}
-
-	if (!bShowParents && GeometryCollectionDebugDrawActor->bShowParent && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawParent(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, ParentColor);
-	}
-	else if (bShowParents || (GeometryCollectionDebugDrawActor->bShowParent && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawParents(ClusterTransforms, GeometryCollectionComponent, ParentColor);
-	}
-
-	if (!bShowLevels && GeometryCollectionDebugDrawActor->bShowLevel && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawLevel(ClusterTransforms, GeometryCollectionComponent, SelectedTransformIndex, LevelColor);
-	}
-	else if (bShowLevels || (GeometryCollectionDebugDrawActor->bShowLevel && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawLevels(ClusterTransforms, GeometryCollectionComponent, LevelColor);
-	}
-
-	// Geometry
-	if (!bShowVertices && GeometryCollectionDebugDrawActor->bShowVertices && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawVertices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, VertexColor);
-	}
-	else if (bShowVertices || (GeometryCollectionDebugDrawActor->bShowVertices && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawVertices(GeometryTransforms, GeometryCollectionComponent, VertexColor);
-	}
-
-	if (!bShowVertexIndices && GeometryCollectionDebugDrawActor->bShowVertexIndices && bIsOneSelected)
-	{ 
-		GeometryCollectionDebugDrawActor->DrawVertexIndices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, VertexIndexColor);
-	}
-	else if (bShowVertexIndices || (GeometryCollectionDebugDrawActor->bShowVertexIndices && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawVertexIndices(GeometryTransforms, GeometryCollectionComponent, VertexIndexColor);
-	}
-
-	if (!bShowVertexNormals && GeometryCollectionDebugDrawActor->bShowVertexNormals && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawVertexNormals(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, VertexNormalColor);
-	}
-	else if (bShowVertexNormals || (GeometryCollectionDebugDrawActor->bShowVertexNormals && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawVertexNormals(GeometryTransforms, GeometryCollectionComponent, VertexNormalColor);
-	}
-
-	if (!bShowFaces && GeometryCollectionDebugDrawActor->bShowFaces && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawFaces(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, FaceColor);
-	}
-	else if (bShowFaces || (GeometryCollectionDebugDrawActor->bShowFaces && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawFaces(GeometryTransforms, GeometryCollectionComponent, FaceColor);
-	}
-
-	if (!bShowFaceIndices && GeometryCollectionDebugDrawActor->bShowFaceIndices && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawFaceIndices(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, FaceIndexColor);
-	}
-	else if (bShowFaceIndices || (GeometryCollectionDebugDrawActor->bShowFaceIndices && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawFaceIndices(GeometryTransforms, GeometryCollectionComponent, FaceIndexColor);
-	}
-
-	if (bShowSingleFace)
-	{
-		GeometryCollectionDebugDrawActor->DrawSingleFace(GeometryTransforms, GeometryCollectionComponent, SingleFaceIndex, SingleFaceColor);
-	}
-	if (GeometryCollectionDebugDrawActor->bShowSingleFace && (bIsOneSelected || bAreAllSelected))  // No else required here, it should be able to draw the two faces at the same time
-	{
-		GeometryCollectionDebugDrawActor->DrawSingleFace(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->SingleFaceIndex, SingleFaceColor);
-	}
-
-	if (!bShowFaceNormals && GeometryCollectionDebugDrawActor->bShowFaceNormals && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawFaceNormals(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, FaceNormalColor);
-	}
-	else if (bShowFaceNormals || (GeometryCollectionDebugDrawActor->bShowFaceNormals && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawFaceNormals(GeometryTransforms, GeometryCollectionComponent, FaceNormalColor);
-	}
-
-	if (!bShowGeometryIndices && GeometryCollectionDebugDrawActor->bShowGeometryIndex && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawGeometryIndex(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryIndexColor);
-	}
-	else if (bShowGeometryIndices || (GeometryCollectionDebugDrawActor->bShowGeometryIndex && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawGeometryIndices(GeometryTransforms, GeometryCollectionComponent, GeometryIndexColor);
-	}
-
-	if (!bShowGeometryTransforms && GeometryCollectionDebugDrawActor->bShowGeometryTransform && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawTransform(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, GeometryTransformScale);
-	}
-	else if (bShowGeometryTransforms || (GeometryCollectionDebugDrawActor->bShowGeometryTransform && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawTransforms(GeometryTransforms, GeometryCollectionComponent, GeometryTransformScale);
-	}
-
-	if (!bShowBoundingBoxes && GeometryCollectionDebugDrawActor->bShowBoundingBox && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawBoundingBox(GeometryTransforms, GeometryCollectionComponent, SelectedTransformIndex, BoundingBoxColor);
-	}
-	else if (bShowBoundingBoxes || (GeometryCollectionDebugDrawActor->bShowBoundingBox && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawBoundingBoxes(GeometryTransforms, GeometryCollectionComponent, BoundingBoxColor);
+		GeometryCollectionDebugDrawActor->DrawSingleFace(GeometryTransforms, GeometryCollectionComponent, GeometryCollectionDebugDrawActor->SingleFaceIndex, GeometryCollectionDebugDrawActor->SingleFaceColor);
 	}
 }
 
@@ -713,7 +590,7 @@ void UGeometryCollectionDebugDrawComponent::UpdateGeometryVisibility(bool bForce
 			HiddenTransformIndex = INDEX_NONE;
 			break;
 		case EGeometryCollectionDebugDrawActorHideGeometry::HideWithCollision:
-			if (bShowRigidBodyCollisions || (bAreAnySelected && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision))
+			if (bAreAnySelected && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision)
 			{
 				bIsVisible = !bAreAllSelected;
 				HiddenTransformIndex = bIsVisible ? SelectedTransformIndex: INDEX_NONE;
@@ -813,8 +690,8 @@ void UGeometryCollectionDebugDrawComponent::UpdateTickStatus()
 			 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor));
 
 		bIsEnabled =
-			(bAreAnySelected && (
-				   GeometryCollectionDebugDrawActor->bShowRigidBodyId  // Check the debug draw's actor debug options
+			bAreAnySelected && (
+				   GeometryCollectionDebugDrawActor->bShowRigidBodyId
 				|| GeometryCollectionDebugDrawActor->bShowRigidBodyCollision
 				|| GeometryCollectionDebugDrawActor->bShowRigidBodyTransform
 				|| GeometryCollectionDebugDrawActor->bShowRigidBodyInertia
@@ -836,29 +713,7 @@ void UGeometryCollectionDebugDrawComponent::UpdateTickStatus()
 				|| GeometryCollectionDebugDrawActor->SingleFaceIndex
 				|| GeometryCollectionDebugDrawActor->bShowVertices
 				|| GeometryCollectionDebugDrawActor->bShowVertexIndices
-				|| GeometryCollectionDebugDrawActor->bShowVertexNormals))
-			|| bShowRigidBodyIds  // Check this component's debug options
-			|| bShowRigidBodyTransforms
-			|| bShowRigidBodyCollisions
-			|| bShowRigidBodyInertias
-			|| bShowRigidBodyVelocities
-			|| bShowRigidBodyForces
-			|| bShowRigidBodyInfos
-			|| bShowTransformIndices
-			|| bShowTransforms
-			|| bShowLevels
-			|| bShowParents
-			|| bShowConnectivityEdges
-			|| bShowGeometryIndices
-			|| bShowGeometryTransforms
-			|| bShowBoundingBoxes
-			|| bShowFaces
-			|| bShowFaceIndices
-			|| bShowFaceNormals
-			|| bShowSingleFace
-			|| bShowVertices
-			|| bShowVertexIndices
-			|| bShowVertexNormals;
+				|| GeometryCollectionDebugDrawActor->bShowVertexNormals);
 	}
 	// Update component's ability to tick 
 	SetComponentTickEnabled(bIsEnabled);
@@ -945,88 +800,86 @@ void UGeometryCollectionDebugDrawComponent::DebugDrawChaosTick()
 	// Visualize other rigid body debug draw informations
 	const bool bIsOneSelected = bIsSelected && !GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection;
 	const bool bAreAllSelected = (bIsSelected && GeometryCollectionDebugDrawActor->bDebugDrawWholeCollection) ||
-		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE && 
+		(GeometryCollectionDebugDrawActor->SelectedRigidBody.Id == INDEX_NONE &&
 		 GeometryCollectionDebugDrawActor->SelectedRigidBody.Solver == GeometryCollectionComponent->ChaosSolverActor);
 
-	if (!bShowRigidBodyIds && GeometryCollectionDebugDrawActor->bShowRigidBodyId && bIsOneSelected)
+	if (bIsOneSelected)
 	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyId(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyIds, RigidBodyIdColor);
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyId)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyId(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyIds, GeometryCollectionDebugDrawActor->RigidBodyIdColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyTransform(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyTransformScale);
+		}
+		const bool bIsShowingLevelSet = (RenderLevelSetOwner == this && LastRenderedId == SelectedRigidBodyId);  // Only draw single collision whenever there isn't a level set being already rendered
+		if (!bIsShowingLevelSet && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyCollision(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyCollisionColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyInertia)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyInertia(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyInertiaColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyVelocity)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyVelocity(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyVelocityColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyForce)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyForce(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyForceColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyInfos)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodyInfo(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyInfoColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowConnectivityEdges)
+		{
+			GeometryCollectionDebugDrawActor->DrawConnectivityEdges(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyIds);
+		}
 	}
-	else if (bShowRigidBodyIds || (GeometryCollectionDebugDrawActor->bShowRigidBodyId && bAreAllSelected))
+	else if (bAreAllSelected)
 	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesId(GeometryCollectionComponent, ParticlesData, RigidBodyIds, RigidBodyIdColor);
-	}
-
-	if (!bShowRigidBodyTransforms && GeometryCollectionDebugDrawActor->bShowRigidBodyTransform && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyTransform(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyTransformScale);
-	}
-	else if (bShowRigidBodyTransforms || (GeometryCollectionDebugDrawActor->bShowRigidBodyTransform && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesTransform(GeometryCollectionComponent, ParticlesData, RigidBodyTransformScale);
-	}
-
-	const bool bIsShowingLevelSet = (RenderLevelSetOwner == this && LastRenderedId == SelectedRigidBodyId);  // Only draw single collision whenever there isn't a level set being already rendered
-	if (!bIsShowingLevelSet && !bShowRigidBodyCollisions && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyCollision(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyCollisionColor);
-	}
-	else if (bShowRigidBodyCollisions || (GeometryCollectionDebugDrawActor->bShowRigidBodyCollision && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesCollision(GeometryCollectionComponent, ParticlesData, RigidBodyCollisionColor);
-	}
-
-	if (!bShowRigidBodyInertias && GeometryCollectionDebugDrawActor->bShowRigidBodyInertia && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyInertia(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyInertiaColor);
-	}
-	else if (bShowRigidBodyInertias || (GeometryCollectionDebugDrawActor->bShowRigidBodyInertia && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesInertia(GeometryCollectionComponent, ParticlesData, RigidBodyInertiaColor);
-	}
-
-	if (!bShowRigidBodyVelocities && GeometryCollectionDebugDrawActor->bShowRigidBodyVelocity && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyVelocity(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyVelocityColor);
-	}
-	else if (bShowRigidBodyVelocities || (GeometryCollectionDebugDrawActor->bShowRigidBodyVelocity && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesVelocity(GeometryCollectionComponent, ParticlesData, RigidBodyVelocityColor);
-	}
-
-	if (!bShowRigidBodyForces && GeometryCollectionDebugDrawActor->bShowRigidBodyForce && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyForce(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyForceColor);
-	}
-	else if (bShowRigidBodyForces || (GeometryCollectionDebugDrawActor->bShowRigidBodyForce && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesForce(GeometryCollectionComponent, ParticlesData, RigidBodyForceColor);
-	}
-
-	if (!bShowRigidBodyInfos && GeometryCollectionDebugDrawActor->bShowRigidBodyInfos && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodyInfo(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyInfoColor);
-	}
-	else if (bShowRigidBodyInfos || (GeometryCollectionDebugDrawActor->bShowRigidBodyInfos && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawRigidBodiesInfo(GeometryCollectionComponent, ParticlesData, RigidBodyInfoColor);
-	}
-
-	if (!bShowConnectivityEdges && GeometryCollectionDebugDrawActor->bShowConnectivityEdges && bIsOneSelected)
-	{
-		GeometryCollectionDebugDrawActor->DrawConnectivityEdges(GeometryCollectionComponent, SelectedTransformIndex, ParticlesData, RigidBodyIds, ConnectivityEdgeThickness);
-	}
-	else if (bShowConnectivityEdges || (GeometryCollectionDebugDrawActor->bShowConnectivityEdges && bAreAllSelected))
-	{
-		GeometryCollectionDebugDrawActor->DrawConnectivityEdges(GeometryCollectionComponent, ParticlesData, RigidBodyIds, ConnectivityEdgeThickness);
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyCollision)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesCollision(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyCollisionColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyInertia)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesInertia(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyInertiaColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyVelocity)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesVelocity(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyVelocityColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyForce)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesForce(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyForceColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyInfos)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesInfo(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyInfoColor);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowConnectivityEdges)
+		{
+			GeometryCollectionDebugDrawActor->DrawConnectivityEdges(GeometryCollectionComponent, ParticlesData, RigidBodyIds);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyTransform)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesTransform(GeometryCollectionComponent, ParticlesData, GeometryCollectionDebugDrawActor->RigidBodyTransformScale);
+		}
+		if (GeometryCollectionDebugDrawActor->bShowRigidBodyId)
+		{
+			GeometryCollectionDebugDrawActor->DrawRigidBodiesId(GeometryCollectionComponent, ParticlesData, RigidBodyIds, GeometryCollectionDebugDrawActor->RigidBodyIdColor);
+		}
 	}
 }
 
 void UGeometryCollectionDebugDrawComponent::UpdateLevelSetVisibility()
 {
 	const bool bIsSelected = (SelectedTransformIndex != INDEX_NONE);
-	const bool bShowCollision = bShowRigidBodyCollisions || 
-		(bIsSelected && GeometryCollectionDebugDrawActor && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision);
+	const bool bShowCollision = bIsSelected && GeometryCollectionDebugDrawActor && GeometryCollectionDebugDrawActor->bShowRigidBodyCollision;
 	
 	if (RenderLevelSetOwner == this && (LastRenderedId == INDEX_NONE || !bShowCollision))
 	{
