@@ -45,6 +45,7 @@ class UUserDefinedEnum;
 class UUserDefinedStruct;
 class UBlueprintEditorOptions;
 struct Rect;
+class UK2Node_FunctionEntry;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -815,6 +816,53 @@ protected:
 	void OnExpandNodes();
 	bool CanExpandNodes() const;
 
+	/**
+	* Move the given set of nodes to an average spot near the Source position
+	* 
+	* @param AverageNodes					The nodes to move
+	* @param SourcePos						The source position used to average the nodes around
+	* @param bExpandedNodesNeedUniqueGuid	If true then a new Guid will be generated for each node in the set
+	*/
+	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
+
+	void OnConvertFunctionToEvent();
+	bool CanConvertFunctionToEvent() const;
+
+	/*
+	* Given a function node, move all nodes from the function out of the function graph,
+	* create an event with the same function name, and connect nodes to that event. 
+	* 
+	* @param SelectedCallFunctionNode	The function node to convert to an event
+	*/
+	void ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCallFunctionNode);
+
+	/**
+	* Output a map of pin names to a set of connections given a function entry pin
+	* 
+	* @param Node				The entry pin to gather connections from
+	* @param OutPinConnections	Output map of connection data
+	*/
+	void GetPinConnectionMap(UEdGraphNode* Node, TMap<FString, TSet<UEdGraphPin*>>& OutPinConnections) const;
+
+	/**
+	* Reconnect the pin map to the given node
+	* 
+	* @param Node				The node to connect pins to
+	* @param PinConnections		Map of pin connections to set
+	*/
+	void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
+
+	void OnConvertEventToFunction();
+	bool CanConvertEventToFunction() const;
+
+	/**
+	* Get all connected nodes and add them to a set of out nodes
+	* 
+	* @param Node		The node to get all connects to 
+	* @return	TArray of all connected nodes
+	*/
+	TArray<UEdGraphNode*> GetAllConnectedNodes(UEdGraphNode* const Node) const;
+
 	void OnAlignTop();
 	void OnAlignMiddle();
 	void OnAlignBottom();
@@ -963,6 +1011,19 @@ protected:
 	/**
 	 * Expands passed in node */
 	static void ExpandNode(UEdGraphNode* InNodeToExpand, UEdGraph* InSourceGraph, TSet<UEdGraphNode*>& OutExpandedNodes);
+
+	/**
+	* Move every node from the source graph to the destination graph. Add Each node that is moved to the OutExpandedNodes set.
+	* If the source graph is a function graph, keep track of the entry and result nodes in the given Out Parameters. 
+	*
+	* @param SourceNodes		Nodes to move
+	* @param DestinationGraph	Graph to move nodes to
+	* @param OutExpandedNodes	Set of each node that was moved from the source to destination graph
+	* @param OutEntry			Pointer to the function entry node
+	* @param OutResult			Pointer to the function result node
+	* @param bIsCollapsedGraph	Whether or not the source graph is collapsed
+	**/
+	static void MoveNodesToGraph(TArray<UEdGraphNode*>& SourceNodes, UEdGraph* DestinationGraph, TSet<UEdGraphNode*>& OutExpandedNodes, UEdGraphNode** OutEntry, UEdGraphNode** OutResult, const bool bIsCollapsedGraph = false);
 
 	/** Start editing the defaults for this blueprint */
 	void OnStartEditingDefaultsClicked();
