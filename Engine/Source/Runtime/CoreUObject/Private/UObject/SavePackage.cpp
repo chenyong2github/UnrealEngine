@@ -431,7 +431,7 @@ static bool EndSavingIfCancelled( FLinkerSave* Linker, const FString& TempFilena
 	if ( GWarn->ReceivedUserCancel() )
 	{
 		// free the file handle and delete the temporary file
-		Linker->Detach();
+		Linker->CloseAndDestroySaver();
 		IFileManager::Get().Delete( *TempFilename );
 		return true;
 	}
@@ -4443,7 +4443,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// Free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete( *TempFilename );
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -4495,7 +4495,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 					}
 
 					// free the file handle and delete the temporary file
-					Linker->Detach();
+					Linker->CloseAndDestroySaver();
 					IFileManager::Get().Delete(*TempFilename);
 					if (!(SaveFlags & SAVE_NoError))
 					{
@@ -6005,14 +6005,22 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				}
 				SlowTask.EnterProgressFrame();
 
-				// Detach archive used for saving, closing file handle.
+				// Destroy archives used for saving, closing file handle.
 				if (!bSaveAsync)
 				{
-					Linker->Detach();
+					const bool bFileWriterSuccess = Linker->CloseAndDestroySaver();
 
 					delete StructuredArchive;
 					delete Formatter;
 					delete TextFormatArchive;
+
+					if (!bFileWriterSuccess)
+					{
+						IFileManager::Get().Delete(*TempFilename);
+						UE_LOG(LogSavePackage, Error, TEXT("Error writing temp file '%s' for '%s'"),
+							*TempFilename, Filename);
+						return ESavePackageResult::Error;
+					}
 				}
 				UNCLOCK_CYCLES(Time);
 				UE_CLOG(!bDiffing, LogSavePackage, Verbose,  TEXT("Save=%.2fms"), FPlatformTime::ToMilliseconds(Time) );
@@ -6097,7 +6105,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								AsyncWriteFile(MoveTemp(DataPtr), DataSize, *NewPathToSave, FinalTimeStamp);
 							}
 						}
-						Linker->Detach();
+						Linker->CloseAndDestroySaver();
 
 						delete StructuredArchive;
 						delete Formatter;
