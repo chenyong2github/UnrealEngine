@@ -35,9 +35,11 @@ public:
 	{ return false; }
 
 public:
-	void SetCamera(UCameraComponent* NewCamera);
+	void SetCamera(UCameraComponent* NewCamera, float FOVMultiplier);
 
 private:
 	// Camera to use for rendering
 	UCameraComponent* AssignedCamera = nullptr;
+	// FOV multiplier
+	float CurrentFovMultiplier = 1.f;
 };

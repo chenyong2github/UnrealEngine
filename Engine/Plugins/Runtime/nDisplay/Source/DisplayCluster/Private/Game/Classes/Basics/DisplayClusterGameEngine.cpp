@@ -200,13 +200,12 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		// Update delta time. Cluster slaves will get this value from the master few steps later
 		ClusterMgr->SetDeltaTime(DeltaSeconds);
 
-		// Sync cluster objects
-		ClusterMgr->SyncObjects();
 
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame start barrier
 		NodeController->WaitForFrameStart();
 		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Sync frame start"));
+
 
 		// Get DisplayCluster time delta
 		NodeController->GetDeltaTime(DeltaSeconds);
@@ -224,6 +223,9 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		// Perform PreTick for DisplayCluster module
 		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Perform PreTick()"));
 		GDisplayCluster->PreTick(DeltaSeconds);
+
+		// Sync cluster objects
+		ClusterMgr->SyncObjects();
 
 		// Sync cluster events
 		ClusterMgr->SyncEvents();
@@ -252,6 +254,8 @@ void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 		//////////////////////////////////////////////////////////////////////////////////////////////
 		// Frame end barrier
 		NodeController->WaitForFrameEnd();
+		ClusterMgr->ClearSyncObjects();
+
 		UE_LOG(LogDisplayClusterEngine, Verbose, TEXT("Sync frame end"));
 	}
 	else

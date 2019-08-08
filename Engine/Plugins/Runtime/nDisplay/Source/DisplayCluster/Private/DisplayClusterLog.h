@@ -17,6 +17,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterInputVRPN,  Warning, Warning);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetwork,    Warning, Warning);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetworkMsg, Warning, Warning);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRender,     Warning, Warning);
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRenderSync, Warning, Warning);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterBlueprint,  Warning, Warning);
 #else
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterGameMode,   Log, All);
@@ -30,6 +31,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterInputVRPN,  Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetwork,    Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterNetworkMsg, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRender,     Log, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterRenderSync, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogDisplayClusterBlueprint,  Log, All);
 #endif
 
