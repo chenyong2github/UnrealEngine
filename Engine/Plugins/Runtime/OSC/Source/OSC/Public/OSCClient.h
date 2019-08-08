@@ -18,14 +18,20 @@ class OSC_API UOSCClient : public UObject
 
 public:
 	UOSCClient();
-	virtual ~UOSCClient() {}
+	virtual ~UOSCClient();
 
-	/** Set's the OSC Client IP address and port. */
-	void SetTarget(FIPv4Address InIPAddress, uint32_t Port);
-
-	/** Send OSC message over the network with a specific address. */
+	/** Sets the OSC Client IP address and port. Returns whether 
+	  * address and port was successfully set. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	void SendOSCMessage(FString Address, UPARAM(ref) FOSCMessage& Msg);
+	bool SetSendIPAddress(const FString& IPAddress, const int32 Port);
+
+	/** Gets the OSC Client IP address and port. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void GetSendIPAddress(UPARAM(ref) FString& IPAddress, UPARAM(ref) int32& Port);
+
+	/** Send OSC message to  a specific address. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void SendOSCMessage(UPARAM(ref) FOSCMessage& Message);
 
 	/** Send OSC Bundle over the network. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
@@ -39,7 +45,7 @@ protected:
 	void Stop();
 	
 	/** Send OSC packet data. */
-	void SendPacket(FOSCPacket* Packet, char* Data, int32 Size);
+	void SendPacket(FOSCPacket& InPacket);
 
 	/** Socket used to send the OSC packets. */
 	FSocket* Socket;
