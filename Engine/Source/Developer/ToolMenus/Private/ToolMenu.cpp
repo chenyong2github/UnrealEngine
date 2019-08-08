@@ -166,7 +166,7 @@ UToolMenu* UToolMenu::AddSubMenuScript(const FName InOwner, const FName SectionN
 
 UToolMenu* UToolMenu::AddSubMenu(const FToolMenuOwner InOwner, const FName SectionName, const FName InName, const FText& InLabel, const FText& InToolTip)
 {
-	FToolMenuEntry Args = FToolMenuEntry::InitSubMenu(MenuName, InName, InLabel, InToolTip, FNewToolMenuChoice());
+	FToolMenuEntry Args = FToolMenuEntry::InitSubMenu(InName, InLabel, InToolTip, FNewToolMenuChoice());
 	Args.Owner = InOwner;
 	FindOrAddSection(SectionName).AddEntry(Args);
 	return UToolMenus::Get()->ExtendMenu(*(MenuName.ToString() + TEXT(".") + InName.ToString()));

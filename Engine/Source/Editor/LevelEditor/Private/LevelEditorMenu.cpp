@@ -125,15 +125,14 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					const FMainMRUFavoritesList& RecentsAndFavorites = *MainFrameModule.GetMRUFavoritesList();
 					if (RecentsAndFavorites.GetNumItems() > 0)
 					{
-						InSection.AddEntry(FToolMenuEntry::InitSubMenu(
-							"LevelEditor.MainMenu.File",
+						InSection.AddSubMenu(
 							"FavoriteLevelsSubMenu",
 							LOCTEXT("FavoriteLevelsSubMenu", "Favorite Levels"),
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
 							FNewToolMenuDelegate::CreateStatic(&FFavoriteLevelMenu::MakeFavoriteLevelMenu),
 							false,
 							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.FavoriteLevels")
-						));
+						);
 					}
 				}));
 			}
@@ -169,15 +168,14 @@ void FLevelEditorMenu::RegisterLevelEditorMenus()
 					const FMainMRUFavoritesList& RecentsAndFavorites = *MainFrameModule.GetMRUFavoritesList();
 					if (RecentsAndFavorites.GetNumItems() > 0)
 					{
-						InSection.AddEntry(FToolMenuEntry::InitSubMenu(
-							"LevelEditor.MainMenu.File",
+						InSection.AddSubMenu(
 							"RecentLevelsSubMenu",
 							LOCTEXT("RecentLevelsSubMenu", "Recent Levels"),
 							LOCTEXT("RecentLevelsSubMenu_ToolTip", "Select a level to load"),
 							FNewToolMenuDelegate::CreateStatic(&FRecentLevelMenu::MakeRecentLevelMenu),
 							false,
 							FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
-						));
+						);
 					}
 				}));
 			}

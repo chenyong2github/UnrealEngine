@@ -371,19 +371,17 @@ bool FAssetContextMenu::AddImportedAssetMenuOptions(UToolMenu* Menu)
 			//Reimport Menu
 			if (ValidSelectedAssetCount == 1 && SourceFileLabels.Num() > 1)
 			{
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"Reimport",
 					LOCTEXT("Reimport", "Reimport"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, false) ));
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, false) );
 				//With new file
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"ReimportWithNewFile",
 					LOCTEXT("ReimportWithNewFile", "Reimport With New File"),
 					LOCTEXT("ReimportEmptyTooltip", ""),
-					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, true)));
+					FNewToolMenuDelegate::CreateLambda(CreateSubMenu, true));
 			}
 			else
 			{
@@ -494,8 +492,7 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 				);
 
 			// Asset Actions sub-menu
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				Menu->GetMenuName(),
+			Section.AddSubMenu(
 				"AssetActionsSubMenu",
 				LOCTEXT("AssetActionsSubMenuLabel", "Asset Actions"),
 				LOCTEXT("AssetActionsSubMenuToolTip", "Other asset actions"),
@@ -507,13 +504,12 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 				EUserInterfaceActionType::Button,
 				false, 
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
-				));
+				);
 
 			if (NumClassItems == 0)
 			{
 				// Asset Localization sub-menu
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"LocalizationSubMenu",
 					LOCTEXT("LocalizationSubMenuLabel", "Asset Localization"),
 					LOCTEXT("LocalizationSubMenuToolTip", "Manage the localization of this asset"),
@@ -522,7 +518,7 @@ bool FAssetContextMenu::AddCommonMenuOptions(UToolMenu* Menu)
 					EUserInterfaceActionType::Button,
 					false,
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetLocalization")
-					));
+					);
 			}
 		}
 	}
@@ -752,13 +748,12 @@ void FAssetContextMenu::MakeAssetActionsSubMenu(UToolMenu* Menu)
 				FUIAction( FExecuteAction::CreateSP(this, &FAssetContextMenu::ExecuteAssignChunkID) )
 				);
 
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				Menu->GetMenuName(),
+			Section.AddSubMenu(
 				"RemoveAssetFromChunk",
 				LOCTEXT("RemoveAssetFromChunk", "Remove from Chunk..."),
 				LOCTEXT("RemoveAssetFromChunkTooltip", "Removed an asset from a Chunk it's assigned to."),
 				FNewToolMenuDelegate::CreateRaw(this, &FAssetContextMenu::MakeChunkIDListMenu)
-				));
+				);
 
 			Section.AddMenuEntry(
 				"RemoveAllChunkAssignments",
@@ -1028,8 +1023,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 	{
 		FToolMenuSection& Section = Menu->AddSection("ManageLocalizedAsset", LOCTEXT("ManageLocalizedAssetHeading", "Manage Localized Asset"));
 		{
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				Menu->GetMenuName(),
+			Section.AddSubMenu(
 				"CreateLocalizedAsset",
 				LOCTEXT("CreateLocalizedAsset", "Create Localized Asset"),
 				LOCTEXT("CreateLocalizedAssetTooltip", "Create a new localized asset."),
@@ -1038,7 +1032,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 				EUserInterfaceActionType::Button,
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Duplicate")
-				));
+				);
 
 			int32 NumLocalizedAssets = 0;
 			for (const FLocalizedAssetsState& LocalizedAssetsStateForCulture : LocalizedAssetsState)
@@ -1048,8 +1042,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 
 			if (NumLocalizedAssets > 0)
 			{
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"ShowLocalizedAsset",
 					LOCTEXT("ShowLocalizedAsset", "Show Localized Asset"),
 					LOCTEXT("ShowLocalizedAssetTooltip", "Show the localized asset in the Content Browser."),
@@ -1058,10 +1051,9 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 					EUserInterfaceActionType::Button,
 					false,
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "SystemWideCommands.FindInContentBrowser")
-					));
+					);
 
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"EditLocalizedAsset",
 					LOCTEXT("EditLocalizedAsset", "Edit Localized Asset"),
 					LOCTEXT("EditLocalizedAssetTooltip", "Edit the localized asset."),
@@ -1070,7 +1062,7 @@ void FAssetContextMenu::MakeAssetLocalizationSubMenu(UToolMenu* Menu)
 					EUserInterfaceActionType::Button,
 					false,
 					FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions.Edit")
-					));
+					);
 			}
 		}
 	}
@@ -1380,8 +1372,7 @@ bool FAssetContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 	if ( ISourceControlModule::Get().IsEnabled() )
 	{
 		// SCC sub menu
-		Section.AddEntry(FToolMenuEntry::InitSubMenu(
-			Menu->GetMenuName(),
+		Section.AddSubMenu(
 			"SourceControlSubMenu",
 			LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
 			LOCTEXT("SourceControlSubMenuToolTip", "Source control actions."),
@@ -1393,7 +1384,7 @@ bool FAssetContextMenu::AddSourceControlMenuOptions(UToolMenu* Menu)
 			EUserInterfaceActionType::Button,
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "SourceControl.StatusIcon.On")
-			));
+			);
 	}
 	else
 	{
@@ -1602,8 +1593,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 
 				if (AvailableChildCollections.Num() > 0)
 				{
-					Section.AddEntry(FToolMenuEntry::InitSubMenu(
-						SubMenu->GetMenuName(),
+					Section.AddSubMenu(
 						NAME_None,
 						FText::FromName(AvailableCollection.Name), 
 						FText::GetEmpty(), 
@@ -1616,7 +1606,7 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 						EUserInterfaceActionType::ToggleButton,
 						false,
 						FSlateIcon(FEditorStyle::GetStyleSetName(), ECollectionShareType::GetIconStyleName(AvailableCollection.Type))
-						));
+						);
 				}
 				else
 				{
@@ -1674,13 +1664,12 @@ bool FAssetContextMenu::AddCollectionMenuOptions(UToolMenu* Menu)
 		TSharedRef<FCollectionAssetManagement> QuickAssetManagement = MakeShareable(new FCollectionAssetManagement());
 		QuickAssetManagement->SetCurrentAssets(SelectedAssets);
 
-		Section.AddEntry(FToolMenuEntry::InitSubMenu(
-			Menu->GetMenuName(),
+		Section.AddSubMenu(
 			"ManageCollections",
 			LOCTEXT("ManageCollections", "Manage Collections"),
 			LOCTEXT("ManageCollections_ToolTip", "Manage the collections that the selected asset(s) belong to."),
 			FNewToolMenuDelegate::CreateStatic(&FManageCollectionsContextMenu::CreateManageCollectionsSubMenu, QuickAssetManagement)
-			));
+			);
 
 		bHasAddedItems = true;
 	}

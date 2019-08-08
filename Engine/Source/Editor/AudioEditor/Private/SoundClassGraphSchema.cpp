@@ -105,7 +105,6 @@ void USoundClassGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				if(Context->Pin->LinkedTo.Num() > 1)
 				{
 					Section.AddSubMenu(
-						Menu->GetMenuName(),
 						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..." ),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),

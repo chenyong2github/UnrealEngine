@@ -105,12 +105,11 @@ void USoundSubmixGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeC
 				// add sub menu for break link to
 				if(InGraphPin->LinkedTo.Num() > 1)
 				{
-					Section.AddEntry(FToolMenuEntry::InitSubMenu(
-						Menu->GetMenuName(),
+					Section.AddSubMenu(
 						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..." ),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewToolMenuDelegate::CreateUObject((USoundSubmixGraphSchema*const)this, &USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin))));
+						FNewToolMenuDelegate::CreateUObject((USoundSubmixGraphSchema*const)this, &USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin)));
 				}
 				else
 				{

@@ -151,25 +151,23 @@ void FMainMenu::RegisterEditMenu()
 
 		if (GetDefault<UEditorStyleSettings>()->bExpandConfigurationMenus)
 		{
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				EditMenu->GetMenuName(),
+			Section.AddSubMenu(
 				"EditorPreferencesSubMenu",
 				LOCTEXT("EditorPreferencesSubMenuLabel", "Editor Preferences"),
 				LOCTEXT("EditorPreferencesSubMenuToolTip", "Configure the behavior and features of this Editor"),
 				FNewToolMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Editor")),
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "EditorPreferences.TabIcon")
-			));
+			);
 
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				EditMenu->GetMenuName(),
+			Section.AddSubMenu(
 				"ProjectSettingsSubMenu",
 				LOCTEXT("ProjectSettingsSubMenuLabel", "Project Settings"),
 				LOCTEXT("ProjectSettingsSubMenuToolTip", "Change the settings of the currently loaded project"),
 				FNewToolMenuDelegate::CreateStatic(&FSettingsMenu::MakeMenu, FName("Project")),
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "ProjectSettings.TabIcon")
-			));
+			);
 		}
 		else
 		{
@@ -433,13 +431,12 @@ void FMainMenu::RegisterFileProjectMenu()
 		FText::Format(LOCTEXT("AddCodeToProjectTooltip", "Adds C++ code to the project. The code can only be compiled if you have {0} installed."), ShortIDEName)
 	);
 
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		"MainFrame.MainTabMenu.File",
+	Section.AddSubMenu(
 		"PackageProject",
 		LOCTEXT("PackageProjectSubMenuLabel", "Package Project"),
 		LOCTEXT("PackageProjectSubMenuToolTip", "Compile, cook and package your project and its content for distribution."),
 		FNewMenuDelegate::CreateStatic( &FPackageProjectMenu::MakeMenu ), false, FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.PackageProject")
-	));
+	);
 
 	/*
 	MenuBuilder.AddMenuEntry( FMainFrameCommands::Get().LocalizeProject,
@@ -512,15 +509,14 @@ void FMainMenu::RegisterRecentFileAndExitMenuItems()
 		FToolMenuSection& Section = MainTabFileMenu->AddSection("FileRecentFiles");
 		if (GetDefault<UEditorStyleSettings>()->bShowProjectMenus && FMainFrameActionCallbacks::ProjectNames.Num() > 0)
 		{
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				"MainFrame.MainTabMenu.File",
+			Section.AddSubMenu(
 				"RecentProjects",
 				LOCTEXT("SwitchProjectSubMenu", "Recent Projects"),
 				LOCTEXT("SwitchProjectSubMenu_ToolTip", "Select a project to switch to"),
 				FNewToolMenuDelegate::CreateStatic(&FRecentProjectsMenu::MakeMenu),
 				false,
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentProjects")
-			));
+			);
 		}
 	}
 

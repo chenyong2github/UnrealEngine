@@ -419,12 +419,11 @@ void UMaterialGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCont
 				// add sub menu for break link to
 				if(InGraphPin->LinkedTo.Num() > 1)
 				{
-					Section.AddEntry(FToolMenuEntry::InitSubMenu(
-						Menu->GetMenuName(),
+					Section.AddSubMenu(
 						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..." ),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewToolMenuDelegate::CreateUObject(this, &UMaterialGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
+						FNewToolMenuDelegate::CreateUObject(this, &UMaterialGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
 				}
 				else
 				{

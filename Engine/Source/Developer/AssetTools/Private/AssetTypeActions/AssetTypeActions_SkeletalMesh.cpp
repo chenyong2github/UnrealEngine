@@ -452,23 +452,21 @@ void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObject
 {
 	auto Meshes = GetTypedWeakObjectPtrs<USkeletalMesh>(InObjects);
 
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-			NAME_None,
+	Section.AddSubMenu(
 			"CreateSkeletalMeshSubmenu",
 			LOCTEXT("CreateSkeletalMeshSubmenu", "Create"),
 			LOCTEXT("CreateSkeletalMeshSubmenu_ToolTip", "Create related assets"),
 			FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::FillCreateMenu, Meshes),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-			));
+			);
 
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		NAME_None,
+	Section.AddSubMenu(
 		"SkeletalMesh_LODImport",	
 		LOCTEXT("SkeletalMesh_LODImport", "Import LOD"),
 		LOCTEXT("SkeletalMesh_LODImportTooltip", "Select which LODs to import."),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::GetLODMenu, Meshes)
-		));
+		);
 	
 	Section.AddMenuEntry(
 		"ImportClothing_Entry",
@@ -478,13 +476,12 @@ void FAssetTypeActions_SkeletalMesh::GetActions(const TArray<UObject*>& InObject
 		FUIAction(FExecuteAction::CreateSP(this, &FAssetTypeActions_SkeletalMesh::ExecuteImportClothing, Meshes)));
 
 	// skeleton menu
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		NAME_None,
+	Section.AddSubMenu(
 		"SkeletonSubmenu",
 		LOCTEXT("SkeletonSubmenu", "Skeleton"),
 		LOCTEXT("SkeletonSubmenu_ToolTip", "Skeleton related actions"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_SkeletalMesh::FillSkeletonMenu, Meshes)
-	));
+	);
 }
 
 void FAssetTypeActions_SkeletalMesh::FillCreateMenu(FMenuBuilder& MenuBuilder, TArray<TWeakObjectPtr<USkeletalMesh>> Meshes) const

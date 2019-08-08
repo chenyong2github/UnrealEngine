@@ -117,7 +117,6 @@ void UToolMenuEntryScript::ToMenuEntry(FToolMenuEntry& Output)
 	if (Data.Advanced.bIsSubMenu)
 	{
 		Output = FToolMenuEntry::InitSubMenu(
-			Data.Menu,
 			Data.Name,
 			Data.Label,
 			Data.ToolTip,

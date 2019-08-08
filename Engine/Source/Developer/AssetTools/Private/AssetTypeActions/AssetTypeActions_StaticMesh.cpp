@@ -42,15 +42,14 @@ void FAssetTypeActions_StaticMesh::GetActions(const TArray<UObject*>& InObjects,
 			);
 	}
 
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		NAME_None,
+	Section.AddSubMenu(
 		"StaticMesh_LODMenu",
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODMenu", "Level Of Detail"),
 		NSLOCTEXT("AssetTypeActions_StaticMesh", "StaticMesh_LODTooltip", "LOD Options and Tools"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_StaticMesh::GetLODMenu, Meshes),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "ContentBrowser.AssetActions")
-		));
+		);
 
 	Section.AddMenuEntry(
 		"ObjectContext_ClearVertexColors",

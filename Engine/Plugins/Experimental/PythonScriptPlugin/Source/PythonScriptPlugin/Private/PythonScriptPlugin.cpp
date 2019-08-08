@@ -350,15 +350,14 @@ private:
 			FSlateIcon(),
 			FUIAction(FExecuteAction::CreateRaw(this, &FPythonCommandMenuImpl::Menu_ExecutePython))
 		);
-		Section.AddEntry(FToolMenuEntry::InitSubMenu(
-			"LevelEditor.MainMenu.File",
+		Section.AddSubMenu(
 			"RecentPythonsSubMenu",
 			LOCTEXT("RecentPythonsSubMenu", "Recent Python Scripts"),
 			LOCTEXT("RecentPythonsSubMenu_ToolTip", "Select a recent Python Script file and Execute it."),
 			FNewToolMenuDelegate::CreateRaw(this, &FPythonCommandMenuImpl::MakeRecentPythonScriptMenu),
 			false,
 			FSlateIcon(FEditorStyle::GetStyleSetName(), "MainFrame.RecentLevels")
-		));
+		);
 	}
 
 	void Menu_ExecutePythonRecent(int32 Index)

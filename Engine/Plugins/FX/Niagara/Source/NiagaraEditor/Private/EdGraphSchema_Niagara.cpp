@@ -1660,7 +1660,6 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			if (PinToTypeDefinition(InGraphPin) == FNiagaraTypeDefinition::GetGenericNumericDef() && InGraphPin->LinkedTo.Num() == 0)
 			{
 				Section.AddSubMenu(
-					Menu->GetMenuName(),
 					"ConvertNumericSpecific",
 					LOCTEXT("ConvertNumericSpecific", "Convert Numeric To..."),
 					LOCTEXT("ConvertNumericSpecificToolTip", "Convert Numeric pin to the specific typed pin."),
@@ -1676,7 +1675,6 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 				if (InGraphPin->LinkedTo.Num() > 1)
 				{
 					Section.AddSubMenu(
-						Menu->GetMenuName(),
 						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..."),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
@@ -1736,7 +1734,6 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			const FName SectionName = "EdGraphSchema_NiagaraNodeActions";
 			FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("PinConversionMenuHeader", "Convert Pins"));
 			Section.AddSubMenu(
-				Menu->GetMenuName(),
 				"ConvertNumericSpecific",
 				LOCTEXT("ConvertNumericSpecific", "Convert All Numerics To..."),
 				LOCTEXT("ConvertNumericSpecificToolTip", "Convert all Numeric pins to the specific typed pin."),

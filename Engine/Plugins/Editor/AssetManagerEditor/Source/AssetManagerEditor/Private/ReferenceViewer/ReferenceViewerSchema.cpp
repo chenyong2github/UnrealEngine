@@ -65,7 +65,6 @@ void UReferenceViewerSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().ZoomToFit);
 		Section.AddMenuEntry(FAssetManagerEditorCommands::Get().ReCenterGraph);
 		Section.AddSubMenu(
-			Menu->GetMenuName(),
 			"MakeCollectionWith",
 			NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithTitle", "Make Collection with"),
 			NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithTooltip", "Makes a collection with either the referencers or dependencies of the selected nodes."),
@@ -145,7 +144,6 @@ void UReferenceViewerSchema::GetMakeCollectionWithSubMenu(UToolMenu* Menu)
 	FToolMenuSection& Section = Menu->AddSection("Section");
 
 	Section.AddSubMenu(
-		Menu->GetMenuName(),
 		"MakeCollectionWithReferencers",
 		NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithReferencersTitle", "Referencers <-"),
 		NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithReferencersTooltip", "Makes a collection with assets one connection to the left of selected nodes."),
@@ -153,7 +151,6 @@ void UReferenceViewerSchema::GetMakeCollectionWithSubMenu(UToolMenu* Menu)
 		);
 
 	Section.AddSubMenu(
-		Menu->GetMenuName(),
 		"MakeCollectionWithDependencies",
 		NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithDependenciesTitle", "Dependencies ->"),
 		NSLOCTEXT("ReferenceViewerSchema", "MakeCollectionWithDependenciesTooltip", "Makes a collection with assets one connection to the right of selected nodes."),

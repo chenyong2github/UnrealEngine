@@ -508,25 +508,23 @@ TSharedPtr<SWidget> SWorldHierarchyImpl::ConstructLevelContextMenu() const
 			if (bAllSelectedItemsCanMove && FLevelFolders::IsAvailable())
 			{
 				FToolMenuSection& Section = Menu->AddSection("Section");
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->MenuName,
+				Section.AddSubMenu(
 					"MoveSelectionTo",
 					LOCTEXT("MoveSelectionTo", "Move To"),
 					LOCTEXT("MoveSelectionTo_Tooltip", "Move selection to another folder"),
 					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillFoldersSubmenu)
-				));
+				);
 			}
 
 			if (bOnlyFoldersSelected)
 			{
 				FToolMenuSection& Section = Menu->AddSection("Section");
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->MenuName,
+				Section.AddSubMenu(
 					"SelectSubmenu",
 					LOCTEXT("SelectSubmenu", "Select"),
 					LOCTEXT("SelectSubmenu_Tooltip", "Select child items of the current selection"),
 					FNewMenuDelegate::CreateSP(const_cast<SWorldHierarchyImpl*>(this), &SWorldHierarchyImpl::FillSelectionSubmenu)
-				));
+				);
 			}
 		}
 

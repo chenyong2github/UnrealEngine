@@ -32,15 +32,14 @@ void FAssetTypeActions_AnimSequence::GetActions(const TArray<UObject*>& InObject
 	auto Sequences = GetTypedWeakObjectPtrs<UAnimSequence>(InObjects);
 
 	// create menu
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		NAME_None,
+	Section.AddSubMenu(
 		"CreateAnimSubmenu",
 		LOCTEXT("CreateAnimSubmenu", "Create"),
 		LOCTEXT("CreateAnimSubmenu_ToolTip", "Create assets from this anim sequence"),
 		FNewMenuDelegate::CreateSP(this, &FAssetTypeActions_AnimSequence::FillCreateMenu, Sequences),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.CreateAnimAsset")
-		));
+		);
 
 	Section.AddMenuEntry(
 		"AnimSequence_ReimportWithNewSource",

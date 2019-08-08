@@ -1450,26 +1450,23 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 
 					if(InGraphPin->LinkedTo.Num() > 1)
 					{
-						Section.AddEntry(FToolMenuEntry::InitSubMenu(
-							Menu->GetMenuName(),
+						Section.AddSubMenu(
 							"BreakLinkTo",
 							LOCTEXT("BreakLinkTo", "Break Link To..."),
 							LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
+							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
 
-						Section.AddEntry(FToolMenuEntry::InitSubMenu(
-							Menu->GetMenuName(),
+						Section.AddSubMenu(
 							"JumpToConnection",
 							LOCTEXT("JumpToConnection", "Jump to Connection..."),
 							LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
-							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
+							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
 
-						Section.AddEntry(FToolMenuEntry::InitSubMenu(
-							Menu->GetMenuName(),
+						Section.AddSubMenu(
 							"StraightenConnection",
 							LOCTEXT("StraightenConnection", "Straighten Connection To..."),
 							LOCTEXT("StraightenConnection_Tip", "Straighten a specific connection"),
-							FNewToolMenuDelegate::CreateUObject( this, &UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
+							FNewToolMenuDelegate::CreateUObject( this, &UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
 					}
 					else
 					{
@@ -1674,7 +1671,7 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 						Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToMacro );
 					}
 
-					Section.AddEntry(FToolMenuEntry::InitSubMenu(Menu->GetMenuName(), "Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
+					Section.AddSubMenu("Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
 					{
 						{
 							FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
@@ -1692,7 +1689,7 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
 							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
 						}
-					})));
+					}));
 				}
 			}
 
@@ -1717,8 +1714,7 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 									const FUIAction* SubMenuUIAction = Menu->Context.GetActionForCommand(FGraphEditorCommands::Get().EnableNodes);
 									if(ensure(SubMenuUIAction))
 									{
-										Section.AddEntry(FToolMenuEntry::InitSubMenu(
-											Menu->GetMenuName(),
+										Section.AddSubMenu(
 											"EnableCompileSubMenu",
 											LOCTEXT("EnableCompileSubMenu", "Enable Compile"),
 											LOCTEXT("EnableCompileSubMenuToolTip", "Options to enable selected node(s) for compile."),
@@ -1735,7 +1731,7 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 													LOCTEXT("EnableCompileDevelopmentOnlyToolTip", "Compile selected node(s) for development only."));
 											}),
 											*SubMenuUIAction,
-											FGraphEditorCommands::Get().EnableNodes->GetUserInterfaceType()));
+											FGraphEditorCommands::Get().EnableNodes->GetUserInterfaceType());
 									}
 								}
 							}
@@ -1972,13 +1968,12 @@ void UEdGraphSchema_K2::GetReplaceVariableMenu(FToolMenuSection& Section, const 
 					ReplaceVariableWithTooltip = LOCTEXT("ReplaceMissingVariableWithToolTip", "Variable '{0}' does not exist, replace with another variable?");
 				}
 
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					NAME_None,
+				Section.AddSubMenu(
 					"ReplaceVariableWith",
 					FText::Format( LOCTEXT("ReplaceVariableWith", "Replace variable '{0}' with..."), Variable->GetVarNameText()),
 					FText::Format( ReplaceVariableWithTooltip, Variable->GetVarNameText()),
 					FNewToolMenuDelegate::CreateStatic( &UEdGraphSchema_K2::GetReplaceVariableMenu,
-						const_cast<UK2Node_Variable*>(Variable), InOwnerBlueprint, bInReplaceExistingVariable)));
+						const_cast<UK2Node_Variable*>(Variable), InOwnerBlueprint, bInReplaceExistingVariable));
 			}
 		}
 	}

@@ -343,36 +343,32 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 			FToolMenuSection& Section = InMenu->AddSection("ActorSelectVisibilityLevels");
 
 			// Add a sub-menu for "Select"
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				InMenu->MenuName,
+			Section.AddSubMenu(
 				"SelectSubMenu",
 				LOCTEXT("SelectSubMenu", "Select"),
 				LOCTEXT("SelectSubMenu_ToolTip", "Opens the actor selection menu"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSelectActorMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSelectActorMenu));
 
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				InMenu->MenuName,
+			Section.AddSubMenu(
 				"EditSubMenu",
 				LOCTEXT("EditSubMenu", "Edit"),
 				FText::GetEmpty(),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu));
 
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				InMenu->MenuName,
+			Section.AddSubMenu(
 				"VisibilitySubMenu",
 				LOCTEXT("VisibilitySubMenu", "Visibility"),
 				LOCTEXT("VisibilitySubMenu_ToolTip", "Selected actor visibility options"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorVisibilityMenu));
 
 			// Build the menu for grouping actors
 			BuildGroupMenu(InMenu, SelectionInfo);
 
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				InMenu->MenuName,
+			Section.AddSubMenu(
 				"LevelSubMenu",
 				LOCTEXT("LevelSubMenu", "Level"),
 				LOCTEXT("LevelSubMenu_ToolTip", "Options for interacting with this actor's level"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorLevelMenu));
 		}
 
 		if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
@@ -407,33 +403,30 @@ void FLevelEditorContextMenu::RegisterActorContextMenu()
 					Section.AddMenuEntry(FLevelEditorCommands::Get().DetachFromParent);
 				}
 
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					InMenu->GetMenuName(),
+				Section.AddSubMenu(
 					"ActorAttachToSubMenu",
 					LOCTEXT("ActorAttachToSubMenu", "Attach To"),
 					LOCTEXT("ActorAttachToSubMenu_ToolTip", "Attach Actor as child"),
-					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu)));
+					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillActorMenu));
 			}
 
 			// Add a heading for "Movement" if an actor is selected
 			if (GEditor->GetSelectedActorIterator())
 			{
 				// Add a sub-menu for "Transform"
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					InMenu->GetMenuName(),
+				Section.AddSubMenu(
 					"TransformSubMenu",
 					LOCTEXT("TransformSubMenu", "Transform"),
 					LOCTEXT("TransformSubMenu_ToolTip", "Actor transform utils"),
-					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu)));
+					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillTransformMenu));
 			}
 
 			// Add a sub-menu for "Pivot"
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				InMenu->MenuName,
+			Section.AddSubMenu(
 				"PivotSubMenu",
 				LOCTEXT("PivotSubMenu", "Pivot"),
 				LOCTEXT("PivotSubMenu_ToolTip", "Actor pivoting utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillPivotMenu));
 		}
 
 		FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(InMenu, SelectedActors);
@@ -457,13 +450,12 @@ void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 			if (SceneOutlinerPtr.IsValid())
 			{
 				FToolMenuSection& Section = InMenu->AddSection("SelectVisibilityLevels");
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					InMenu->MenuName,
+				Section.AddSubMenu(
 					"EditSubMenu",
 					LOCTEXT("EditSubMenu", "Edit"),
 					FText::GetEmpty(),
 					FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillEditMenu)
-				));
+				);
 			}
 		}
 	}));
@@ -729,12 +721,11 @@ void FLevelEditorContextMenu::BuildGroupMenu(UToolMenu* Menu, const FSelectedAct
 		
 		if( bNeedGroupSubMenu )
 		{
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				Menu->GetMenuName(),
+			Section.AddSubMenu(
 				"GroupMenu",
 				LOCTEXT("GroupMenu", "Groups"),
 				LOCTEXT("GroupMenu_ToolTip", "Opens the actor grouping menu"),
-				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu)));
+				FNewToolMenuDelegate::CreateStatic( &FLevelEditorContextMenuImpl::FillGroupMenu));
 		}
 	}
 }
@@ -1006,12 +997,11 @@ void FLevelEditorContextMenuImpl::FillTransformMenu(UToolMenu* Menu)
 	{
 		{
 			FToolMenuSection& Section = Menu->AddSection("TransformSnapAlign");
-			Section.AddEntry(FToolMenuEntry::InitSubMenu(
-				Menu->GetMenuName(),
+			Section.AddSubMenu(
 				"SnapAlignSubMenu",
 				LOCTEXT("SnapAlignSubMenu", "Snap/Align"), 
 				LOCTEXT("SnapAlignSubMenu_ToolTip", "Actor snap/align utils"),
-				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu)));
+				FNewToolMenuDelegate::CreateStatic(&FLevelEditorContextMenuImpl::FillSnapAlignMenu));
 		}
 
 		{
@@ -1265,8 +1255,7 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, 
 
 			if (bAnyEventExists)
 			{
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"JumpEventSubMenu",
 					LOCTEXT("JumpEventSubMenu", "Jump to Event"),
 					FText::GetEmpty(),
@@ -1274,13 +1263,12 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, 
 					, ActorPtr
 					, true
 					, false
-					, true)));
+					, true));
 			}
 
 			if (bAnyEventCanBeAdded)
 			{
-				Section.AddEntry(FToolMenuEntry::InitSubMenu(
-					Menu->GetMenuName(),
+				Section.AddSubMenu(
 					"AddEventSubMenu",
 					LOCTEXT("AddEventSubMenu", "Add Event"),
 					FText::GetEmpty(),
@@ -1288,7 +1276,7 @@ void FLevelScriptEventMenuHelper::FillLevelBlueprintEventsMenu(UToolMenu* Menu, 
 					, ActorPtr
 					, false
 					, true
-					, true)));
+					, true));
 			}
 		}
 	}

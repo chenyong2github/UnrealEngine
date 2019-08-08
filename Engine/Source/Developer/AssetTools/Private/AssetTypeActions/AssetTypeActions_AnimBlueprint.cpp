@@ -38,15 +38,14 @@ void FAssetTypeActions_AnimBlueprint::GetActions(const TArray<UObject*>& InObjec
 			)
 		);
 
-	Section.AddEntry(FToolMenuEntry::InitSubMenu(
-		NAME_None,
+	Section.AddSubMenu(
 		"RetargetBlueprintSubmenu",
 		LOCTEXT("RetargetBlueprintSubmenu", "Retarget Anim Blueprints"),
 		LOCTEXT("RetargetBlueprintSubmenu_ToolTip", "Opens the retarget blueprints menu"),
 		FNewToolMenuDelegate::CreateSP( this, &FAssetTypeActions_AnimBlueprint::FillRetargetMenu, InObjects),
 		false,
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "Persona.AssetActions.RetargetSkeleton")
-		));
+		);
 }
 
 void FAssetTypeActions_AnimBlueprint::FillRetargetMenu(UToolMenu* MenuBuilder, const TArray<UObject*> InObjects)

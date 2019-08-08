@@ -102,7 +102,6 @@ void UAnimGraphNode_ModifyCurve::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 		if (GetCurvesToAdd().Num() > 0)
 		{
 			Section.AddSubMenu(
-				Menu->GetMenuName(),
 				"AddCurvePin",
 				LOCTEXT("AddCurvePin", "Add Curve Pin"),
 				LOCTEXT("AddCurvePinTooltip", "Add a new pin to drive a curve"),
@@ -113,7 +112,6 @@ void UAnimGraphNode_ModifyCurve::GetNodeContextMenuActions(UToolMenu* Menu, UGra
 		if (Node.CurveNames.Num() > 0)
 		{
 			Section.AddSubMenu(
-				Menu->GetMenuName(),
 				"RemoveCurvePin",
 				LOCTEXT("RemoveCurvePin", "Remove Curve Pin"),
 				LOCTEXT("RemoveCurvePinTooltip", "Remove a pin driving a curve"),

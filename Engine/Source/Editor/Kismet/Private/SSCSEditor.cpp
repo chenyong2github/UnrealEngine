@@ -3990,14 +3990,13 @@ void SSCSEditor::PopulateContextMenu(UToolMenu* Menu)
 							// Build an event submenu if we can generate events
 							if( FBlueprintEditorUtils::CanClassGenerateEvents( SelectedClass ))
 							{
-								BlueprintSCSSection.AddEntry(FToolMenuEntry::InitSubMenu(
-									Menu->GetMenuName(),
+								BlueprintSCSSection.AddSubMenu(
 									"AddEventSubMenu",
 									LOCTEXT("AddEventSubMenu", "Add Event"), 
 									LOCTEXT("ActtionsSubMenu_ToolTip", "Add Event"), 
 									FNewMenuDelegate::CreateStatic( &SSCSEditor::BuildMenuEventsSection,
 									GetBlueprint(), SelectedClass, FCanExecuteAction::CreateSP(this, &SSCSEditor::IsEditingAllowed),
-									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu))));
+									FGetSelectedObjectsDelegate::CreateSP(this, &SSCSEditor::GetSelectedItemsForContextMenu)));
 							}
 						}
 					}					

@@ -12,6 +12,8 @@
 #include "ComponentTreeItem.h"
 #include "SubComponentTreeItem.h"
 
+class FMenuBuilder;
+
 namespace SceneOutliner
 {
 

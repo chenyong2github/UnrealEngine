@@ -1779,12 +1779,11 @@ namespace SceneOutliner
 						// If we've only got folders selected, show the selection and edit sub menus
 						if (Context->NumSelectedItems > 0 && Context->NumSelectedFolders == Context->NumSelectedItems)
 						{
-							InMenu->FindOrAddSection("Section").AddEntry(FToolMenuEntry::InitSubMenu(
-								InMenu->MenuName,
+							InMenu->FindOrAddSection("Section").AddSubMenu(
 								"SelectSubMenu",
 								LOCTEXT("SelectSubmenu", "Select"),
 								LOCTEXT("SelectSubmenu_Tooltip", "Select the contents of the current selection"),
-								FNewToolMenuDelegate::CreateSP(SceneOutliner, &SSceneOutliner::FillSelectionSubMenu)));
+								FNewToolMenuDelegate::CreateSP(SceneOutliner, &SSceneOutliner::FillSelectionSubMenu));
 						}
 					}
 				}
@@ -1801,12 +1800,11 @@ namespace SceneOutliner
 					// Can't move worlds or level blueprints
 					if (Context->bShowParentTree && Context->NumSelectedItems > 0 && Context->NumWorldsSelected == 0 && Context->SceneOutliner.IsValid())
 					{
-						Section.AddEntry(FToolMenuEntry::InitSubMenu(
-							InMenu->MenuName,
+						Section.AddSubMenu(
 							"MoveActorsTo",
 							LOCTEXT("MoveActorsTo", "Move To"),
 							LOCTEXT("MoveActorsTo_Tooltip", "Move selection to another folder"),
-							FNewToolMenuDelegate::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::FillFoldersSubMenu)));
+							FNewToolMenuDelegate::CreateSP(Context->SceneOutliner.Pin().Get(), &SSceneOutliner::FillFoldersSubMenu));
 					}
 				}
 			}));
