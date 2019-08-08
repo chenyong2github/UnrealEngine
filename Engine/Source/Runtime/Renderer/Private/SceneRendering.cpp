@@ -1229,7 +1229,7 @@ void FViewInfo::SetupUniformBufferParameters(
 
 		FSkyAtmosphereViewSharedUniformShaderParameters OutParameters;
 		SetupSkyAtmosphereViewSharedUniformShaderParameters(*this, OutParameters);
-		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth = OutParameters.CameraAerialPerspectiveVolumeStartDepth;
+		ViewUniformShaderParameters.SkyAtmosphereAerialPerspectiveStartDepth = OutParameters.AerialPerspectiveStartDepth;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution = OutParameters.CameraAerialPerspectiveVolumeDepthResolution;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = OutParameters.CameraAerialPerspectiveVolumeDepthResolutionInv;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength = OutParameters.CameraAerialPerspectiveVolumeDepthSliceLength;
@@ -1261,7 +1261,7 @@ void FViewInfo::SetupUniformBufferParameters(
 		ViewUniformShaderParameters.SkyViewLutSizeAndInvSize = FVector4(1.0f, 1.0f, 1.0f, 1.0f);
 		ViewUniformShaderParameters.SkyAtmosphereBottomRadius = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereTopRadius = 1.0f;
-		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth = 1.0f;
+		ViewUniformShaderParameters.SkyAtmosphereAerialPerspectiveStartDepth = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv = 1.0f;
 		ViewUniformShaderParameters.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength = 1.0f;

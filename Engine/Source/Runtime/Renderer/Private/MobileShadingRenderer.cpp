@@ -547,12 +547,6 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// scene depth is read only and can be fetched
 	RHICmdList.NextSubpass();
-
-	// Draw the sky atmosphere
-	if (bShouldRenderSkyAtmosphere)
-	{
-		RenderSkyAtmosphere(RHICmdList);
-	}
 		
 	// Split if we need to render translucency in a separate render pass
 	if (bRequiresTranslucencyPass)

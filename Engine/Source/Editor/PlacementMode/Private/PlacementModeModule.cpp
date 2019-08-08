@@ -21,6 +21,7 @@
 #include "ActorFactories/ActorFactoryEmptyActor.h"
 #include "ActorFactories/ActorFactoryPawn.h"
 #include "ActorFactories/ActorFactoryExponentialHeightFog.h"
+#include "ActorFactories/ActorFactorySkyAtmosphere.h"
 #include "ActorFactories/ActorFactoryPlayerStart.h"
 #include "ActorFactories/ActorFactoryPointLight.h"
 #include "ActorFactories/ActorFactorySpotLight.h"
@@ -174,12 +175,13 @@ void FPlacementModeModule::StartupModule()
 
 		FPlacementCategory* Category = Categories.Find(CategoryName);
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(PPFactory, FAssetData(APostProcessVolume::StaticClass()), SortOrder += 10)));
-		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryAtmosphericFog::StaticClass(), SortOrder += 10)));
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactorySkyAtmosphere::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryExponentialHeightFog::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactorySphereReflectionCapture::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryBoxReflectionCapture::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryPlanarReflection::StaticClass(), SortOrder += 10)));
 		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryDeferredDecal::StaticClass(), SortOrder += 10)));
+		Category->Items.Add(CreateID(), MakeShareable(new FPlaceableItem(*UActorFactoryAtmosphericFog::StaticClass(), SortOrder += 10)));
 	}
 
 	RegisterPlacementCategory(

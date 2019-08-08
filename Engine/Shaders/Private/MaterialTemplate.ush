@@ -1084,7 +1084,7 @@ float4 MaterialExpressionSkyAtmosphereAerialPerspective(FMaterialPixelParameters
 		View.CameraAerialPerspectiveVolume, View.CameraAerialPerspectiveVolumeSampler,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolutionInv,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthResolution,
-		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeStartDepth,
+		ResolvedView.SkyAtmosphereAerialPerspectiveStartDepth,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLength,
 		ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthInv,
 		OneOverPreExposure);

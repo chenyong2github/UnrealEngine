@@ -16,6 +16,7 @@ ActorFactory.cpp:
 #include "Model.h"
 #include "ActorFactories/ActorFactoryAmbientSound.h"
 #include "ActorFactories/ActorFactoryAtmosphericFog.h"
+#include "ActorFactories/ActorFactorySkyAtmosphere.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 #include "ActorFactories/ActorFactoryBoxReflectionCapture.h"
 #include "ActorFactories/ActorFactoryBoxVolume.h"
@@ -92,6 +93,7 @@ ActorFactory.cpp:
 #include "VectorField/VectorFieldVolume.h"
 #include "Components/DecalComponent.h"
 #include "Components/BillboardComponent.h"
+#include "Components/SkyAtmosphereComponent.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #include "Engine/Polys.h"
@@ -1597,6 +1599,16 @@ UActorFactoryAtmosphericFog::UActorFactoryAtmosphericFog(const FObjectInitialize
 {
 	DisplayName = LOCTEXT("AtmosphericFogDisplayName", "Atmospheric Fog");
 	NewActorClass = AAtmosphericFog::StaticClass();
+}
+
+/*-----------------------------------------------------------------------------
+UActorFactorySkyAtmosphere
+-----------------------------------------------------------------------------*/
+UActorFactorySkyAtmosphere::UActorFactorySkyAtmosphere(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	DisplayName = LOCTEXT("SkyAtmosphereDisplayName", "Sky Atmosphere");
+	NewActorClass = ASkyAtmosphere::StaticClass();
 }
 
 /*-----------------------------------------------------------------------------

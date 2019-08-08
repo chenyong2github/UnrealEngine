@@ -186,12 +186,12 @@ class ASkyAtmosphere : public AInfo
 private:
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Atmosphere, meta = (AllowPrivateAccess = "true"))
-		class USkyAtmosphereComponent* SkyAtmosphereComponent;
+	class USkyAtmosphereComponent* SkyAtmosphereComponent;
 
 #if WITH_EDITORONLY_DATA
 	/** Arrow component to indicate default sun rotation */
 	UPROPERTY()
-		class UArrowComponent* ArrowComponent;
+	class UArrowComponent* ArrowComponent;
 #endif
 
 public:

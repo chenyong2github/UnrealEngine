@@ -16,17 +16,11 @@
 
 
 
-#ifndef GROUND_GI_ENABLED
-#define GROUND_GI_ENABLED 0
-#endif
-#ifndef TRANSMITANCE_METHOD
-#define TRANSMITANCE_METHOD 2
+#ifndef COLORED_TRANSMITTANCE_ENABLED	// Never used, UE4 does not supports dual blending
+#define COLORED_TRANSMITTANCE_ENABLED 0 
 #endif
 #ifndef MULTISCATTERING_APPROX_ENABLED 
 #define MULTISCATTERING_APPROX_ENABLED 0 
-#endif
-#ifndef COLORED_TRANSMITTANCE_ENABLED	// Never used, UE4 does not supports dual blending
-#define COLORED_TRANSMITTANCE_ENABLED 0 
 #endif
 #ifndef FASTSKY_ENABLED 
 #define FASTSKY_ENABLED 0 
@@ -37,14 +31,14 @@
 #ifndef SOURCE_DISK_ENABLED
 #define SOURCE_DISK_ENABLED 0
 #endif
-#ifndef ONLY_SKY_PIXEL_ENABLED
-#define ONLY_SKY_PIXEL_ENABLED 0
-#endif
 #ifndef PER_PIXEL_NOISE
 #define PER_PIXEL_NOISE 0
 #endif
 #ifndef SECOND_ATMOSPHERE_LIGHT_ENABLED
 #define SECOND_ATMOSPHERE_LIGHT_ENABLED 0
+#endif
+#ifndef RENDERSKY_ENABLED
+#define RENDERSKY_ENABLED 0
 #endif
 
 #ifndef TRANSMITTANCE_PASS
@@ -146,15 +140,6 @@ bool MoveToTopAtmosphere(inout float3 WorldPos, in float3 WorldDir, in float Atm
 	}
 	return true; // ok to start tracing
 }
-
-
-
-
-
-
-
-
-
 
 
 
@@ -415,13 +400,8 @@ float SkyAtmosphereNoise(float2 UV)
 
 
 
-
-
-
-
-
 ////////////////////////////////////////////////////////////
-// Main scattering/transmitance integration fucntion
+// Main scattering/transmitance integration function
 ////////////////////////////////////////////////////////////
 
 struct SingleScatteringResult
@@ -687,12 +667,9 @@ SingleScatteringResult IntegrateSingleScatteredLuminance(
 
 
 
-
-
-
-
-
-
+////////////////////////////////////////////////////////////
+// Main sky and atmosphere on opaque ray marching shaders
+////////////////////////////////////////////////////////////
 
 float StartDepthZ;
 
@@ -702,15 +679,9 @@ void SkyAtmosphereVS(
 {
 	float2 UV = -1.0f;
 	UV = VertexId == 1 ? float2(-1.0f, 3.0f) : UV;
-	UV = VertexId == 2 ? float2(3.0f, -1.0f) : UV;
+	UV = VertexId == 2 ? float2( 3.0f,-1.0f) : UV;
 
-#if ONLY_SKY_PIXEL_ENABLED
-	const float Depth = FarDepthValue;
-#else
-	const float Depth = StartDepthZ;
-#endif
-
-	Position = float4(UV, Depth, 1.0f);
+	Position = float4(UV, StartDepthZ, 1.0f);
 }
 
 
@@ -746,17 +717,10 @@ void RenderSkyAtmosphereRayMarchingPS(
 	float3 WorldPos = GetCameraPlanetPos();
 	float3 WorldDir = GetScreenWorldDir(SVPos);
 
-	float3 PreExposedL = 0;
-#if  ONLY_SKY_PIXEL_ENABLED
-	// In this case we assume all pixel have a FarDepthValue to avoid reading the depth buffer. 
-	// Others pixels will be skipped by depth test.
-	float DeviceZ = FarDepthValue;
-#else
-	float DeviceZ = LookupDeviceZ(UvBuffer);
-#endif
-
 	// Get the light disk luminance to draw 
+	float3 PreExposedL = 0;
 	float3 LuminanceScale = 1.0f;
+	float DeviceZ = LookupDeviceZ(UvBuffer);
 	if (DeviceZ == FarDepthValue)
 	{
 		LuminanceScale = SkyAtmosphere.SkyLuminanceFactor;
@@ -764,10 +728,17 @@ void RenderSkyAtmosphereRayMarchingPS(
 #if SECOND_ATMOSPHERE_LIGHT_ENABLED
 		PreExposedL += GetLightDiskLuminance(WorldPos, WorldDir, 1);
 #endif
+
+#if RENDERSKY_ENABLED==0
+		// We should not render the sky and the current pixels are at far depth, so simply early exit.
+		// We enable depth bound when supported to not have to even process those pixels.
+		OutLuminance = PrepareOutput(float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+		return;
+#endif
 	}
 
 	float ViewHeight = length(WorldPos);
-#if FASTSKY_ENABLED
+#if FASTSKY_ENABLED && RENDERSKY_ENABLED
 	if (ViewHeight < Atmosphere.TopRadius && DeviceZ == FarDepthValue)
 	{
 		float2 UV;
@@ -795,9 +766,6 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 #if FASTAERIALPERSPECTIVE_ENABLED
 
-#if  ONLY_SKY_PIXEL_ENABLED==0
-	// We only compute the aerial perspective only when "not only rendering the sky" pixels. We simply remove that code section to simplify the shader.
-
 #if COLORED_TRANSMITTANCE_ENABLED
 #error The FASTAERIALPERSPECTIVE_ENABLED path does not support COLORED_TRANSMITTANCE_ENABLED.
 #else
@@ -812,7 +780,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 		CameraAerialPerspectiveVolumeTexture, CameraAerialPerspectiveVolumeTextureSampler,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolutionInv,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolution,
-		SkyAtmosphere.CameraAerialPerspectiveVolumeStartDepth,
+		SkyAtmosphere.AerialPerspectiveStartDepth,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLength,
 		SkyAtmosphere.CameraAerialPerspectiveVolumeDepthSliceLengthInv,
 		OneOverPreExposure);
@@ -824,11 +792,9 @@ void RenderSkyAtmosphereRayMarchingPS(
 	return;
 #endif
 
-#endif // ONLY_SKY_PIXEL_ENABLED==0
-
 #else // FASTAERIALPERSPECTIVE_ENABLED
 
-	WorldPos += WorldDir * SkyAtmosphere.CameraAerialPerspectiveVolumeStartDepth; // Offset according to start depth
+	WorldPos += WorldDir * SkyAtmosphere.AerialPerspectiveStartDepth; // Offset according to start depth
 
 	// Move to top atmosphere as the starting point for ray marching.
 	// This is critical to be after the above to not disrupt above atmosphere tests and voxel selection.
@@ -870,6 +836,10 @@ void RenderSkyAtmosphereRayMarchingPS(
 }
 
 
+
+////////////////////////////////////////////////////////////
+// Transmittance LUT
+////////////////////////////////////////////////////////////
 
 #ifndef THREADGROUP_SIZE
 #define THREADGROUP_SIZE 1
@@ -915,6 +885,10 @@ void RenderTransmittanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 }
 
 
+
+////////////////////////////////////////////////////////////
+// Multi-scattering LUT
+////////////////////////////////////////////////////////////
 
 RWTexture2D<float3> MultiScatteredLuminanceLutUAV;
 
@@ -1005,6 +979,10 @@ void RenderMultiScatteredLuminanceLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 
 
+////////////////////////////////////////////////////////////
+// Sky View LUT
+////////////////////////////////////////////////////////////
+
 RWTexture2D<float3> SkyViewLutUAV;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
@@ -1065,6 +1043,10 @@ void RenderSkyViewLutCS(uint3 ThreadId : SV_DispatchThreadID)
 }
 
 
+
+////////////////////////////////////////////////////////////
+// Distant sky light LUT
+////////////////////////////////////////////////////////////
 
 RWTexture2D<float3> DistantSkyLightLutUAV;
 Buffer<float4> UniformSphereSamplesBuffer;
@@ -1161,6 +1143,10 @@ void RenderDistantSkyLightLutCS(uint3 ThreadId : SV_DispatchThreadID)
 
 
 
+////////////////////////////////////////////////////////////
+// Camera aerial perspective volume LUT
+////////////////////////////////////////////////////////////
+
 RWTexture3D<float4> CameraAerialPerspectiveVolumeUAV;
 
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
@@ -1177,7 +1163,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 	Slice *= Slice;	// squared distribution
 	Slice *= SkyAtmosphere.CameraAerialPerspectiveVolumeDepthResolution;
 
-	float3 RayStartWorldPos = CamPos + SkyAtmosphere.CameraAerialPerspectiveVolumeStartDepth * WorldDir; // Offset according to start depth
+	float3 RayStartWorldPos = CamPos + SkyAtmosphere.AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
 	float ViewHeight;
 
 
@@ -1230,7 +1216,7 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 		}
 		 
 		WorldDir = normalize(VoxelWorldPos - CamPos);
-		RayStartWorldPos = CamPos + SkyAtmosphere.CameraAerialPerspectiveVolumeStartDepth * WorldDir; // Offset according to start depth
+		RayStartWorldPos = CamPos + SkyAtmosphere.AerialPerspectiveStartDepth * WorldDir; // Offset according to start depth
 		tMax = length(VoxelWorldPos - RayStartWorldPos);
 	}
 	float tMaxMax = tMax;
@@ -1280,9 +1266,9 @@ void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 
 
 
-//////////////////////////////////////////////////////////////////////////
-// Debug shaders
-//////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////
+// Debug
+////////////////////////////////////////////////////////////
 
 float ViewPortWidth;
 float ViewPortHeight;
