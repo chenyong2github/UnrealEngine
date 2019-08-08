@@ -5405,7 +5405,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		}
 	}
 
-	if (!bAllAlreadySelected || NodesToSelect.Num() == 0)
+	if (!bAllAlreadySelected || (NodesToSelect.Num() == 0 && Selection.GetSelectedOutlinerNodes().Num()))
 	{
 		Selection.SuspendBroadcast();
 		Selection.EmptySelectedOutlinerNodes();
