@@ -647,10 +647,9 @@ public:
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(DestMinX, DestMinY, DestMaxX, DestMaxY, &Components) && Components.Num() > 0)
 		{
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
 			if (!EdMode->HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				for (ULandscapeComponent* Component : Components)
 				{
 					// Recreate collision for modified components and update the navmesh
