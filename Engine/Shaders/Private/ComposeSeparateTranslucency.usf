@@ -12,7 +12,7 @@ void MainPS(
 	float4 SvPosition : SV_POSITION,
 	out float4 OutColor : SV_Target0)
 {
-	float2 BufferUV = SvPosition.xy * View.BufferSizeAndInvSize.zw;
+	float2 BufferUV = SvPosition * View.BufferSizeAndInvSize.zw;
 	
 	float4 SceneColorSample = SceneColor.SampleLevel(SceneColorSampler, BufferUV, 0);
 	float4 SeparateTranslucencySample = SeparateTranslucency.SampleLevel(SeparateTranslucencySampler, BufferUV, 0);

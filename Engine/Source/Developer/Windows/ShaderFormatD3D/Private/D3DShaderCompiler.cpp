@@ -280,12 +280,6 @@ static FString D3D11CreateShaderCompileCommandLine(
 		FXCCommandline += FString(TEXT(" /Gec"));
 	}
 
-	if (CompileFlags & D3DCOMPILE_WARNINGS_ARE_ERRORS)
-	{
-		CompileFlags &= ~D3DCOMPILE_WARNINGS_ARE_ERRORS;
-		FXCCommandline += FString(TEXT(" /WX"));
-	}
-
 	switch (CompileFlags & SHADER_OPTIMIZATION_LEVEL_MASK)
 	{
 		case D3D10_SHADER_OPTIMIZATION_LEVEL2:
@@ -1568,29 +1562,6 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 	return SUCCEEDED(Result);
 }
 
-void CheckForWarningsAsErrors(const FString& CurrentError) 
-{	
-	FString ErrorCode = CurrentError.Mid(CurrentError.Find("X") + 1, 4);
-	
-	// todo: Create a flag to enable/disable this.
-	bool bTreatAsWarningsInstead = false;
-
-	// Add your warnings codes to the list. https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/hlsl-errors-and-warnings
-	if (ErrorCode == "3206" || // Implicit truncation.
-		ErrorCode == "3205" || // Narrowing conversion.
-		ErrorCode == "3200")   // Type Mismatch
-	{
-		if (bTreatAsWarningsInstead) 
-		{
-			UE_LOG(LogD3D11ShaderCompiler, Warning, TEXT("%s"), *CurrentError)
-		}
-		else 
-		{
-			UE_LOG(LogD3D11ShaderCompiler, Fatal, TEXT("%s"), *CurrentError);
-		}
-	}
-}
-
 void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& Output, FShaderCompilerDefinitions& AdditionalDefines, const FString& WorkingDirectory)
 {
 	FString PreprocessedShaderSource;
@@ -1723,9 +1694,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 		CompileFlags |= TranslateCompilerFlagD3D11((ECompilerFlags)Input.Environment.CompilerFlags[FlagIndex]);
 	}
 
-	// Currently not using this flag because it captures all warnings as errors.
-	//CompileFlags |= D3DCOMPILE_WARNINGS_ARE_ERRORS;
-
 	TArray<FString> FilteredErrors;
 	if (!CompileAndProcessD3DShader(PreprocessedShaderSource, CompilerPath, CompileFlags, Input, EntryPointName, ShaderProfile, false, FilteredErrors, Output))
 	{
@@ -1757,9 +1725,6 @@ void CompileD3DShader(const FShaderCompilerInput& Input,FShaderCompilerOutput& O
 			NewError.StrippedErrorMessage = CurrentError;
 		}
 		Output.Errors.Add(NewError);
-
-		// Todo: Add a flag to enable/disable this check.
-		CheckForWarningsAsErrors(CurrentError);
 	}
 
 	if (Input.ExtraSettings.bExtractShaderSource)
