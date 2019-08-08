@@ -87,7 +87,7 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(const uint32 Vie
 	}
 
 	FComposurePostMoveSettings ComposureSettings;
-	OutPrjMatrix = ComposureSettings.GetProjectionMatrix(AssignedCamera->FieldOfView, AssignedCamera->AspectRatio);
+	OutPrjMatrix = ComposureSettings.GetProjectionMatrix(AssignedCamera->FieldOfView * CurrentFovMultiplier, AssignedCamera->AspectRatio);
 
 	return true;
 }
@@ -96,8 +96,11 @@ bool FDisplayClusterProjectionCameraPolicy::GetProjectionMatrix(const uint32 Vie
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FDisplayClusterProjectionCameraPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterProjectionCameraPolicy::SetCamera(UCameraComponent* NewCamera)
+void FDisplayClusterProjectionCameraPolicy::SetCamera(UCameraComponent* NewCamera, float FOVMultiplier)
 {
+	check(NewCamera);
+	check(FOVMultiplier >= 0.1f);
+
 	if (NewCamera)
 	{
 		UE_LOG(LogDisplayClusterProjectionCamera, Verbose, TEXT("New camera set: %s"), *NewCamera->GetFullName());
@@ -106,5 +109,15 @@ void FDisplayClusterProjectionCameraPolicy::SetCamera(UCameraComponent* NewCamer
 	else
 	{
 		UE_LOG(LogDisplayClusterProjectionCamera, Warning, TEXT("Trying to set nullptr camera pointer"));
+	}
+
+	if (FOVMultiplier >= 0.1f)
+	{
+		UE_LOG(LogDisplayClusterProjectionCamera, Verbose, TEXT("New FOV multiplier set: %f"), FOVMultiplier);
+		CurrentFovMultiplier = FOVMultiplier;
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterProjectionCamera, Warning, TEXT("FOV multiplier is too small"));
 	}
 }
