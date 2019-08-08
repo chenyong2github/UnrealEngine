@@ -908,14 +908,14 @@ void FStructHierarchy::PopulateStructHierarchy()
 				const UScriptStruct* SuperStruct = Cast<UScriptStruct>(CurrentStruct->GetSuperStruct());
 
 				TSharedPtr<FStructViewerNodeData>& ParentEntryRef = DataNodes.FindOrAdd(SuperStruct);
-
-				// Need to have a pointer in-case the ref moves to avoid an extra look up in the map
-				TSharedPtr<FStructViewerNodeData> ParentEntry = ParentEntryRef;
 				if (!ParentEntryRef.IsValid())
 				{
 					check(SuperStruct); // The null entry should have been created above
 					ParentEntryRef = MakeShared<FStructViewerNodeData>(SuperStruct);
 				}
+
+				// Need to have a pointer in-case the ref moves to avoid an extra look up in the map
+				TSharedPtr<FStructViewerNodeData> ParentEntry = ParentEntryRef;
 
 				TSharedPtr<FStructViewerNodeData>& MyEntryRef = DataNodes.FindOrAdd(CurrentStruct);
 				if (!MyEntryRef.IsValid())
