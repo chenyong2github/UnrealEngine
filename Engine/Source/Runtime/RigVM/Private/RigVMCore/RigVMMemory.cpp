@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "RigVMCore/RigVMStorage.h"
+#include "RigVMCore/RigVMMemory.h"
 #include "Uobject/AnimObjectVersion.h"
 #include "UObject/PropertyPortFlags.h"
 
@@ -27,23 +27,23 @@ bool FRigVMRegister::Serialize(FArchive& Ar)
 	return true;
 }
 
-FRigVMStorage::FRigVMStorage(bool bInUseNames)
+FRigVMMemoryContainer::FRigVMMemoryContainer(bool bInUseNames)
 	: bUseNameMap(bInUseNames)
-	, StorageType(ERigVMStorageType::Work)
+	, MemoryType(ERigVMMemoryType::Work)
 {
 }
 
-FRigVMStorage::FRigVMStorage(const FRigVMStorage& Other)
+FRigVMMemoryContainer::FRigVMMemoryContainer(const FRigVMMemoryContainer& Other)
 {
 	*this = Other;
 }
 
-FRigVMStorage::~FRigVMStorage()
+FRigVMMemoryContainer::~FRigVMMemoryContainer()
 {
 	Reset();
 }
 
-FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
+FRigVMMemoryContainer& FRigVMMemoryContainer::operator= (const FRigVMMemoryContainer &InOther)
 {
 	Reset();
 
@@ -63,7 +63,7 @@ FRigVMStorage& FRigVMStorage::operator= (const FRigVMStorage &InOther)
 	return *this;
 }
 
-bool FRigVMStorage::Serialize(FArchive& Ar)
+bool FRigVMMemoryContainer::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FAnimObjectVersion::GUID);
 
@@ -89,7 +89,7 @@ bool FRigVMStorage::Serialize(FArchive& Ar)
 	}
 
 	Ar << bUseNameMap;
-	Ar << StorageType;
+	Ar << MemoryType;
 	Ar << Registers;
 
 	if (Ar.IsLoading())
@@ -125,7 +125,7 @@ bool FRigVMStorage::Serialize(FArchive& Ar)
 					TArray<uint8> View;
 					Ar << View;
 					ensure(View.Num() == Register.GetAllocatedBytes());
-					FMemory::Memcpy(&Data[Register.GetStorageByteIndex()], View.GetData(), View.Num());
+					FMemory::Memcpy(&Data[Register.GetFirstAllocatedByte()], View.GetData(), View.Num());
 					break;
 				}
 				case ERigVMRegisterType::Name:
@@ -191,7 +191,7 @@ bool FRigVMStorage::Serialize(FArchive& Ar)
 				case ERigVMRegisterType::Plain:
 				{
 					TArray<uint8> View;
-					View.Append(&Data[Register.GetStorageByteIndex()], Register.GetAllocatedBytes());
+					View.Append(&Data[Register.GetFirstAllocatedByte()], Register.GetAllocatedBytes());
 					Ar << View;
 					break;
 				}
@@ -233,7 +233,7 @@ bool FRigVMStorage::Serialize(FArchive& Ar)
 	return true;
 }
 
-void FRigVMStorage::Reset()
+void FRigVMMemoryContainer::Reset()
 {
 	for (int32 Index = 0; Index < Registers.Num(); Index++)
 	{
@@ -246,28 +246,28 @@ void FRigVMStorage::Reset()
 	NameMap.Reset();
 }
 
-bool FRigVMStorage::Copy(
+bool FRigVMMemoryContainer::Copy(
 	int32 InSourceRegisterIndex,
 	int32 InTargetRegisterIndex,
-	const FRigVMStorage* InSourceStorage,
+	const FRigVMMemoryContainer* InSourceMemory,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
 {
-	if (InSourceStorage == nullptr)
+	if (InSourceMemory == nullptr)
 	{
-		InSourceStorage = this;
+		InSourceMemory = this;
 	}
 
-	ensure(InSourceStorage->Registers.IsValidIndex(InSourceRegisterIndex));
+	ensure(InSourceMemory->Registers.IsValidIndex(InSourceRegisterIndex));
 	ensure(Registers.IsValidIndex(InTargetRegisterIndex));
 
-	if (InSourceRegisterIndex == InTargetRegisterIndex && InSourceByteOffset == InTargetByteOffset && this == InSourceStorage)
+	if (InSourceRegisterIndex == InTargetRegisterIndex && InSourceByteOffset == InTargetByteOffset && this == InSourceMemory)
 	{
 		return false;
 	}
 
-	const FRigVMRegister& Source = InSourceStorage->Registers[InSourceRegisterIndex];
+	const FRigVMRegister& Source = InSourceMemory->Registers[InSourceRegisterIndex];
 	const FRigVMRegister& Target = Registers[InTargetRegisterIndex];
 
 	int32 SourceStartByte = Source.GetWorkByteIndex();
@@ -303,21 +303,21 @@ bool FRigVMStorage::Copy(
 	{
 		case ERigVMRegisterType::Plain:
 		{
-			FMemory::Memcpy(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], TargetNumBytes);
+			FMemory::Memcpy(&Data[TargetStartByte], &InSourceMemory->Data[SourceStartByte], TargetNumBytes);
 			break;
 		}
 		case ERigVMRegisterType::Struct:
 		{
 			UScriptStruct* ScriptStruct = GetScriptStruct(InTargetRegisterIndex);
 			int32 NumStructs = TargetNumBytes / ScriptStruct->GetStructureSize();
-			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &InSourceStorage->Data[SourceStartByte], NumStructs);
+			ScriptStruct->CopyScriptStruct(&Data[TargetStartByte], &InSourceMemory->Data[SourceStartByte], NumStructs);
 			break;
 		}
 		case ERigVMRegisterType::Name:
 		{
 			int32 NumNames = TargetNumBytes / sizeof(FName);
 			TArrayView<FName> TargetNames((FName*)&Data[TargetStartByte], NumNames);
-			TArrayView<FName> SourceNames((FName*)&InSourceStorage->Data[SourceStartByte], NumNames);
+			TArrayView<FName> SourceNames((FName*)&InSourceMemory->Data[SourceStartByte], NumNames);
 			for (int32 Index = 0; Index < NumNames; Index++)
 			{
 				TargetNames[Index] = SourceNames[Index];
@@ -328,7 +328,7 @@ bool FRigVMStorage::Copy(
 		{
 			int32 NumStrings = TargetNumBytes / sizeof(FString);
 			TArrayView<FString> TargetStrings((FString*)&Data[TargetStartByte], NumStrings);
-			TArrayView<FString> SourceStrings((FString*)&InSourceStorage->Data[SourceStartByte], NumStrings);
+			TArrayView<FString> SourceStrings((FString*)&InSourceMemory->Data[SourceStartByte], NumStrings);
 			for (int32 Index = 0; Index < NumStrings; Index++)
 			{
 				TargetStrings[Index] = SourceStrings[Index];
@@ -344,10 +344,10 @@ bool FRigVMStorage::Copy(
 	return true;
 }
 
-bool FRigVMStorage::Copy(
+bool FRigVMMemoryContainer::Copy(
 	const FName& InSourceName,
 	const FName& InTargetName,
-	const FRigVMStorage* InSourceStorage,
+	const FRigVMMemoryContainer* InSourceMemory,
 	int32 InSourceByteOffset,
 	int32 InTargetByteOffset,
 	int32 InNumBytes)
@@ -362,10 +362,10 @@ bool FRigVMStorage::Copy(
 		return false;
 	}
 
-	return Copy(SourceRegisterIndex, TargetRegisterIndex, InSourceStorage, InSourceByteOffset, InTargetByteOffset, InNumBytes);
+	return Copy(SourceRegisterIndex, TargetRegisterIndex, InSourceMemory, InSourceByteOffset, InTargetByteOffset, InNumBytes);
 }
 
-int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
+int32 FRigVMMemoryContainer::Allocate(const FName& InNewName, int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
 {
 	FName Name = InNewName;
 	if (bUseNameMap && InNewName == NAME_None)
@@ -422,12 +422,12 @@ int32 FRigVMStorage::Allocate(const FName& InNewName, int32 InElementSize, int32
 	return RegisterIndex;
 }
 
-int32 FRigVMStorage::Allocate(int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
+int32 FRigVMMemoryContainer::Allocate(int32 InElementSize, int32 InElementCount, int32 InSliceCount, const void* InDataPtr, bool bUpdateRegisters)
 {
 	return Allocate(NAME_None, InElementSize, InElementCount, InSliceCount, InDataPtr, bUpdateRegisters);
 }
 
-bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
+bool FRigVMMemoryContainer::Construct(int32 InRegisterIndex, int32 InElementIndex)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 
@@ -476,7 +476,7 @@ bool FRigVMStorage::Construct(int32 InRegisterIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
+bool FRigVMMemoryContainer::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 
@@ -529,7 +529,7 @@ bool FRigVMStorage::Destroy(int32 InRegisterIndex, int32 InElementIndex)
 	return true;
 }
 
-bool FRigVMStorage::Remove(int32 InRegisterIndex)
+bool FRigVMMemoryContainer::Remove(int32 InRegisterIndex)
 {
 	if (InRegisterIndex < 0 || InRegisterIndex >= Registers.Num())
 	{
@@ -551,13 +551,13 @@ bool FRigVMStorage::Remove(int32 InRegisterIndex)
 	return true;
 }
 
-bool FRigVMStorage::Remove(const FName& InRegisterName)
+bool FRigVMMemoryContainer::Remove(const FName& InRegisterName)
 {
 	ensure(bUseNameMap);
 	return Remove(GetIndex(InRegisterName));
 }
 
-FName FRigVMStorage::Rename(int32 InRegisterIndex, const FName& InNewName)
+FName FRigVMMemoryContainer::Rename(int32 InRegisterIndex, const FName& InNewName)
 {
 	if (Registers[InRegisterIndex].Name == InNewName)
 	{
@@ -575,7 +575,7 @@ FName FRigVMStorage::Rename(int32 InRegisterIndex, const FName& InNewName)
 	return InNewName;
 }
 
-FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
+FName FRigVMMemoryContainer::Rename(const FName& InOldName, const FName& InNewName)
 {
 	ensure(bUseNameMap);
 
@@ -588,7 +588,7 @@ FName FRigVMStorage::Rename(const FName& InOldName, const FName& InNewName)
 	return Rename(RegisterIndex, InNewName);
 }
 
-bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount)
+bool FRigVMMemoryContainer::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32 InNewSliceCount)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 	ensure(Registers[InRegisterIndex].TrailingBytes == 0);
@@ -653,7 +653,7 @@ bool FRigVMStorage::Resize(int32 InRegisterIndex, int32 InNewElementCount, int32
 	return true;
 }
 
-bool FRigVMStorage::Resize(const FName& InRegisterName, int32 InNewElementCount, int32 InNewSliceCount)
+bool FRigVMMemoryContainer::Resize(const FName& InRegisterName, int32 InNewElementCount, int32 InNewSliceCount)
 {
 	ensure(bUseNameMap);
 
@@ -666,7 +666,7 @@ bool FRigVMStorage::Resize(const FName& InRegisterName, int32 InNewElementCount,
 	return Resize(RegisterIndex, InNewElementCount, InNewSliceCount);
 }
 
-bool FRigVMStorage::ChangeRegisterType(int32 InRegisterIndex, ERigVMRegisterType InNewType, int32 InElementSize, const void* InDataPtr, int32 InNewElementCount, int32 InNewSliceCount)
+bool FRigVMMemoryContainer::ChangeRegisterType(int32 InRegisterIndex, ERigVMRegisterType InNewType, int32 InElementSize, const void* InDataPtr, int32 InNewElementCount, int32 InNewSliceCount)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 	
@@ -709,7 +709,7 @@ bool FRigVMStorage::ChangeRegisterType(int32 InRegisterIndex, ERigVMRegisterType
 	return true;
 }
 
-void FRigVMStorage::UpdateRegisters()
+void FRigVMMemoryContainer::UpdateRegisters()
 {
 	int32 AlignmentShift = 0;
 	for (int32 RegisterIndex = 0; RegisterIndex < Registers.Num(); RegisterIndex++)
@@ -732,7 +732,7 @@ void FRigVMStorage::UpdateRegisters()
 					{
 						if (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
 						{
-							Data.RemoveAt(Register.GetStorageByteIndex(), Register.AlignmentBytes);
+							Data.RemoveAt(Register.GetFirstAllocatedByte(), Register.AlignmentBytes);
 							AlignmentShift -= Register.AlignmentBytes;
 							Register.ByteIndex -= Register.AlignmentBytes;
 							Register.AlignmentBytes = 0;
@@ -742,7 +742,7 @@ void FRigVMStorage::UpdateRegisters()
 
 					while (!IsAligned(Pointer, TheCppStructOps->GetAlignment()))
 					{
-						Data.InsertZeroed(Register.GetStorageByteIndex(), 1);
+						Data.InsertZeroed(Register.GetFirstAllocatedByte(), 1);
 						Register.AlignmentBytes++;
 						Register.ByteIndex++;
 						AlignmentShift++;
@@ -763,13 +763,13 @@ void FRigVMStorage::UpdateRegisters()
 	}
 }
 
-void FRigVMStorage::FillWithZeroes(int32 InRegisterIndex)
+void FRigVMMemoryContainer::FillWithZeroes(int32 InRegisterIndex)
 {
 	ensure(Registers.IsValidIndex(InRegisterIndex));
 	FMemory::Memzero(GetData(InRegisterIndex), Registers[InRegisterIndex].GetNumBytesAllSlices());
 }
 
-int32 FRigVMStorage::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)
+int32 FRigVMMemoryContainer::FindOrAddScriptStruct(UScriptStruct* InScriptStruct)
 {
 	int32 StructIndex = INDEX_NONE;
 	if (ScriptStructs.Find(InScriptStruct, StructIndex))

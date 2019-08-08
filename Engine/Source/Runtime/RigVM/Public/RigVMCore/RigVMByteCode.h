@@ -508,7 +508,7 @@ private:
 		return ByteIndex;
 	}
 
-	// storage for all functions
+	// memory for all functions
 	UPROPERTY()
 	TArray<uint8> ByteCode;
 };

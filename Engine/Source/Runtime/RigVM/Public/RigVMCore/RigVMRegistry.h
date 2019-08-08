@@ -3,10 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RigVMStorage.h"
+#include "RigVMMemory.h"
 
 typedef TArrayView<void*> FRigVMUserDataArray;
-typedef void (*FRigVMFunctionPtr)(const FRigVMArgumentArray&, FRigVMStoragePtrArray&, const FRigVMUserDataArray&);
+typedef void (*FRigVMFunctionPtr)(const FRigVMArgumentArray&, FRigVMMemoryContainerPtrArray&, const FRigVMUserDataArray&);
 
 struct RIGVM_API FRigVMFunction
 {
@@ -45,7 +45,7 @@ private:
 	// disable assignment operator
 	FRigVMRegistry& operator= (const FRigVMRegistry &InOther) { return *this; }
 
-	// storage for all functions
+	// memory for all functions
 	TArray<FRigVMFunction> Functions;
 
 	static FRigVMRegistry s_RigVMRegistry;

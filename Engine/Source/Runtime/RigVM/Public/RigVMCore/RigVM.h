@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "RigVMStorage.h"
+#include "RigVMMemory.h"
 #include "RigVMRegistry.h"
 #include "RigVMByteCode.h"
 #include "RigVM.generated.h"
@@ -20,16 +20,16 @@ public:
 
 	void Reset();
 
-	bool Execute(FRigVMStoragePtrArray Storage = FRigVMStoragePtrArray(), TArrayView<void*> AdditionalArgs = TArrayView<void*>());
+	bool Execute(FRigVMMemoryContainerPtrArray Memory = FRigVMMemoryContainerPtrArray(), TArrayView<void*> AdditionalArgs = TArrayView<void*>());
 
 	UFUNCTION()
 	int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InFunctionName);
 
 	UPROPERTY()
-	FRigVMStorage WorkStorage;
+	FRigVMMemoryContainer WorkMemory;
 
 	UPROPERTY()
-	FRigVMStorage LiteralStorage;
+	FRigVMMemoryContainer LiteralMemory;
 
 	UPROPERTY()
 	FRigVMByteCode ByteCode;

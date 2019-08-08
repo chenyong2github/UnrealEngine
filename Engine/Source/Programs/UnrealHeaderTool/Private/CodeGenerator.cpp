@@ -3337,7 +3337,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 				VariableType = Parameter.TypeOriginal(true);
 			}
 
-			RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMStorage[%s_Arg.GetStorageIndex()]->%s<%s>(%s_Arg.GetRegisterIndex(), true);"),
+			RigVMStubProlog.Add(FString::Printf(TEXT("%s %s = RigVMMemoryContainer[%s_Arg.GetContainerIndex()]->%s<%s>(%s_Arg.GetRegisterIndex(), true);"),
 				*VariableType,
 				*Parameter.NameOriginal(false),
 				*Parameter.NameOriginal(false),
@@ -3383,7 +3383,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			{
 				FString ParameterSuffix = MethodInfo.Parameters.Declarations(true, TEXT(",\r\n\t\t"));
 				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s Static%s(\r\n\t\t%s%s\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name, *StructMembers, *ParameterSuffix);
-				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(\r\n\t\tconst FRigVMArgumentArray& RigVMArguments,\r\n\t\tFRigVMStoragePtrArray& RigVMStorage,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name);
+				RigVMMethodsDeclarations += FString::Printf(TEXT("\tstatic %s RigVM%s(\r\n\t\tconst FRigVMArgumentArray& RigVMArguments,\r\n\t\tFRigVMMemoryContainerPtrArray& RigVMMemoryContainer,\r\n\t\tconst FRigVMUserDataArray& RigVMUserData\r\n\t);\r\n"), *MethodInfo.ReturnType, *MethodInfo.Name);
 			}
 		}
 
@@ -3638,7 +3638,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedStructBodyMacros(FOutputDevice&
 			Out.Log(TEXT("\r\n"));
 
 			// implement stub method body
-			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMStoragePtrArray& RigVMStorage, const FRigVMUserDataArray& RigVMUserData)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name);
+			Out.Logf(TEXT("%s %s::RigVM%s(const FRigVMArgumentArray& RigVMArguments, FRigVMMemoryContainerPtrArray& RigVMMemoryContainer, const FRigVMUserDataArray& RigVMUserData)\r\n"), *MethodInfo.ReturnType, StructNameCPP, *MethodInfo.Name);
 			Out.Log(TEXT("{\r\n"));
 
 			if (MethodInfo.Parameters.Num() > 0)
