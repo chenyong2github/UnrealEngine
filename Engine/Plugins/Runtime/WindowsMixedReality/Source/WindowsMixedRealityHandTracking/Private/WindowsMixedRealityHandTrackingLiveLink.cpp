@@ -28,7 +28,7 @@ void FWindowsMixedRealityHandTracking::ReceiveClient(ILiveLinkClient* InClient, 
 	UpdateLiveLink();
 }
 
-bool FWindowsMixedRealityHandTracking::IsSourceStillValid() const
+bool FWindowsMixedRealityHandTracking::IsSourceValid() const
 {
 	return LiveLinkClient != nullptr;
 }
