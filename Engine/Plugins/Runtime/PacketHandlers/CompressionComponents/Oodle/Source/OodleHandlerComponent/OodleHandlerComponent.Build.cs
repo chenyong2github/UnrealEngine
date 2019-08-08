@@ -7,8 +7,16 @@ public class OodleHandlerComponent : ModuleRules
 {
     public OodleHandlerComponent(ReadOnlyTargetRules Target) : base(Target)
     {
+		// @todo oodle: Clean this up with the compression format?
+
+
+		// this needs to match the version in Oodle.Build.cs
+		string OodleVersion = "255";
+
 		ShortName = "OodleHC";
 
+        BinariesSubFolder = "NotForLicensees";
+		
 		PrivateIncludePaths.Add("OodleHandlerComponent/Private");
 
 		PublicDependencyModuleNames.AddRange(
@@ -21,60 +29,52 @@ public class OodleHandlerComponent : ModuleRules
                 "Analytics"
 			});
 
+		PrivateDependencyModuleNames.AddRange(
+			new string[] {
+				"Projects",
+			});
 
+		string PlatformName = Target.Platform.ToString();
 		if (Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32)
 		{
+			PlatformName = "win";
+
 			// this is needed to hunt down the DLL in the binaries directory for running unstaged
 			PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Projects",
 			});
 		}
-
-		string OodleNotForLicenseesNetBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"NotForLicensees/RadGames/OodleNet/OodleNet.Build.cs");
-		string OodleLicenseesNetBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"RadGames/OodleNet/OodleNet.Build.cs");
-
-		string OodleNotForLicenseesDataBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"NotForLicensees/RadGames/OodleData/OodleData.Build.cs");
-		string OodleLicenseesDataBuildFile = System.IO.Path.Combine(Target.UEThirdPartySourceDirectory,
-			"RadGames/OodleData/OodleData.Build.cs");
-
-		bool bHaveNFLOodleNetSDK = System.IO.File.Exists(OodleNotForLicenseesNetBuildFile);
-		bool bHaveLicenseesOodleNetSDK = System.IO.File.Exists(OodleLicenseesNetBuildFile);
-		bool bHaveNFLOodleDataSDK = System.IO.File.Exists(OodleNotForLicenseesDataBuildFile);
-		bool bHaveLicenseesOodleDataSDK = System.IO.File.Exists(OodleLicenseesDataBuildFile);
-
-		// if we are loading from NFL, save binary in NFL
-		if (bHaveNFLOodleDataSDK || bHaveNFLOodleNetSDK)
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			BinariesSubFolder = "NotForLicensees";
+			PlatformName = "Linux";
 		}
 
-		if (bHaveNFLOodleNetSDK || bHaveLicenseesOodleNetSDK)
+		// Check the NotForLicensees folder first
+		string OodleNotForLicenseesLibDir = System.IO.Path.Combine(ModuleDirectory, "..", "ThirdParty", "NotForLicensees",
+			"Oodle", OodleVersion, PlatformName, "lib");
+
+		bool bHaveOodleSDK = false;
+		if (OodleNotForLicenseesLibDir.Length > 0)
 		{
-	        AddEngineThirdPartyPrivateStaticDependencies(Target, "OodleNet");
-	        PublicIncludePathModuleNames.Add("OodleNet");
-			PublicDefinitions.Add( "HAS_OODLE_NET_SDK=1" );
-
-			// data SDK is optional
-			if (bHaveNFLOodleDataSDK || bHaveLicenseesOodleDataSDK)
+			try
 			{
-				AddEngineThirdPartyPrivateStaticDependencies(Target, "OodleData");
-				PublicIncludePathModuleNames.Add("OodleData");
-				PublicDefinitions.Add("HAS_OODLE_DATA_SDK=1");
+				bHaveOodleSDK = System.IO.Directory.Exists( OodleNotForLicenseesLibDir );
 			}
-			else
+			catch ( System.Exception )
 			{
-				PublicDefinitions.Add("HAS_OODLE_DATA_SDK=0");
 			}
+        }
 
+		if ( bHaveOodleSDK )
+		{
+	        AddEngineThirdPartyPrivateStaticDependencies(Target, "Oodle");
+	        PublicIncludePathModuleNames.Add("Oodle");
+			PublicDefinitions.Add( "HAS_OODLE_SDK=1" );
 		}
 		else
 		{
-			PublicDefinitions.Add("HAS_OODLE_NET_SDK=0");
-			PublicDefinitions.Add("HAS_OODLE_DATA_SDK=0");
+			PublicDefinitions.Add( "HAS_OODLE_SDK=0" );
 		}
-	}
+    }
 }
