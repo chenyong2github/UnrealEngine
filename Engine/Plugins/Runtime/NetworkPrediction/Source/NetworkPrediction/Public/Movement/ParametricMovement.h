@@ -165,7 +165,13 @@ protected:
 
 	TUniquePtr<ParametricMovement::FMovementSystem> NetworkSim;
 
-	// Temp....
+	// ------------------------------------------------------------------------
+	// Temp Parametric movement example
+	//	The essence of this movement simulation is to map some Time value to a transform. That is it.
+	//	(It could be mapped via a spline, a curve, a simple blueprint function, etc).
+	//	What is below is just a simple C++ implementation to stand things up. Most likely we would 
+	//	do additional subclasses to vary the way this is implemented)
+	// ------------------------------------------------------------------------
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=ParametricMovement)
 	FVector ParametricDelta = FVector(0.f, 0.f, 500.f);
 
