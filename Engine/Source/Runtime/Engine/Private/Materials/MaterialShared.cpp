@@ -2339,7 +2339,12 @@ void FMaterialRenderProxy::EvaluateUniformExpressions(FUniformExpressionCache& O
 	OutUniformExpressionCache.ResetAllocatedVTs();
 	OutUniformExpressionCache.AllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
 	OutUniformExpressionCache.OwnedAllocatedVTs.Empty(UniformExpressionSet.VTStacks.Num());
-	check(!HasVirtualTextureCallbacks);
+	
+	if (HasVirtualTextureCallbacks)
+	{
+		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
+		HasVirtualTextureCallbacks = false;
+	}
 
 	for (int32 i = 0; i < UniformExpressionSet.VTStacks.Num(); ++i)
 	{
