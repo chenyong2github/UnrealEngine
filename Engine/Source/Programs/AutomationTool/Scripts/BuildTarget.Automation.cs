@@ -30,6 +30,8 @@ namespace AutomationTool
 
 		public string Configurations { get; set; }
 
+		public bool	  Clean { get; set; }
+
 		protected Dictionary<string, string> TargetNames { get; set; }
 
 		public BuildTarget()
@@ -50,6 +52,12 @@ namespace AutomationTool
 			Targets = ParseParamValue("target", Targets);
 			Platforms = ParseParamValue("platform", Platforms);
 			Configurations = ParseParamValue("configuration", Configurations);
+			Clean = ParseParam("clean") || Clean;
+
+			if (string.IsNullOrEmpty(Targets))
+			{
+				throw new AutomationException("No target specified with -target. Use -help to see all options");
+			}
 
 			bool NoTools = ParseParam("notools");
 
@@ -176,9 +184,15 @@ namespace AutomationTool
 				}
 			}
 
+			// Set clean and log
 			foreach (var Target in Agenda.Targets)
 			{
-				Log.TraceInformation("Will build {0}", Target);
+				if (Clean)
+				{
+					Target.Clean = Clean;
+				}
+
+				Log.TraceInformation("Will {0}build {1}", Clean ? "clean and " : "", Target);
 			}
 
 			Build.Build(Agenda, InUpdateVersionFiles: false);
