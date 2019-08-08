@@ -76,6 +76,7 @@ public:
 
 	static void ProcessQueryGLInt();
 	static void ProcessExtensions(const FString& ExtensionsString);
+	static void SetupDefaultGLContextState(const FString& ExtensionsString) {};
 
 	static FORCEINLINE bool SupportsMapBuffer()							{ return true; }
 	static FORCEINLINE bool SupportsDepthTexture()						{ return true; }
@@ -357,7 +358,8 @@ public:
 	static FORCEINLINE void GetProgramBinary(GLuint Program, GLsizei BufSize, GLsizei *Length, GLenum *BinaryFormat, void *Binary) UGL_OPTIONAL_VOID
 	static FORCEINLINE void ProgramBinary(GLuint Program, GLenum BinaryFormat, const void *Binary, GLsizei Length) UGL_OPTIONAL_VOID
 
-
+	static FORCEINLINE void FrameBufferFetchBarrier() UGL_OPTIONAL_VOID
+	
 	static FPlatformOpenGLDevice*	CreateDevice() UGL_REQUIRED(NULL)
 	static FPlatformOpenGLContext*	CreateContext( FPlatformOpenGLDevice* Device, void* WindowHandle ) UGL_REQUIRED(NULL)
 

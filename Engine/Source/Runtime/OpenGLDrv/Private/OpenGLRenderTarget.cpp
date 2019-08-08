@@ -1194,3 +1194,14 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 		}
 	}
 }
+
+void FOpenGLDynamicRHI::RHINextSubpass()
+{
+	IRHICommandContext::RHINextSubpass();
+	
+	if (RenderPassInfo.SubpassHint == ESubpassHint::DepthReadSubpass)
+	{
+		FOpenGL::FrameBufferFetchBarrier();
+	}
+}
+
