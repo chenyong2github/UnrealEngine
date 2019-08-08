@@ -77,39 +77,30 @@ public:
 
 	ELiveLinkSourceMode GetMode() const { return CachedSettings.SourceMode; }
 	FLiveLinkSubjectTimeSyncData GetTimeSyncData();
+	bool IsTimeSynchronized() const;
 
-	void OnStartSynchronization(const struct FTimeSynchronizationOpenData& OpenData, const int32 FrameOffset);
-	void OnSynchronizationEstablished(const struct FTimeSynchronizationStartData& StartData);
-	void OnStopSynchronization();
-
-	bool IsTimeSynchronized() const { return (GetMode() == ELiveLinkSourceMode::TimeSynchronized  && TimeSyncData.IsSet()); }
 	double GetLastPushTime() const { return LastPushTime; }
 
 private:
-	int32 AddFrame_Default(const FLiveLinkWorldTime& FrameTime);
-	int32 AddFrame_Interpolated(const FLiveLinkWorldTime& FrameTime);
-	int32 AddFrame_TimeSynchronized(const FFrameTime& FrameTime, FLiveLinkTimeSynchronizationData& InSynchronizationData);
+	int32 FindNewFrame_WorldTime(const FLiveLinkWorldTime& FrameTime) const;
+	int32 FindNewFrame_SceneTime(const FQualifiedFrameTime& FrameTime) const;
+	int32 FindNewFrame_Latest() const;
 
-	template<bool bWithRollover>
-	int32 AddFrame_TimeSynchronized(const FFrameTime& FrameTime, FLiveLinkTimeSynchronizationData& InSynchronizationData);
-
-	void GetFrameAtWorldTime_Default(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
-	void GetFrameAtWorldTime_Interpolated(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
-	void GetFrameAtWorldTime_Closest(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
-
-	template<bool bWithRollover>
-	void GetFrameAtSceneTime_TimeSynchronized(const FFrameTime& FrameTime, FLiveLinkTimeSynchronizationData& InSynchronizationData, FLiveLinkSubjectFrameData& OutFrame);
-
-	template<bool bForInsert, bool bWithRollover>
-	int32 FindFrameIndex_TimeSynchronized(const FFrameTime& InFrameTime, FLiveLinkTimeSynchronizationData& InSynchronizationData);
-
-	void ResetFrame(FLiveLinkSubjectFrameData& OutFrame) const;
 
 	// Populate OutFrame with a frame based off of the supplied time and our own offsets
-	void GetFrameAtWorldTime(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtWorldTime(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtWorldTime_Closest(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtWorldTime_Interpolated(const double InSeconds, FLiveLinkSubjectFrameData& OutFrame);
 
 	// Populate OutFrame with a frame based off of the supplied scene time.
-	void GetFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtSceneTime(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtSceneTime_Closest(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+	bool GetFrameAtSceneTime_Interpolated(const FQualifiedFrameTime& InSceneTime, FLiveLinkSubjectFrameData& OutFrame);
+
+	// Populate OutFrame with the latest frame.
+	bool GetLatestFrame(FLiveLinkSubjectFrameData& OutFrame);
+
+	void ResetFrame(FLiveLinkSubjectFrameData& OutFrame) const;
 
 protected:
 	// The role the subject was build with
@@ -125,9 +116,8 @@ protected:
 private:
 	struct FLiveLinkCachedSettings
 	{
-		ELiveLinkSourceMode SourceMode = ELiveLinkSourceMode::Default;
-		TOptional<FLiveLinkInterpolationSettings> InterpolationSettings;
-		TOptional<FLiveLinkTimeSynchronizationSettings> TimeSynchronizationSettings;
+		ELiveLinkSourceMode SourceMode = ELiveLinkSourceMode::EngineTime;
+		FLiveLinkSourceBufferManagementSettings BufferSettings;
 	};
 
 	// Static data of the subject
@@ -143,24 +133,16 @@ private:
 	FLiveLinkSubjectKey SubjectKey;
 
 	// Connection settings specified by user
-	// May only store settings relevant to the current mode (ELiveLinkSourceMode).
 	FLiveLinkCachedSettings CachedSettings;
 
-	// Allow us to track changes to the ref skeleton
-	FGuid StaticDataGuid;
-
-	TOptional<FLiveLinkTimeSynchronizationData> TimeSyncData;
-
-	// Time difference between current system time and TimeCode times 
-	double SubjectTimeOffset;
-
-	// Last time we read a frame from this subject. Used to determine whether any new incoming
-	// frames are usable
-	double LastReadTime;
-
 	// Last time a frame was pushed
-	double LastPushTime;
+	double LastPushTime = 0.0;
 
-	//Cache of the last frame we read from, Used for frame cleanup
+	//Cache of the last frame we used to build the snapshot, used to clean frames
 	int32 LastReadFrame;
+
+#if WITH_EDITORONLY_DATA
+	int32 SnapshotIndex = INDEX_NONE;
+	int32 NumberOfBufferAtSnapshot = 0;
+#endif
 };
