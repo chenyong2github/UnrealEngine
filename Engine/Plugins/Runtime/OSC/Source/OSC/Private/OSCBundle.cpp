@@ -1,5 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 #include "OSCBundle.h"
+
+#include "OSCAddress.h"
 #include "OSCLog.h"
 #include "OSCStream.h"
 
@@ -84,6 +86,6 @@ bool FOSCBundlePacket::IsMessage()
 
 const FOSCAddress& FOSCBundlePacket::GetAddress() const
 {
-	const static FOSCAddress BundleIdentifier = TEXT("#bundle");
+	const static FOSCAddress BundleIdentifier = FOSCAddress(OSC::BundleTag);
 	return BundleIdentifier;
 }
