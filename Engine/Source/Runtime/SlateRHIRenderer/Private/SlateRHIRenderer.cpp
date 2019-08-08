@@ -1189,7 +1189,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 			{
 				for (const FRenderThreadUpdateContext& Context : Contexts)
 				{
-					static_cast<ISlate3DRenderer*>(Context.Renderer)->DrawWindowToTarget_RenderThread(RHICmdList, Context);
+					Context.Renderer->DrawWindowToTarget_RenderThread(RHICmdList, Context);
 				}
 			}
 		);
@@ -1631,7 +1631,7 @@ void FSlateRHIRenderer::AddWidgetRendererUpdate(const struct FRenderThreadUpdate
 		ENQUEUE_RENDER_COMMAND(DrawWidgetRendererImmediate)(
 			[InContext](FRHICommandListImmediate& RHICmdList)
 			{
-				static_cast<ISlate3DRenderer*>(InContext.Renderer)->DrawWindowToTarget_RenderThread(RHICmdList, InContext);
+				InContext.Renderer->DrawWindowToTarget_RenderThread(RHICmdList, InContext);
 			});
 	}
 }
