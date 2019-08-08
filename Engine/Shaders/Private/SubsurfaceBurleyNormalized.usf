@@ -616,7 +616,7 @@ float4 BurleyNormalizedSS(float2 BufferUV)
 
 				//step 4: accumulate radiance from the diffusion profile rR(r)
 				//make sure the DiffuseMeanFreePath is not zero and in m.
-				float3 DiffusionProfile = GetDiffuseReflectProfileWithDiffuseMeanFreePath(BurleyParameter.SurfaceAlbedo, BurleyParameter.DiffuseMeanFreePath, S3D, RadiusSampled);
+				float3 DiffusionProfile = GetDiffuseReflectProfileWithDiffuseMeanFreePath(BurleyParameter.SurfaceAlbedo.xyz, BurleyParameter.DiffuseMeanFreePath.xyz, S3D.xyz, RadiusSampled);
 				RadianceAccumulated.xyz += (DiffusionProfile / BurleySampleInfo.Pdf) * (SampledRadianceAndDepth.xyz*TintColor*Mask);
 
 #ifdef USE_BILATERAL_FILTERING

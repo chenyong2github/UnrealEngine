@@ -907,11 +907,11 @@ public:
 			Chunk[MP_DiffuseColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_DiffuseColor			,this);
 			Chunk[MP_SpecularColor]					= Material->CompilePropertyAndSetMaterialProperty(MP_SpecularColor			,this);
 			Chunk[MP_BaseColor]						= Material->CompilePropertyAndSetMaterialProperty(MP_BaseColor				,this);
-			Chunk[MP_Metallic]						= Material->CompilePropertyAndSetMaterialProperty(MP_Metallic				,this);
-			Chunk[MP_Specular]						= Material->CompilePropertyAndSetMaterialProperty(MP_Specular				,this);
-			Chunk[MP_Roughness]						= Material->CompilePropertyAndSetMaterialProperty(MP_Roughness				,this);
+			Chunk[MP_Metallic]						= ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Metallic		,this), MCT_Float1);
+			Chunk[MP_Specular]						= ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Specular		,this), MCT_Float1);
+			Chunk[MP_Roughness]						= ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Roughness    ,this), MCT_Float1);
 			Chunk[MP_Opacity]						= Material->CompilePropertyAndSetMaterialProperty(MP_Opacity				,this);
-			Chunk[MP_OpacityMask]					= Material->CompilePropertyAndSetMaterialProperty(MP_OpacityMask			,this);
+			Chunk[MP_OpacityMask]					= ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_OpacityMask  ,this), MCT_Float1);
 			Chunk[MP_WorldPositionOffset]			= Material->CompilePropertyAndSetMaterialProperty(MP_WorldPositionOffset	,this);
 			Chunk[MP_WorldDisplacement]				= Material->CompilePropertyAndSetMaterialProperty(MP_WorldDisplacement		,this);
 			Chunk[MP_TessellationMultiplier]		= Material->CompilePropertyAndSetMaterialProperty(MP_TessellationMultiplier	,this);			
@@ -947,8 +947,8 @@ public:
 
 			Chunk[MP_CustomData0]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData0		,this);
 			Chunk[MP_CustomData1]					= Material->CompilePropertyAndSetMaterialProperty(MP_CustomData1		,this);
-			Chunk[MP_AmbientOcclusion]				= Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this);
-
+			Chunk[MP_AmbientOcclusion]				= ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_AmbientOcclusion	,this), MCT_Float1);
+			
 			if (IsTranslucentBlendMode(BlendMode))
 			{
 				int32 UserRefraction = ForceCast(Material->CompilePropertyAndSetMaterialProperty(MP_Refraction, this), MCT_Float1);
@@ -5717,7 +5717,7 @@ protected:
 		}
 		else
 		{
-			return AddCodeChunk(GetParameterType(A),TEXT("max(%s,%s)"),*GetParameterCode(A),*CoerceParameter(B,GetParameterType(A)));
+			return AddCodeChunk(GetParameterType(B),TEXT("max(%s,%s)"), *CoerceParameter(A, GetParameterType(B)), *GetParameterCode(B));
 		}
 	}
 
