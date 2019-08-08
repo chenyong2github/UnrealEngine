@@ -69,6 +69,45 @@ DECLARE_CYCLE_STAT(TEXT("NetConnection Tick"), Stat_NetConnectionTick, STATGROUP
 DECLARE_CYCLE_STAT(TEXT("NetConnection ReceivedNak"), Stat_NetConnectionReceivedNak, STATGROUP_Net);
 DECLARE_CYCLE_STAT(TEXT("NetConnection NetConnectionReceivedAcks"), Stat_NetConnectionReceivedAcks, STATGROUP_Net);
 
+namespace UE4_NetConnectionPrivate
+{
+	struct FValidateLevelVisibilityResult
+	{
+		bool bLevelExists = false;
+		UPackage* Package = nullptr;
+		FLinkerLoad* Linker = nullptr;
+	};
+
+	const FValidateLevelVisibilityResult ValidateLevelVisibility(UWorld* World, const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
+	{
+		// Verify that we were passed a valid level name
+		// If we have a linker we know it has been loaded off disk successfully
+		// If we have a file it is fine too
+		// If its in our own streaming level list, its good
+
+		auto IsInLevelList = [&World](FName InPackageName)
+		{
+			for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+			{
+				if (StreamingLevel && (StreamingLevel->GetWorldAssetPackageFName() == InPackageName))
+				{
+					return true;
+				}
+			}
+			return false;
+		};
+
+		FValidateLevelVisibilityResult Result;
+		Result.Package = FindPackage(nullptr, *LevelVisibility.PackageName.ToString());
+		Result.Linker = FLinkerLoad::FindExistingLinkerForPackage(Result.Package);
+		Result.bLevelExists = Result.Linker ||
+			FPackageName::DoesPackageExist(LevelVisibility.FileName.ToString()) ||
+			IsInLevelList(LevelVisibility.PackageName);
+
+		return Result;
+	}
+}
+
 // ChannelRecord Implementation
 namespace FChannelRecordImpl
 {
@@ -902,39 +941,30 @@ void UNetConnection::UpdateAllCachedLevelVisibility() const
 
 void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVisible)
 {
+	FUpdateLevelVisibilityLevelInfo LevelVisibility;
+	LevelVisibility.PackageName = PackageName;
+	LevelVisibility.FileName = PackageName;
+	LevelVisibility.bIsVisible = bIsVisible;
+
+	UpdateLevelVisibility(LevelVisibility);
+}
+
+void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
+{
+	using namespace UE4_NetConnectionPrivate;
+
 	GNumClientUpdateLevelVisibility++;
 
 	// add or remove the level package name from the list, as requested
-	if (bIsVisible)
+	if (LevelVisibility.bIsVisible)
 	{
 		// verify that we were passed a valid level name
-		FString Filename;
-		UPackage* TempPkg = FindPackage(nullptr, *PackageName.ToString());
-		FLinkerLoad* Linker = FLinkerLoad::FindExistingLinkerForPackage(TempPkg);
+		FValidateLevelVisibilityResult VisibilityResult = ValidateLevelVisibility(GetWorld(), LevelVisibility);
 
-		// If we have a linker we know it has been loaded off disk successfully
-		// If we have a file it is fine too
-		// If its in our own streaming level list, its good
-
-		struct Local
+		if (VisibilityResult.bLevelExists)
 		{
-			static bool IsInLevelList(UWorld* World, FName InPackageName)
-			{
-				for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
-				{
-					if (StreamingLevel && (StreamingLevel->GetWorldAssetPackageFName() == InPackageName ))
-					{
-						return true;
-					}
-				}
-				return false;
-			}
-		};
-
-		if ( Linker || FPackageName::DoesPackageExist(PackageName.ToString(), nullptr, &Filename ) || Local::IsInLevelList(GetWorld(), PackageName ) )
-		{
-			ClientVisibleLevelNames.Add(PackageName);
-			UE_LOG( LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *PackageName.ToString() );
+			ClientVisibleLevelNames.Add(LevelVisibility.PackageName);
+			UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *LevelVisibility.PackageName.ToString());
 
 			QUICK_USE_CYCLE_STAT(NetUpdateLevelVisibility_UpdateDormantActors, STATGROUP_Net);
 
@@ -942,7 +972,7 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 			// destroyed actors list when the level is reloaded, so seek them out and add in
 			for (const auto& DestroyedPair : Driver->DestroyedStartupOrDormantActors)
 			{
-				if (DestroyedPair.Value->StreamingLevelName == PackageName)
+				if (DestroyedPair.Value->StreamingLevelName == LevelVisibility.PackageName)
 				{
 					AddDestructionInfo(DestroyedPair.Value.Get());
 				}
@@ -951,9 +981,9 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 			// Any dormant actor that has changes flushed or made before going dormant needs to be updated on the client 
 			// when the streaming level is loaded, so mark them active for this connection
 			UWorld* LevelWorld = nullptr;
-			if (TempPkg)
+			if (VisibilityResult.Package)
 			{
-				LevelWorld = (UWorld*)FindObjectWithOuter(TempPkg, UWorld::StaticClass());
+				LevelWorld = (UWorld*)FindObjectWithOuter(VisibilityResult.Package, UWorld::StaticClass());
 				if (LevelWorld)
 				{
 					if (LevelWorld->PersistentLevel)
@@ -965,7 +995,7 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 							// to mark Dormant All Actors as (temporarily) active to get the update sent over
 							if (Actor && Actor->GetIsReplicated() && (Actor->NetDormancy == DORM_DormantAll))
 							{
-								NetworkObjectList.MarkActive( Actor, this, Driver );
+								NetworkObjectList.MarkActive(Actor, this, Driver);
 							}
 						}
 					}
@@ -974,33 +1004,33 @@ void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVis
 
 			if (ReplicationConnectionDriver)
 			{
-				ReplicationConnectionDriver->NotifyClientVisibleLevelNamesAdd(PackageName, LevelWorld);
+				ReplicationConnectionDriver->NotifyClientVisibleLevelNamesAdd(LevelVisibility.PackageName, LevelWorld);
 			}
 
 		}
 		else
 		{
-			UE_LOG( LogPlayerController, Warning, TEXT("ServerUpdateLevelVisibility() ignored non-existant package '%s'"), *PackageName.ToString() );
+			UE_LOG(LogPlayerController, Warning, TEXT("ServerUpdateLevelVisibility() ignored non-existant package. PackageName='%s', FileName='%s'"), *LevelVisibility.PackageName.ToString(), *LevelVisibility.FileName.ToString());
 			Close();
 		}
 	}
 	else
 	{
-		ClientVisibleLevelNames.Remove(PackageName);
-		UE_LOG( LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Removed '%s'"), *PackageName.ToString() );
+		ClientVisibleLevelNames.Remove(LevelVisibility.PackageName);
+		UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Removed '%s'"), *LevelVisibility.PackageName.ToString());
 		if (ReplicationConnectionDriver)
 		{
-			ReplicationConnectionDriver->NotifyClientVisibleLevelNamesRemove(PackageName);
+			ReplicationConnectionDriver->NotifyClientVisibleLevelNamesRemove(LevelVisibility.PackageName);
 		}
 			
 		// Close any channels now that have actors that were apart of the level the client just unloaded
-		for ( auto It = ActorChannels.CreateIterator(); It; ++It )
+		for (auto It = ActorChannels.CreateIterator(); It; ++It)
 		{
-			UActorChannel* Channel = It.Value();					
+			UActorChannel* Channel = It.Value();
 
-			check( Channel->OpenedLocally );
+			check(Channel->OpenedLocally);
 
-			if ( Channel->Actor && Channel->Actor->GetLevel()->GetOutermost()->GetFName() == PackageName )
+			if (Channel->Actor && Channel->Actor->GetLevel()->GetOutermost()->GetFName() == LevelVisibility.PackageName)
 			{
 				Channel->Close(EChannelCloseReason::LevelUnloaded);
 			}
@@ -3156,9 +3186,8 @@ void UNetConnection::HandleClientPlayer( APlayerController *PC, UNetConnection* 
 				const ULevel* Level = LevelStreaming->GetLoadedLevel();
 				if ( Level && Level->bIsVisible && !Level->bClientOnlyVisible )
 				{
-					FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new( LevelVisibilities ) FUpdateLevelVisibilityLevelInfo();
-					LevelVisibility.PackageName = PC->NetworkRemapPath(Level->GetOutermost()->GetFName(), false);
-					LevelVisibility.bIsVisible = true;
+					FUpdateLevelVisibilityLevelInfo& LevelVisibility = *new( LevelVisibilities ) FUpdateLevelVisibilityLevelInfo(Level, true);
+					LevelVisibility.PackageName = PC->NetworkRemapPath(LevelVisibility.PackageName, false);
 				}
 			}
 		}
