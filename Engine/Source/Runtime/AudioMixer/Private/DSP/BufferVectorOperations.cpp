@@ -108,6 +108,24 @@ namespace Audio
 		}
 	}
 
+	// Adds a constant to a buffer (useful for DC offset removal)
+	void AddConstantToBufferInplace(AlignedFloatBuffer& InBuffer, float InConstant)
+	{
+		AddConstantToBufferInplace(InBuffer.GetData(), InBuffer.Num(), InConstant);
+	}
+
+	void AddConstantToBufferInplace(float* RESTRICT InBuffer, int32 NumSamples, float InConstant)
+	{
+		const VectorRegister Constant = VectorLoadFloat1(&InConstant);
+
+		for (int32 i = 0; i < NumSamples; i += 4)
+		{
+			VectorRegister Output = VectorLoadAligned(&InBuffer[i]);
+			Output = VectorAdd(Output, Constant);
+			VectorStoreAligned(Output, &InBuffer[i]);
+		}
+	}
+
 	/* Performs an element-wise weighted sum OutputBuffer = (InBuffer1 x InGain1) + (InBuffer2 x InGain2) */
 	void BufferWeightedSumFast(const AlignedFloatBuffer& InBuffer1, float InGain1, const AlignedFloatBuffer& InBuffer2, float InGain2, AlignedFloatBuffer& OutBuffer)
 	{
