@@ -25,6 +25,6 @@ namespace PicpProjectionStrings
 
 	namespace projection
 	{
-		static constexpr auto PicpMPCDI     = TEXT("Picp_mpcdi");		
+		static constexpr auto PicpMPCDI = TEXT("picp_mpcdi");		
 	}
 };

@@ -31,13 +31,10 @@ private:
 private:
 	bool bTimersInitialized = false;
 	bool bNvApiInitialized = false;
-	bool bNvBarriersInitialized = false;
+	bool bUseAdvancedSynchronization = false;
 
 	double VBlankBasis = 0;
 	double RefreshPeriod = 0;
 
 	uint32 FrameCounter = 0;
-
-private:
-	bool bUseAdvancedSynchronization = false;
 };

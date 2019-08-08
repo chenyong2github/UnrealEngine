@@ -1459,7 +1459,7 @@ void FSceneViewState::SetupLightPropagationVolume(FSceneView& View, FSceneViewFa
 
 	const ERHIFeatureLevel::Type ViewFeatureLevel = View.GetFeatureLevel();
 
-	if (IStereoRendering::IsASecondaryView(View.StereoPass))
+	if (IStereoRendering::IsASecondaryView(View.StereoPass, GEngine->StereoRenderingDevice))
 	{
 		// The right eye will reference the left eye's LPV with the assumption that the left eye uses the primary view (index 0)
 		const FSceneView* PrimaryView = ViewFamily.Views[0];
