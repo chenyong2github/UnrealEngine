@@ -92,19 +92,19 @@ public:
 	static void GetBlob(const FOSCMessage& Message, const int32 Index, TArray<uint8>& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static bool OSCAddressIsBundle(const FOSCAddress& Address);
+	static bool OSCAddressIsValidPath(const FOSCAddress& Address);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static bool OSCAddressIsMessage(const FOSCAddress& Address);
-
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static bool OSCAddressIsValid(const FOSCAddress& Address);
+	static bool OSCAddressIsValidPattern(const FOSCAddress& Address);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	static FOSCAddress StringToOSCAddress(const FString& String);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static UPARAM(DisplayName = "Address") FOSCAddress& OSCAddressAppend(UPARAM(ref) FOSCAddress& Address, const FString& ToAppend);
+	static UPARAM(DisplayName = "Address") FOSCAddress& OSCAddressPushContainer(UPARAM(ref) FOSCAddress& Address, const FString& Container);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static UPARAM(DisplayName = "Address") FString OSCAddressPopContainer(UPARAM(ref) FOSCAddress& Address);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	static FOSCAddress GetOSCMessageAddress(const FOSCMessage& Message);
@@ -113,5 +113,11 @@ public:
 	static UPARAM(DisplayName = "Message") FOSCMessage& SetOSCMessageAddress(UPARAM(ref) FOSCMessage& Message, const FOSCAddress& Address);
 
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
-	static TArray<FString> SplitOSCAddress(const FOSCAddress& Address);
+	static FString GetOSCAddressContainer(const FOSCAddress& Address, const int32 Index);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static TArray<FString> GetOSCAddressContainers(const FOSCAddress& Address);
+
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	static FString GetOSCAddressMethodName(const FOSCAddress& Address);
 };

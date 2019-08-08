@@ -6,6 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
         public OSC(ReadOnlyTargetRules Target) : base(Target)
 		{
+            OptimizeCode = CodeOptimization.Never;
+
             PublicDependencyModuleNames.AddRange(
 				new string[] {
                     "Core",
