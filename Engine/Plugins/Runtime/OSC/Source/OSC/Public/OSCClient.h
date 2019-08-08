@@ -45,7 +45,7 @@ protected:
 	void Stop();
 	
 	/** Send OSC packet data. */
-	void SendPacket(FOSCPacket& InPacket);
+	void SendPacket(IOSCPacket& InPacket);
 
 	/** Socket used to send the OSC packets. */
 	FSocket* Socket;

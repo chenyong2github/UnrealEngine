@@ -10,31 +10,13 @@ struct OSC_API FOSCBundle
 {
 	GENERATED_USTRUCT_BODY()
 
-	FOSCBundle()
-		: Packet(MakeShareable(new FOSCBundlePacket()))
-	{
-	}
+	FOSCBundle();
+	FOSCBundle(const TSharedPtr<IOSCPacket>& InPacket);
+	~FOSCBundle();
 
-	FOSCBundle(const TSharedPtr<FOSCBundlePacket>& InPacket)
-		: Packet(InPacket)
-	{
-	}
-
-	~FOSCBundle()
-	{
-		Packet.Reset();
-	}
-
-	void SetPacket(const TSharedPtr<FOSCBundlePacket>& InPacket)
-	{
-		Packet = InPacket;
-	}
-
-	const TSharedPtr<FOSCBundlePacket>& GetPacket() const
-	{
-		return Packet;
-	}
+	void SetPacket(const TSharedPtr<IOSCPacket>& InPacket);
+	const TSharedPtr<IOSCPacket>& GetPacket() const;
 
 private:
-	TSharedPtr<FOSCBundlePacket> Packet;
+	TSharedPtr<IOSCPacket> Packet;
 };
