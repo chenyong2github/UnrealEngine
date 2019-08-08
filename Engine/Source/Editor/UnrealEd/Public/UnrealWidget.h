@@ -457,8 +457,8 @@ struct HWidgetAxis : public HHitProxy
 	EAxisList::Type Axis;
 	uint32 bDisabled:1;
 
-	HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false):
-		HHitProxy(HPP_UI),
+	HWidgetAxis(EAxisList::Type InAxis, bool InbDisabled = false, EHitProxyPriority InHitProxy = HPP_UI):
+		HHitProxy(InHitProxy),
 		Axis(InAxis),
 		bDisabled(InbDisabled) {}
 
