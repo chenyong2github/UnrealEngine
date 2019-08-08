@@ -574,11 +574,12 @@ void SWidget::SlatePrepass(float InLayoutScaleMultiplier)
 
 		Prepass_Internal(InLayoutScaleMultiplier);
 	}
-
 }
 
 void SWidget::InvalidatePrepass()
 {
+	SLATE_CROSS_THREAD_CHECK();
+
 	bNeedsPrepass = true;
 }
 
@@ -595,7 +596,6 @@ FVector2D SWidget::GetDesiredSize() const
 {
 	return DesiredSize.Get(FVector2D::ZeroVector);
 }
-
 
 void SWidget::AssignParentWidget(TSharedPtr<SWidget> InParent)
 {
