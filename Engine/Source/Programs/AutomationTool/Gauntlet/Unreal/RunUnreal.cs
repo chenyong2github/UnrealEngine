@@ -123,7 +123,7 @@ namespace Gauntlet
 			DirectoryReference UnrealPath = new DirectoryReference(Environment.CurrentDirectory);
 					
 			// todo, pass this in as a BuildSource and remove the COntextOption params specific to finding builds
-			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
+			UnrealBuildSource BuildInfo = (UnrealBuildSource)Activator.CreateInstance(ContextOptions.BuildSourceType, new object[] { ContextOptions.Project, ContextOptions.ProjectPath, UnrealPath, ContextOptions.UsesSharedBuildType, ContextOptions.Build, ContextOptions.SearchPaths });
 
 			// Setup accounts
 			SetupAccounts();

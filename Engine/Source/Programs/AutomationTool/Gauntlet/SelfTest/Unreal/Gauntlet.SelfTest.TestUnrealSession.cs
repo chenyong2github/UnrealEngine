@@ -33,7 +33,7 @@ namespace Gauntlet.SelfTest
 			});
 			
 			// Create a new build (params come from our base class will be similar to "OrionGame" and "p:\builds\orion\branch-cl")
-			UnrealBuildSource Build = new UnrealBuildSource(this.ProjectFile, this.UnrealPath, this.UsesSharedBuildType, this.BuildPath, new string[] { "" });
+			UnrealBuildSource Build = new UnrealBuildSource(this.ProjectName, this.ProjectFile, this.UnrealPath, this.UsesSharedBuildType, this.BuildPath, new string[] { "" });
 
 			// create a new options structure
 			UnrealOptions Options = new UnrealOptions();
