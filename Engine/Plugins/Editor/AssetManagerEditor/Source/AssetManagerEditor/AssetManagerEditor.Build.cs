@@ -43,6 +43,7 @@ public class AssetManagerEditor : ModuleRules
 				"SandboxFile",
 				"EditorWidgets",
 				"TreeMap",
+				"ToolMenus",
 			}
 		);
 	}

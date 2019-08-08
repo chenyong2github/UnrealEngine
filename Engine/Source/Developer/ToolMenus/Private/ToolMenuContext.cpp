@@ -98,6 +98,22 @@ const FUIAction* FToolMenuContext::GetActionForCommand(TSharedPtr<const FUIComma
 	return nullptr;
 }
 
+const FUIAction* FToolMenuContext::GetActionForCommand(TSharedPtr<const FUICommandInfo> Command) const
+{
+	for (const TSharedPtr<FUICommandList>& CommandListIter : CommandLists)
+	{
+		if (CommandListIter.IsValid())
+		{
+			if (const FUIAction* Result = CommandListIter->GetActionForCommand(Command))
+			{
+				return Result;
+			}
+		}
+	}
+
+	return nullptr;
+}
+
 void FToolMenuContext::AddExtender(const TSharedPtr<FExtender>& InExtender)
 {
 	Extenders.AddUnique(InExtender);

@@ -4,6 +4,7 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
 #include "AIGraphNode.h"
 #include "GraphEditorActions.h"
@@ -170,54 +171,56 @@ void UAIGraphSchema::GetGraphNodeContextActions(FGraphContextMenuBuilder& Contex
 	}
 }
 
-void UAIGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UAIGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
-	if (InGraphPin)
+	if (Context->Pin)
 	{
-		MenuBuilder->BeginSection("AIGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 		{
+			FToolMenuSection& Section = Menu->AddSection("AIGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			// Only display the 'Break Links' option if there is a link to break!
-			if (InGraphPin->LinkedTo.Num() > 0)
+			if (Context->Pin->LinkedTo.Num() > 0)
 			{
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 
 				// add sub menu for break link to
-				if (InGraphPin->LinkedTo.Num() > 1)
+				if (Context->Pin->LinkedTo.Num() > 1)
 				{
-					MenuBuilder->AddSubMenu(
+					Section.AddSubMenu(
+						Menu->GetMenuName(),
+						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..."),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-						FNewMenuDelegate::CreateUObject((UAIGraphSchema*const)this, &UAIGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+						FNewToolMenuDelegate::CreateUObject((UAIGraphSchema*const)this, &UAIGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(Context->Pin)));
 				}
 				else
 				{
-					((UAIGraphSchema*const)this)->GetBreakLinkToSubMenuActions(*MenuBuilder, const_cast<UEdGraphPin*>(InGraphPin));
+					((UAIGraphSchema*const)this)->GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(Context->Pin));
 				}
 			}
 		}
-		MenuBuilder->EndSection();
 	}
-	else if (InGraphNode)
+	else if (Context->Node)
 	{
-		MenuBuilder->BeginSection("BehaviorTreeGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
 		{
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Cut);
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Copy);
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Duplicate);
+			FToolMenuSection& Section = Menu->AddSection("BehaviorTreeGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "Node Actions"));
+			Section.AddMenuEntry(FGenericCommands::Get().Delete);
+			Section.AddMenuEntry(FGenericCommands::Get().Cut);
+			Section.AddMenuEntry(FGenericCommands::Get().Copy);
+			Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
 
-			MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
 		}
-		MenuBuilder->EndSection();
 	}
 
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 }
 
-void UAIGraphSchema::GetBreakLinkToSubMenuActions(class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin)
+void UAIGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
 {
 	// Make sure we have a unique name for every entry in the list
 	TMap< FString, uint32 > LinkTitleCount;
+
+	FToolMenuSection& Section = Menu->FindOrAddSection("AIGraphSchemaPinActions");
 
 	// Add all the links we could break from
 	for (TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
@@ -253,7 +256,7 @@ void UAIGraphSchema::GetBreakLinkToSubMenuActions(class FMenuBuilder& MenuBuilde
 		}
 		++Count;
 
-		MenuBuilder.AddMenuEntry(Description, Description, FSlateIcon(), FUIAction(
+		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
 			FExecuteAction::CreateUObject(this, &UAIGraphSchema::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links)));
 	}
 }

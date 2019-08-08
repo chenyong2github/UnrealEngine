@@ -19,6 +19,7 @@
 #include "BehaviorTreeGraphNode_Service.h"
 #include "BehaviorTreeGraphNode_Task.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "BehaviorTreeEditorModule.h"
 #include "IBehaviorTreeEditor.h"
 #include "BehaviorTreeDebugger.h"
@@ -209,26 +210,25 @@ void UEdGraphSchema_BehaviorTree::GetGraphContextActions(FGraphContextMenuBuilde
 	}
 }
 
-void UEdGraphSchema_BehaviorTree::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UEdGraphSchema_BehaviorTree::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (InGraphNode && !InGraphPin)
+	if (Context->Node && !Context->Pin)
 	{
-		const UBehaviorTreeGraphNode* BTGraphNode = Cast<const UBehaviorTreeGraphNode>(InGraphNode);
+		const UBehaviorTreeGraphNode* BTGraphNode = Cast<const UBehaviorTreeGraphNode>(Context->Node);
 		if (BTGraphNode && BTGraphNode->CanPlaceBreakpoints())
 		{
-			MenuBuilder->BeginSection("EdGraphSchemaBreakpoints", LOCTEXT("BreakpointsHeader", "Breakpoints"));
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaBreakpoints", LOCTEXT("BreakpointsHeader", "Breakpoints"));
 			{
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ToggleBreakpoint);
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().AddBreakpoint);
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RemoveBreakpoint);
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().EnableBreakpoint);
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().DisableBreakpoint);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().ToggleBreakpoint);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().AddBreakpoint);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveBreakpoint);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().EnableBreakpoint);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().DisableBreakpoint);
 			}
-			MenuBuilder->EndSection();
 		}
 	}
 
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 }
 
 const FPinConnectionResponse UEdGraphSchema_BehaviorTree::CanCreateConnection(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const

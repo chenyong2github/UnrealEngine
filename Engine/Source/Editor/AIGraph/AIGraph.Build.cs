@@ -40,7 +40,8 @@ public class AIGraph : ModuleRules
 				"AnimGraph",
 				"BlueprintGraph",
                 "AIModule",
-				"ClassViewer"
+				"ClassViewer",
+				"ToolMenus",
 			}
         );
 

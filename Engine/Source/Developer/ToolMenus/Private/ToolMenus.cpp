@@ -161,7 +161,7 @@ void UToolMenus::AssembleMenuByName(UToolMenu* GeneratedMenu, const FName InName
 {
 	if (UToolMenu* Menu = FindMenu(InName))
 	{
-		GeneratedMenu->InitGeneratedCopy(Menu);
+		GeneratedMenu->InitGeneratedCopy(Menu, Menu->MenuName);
 		AssembleMenuHierarchy(GeneratedMenu, CollectHierarchy(InName));
 	}
 }
@@ -569,8 +569,9 @@ void UToolMenus::PopulateMenuBuilder(FMenuBuilder& MenuBuilder, UToolMenu* MenuD
 		);
 	}
 
-	for (FToolMenuSection& Section : MenuData->Sections)
+	for (int i=0; i < MenuData->Sections.Num(); ++i)
 	{
+		FToolMenuSection& Section = MenuData->Sections[i];
 		if (Section.Construct.NewToolMenuDelegateLegacy.IsBound())
 		{
 			Section.Construct.NewToolMenuDelegateLegacy.Execute(MenuBuilder, MenuData);
@@ -1120,9 +1121,7 @@ UToolMenu* UToolMenus::GenerateMenu(const TArray<UToolMenu*>& Hierarchy, FToolMe
 
 	if (Hierarchy.Num() > 0)
 	{
-		GeneratedMenu->InitGeneratedCopy(Hierarchy[0]);
-		GeneratedMenu->MenuName = Hierarchy.Last()->MenuName;
-		GeneratedMenu->Context = InMenuContext;
+		GeneratedMenu->InitGeneratedCopy(Hierarchy[0], Hierarchy.Last()->MenuName, &InMenuContext);
 		AssembleMenuHierarchy(GeneratedMenu, Hierarchy);
 	}
 

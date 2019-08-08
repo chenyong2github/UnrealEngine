@@ -13,7 +13,6 @@ namespace UnrealBuildTool.Rules
 					"ApplicationCore",
 					"Slate",
 					"SlateCore",
-					"Engine",
 				}
 			);
 		}

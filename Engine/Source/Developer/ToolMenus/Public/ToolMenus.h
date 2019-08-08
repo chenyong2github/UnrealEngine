@@ -264,6 +264,9 @@ public:
 	/** For advanced use cases */
 	void AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy);
 
+	/* Returns list of menus starting with root parent */
+	TArray<UToolMenu*> CollectHierarchy(const FName Name);
+
 	/** For advanced use cases */
 	FToolMenuOwner CurrentOwner() const;
 
@@ -313,8 +316,6 @@ private:
 	void PopOwner(const FToolMenuOwner InOwner);
 
 	UToolMenu* FindSubMenuToGenerateWith(const FName InParentName, const FName InChildName);
-
-	TArray<UToolMenu*> CollectHierarchy(const FName Name);
 
 	void FillMenu(FMenuBuilder& MenuBuilder, FName InMenuName, FToolMenuContext InMenuContext);
 	void FillMenuBarDropDown(FMenuBuilder& MenuBuilder, FName InParentName, FName InChildName, FToolMenuContext InMenuContext);

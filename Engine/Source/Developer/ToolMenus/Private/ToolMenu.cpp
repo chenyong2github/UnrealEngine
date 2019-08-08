@@ -30,11 +30,11 @@ void UToolMenu::InitMenu(const FToolMenuOwner InOwner, FName InName, FName InPar
 	MenuType = InType;
 }
 
-void UToolMenu::InitGeneratedCopy(const UToolMenu* Source)
+void UToolMenu::InitGeneratedCopy(const UToolMenu* Source, const FName InMenuName, const FToolMenuContext* InContext)
 {
-	// Skip sections and context
+	// Skip sections
 
-	MenuName = Source->MenuName;
+	MenuName = InMenuName;
 	MenuParent = Source->MenuParent;
 	StyleName = Source->StyleName;
 	TutorialHighlightName = Source->TutorialHighlightName;
@@ -46,6 +46,11 @@ void UToolMenu::InitGeneratedCopy(const UToolMenu* Source)
 	bToolBarIsFocusable = Source->bToolBarIsFocusable;
 	bToolBarForceSmallIcons = Source->bToolBarForceSmallIcons;
 	MenuOwner = Source->MenuOwner;
+
+	if (InContext)
+	{
+		Context = *InContext;
+	}
 }
 
 int32 UToolMenu::IndexOfSection(const FName InSectionName) const

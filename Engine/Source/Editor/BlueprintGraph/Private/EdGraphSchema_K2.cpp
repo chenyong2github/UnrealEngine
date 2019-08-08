@@ -29,6 +29,7 @@
 #include "Framework/Commands/UIAction.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "GraphEditorSettings.h"
 #include "K2Node.h"
 #include "EdGraphSchema_K2_Actions.h"
@@ -1084,7 +1085,7 @@ void UEdGraphSchema_K2::ReplaceSelectedNode(UEdGraphNode* SourceNode, AActor* Ta
 	}
 }
 
-void UEdGraphSchema_K2::AddSelectedReplaceableNodes( UBlueprint* Blueprint, const UEdGraphNode* InGraphNode, FMenuBuilder* MenuBuilder ) const
+void UEdGraphSchema_K2::AddSelectedReplaceableNodes(FToolMenuSection& Section, UBlueprint* Blueprint, const UEdGraphNode* InGraphNode) const
 {
 	//Only allow replace object reference functionality for literal nodes
 	const UK2Node_Literal* LiteralNode = Cast<UK2Node_Literal>(InGraphNode);
@@ -1099,7 +1100,7 @@ void UEdGraphSchema_K2::AddSelectedReplaceableNodes( UBlueprint* Blueprint, cons
 			{
 				FText Description = FText::Format( LOCTEXT("ChangeToActorName", "Change to <{0}>"), FText::FromString( Actor->GetActorLabel() ) );
 				FText ToolTip = LOCTEXT("ReplaceNodeReferenceToolTip", "Replace node reference");
-				MenuBuilder->AddMenuEntry( Description, ToolTip, FSlateIcon(), FUIAction(
+				Section.AddMenuEntry(NAME_None, Description, ToolTip, FSlateIcon(), FUIAction(
 					FExecuteAction::CreateUObject((UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::ReplaceSelectedNode, const_cast< UEdGraphNode* >(InGraphNode), Actor) ) );
 			}
 		}
@@ -1410,33 +1411,38 @@ void UEdGraphSchema_K2::SelectAllNodesInDirection(TEnumAsByte<enum EEdGraphPinDi
 	}
 }
 
-void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
+	const UEdGraph* CurrentGraph = Context->Graph;
+	const UEdGraphNode* InGraphNode = Context->Node;
+	const UEdGraphPin* InGraphPin = Context->Pin;
+	const bool bIsDebugging = Context->bIsDebugging;
 	check(CurrentGraph);
 	UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
 
 	if (InGraphPin != NULL)
 	{
-		MenuBuilder->BeginSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 		{
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			if (!bIsDebugging)
 			{
 				// Break pin links
 				if (InGraphPin->LinkedTo.Num() > 1)
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakPinLinks );
+					Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 				}
 	
 				// Add the change pin type action, if this is a select node
 				if (InGraphNode->IsA(UK2Node_Select::StaticClass()))
 				{
-					MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ChangePinType);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().ChangePinType);
 				}
 	
 				// add sub menu for break link to
 				if (InGraphPin->LinkedTo.Num() > 0)
 				{
-					MenuBuilder->AddMenuEntry(
+					Section.AddMenuEntry(
+						"SelectAllInputNodes",
 						InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input ? LOCTEXT("SelectAllInputNodes", "Select All Input Nodes") : LOCTEXT("SelectAllOutputNodes", "Select All Output Nodes"),
 						InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input ? LOCTEXT("SelectAllInputNodesTooltip", "Adds all input Nodes linked to this Pin to selection") : LOCTEXT("SelectAllOutputNodesTooltip", "Adds all output Nodes linked to this Pin to selection"),
 						FSlateIcon(),
@@ -1444,25 +1450,31 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 
 					if(InGraphPin->LinkedTo.Num() > 1)
 					{
-						MenuBuilder->AddSubMenu(
+						Section.AddEntry(FToolMenuEntry::InitSubMenu(
+							Menu->GetMenuName(),
+							"BreakLinkTo",
 							LOCTEXT("BreakLinkTo", "Break Link To..."),
 							LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-							FNewMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
 
-						MenuBuilder->AddSubMenu(
+						Section.AddEntry(FToolMenuEntry::InitSubMenu(
+							Menu->GetMenuName(),
+							"JumpToConnection",
 							LOCTEXT("JumpToConnection", "Jump to Connection..."),
 							LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
-							FNewMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
 
-						MenuBuilder->AddSubMenu(
+						Section.AddEntry(FToolMenuEntry::InitSubMenu(
+							Menu->GetMenuName(),
+							"StraightenConnection",
 							LOCTEXT("StraightenConnection", "Straighten Connection To..."),
 							LOCTEXT("StraightenConnection_Tip", "Straighten a specific connection"),
-							FNewMenuDelegate::CreateUObject( this, &UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+							FNewToolMenuDelegate::CreateUObject( this, &UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
 					}
 					else
 					{
-						((UEdGraphSchema_K2*const)this)->GetBreakLinkToSubMenuActions(*MenuBuilder, const_cast<UEdGraphPin*>(InGraphPin));
-						((UEdGraphSchema_K2*const)this)->GetJumpToConnectionSubMenuActions(*MenuBuilder, const_cast<UEdGraphPin*>(InGraphPin));
+						((UEdGraphSchema_K2*const)this)->GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
+						((UEdGraphSchema_K2*const)this)->GetJumpToConnectionSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
 						
 						UEdGraphPin* Pin = InGraphPin->LinkedTo[0];
 						FText PinName = Pin->GetDisplayName();
@@ -1481,9 +1493,8 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 							EntryTooltip = FText::Format(LOCTEXT("StraightenDescription_SinglePin_Node_Tip", "Straighten the connection between this pin, and {0} ({1})"), NodeName, PinName);
 						}
 
-						MenuBuilder->AddMenuEntry(
+						Section.AddMenuEntry(
 							FGraphEditorCommands::Get().StraightenConnections,
-							NAME_None,
 							EntryTitle,
 							EntryTooltip,
 							FSlateIcon(NAME_None, NAME_None, NAME_None)
@@ -1494,11 +1505,11 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 				// Conditionally add the var promotion pin if this is an output pin and it's not an exec pin
 				if (InGraphPin->PinType.PinCategory != PC_Exec)
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().PromoteToVariable );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteToVariable );
 
 					if (FBlueprintEditorUtils::DoesSupportLocalVariables(CurrentGraph))
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().PromoteToLocalVariable );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteToLocalVariable );
 					}
 				}
 	
@@ -1514,12 +1525,12 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 					{
 						Tooltip = LOCTEXT("SplitStructPin_Error", "Cannot split the struct pin, it may be missing Blueprint exposed properties!");
 					}
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().SplitStructPin, NAME_None, FGraphEditorCommands::Get().SplitStructPin->GetLabel(), Tooltip );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().SplitStructPin, FGraphEditorCommands::Get().SplitStructPin->GetLabel(), Tooltip );
 				}
 
 				if (InGraphPin->ParentPin != NULL)
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().RecombineStructPin );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().RecombineStructPin );
 				}
 	
 				// Conditionally add the execution path pin options if this is an execution branching node
@@ -1527,167 +1538,162 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 				{
 					if (CastChecked<UK2Node>(InGraphPin->GetOwningNode())->CanEverInsertExecutionPin())
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().InsertExecutionPinBefore);
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().InsertExecutionPinAfter);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().InsertExecutionPinBefore);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().InsertExecutionPinAfter);
 					}
 
 					if (CastChecked<UK2Node>(InGraphPin->GetOwningNode())->CanEverRemoveExecutionPin())
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().RemoveExecutionPin );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().RemoveExecutionPin );
 					}
 				}
 
 				if (UK2Node_SetFieldsInStruct::ShowCustomPinActions(InGraphPin, true))
 				{
-					MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RemoveThisStructVarPin);
-					MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RemoveOtherStructVarPins);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveThisStructVarPin);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveOtherStructVarPins);
 				}
 
 				if (InGraphPin->PinType.PinCategory != PC_Exec && InGraphPin->Direction == EGPD_Input && InGraphPin->LinkedTo.Num() == 0 && !ShouldHidePinDefaultValue(const_cast<UEdGraphPin*>(InGraphPin)))
 				{
-					MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().ResetPinToDefaultValue);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().ResetPinToDefaultValue);
 				}
 			}
 		}
-		MenuBuilder->EndSection();
 
 		// Add the watch pin / unwatch pin menu items
-		MenuBuilder->BeginSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
 		{
+			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
 			if (!IsMetaPin(*InGraphPin))
 			{
 				const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
 				if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().StopWatchingPin );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().StopWatchingPin );
 				}
 				else
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().StartWatchingPin );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().StartWatchingPin );
 				}
 			}
 		}
-		MenuBuilder->EndSection();
 	}
 	else if (InGraphNode != NULL)
 	{
 		if (IsUsingNonExistantVariable(InGraphNode, OwnerBlueprint))
 		{
-			MenuBuilder->BeginSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
 			{
-				GetNonExistentVariableMenu(InGraphNode,OwnerBlueprint, MenuBuilder);
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+				GetNonExistentVariableMenu(Section, InGraphNode, OwnerBlueprint);
 			}
-			MenuBuilder->EndSection();
 		}
 		else
 		{
-			MenuBuilder->BeginSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
 			{
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
 				if (!bIsDebugging)
 				{
 					// Replaceable node display option
-					AddSelectedReplaceableNodes( OwnerBlueprint, InGraphNode, MenuBuilder );
+					AddSelectedReplaceableNodes(Section, OwnerBlueprint, InGraphNode);
 
 					// Node contextual actions
-					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete );
-					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Cut );
-					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Copy );
-					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Duplicate );
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ReconstructNodes );
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakNodeLinks );
+					Section.AddMenuEntry( FGenericCommands::Get().Delete );
+					Section.AddMenuEntry( FGenericCommands::Get().Cut );
+					Section.AddMenuEntry( FGenericCommands::Get().Copy );
+					Section.AddMenuEntry( FGenericCommands::Get().Duplicate );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().ReconstructNodes );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().BreakNodeLinks );
 
 					// Conditionally add the action to add an execution pin, if this is an execution node
 					if( InGraphNode->IsA(UK2Node_ExecutionSequence::StaticClass()) || InGraphNode->IsA(UK2Node_Switch::StaticClass()) )
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().AddExecutionPin );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().AddExecutionPin );
 					}
 
 					// Conditionally add the action to create a super function call node, if this is an event or function entry
 					if( InGraphNode->IsA(UK2Node_Event::StaticClass()) || InGraphNode->IsA(UK2Node_FunctionEntry::StaticClass()) )
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().AddParentNode );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().AddParentNode );
 					}
 
 					// Conditionally add the actions to add or remove an option pin, if this is a select node
 					if (InGraphNode->IsA(UK2Node_Select::StaticClass()))
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().AddOptionPin);
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RemoveOptionPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().AddOptionPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveOptionPin);
 					}
 
 					// Don't show the "Assign selected Actor" option if more than one actor is selected
 					if (InGraphNode->IsA(UK2Node_ActorBoundEvent::StaticClass()) && GEditor->GetSelectedActorCount() == 1)
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().AssignReferencedActor);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().AssignReferencedActor);
 					}
 				}
 
 				// If the node has an associated definition (for some loose sense of the word), allow going to it (same action as double-clicking on a node)
 				if (InGraphNode->CanJumpToDefinition())
 				{
-					MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().GoToDefinition);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().GoToDefinition);
 				}
 
 				// show search for references for everyone
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
 
 				if (!bIsDebugging)
 				{
 					if (InGraphNode->IsA(UK2Node_Variable::StaticClass()))
 					{
-						GetReplaceVariableMenu(InGraphNode, OwnerBlueprint, MenuBuilder, true);
+						GetReplaceVariableMenu(Section, InGraphNode, OwnerBlueprint, true);
 					}
 
 					if (InGraphNode->IsA(UK2Node_SetFieldsInStruct::StaticClass()))
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RestoreAllStructVarPins);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().RestoreAllStructVarPins);
 					}
 
-					MenuBuilder->AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("Rename", "Rename"), LOCTEXT("Rename_Tooltip", "Renames selected function or variable in blueprint.") );
+					Section.AddMenuEntry(FGenericCommands::Get().Rename, LOCTEXT("Rename", "Rename"), LOCTEXT("Rename_Tooltip", "Renames selected function or variable in blueprint.") );
 				}
 
 				// Select referenced actors in the level
-				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().SelectReferenceInLevel );
+				Section.AddMenuEntry(FGraphEditorCommands::Get().SelectReferenceInLevel);
 			}
-			MenuBuilder->EndSection(); //EdGraphSchemaNodeActions
 
 			if (!bIsDebugging)
 			{
 				// Collapse/expand nodes
-				MenuBuilder->BeginSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().CollapseNodes );
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToFunction );
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToMacro );
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ExpandNodes );
+					FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaOrganization", LOCTEXT("OrganizationHeader", "Organization"));
+					Section.AddMenuEntry( FGraphEditorCommands::Get().CollapseNodes );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToFunction );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().CollapseSelectionToMacro );
+					Section.AddMenuEntry( FGraphEditorCommands::Get().ExpandNodes );
 
 					if(InGraphNode->IsA(UK2Node_Composite::StaticClass()))
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToFunction );
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToMacro );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToFunction );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().PromoteSelectionToMacro );
 					}
 
-					MenuBuilder->AddSubMenu(LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewMenuDelegate::CreateLambda([](FMenuBuilder& InMenuBuilder){
-						
-						InMenuBuilder.BeginSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesTop );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesMiddle );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesBottom );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesLeft );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesCenter );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().AlignNodesRight );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().StraightenConnections );
-						InMenuBuilder.EndSection();
+					Section.AddEntry(FToolMenuEntry::InitSubMenu(Menu->GetMenuName(), "Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* AlignmentMenu)
+					{
+						{
+							FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+						}
 
-						InMenuBuilder.BeginSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().DistributeNodesHorizontally );
-						InMenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().DistributeNodesVertically );
-						InMenuBuilder.EndSection();
-						
-					}));
+						{
+							FToolMenuSection& InSection = AlignmentMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+							InSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+						}
+					})));
 				}
-				
-				MenuBuilder->EndSection();
 			}
 
 			if (const UK2Node* K2Node = Cast<const UK2Node>(InGraphNode))
@@ -1700,71 +1706,62 @@ void UEdGraphSchema_K2::GetContextMenuActions(const UEdGraph* CurrentGraph, cons
 						if (!K2Node->IsAutomaticallyPlacedGhostNode())
 						{
 							// Add compile options
-							MenuBuilder->BeginSection("EdGraphSchemaCompileOptions", LOCTEXT("CompileOptionsHeader", "Compile Options"));
 							{
-								MenuBuilder->AddMenuEntry(
+								FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaCompileOptions", LOCTEXT("CompileOptionsHeader", "Compile Options"));
+								Section.AddMenuEntry(
 									FGraphEditorCommands::Get().DisableNodes,
-									NAME_None,
 									LOCTEXT("DisableCompile", "Disable (Do Not Compile)"),
 									LOCTEXT("DisableCompileToolTip", "Selected node(s) will not be compiled."));
 
-								TSharedPtr<const FUICommandList> MenuCommandList = MenuBuilder->GetTopCommandList();
-								if(ensure(MenuCommandList.IsValid()))
 								{
-									const FUIAction* SubMenuUIAction = MenuCommandList->GetActionForCommand(FGraphEditorCommands::Get().EnableNodes);
+									const FUIAction* SubMenuUIAction = Menu->Context.GetActionForCommand(FGraphEditorCommands::Get().EnableNodes);
 									if(ensure(SubMenuUIAction))
 									{
-										MenuBuilder->AddSubMenu(
+										Section.AddEntry(FToolMenuEntry::InitSubMenu(
+											Menu->GetMenuName(),
+											"EnableCompileSubMenu",
 											LOCTEXT("EnableCompileSubMenu", "Enable Compile"),
 											LOCTEXT("EnableCompileSubMenuToolTip", "Options to enable selected node(s) for compile."),
-											FNewMenuDelegate::CreateLambda([MenuCommandList](FMenuBuilder& SubMenuBuilder)
+											FNewToolMenuDelegate::CreateLambda([](UToolMenu* SubMenu)
 											{
-												SubMenuBuilder.PushCommandList(MenuCommandList.ToSharedRef());
-
-												SubMenuBuilder.AddMenuEntry(
+												FToolMenuSection& SubMenuSection = SubMenu->AddSection("Section");
+												SubMenuSection.AddMenuEntry(
 													FGraphEditorCommands::Get().EnableNodes_Always,
-													NAME_None,
 													LOCTEXT("EnableCompileAlways", "Always"),
 													LOCTEXT("EnableCompileAlwaysToolTip", "Always compile selected node(s)."));
-												SubMenuBuilder.AddMenuEntry(
+												SubMenuSection.AddMenuEntry(
 													FGraphEditorCommands::Get().EnableNodes_DevelopmentOnly,
-													NAME_None,
 													LOCTEXT("EnableCompileDevelopmentOnly", "Development Only"),
 													LOCTEXT("EnableCompileDevelopmentOnlyToolTip", "Compile selected node(s) for development only."));
-
-												SubMenuBuilder.PopCommandList();
 											}),
 											*SubMenuUIAction,
-											NAME_None, FGraphEditorCommands::Get().EnableNodes->GetUserInterfaceType());
+											FGraphEditorCommands::Get().EnableNodes->GetUserInterfaceType()));
 									}
 								}
 							}
-							MenuBuilder->EndSection();
 						}
 					}
 					
 					// Add breakpoint actions
-					MenuBuilder->BeginSection("EdGraphSchemaBreakpoints", LOCTEXT("BreakpointsHeader", "Breakpoints"));
 					{
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ToggleBreakpoint );
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().AddBreakpoint );
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().RemoveBreakpoint );
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().EnableBreakpoint );
-						MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().DisableBreakpoint );
+						FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaBreakpoints", LOCTEXT("BreakpointsHeader", "Breakpoints"));
+						Section.AddMenuEntry( FGraphEditorCommands::Get().ToggleBreakpoint );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().AddBreakpoint );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().RemoveBreakpoint );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().EnableBreakpoint );
+						Section.AddMenuEntry( FGraphEditorCommands::Get().DisableBreakpoint );
 					}
-					MenuBuilder->EndSection();
 				}
 			}
 
-			MenuBuilder->BeginSection("EdGraphSchemaDocumentation", LOCTEXT("DocumentationHeader", "Documentation"));
 			{
-				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().GoToDocumentation );
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaDocumentation", LOCTEXT("DocumentationHeader", "Documentation"));
+				Section.AddMenuEntry( FGraphEditorCommands::Get().GoToDocumentation );
 			}
-			MenuBuilder->EndSection();
 		}
 	}
 
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 }
 
 
@@ -1836,7 +1833,7 @@ void UEdGraphSchema_K2::OnReplaceVariableForVariableNode( UK2Node_Variable* Vari
 	}
 }
 
-void UEdGraphSchema_K2::GetReplaceVariableMenu(FMenuBuilder& MenuBuilder, UK2Node_Variable* Variable,  UBlueprint* OwnerBlueprint, bool bReplaceExistingVariable/*=false*/)
+void UEdGraphSchema_K2::GetReplaceVariableMenu(UToolMenu* Menu, UK2Node_Variable* Variable,  UBlueprint* OwnerBlueprint, bool bReplaceExistingVariable/*=false*/)
 {
 	if (UEdGraphPin* Pin = Variable->FindPin(Variable->GetVarName()))
 	{
@@ -1855,23 +1852,24 @@ void UEdGraphSchema_K2::GetReplaceVariableMenu(FMenuBuilder& MenuBuilder, UK2Nod
 		TArray<FName> Variables;
 		FBlueprintEditorUtils::GetNewVariablesOfType(OwnerBlueprint, Pin->PinType, Variables);
 
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("Variables", "Variables"));
-		for (TArray<FName>::TIterator VarIt(Variables); VarIt; ++VarIt)
 		{
-			if(*VarIt != ExistingVariableName)
+			FToolMenuSection& Section = Menu->AddSection(NAME_None, LOCTEXT("Variables", "Variables"));
+			for (TArray<FName>::TIterator VarIt(Variables); VarIt; ++VarIt)
 			{
-				const FText AlternativeVar = FText::FromName( *VarIt );
+				if (*VarIt != ExistingVariableName)
+				{
+					const FText AlternativeVar = FText::FromName(*VarIt);
 
-				FFormatNamedArguments TooltipArgs;
-				TooltipArgs.Add(TEXT("OldVariable"), Variable->GetVarNameText());
-				TooltipArgs.Add(TEXT("AlternateVariable"), AlternativeVar);
-				const FText Desc = FText::Format(ReplaceVariableWithTooltipFormat, TooltipArgs);
+					FFormatNamedArguments TooltipArgs;
+					TooltipArgs.Add(TEXT("OldVariable"), Variable->GetVarNameText());
+					TooltipArgs.Add(TEXT("AlternateVariable"), AlternativeVar);
+					const FText Desc = FText::Format(ReplaceVariableWithTooltipFormat, TooltipArgs);
 
-				MenuBuilder.AddMenuEntry( AlternativeVar, Desc, FSlateIcon(), FUIAction(
-					FExecuteAction::CreateStatic(&UEdGraphSchema_K2::OnReplaceVariableForVariableNode, const_cast<UK2Node_Variable* >(Variable), OwnerBlueprint, *VarIt, /*bIsSelfMember=*/true ) ) );
+					Section.AddMenuEntry(NAME_None, AlternativeVar, Desc, FSlateIcon(), FUIAction(
+						FExecuteAction::CreateStatic(&UEdGraphSchema_K2::OnReplaceVariableForVariableNode, const_cast<UK2Node_Variable*>(Variable), OwnerBlueprint, *VarIt, /*bIsSelfMember=*/true)));
+				}
 			}
 		}
-		MenuBuilder.EndSection();
 
 		FText ReplaceLocalVariableWithTooltipFormat;
 		if(!bReplaceExistingVariable)
@@ -1886,27 +1884,28 @@ void UEdGraphSchema_K2::GetReplaceVariableMenu(FMenuBuilder& MenuBuilder, UK2Nod
 		TArray<FName> LocalVariables;
 		FBlueprintEditorUtils::GetLocalVariablesOfType(Variable->GetGraph(), Pin->PinType, LocalVariables);
 
-		MenuBuilder.BeginSection(NAME_None, LOCTEXT("LocalVariables", "LocalVariables"));
-		for (TArray<FName>::TIterator VarIt(LocalVariables); VarIt; ++VarIt)
 		{
-			if(*VarIt != ExistingVariableName)
+			FToolMenuSection& Section = Menu->AddSection(NAME_None, LOCTEXT("LocalVariables", "LocalVariables"));
+			for (TArray<FName>::TIterator VarIt(LocalVariables); VarIt; ++VarIt)
 			{
-				const FText AlternativeVar = FText::FromName( *VarIt );
+				if (*VarIt != ExistingVariableName)
+				{
+					const FText AlternativeVar = FText::FromName(*VarIt);
 
-				FFormatNamedArguments TooltipArgs;
-				TooltipArgs.Add(TEXT("OldVariable"), Variable->GetVarNameText());
-				TooltipArgs.Add(TEXT("AlternateVariable"), AlternativeVar);
-				const FText Desc = FText::Format( ReplaceLocalVariableWithTooltipFormat, TooltipArgs );
+					FFormatNamedArguments TooltipArgs;
+					TooltipArgs.Add(TEXT("OldVariable"), Variable->GetVarNameText());
+					TooltipArgs.Add(TEXT("AlternateVariable"), AlternativeVar);
+					const FText Desc = FText::Format(ReplaceLocalVariableWithTooltipFormat, TooltipArgs);
 
-				MenuBuilder.AddMenuEntry( AlternativeVar, Desc, FSlateIcon(), FUIAction(
-					FExecuteAction::CreateStatic(&UEdGraphSchema_K2::OnReplaceVariableForVariableNode, const_cast<UK2Node_Variable* >(Variable),OwnerBlueprint, *VarIt, /*bIsSelfMember=*/false ) ) );
+					Section.AddMenuEntry(NAME_None, AlternativeVar, Desc, FSlateIcon(), FUIAction(
+						FExecuteAction::CreateStatic(&UEdGraphSchema_K2::OnReplaceVariableForVariableNode, const_cast<UK2Node_Variable*>(Variable), OwnerBlueprint, *VarIt, /*bIsSelfMember=*/false)));
+				}
 			}
 		}
-		MenuBuilder.EndSection();
 	}
 }
 
-void UEdGraphSchema_K2::GetNonExistentVariableMenu( const UEdGraphNode* InGraphNode, UBlueprint* OwnerBlueprint, FMenuBuilder* MenuBuilder ) const
+void UEdGraphSchema_K2::GetNonExistentVariableMenu(FToolMenuSection& Section, const UEdGraphNode* InGraphNode, UBlueprint* OwnerBlueprint) const
 {
 
 	if (const UK2Node_Variable* Variable = Cast<const UK2Node_Variable>(InGraphNode))
@@ -1920,7 +1919,7 @@ void UEdGraphSchema_K2::GetNonExistentVariableMenu( const UEdGraphNode* InGraphN
 				// create missing variable
 				const FText Label = FText::Format( LOCTEXT("CreateNonExistentVar", "Create variable '{0}'"), Variable->GetVarNameText());
 				const FText Desc = FText::Format( LOCTEXT("CreateNonExistentVarToolTip", "Variable '{0}' does not exist, create it?"), Variable->GetVarNameText());
-				MenuBuilder->AddMenuEntry( Label, Desc, FSlateIcon(), FUIAction(
+				Section.AddMenuEntry("CreateNonExistentVar", Label, Desc, FSlateIcon(), FUIAction(
 					FExecuteAction::CreateStatic( &UEdGraphSchema_K2::OnCreateNonExistentVariable, const_cast<UK2Node_Variable* >(Variable),OwnerBlueprint) ) );
 			}
 
@@ -1929,7 +1928,7 @@ void UEdGraphSchema_K2::GetNonExistentVariableMenu( const UEdGraphNode* InGraphN
 			{
 				const FText Label = FText::Format( LOCTEXT("CreateNonExistentLocalVar", "Create local variable '{0}'"), Variable->GetVarNameText());
 				const FText Desc = FText::Format( LOCTEXT("CreateNonExistentLocalVarToolTip", "Local variable '{0}' does not exist, create it?"), Variable->GetVarNameText());
-				MenuBuilder->AddMenuEntry( Label, Desc, FSlateIcon(), FUIAction(
+				Section.AddMenuEntry("CreateNonExistentLocalVar", Label, Desc, FSlateIcon(), FUIAction(
 					FExecuteAction::CreateStatic( &UEdGraphSchema_K2::OnCreateNonExistentLocalVariable, const_cast<UK2Node_Variable* >(Variable),OwnerBlueprint) ) );
 			}
 		}
@@ -1937,14 +1936,14 @@ void UEdGraphSchema_K2::GetNonExistentVariableMenu( const UEdGraphNode* InGraphN
 		// delete this node
 		{			
 			const FText Desc = FText::Format( LOCTEXT("DeleteNonExistentVarToolTip", "Referenced variable '{0}' does not exist, delete this node?"), Variable->GetVarNameText());
-			MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete, NAME_None, FGenericCommands::Get().Delete->GetLabel(), Desc);
+			Section.AddMenuEntry(FGenericCommands::Get().Delete, FGenericCommands::Get().Delete->GetLabel(), Desc, FSlateIcon(), NAME_None, "DeleteNonExistentVar");
 		}
 
-		GetReplaceVariableMenu(InGraphNode, OwnerBlueprint, MenuBuilder);
+		GetReplaceVariableMenu(Section, InGraphNode, OwnerBlueprint);
 	}
 }
 
-void UEdGraphSchema_K2::GetReplaceVariableMenu(const UEdGraphNode* InGraphNode, UBlueprint* InOwnerBlueprint, FMenuBuilder* InMenuBuilder, bool bInReplaceExistingVariable/* = false*/) const
+void UEdGraphSchema_K2::GetReplaceVariableMenu(FToolMenuSection& Section, const UEdGraphNode* InGraphNode, UBlueprint* InOwnerBlueprint, bool bInReplaceExistingVariable/* = false*/) const
 {
 	if (const UK2Node_Variable* Variable = Cast<const UK2Node_Variable>(InGraphNode))
 	{
@@ -1973,18 +1972,22 @@ void UEdGraphSchema_K2::GetReplaceVariableMenu(const UEdGraphNode* InGraphNode, 
 					ReplaceVariableWithTooltip = LOCTEXT("ReplaceMissingVariableWithToolTip", "Variable '{0}' does not exist, replace with another variable?");
 				}
 
-				InMenuBuilder->AddSubMenu(
+				Section.AddEntry(FToolMenuEntry::InitSubMenu(
+					NAME_None,
+					"ReplaceVariableWith",
 					FText::Format( LOCTEXT("ReplaceVariableWith", "Replace variable '{0}' with..."), Variable->GetVarNameText()),
 					FText::Format( ReplaceVariableWithTooltip, Variable->GetVarNameText()),
-					FNewMenuDelegate::CreateStatic( &UEdGraphSchema_K2::GetReplaceVariableMenu,
-					const_cast<UK2Node_Variable*>(Variable),InOwnerBlueprint, bInReplaceExistingVariable));
+					FNewToolMenuDelegate::CreateStatic( &UEdGraphSchema_K2::GetReplaceVariableMenu,
+						const_cast<UK2Node_Variable*>(Variable), InOwnerBlueprint, bInReplaceExistingVariable)));
 			}
 		}
 	}
 }
 
-void UEdGraphSchema_K2::GetBreakLinkToSubMenuActions( class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin )
+void UEdGraphSchema_K2::GetBreakLinkToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
 {
+	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
+
 	// Make sure we have a unique name for every entry in the list
 	TMap< FString, uint32 > LinkTitleCount;
 
@@ -2023,13 +2026,15 @@ void UEdGraphSchema_K2::GetBreakLinkToSubMenuActions( class FMenuBuilder& MenuBu
 		}
 		++Count;
 
-		MenuBuilder.AddMenuEntry( Description, Description, FSlateIcon(), FUIAction(
+		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
 			FExecuteAction::CreateUObject(this, &UEdGraphSchema_K2::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links)));
 	}
 }
 
-void UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions( class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin )
+void UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
 {
+	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
+
 	// Make sure we have a unique name for every entry in the list
 	TMap< FString, uint32 > LinkTitleCount;
 
@@ -2067,7 +2072,7 @@ void UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions( class FMenuBuilder& M
 		}
 		++Count;
 
-		MenuBuilder.AddMenuEntry( Description, Description, FSlateIcon(), FUIAction(
+		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
 		FExecuteAction::CreateStatic(&FKismetEditorUtilities::BringKismetToFocusAttentionOnPin, PinLink)));
 	}
 }
@@ -2082,10 +2087,10 @@ UEdGraphPin* UEdGraphSchema_K2::GetAndResetStraightenDestinationPin()
 	return Temp;
 }
 
-void UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions( class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin ) const
+void UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin) const
 {
-	TSharedPtr<const FUICommandList> MenuCommandList = MenuBuilder.GetTopCommandList();
-	if(!ensure(MenuCommandList.IsValid()))
+	const FUIAction* StraightenConnectionsUIAction = Menu->Context.GetActionForCommand(FGraphEditorCommands::Get().StraightenConnections);
+	if(!ensure(StraightenConnectionsUIAction))
 	{
 		return;
 	}
@@ -2103,9 +2108,10 @@ void UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions( class FMenuBuil
 			NodeToPins.FindOrAdd(Node).Add(Pin);
 		}
 	}
-
-	MenuBuilder.AddMenuEntry( FGraphEditorCommands::Get().StraightenConnections,
-		NAME_None, LOCTEXT("StraightenAllConnections", "All Connected Pins"),
+	
+	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
+	Section.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections,
+		LOCTEXT("StraightenAllConnections", "All Connected Pins"),
 		TAttribute<FText>(), FSlateIcon(NAME_None, NAME_None, NAME_None) );
 
 	for (const TPair<UEdGraphNode*, TArray<UEdGraphPin*>>& Pair : NodeToPins)
@@ -2142,12 +2148,13 @@ void UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions( class FMenuBuil
 			}
 			++Count;
 
-			MenuBuilder.AddMenuEntry(
+			Section.AddMenuEntry(
+				NAME_None,
 				Description,
 				Description,
 				FSlateIcon(),
-				FExecuteAction::CreateLambda([=]{
-				if (const FUIAction* UIAction = MenuCommandList->GetActionForCommand(FGraphEditorCommands::Get().StraightenConnections))
+				FToolMenuExecuteAction::CreateLambda([=](const FToolMenuContext& Context){
+				if (const FUIAction* UIAction = Context.GetActionForCommand(FGraphEditorCommands::Get().StraightenConnections))
 				{
 					StraightenDestinationPin = Pin;
 					UIAction->ExecuteAction.Execute();

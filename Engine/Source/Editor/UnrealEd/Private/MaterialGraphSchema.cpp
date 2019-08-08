@@ -12,6 +12,8 @@
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
+#include "EdGraph/EdGraph.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/MaterialExpression.h"
 #include "Materials/MaterialExpressionMaterialFunctionCall.h"
@@ -219,8 +221,10 @@ void UMaterialGraphSchema::SelectAllInputNodes(UEdGraph* Graph, UEdGraphPin* InG
 	}
 }
 
-void UMaterialGraphSchema::GetBreakLinkToSubMenuActions( class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin )
+void UMaterialGraphSchema::GetBreakLinkToSubMenuActions(class UToolMenu* Menu, UEdGraphPin* InGraphPin) const
 {
+	FToolMenuSection& Section = Menu->FindOrAddSection("MaterialGraphSchemaPinActions");
+
 	// Make sure we have a unique name for every entry in the list
 	TMap< FString, uint32 > LinkTitleCount;
 
@@ -257,7 +261,7 @@ void UMaterialGraphSchema::GetBreakLinkToSubMenuActions( class FMenuBuilder& Men
 			Description = FText::Format( LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args );
 		}
 		++Count;
-		MenuBuilder.AddMenuEntry( Description, Description, FSlateIcon(), FUIAction(
+		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
 			FExecuteAction::CreateUObject((UMaterialGraphSchema*const)this, &UMaterialGraphSchema::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links) ) );
 	}
 }
@@ -388,55 +392,58 @@ void UMaterialGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Cont
 	}
 }
 
-void UMaterialGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UMaterialGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (InGraphPin)
+	if (Context && Context->Pin)
 	{
-		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(CurrentGraph);
-		MenuBuilder->BeginSection("MaterialGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
+		const UEdGraphPin* InGraphPin = Context->Pin;
+		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(Context->Graph);
 		{
+			FToolMenuSection& Section = Menu->AddSection("MaterialGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			// Only display the 'Break Link' option if there is a link to break!
 			if (InGraphPin->LinkedTo.Num() > 0)
 			{
 				if(InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)
 				{
-					MenuBuilder->AddMenuEntry(
+					Section.AddMenuEntry(
+						"SelectLinkedNodes",
 						LOCTEXT("SelectLinkedNodes", "Select Linked Nodes"),
 						LOCTEXT("SelectLinkedNodesTooltip", "Adds all input Nodes linked to this Pin to selection"),
 						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateUObject((UMaterialGraphSchema*const)this, &UMaterialGraphSchema::SelectAllInputNodes, const_cast<UEdGraph*>(CurrentGraph), const_cast<UEdGraphPin*>(InGraphPin)))
+						FUIAction(FExecuteAction::CreateUObject(this, &UMaterialGraphSchema::SelectAllInputNodes, const_cast<UEdGraph*>(Context->Graph), const_cast<UEdGraphPin*>(InGraphPin)))
 						);
 				}
 
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 
 				// add sub menu for break link to
 				if(InGraphPin->LinkedTo.Num() > 1)
 				{
-					MenuBuilder->AddSubMenu(
+					Section.AddEntry(FToolMenuEntry::InitSubMenu(
+						Menu->GetMenuName(),
+						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..." ),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewMenuDelegate::CreateUObject( (UMaterialGraphSchema*const)this, &UMaterialGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+						FNewToolMenuDelegate::CreateUObject(this, &UMaterialGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin))));
 				}
 				else
 				{
-					((UMaterialGraphSchema*const)this)->GetBreakLinkToSubMenuActions(*MenuBuilder, const_cast<UEdGraphPin*>(InGraphPin));
+					GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
 				}
 			}
 
 			// Only display Promote to Parameters on input pins
 			if (InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)
 			{
-				MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().PromoteToParameter);
+				Section.AddMenuEntry(FMaterialEditorCommands::Get().PromoteToParameter);
 			}
 		}
-		MenuBuilder->EndSection();
 
 		// add menu items to expression output for material connection
 		if ( InGraphPin->Direction == EGPD_Output )
 		{
-			MenuBuilder->BeginSection("MaterialEditorMenuConnector2");
 			{
+				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenuConnector2");
 				// If we are editing a material function, display options to connect to function outputs
 				if (MaterialGraph->MaterialFunction)
 				{
@@ -452,10 +459,12 @@ void UMaterialGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, c
 								Arguments.Add(TEXT("Name"), FText::FromName( FunctionOutput->OutputName ));
 								const FText Label = FText::Format( LOCTEXT( "ConnectToFunction", "Connect To {Name}" ), Arguments );
 								const FText ToolTip = FText::Format( LOCTEXT( "ConnectToFunctionTooltip", "Connects to the function output {Name}" ), Arguments );
-								MenuBuilder->AddMenuEntry(Label,
+								Section.AddMenuEntry(
+									NAME_None,
+									Label,
 									ToolTip,
 									FSlateIcon(),
-									FUIAction(FExecuteAction::CreateUObject((UMaterialGraphSchema*const)this, &UMaterialGraphSchema::OnConnectToFunctionOutput, const_cast< UEdGraphPin* >(InGraphPin), GraphNode->GetInputPin(0))));
+									FUIAction(FExecuteAction::CreateUObject(this, &UMaterialGraphSchema::OnConnectToFunctionOutput, const_cast< UEdGraphPin* >(InGraphPin), GraphNode->GetInputPin(0))));
 							}
 						}
 					}
@@ -470,23 +479,24 @@ void UMaterialGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, c
 							Arguments.Add(TEXT("Name"), MaterialGraph->MaterialInputs[Index].GetName());
 							const FText Label = FText::Format( LOCTEXT( "ConnectToInput", "Connect To {Name}" ), Arguments );
 							const FText ToolTip = FText::Format( LOCTEXT( "ConnectToInputTooltip", "Connects to the material input {Name}" ), Arguments );
-							MenuBuilder->AddMenuEntry(Label,
+							Section.AddMenuEntry(
+								NAME_None,
+								Label,
 								ToolTip,
 								FSlateIcon(),
-								FUIAction(FExecuteAction::CreateUObject((UMaterialGraphSchema*const)this, &UMaterialGraphSchema::OnConnectToMaterial, const_cast< UEdGraphPin* >(InGraphPin), Index)));
+								FUIAction(FExecuteAction::CreateUObject(this, &UMaterialGraphSchema::OnConnectToMaterial, const_cast< UEdGraphPin* >(InGraphPin), Index)));
 						}
 					}
 				}
 			}
-			MenuBuilder->EndSection(); //MaterialEditorMenuConnector2
 		}
 	}
-	else if (InGraphNode)
+	else
 	{
 		//Moved all functionality to relevant node classes
 	}
 
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 }
 
 static TAutoConsoleVariable<int32> CVarPreventInvalidMaterialConnections(

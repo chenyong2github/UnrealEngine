@@ -10,12 +10,11 @@
 #include "ToolMenuMisc.h"
 #include "ToolMenuEntryScript.h"
 #include "Misc/Attribute.h"
-#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "ToolMenusBlueprintLibrary.generated.h"
 
 UCLASS()
-class UToolMenuContextExtensions : public UBlueprintFunctionLibrary
+class UToolMenuContextExtensions : public UObject
 {
 	GENERATED_BODY()
 
@@ -26,7 +25,7 @@ public:
 };
 
 UCLASS()
-class UToolMenuEntryExtensions : public UBlueprintFunctionLibrary
+class UToolMenuEntryExtensions : public UObject
 {
 	GENERATED_BODY()
 
@@ -73,7 +72,7 @@ public:
 };
 
 UCLASS()
-class UToolMenuSectionExtensions : public UBlueprintFunctionLibrary
+class UToolMenuSectionExtensions : public UObject
 {
 	GENERATED_BODY()
 

@@ -6,6 +6,7 @@
 
 #include "MaterialGraph/MaterialGraphNode.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "MaterialGraph/MaterialGraphSchema.h"
 
 #include "Materials/MaterialExpressionComponentMask.h"
@@ -324,31 +325,33 @@ void UMaterialGraphNode::PrepareForCopying()
 	}
 }
 
-void UMaterialGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
 	UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(GetGraph());
 
-	if (Context.Node)
+	if (Context->Node)
 	{
 		if (MaterialExpression)
 		{
 			if (MaterialExpression->IsA(UMaterialExpressionTextureBase::StaticClass()))
 			{
-				Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().UseCurrentTexture);
+				{
+					FToolMenuSection& Section = Menu->AddSection("MaterialGraphNode");
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().UseCurrentTexture);
+				}
 
 				// Add a 'Convert To Texture' option for convertible types
-				Context.MenuBuilder->BeginSection("MaterialEditorMenu0");
 				{
+					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu0");
 					if ( MaterialExpression->IsA(UMaterialExpressionTextureSample::StaticClass()) && !MaterialExpression->HasAParameterName())
 					{
-						Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureObjects);
+						Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureObjects);
 					}
 					else if ( MaterialExpression->IsA(UMaterialExpressionTextureObject::StaticClass()))
 					{
-						Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureSamples);
+						Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToTextureSamples);
 					}
 				}
-				Context.MenuBuilder->EndSection();
 			}
 
 			// Add a 'Convert To Parameter' option for convertible types
@@ -361,11 +364,10 @@ void UMaterialGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 				|| MaterialExpression->IsA(UMaterialExpressionComponentMask::StaticClass())
 				|| MaterialExpression->IsA(UMaterialExpressionMaterialFunctionCall::StaticClass()))
 			{
-				Context.MenuBuilder->BeginSection("MaterialEditorMenu1");
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().ConvertObjects);
+					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertObjects);
 				}
-				Context.MenuBuilder->EndSection();
 			}
 
 			// Add a 'Convert To Constant' option for convertible types
@@ -373,15 +375,14 @@ void UMaterialGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 				|| MaterialExpression->IsA(UMaterialExpressionVectorParameter::StaticClass())
 				|| MaterialExpression->IsA(UMaterialExpressionTextureObjectParameter::StaticClass()))
 			{
-				Context.MenuBuilder->BeginSection("MaterialEditorMenu1");
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().ConvertToConstant);
+					FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu1");
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().ConvertToConstant);
 				}
-				Context.MenuBuilder->EndSection();
 			}
 
-			Context.MenuBuilder->BeginSection("MaterialEditorMenu2");
 			{
+				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu2");
 				// Don't show preview option for bools
 				if (!MaterialExpression->IsA(UMaterialExpressionStaticBool::StaticClass())
 					&& !MaterialExpression->IsA(UMaterialExpressionStaticBoolParameter::StaticClass()))
@@ -390,83 +391,88 @@ void UMaterialGraphNode::GetContextMenuActions(const FGraphNodeContextMenuBuilde
 					if (bIsPreviewExpression)
 					{
 						// If we are already previewing the selected node, the menu option should tell the user that this will stop previewing
-						Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().StopPreviewNode);
+						Section.AddMenuEntry(FMaterialEditorCommands::Get().StopPreviewNode);
 					}
 					else
 					{
 						// The menu option should tell the user this node will be previewed.
-						Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().StartPreviewNode);
+						Section.AddMenuEntry(FMaterialEditorCommands::Get().StartPreviewNode);
 					}
 				}
 
 				if (MaterialExpression->bRealtimePreview)
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().DisableRealtimePreviewNode);
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().DisableRealtimePreviewNode);
 				}
 				else
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().EnableRealtimePreviewNode);
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().EnableRealtimePreviewNode);
 				}
 			}
-			Context.MenuBuilder->EndSection();
 		}
 
 		// Break all links
-		Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+		{
+			FToolMenuSection& Section = Menu->AddSection("BreakAllLinks");
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+		}
 
 		// Separate the above frequently used options from the below less frequently used common options
-		Context.MenuBuilder->BeginSection("MaterialEditorMenu3");
+		
 		{
-			Context.MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete );
-			Context.MenuBuilder->AddMenuEntry( FGenericCommands::Get().Cut );
-			Context.MenuBuilder->AddMenuEntry( FGenericCommands::Get().Copy );
-			Context.MenuBuilder->AddMenuEntry( FGenericCommands::Get().Duplicate );
+			FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenu3");
+			Section.AddMenuEntry( FGenericCommands::Get().Delete );
+			Section.AddMenuEntry( FGenericCommands::Get().Cut );
+			Section.AddMenuEntry( FGenericCommands::Get().Copy );
+			Section.AddMenuEntry( FGenericCommands::Get().Duplicate );
 
 			// Select upstream and downstream nodes
-			Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().SelectDownstreamNodes);
-			Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().SelectUpstreamNodes);
+			Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectDownstreamNodes);
+			Section.AddMenuEntry(FMaterialEditorCommands::Get().SelectUpstreamNodes);
 		}
-		Context.MenuBuilder->EndSection();
-
-		Context.MenuBuilder->AddSubMenu(LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewMenuDelegate::CreateLambda([](FMenuBuilder& InMenuBuilder) {
-
-			InMenuBuilder.BeginSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
-			InMenuBuilder.EndSection();
-
-			InMenuBuilder.BeginSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
-			InMenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
-			InMenuBuilder.EndSection();
-		}));
-
-		Context.MenuBuilder->BeginSection("MaterialEditorMenuDocumentation");
+			
 		{
-			Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().GoToDocumentation);
+			FToolMenuSection& Section = Menu->AddSection("Alignment");
+			Section.AddSubMenu(Menu->GetMenuName(), "Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+			{
+				{
+					FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+				}
+
+				{
+					FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+				}
+			}));
 		}
-		Context.MenuBuilder->EndSection();
+
+		{
+			FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenuDocumentation");
+			Section.AddMenuEntry(FGraphEditorCommands::Get().GoToDocumentation);
+		}
 
 		// Handle the favorites options
 		if (MaterialExpression)
 		{
-			Context.MenuBuilder->BeginSection("MaterialEditorMenuFavorites");
 			{
+				FToolMenuSection& Section = Menu->AddSection("MaterialEditorMenuFavorites");
 				if (FMaterialEditorUtilities::IsMaterialExpressionInFavorites(MaterialExpression))
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().RemoveFromFavorites);
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().RemoveFromFavorites);
 				}
 				else
 				{
-					Context.MenuBuilder->AddMenuEntry(FMaterialEditorCommands::Get().AddToFavorites);
+					Section.AddMenuEntry(FMaterialEditorCommands::Get().AddToFavorites);
 				}
 			}
-			Context.MenuBuilder->EndSection();
 		}
 	}
 }

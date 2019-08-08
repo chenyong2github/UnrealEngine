@@ -10,6 +10,7 @@
 #include "Sound/SoundSubmix.h"
 #include "Framework/Commands/GenericCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "SoundSubmixSchema"
 
@@ -32,8 +33,10 @@ bool USoundSubmixGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, 
 	return InputNode->SoundSubmix->RecurseCheckChild(OutputNode->SoundSubmix);
 }
 
-void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(class FMenuBuilder& MenuBuilder, UEdGraphPin* InGraphPin)
+void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin)
 {
+	FToolMenuSection& Section = Menu->FindOrAddSection(SectionName);
+
 	// Make sure we have a unique name for every entry in the list
 	TMap<FString, uint32> LinkTitleCount;
 
@@ -71,7 +74,7 @@ void USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions(class FMenuBuilder& M
 		}
 		++Count;
 
-		MenuBuilder.AddMenuEntry( Description, Description, FSlateIcon(), FUIAction(
+		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
 			FExecuteAction::CreateUObject((USoundSubmixGraphSchema*const)this, &USoundSubmixGraphSchema::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links)));
 	}
 }
@@ -86,43 +89,44 @@ void USoundSubmixGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& C
 	ContextMenuBuilder.AddAction(NewAction);
 }
 
-void USoundSubmixGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, class FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void USoundSubmixGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (InGraphPin)
+	if (Context->Pin)
 	{
-		MenuBuilder->BeginSection("SoundSubmixGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
+		const UEdGraphPin* InGraphPin = Context->Pin;
 		{
+			const static FName SectionName = "SoundSubmixGraphSchemaPinActions";
+			FToolMenuSection& Section = Menu->AddSection(SectionName, LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			// Only display the 'Break Links' option if there is a link to break!
 			if (InGraphPin->LinkedTo.Num() > 0)
 			{
-				MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 
 				// add sub menu for break link to
 				if(InGraphPin->LinkedTo.Num() > 1)
 				{
-					MenuBuilder->AddSubMenu(
+					Section.AddEntry(FToolMenuEntry::InitSubMenu(
+						Menu->GetMenuName(),
+						"BreakLinkTo",
 						LOCTEXT("BreakLinkTo", "Break Link To..." ),
 						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewMenuDelegate::CreateUObject((USoundSubmixGraphSchema*const)this, &USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
+						FNewToolMenuDelegate::CreateUObject((USoundSubmixGraphSchema*const)this, &USoundSubmixGraphSchema::GetBreakLinkToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin))));
 				}
 				else
 				{
-					((USoundSubmixGraphSchema*const)this)->GetBreakLinkToSubMenuActions(*MenuBuilder, const_cast<UEdGraphPin*>(InGraphPin));
+					((USoundSubmixGraphSchema*const)this)->GetBreakLinkToSubMenuActions(Menu, SectionName, const_cast<UEdGraphPin*>(InGraphPin));
 				}
 			}
 		}
-		MenuBuilder->EndSection();
 	}
-	else if (InGraphNode)
+	else if (Context->Node)
 	{
-		const USoundSubmixGraphNode* SoundGraphNode = Cast<const USoundSubmixGraphNode>(InGraphNode);
-
-		MenuBuilder->BeginSection("SoundSubmixGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "SoundSubmix Actions"));
+		const USoundSubmixGraphNode* SoundGraphNode = Cast<const USoundSubmixGraphNode>(Context->Node);
 		{
-			MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
-			MenuBuilder->AddMenuEntry(FGenericCommands::Get().Delete);
+			FToolMenuSection& Section = Menu->AddSection("SoundSubmixGraphSchemaNodeActions", LOCTEXT("ClassActionsMenuHeader", "SoundSubmix Actions"));
+			Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+			Section.AddMenuEntry(FGenericCommands::Get().Delete);
 		}
-		MenuBuilder->EndSection();
 	}
 
 	// No Super call so Node comments option is not shown

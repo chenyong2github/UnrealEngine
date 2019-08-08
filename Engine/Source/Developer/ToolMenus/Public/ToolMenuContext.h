@@ -56,6 +56,7 @@ public:
 	void AppendCommandList(const TSharedRef<FUICommandList>& InCommandList);
 	void AppendCommandList(const TSharedPtr<FUICommandList>& InCommandList);
 	const FUIAction* GetActionForCommand(TSharedPtr<const FUICommandInfo> Command, TSharedPtr<const FUICommandList>& OutCommandList) const;
+	const FUIAction* GetActionForCommand(TSharedPtr<const FUICommandInfo> Command) const;
 
 	void AddExtender(const TSharedPtr<FExtender>& InExtender);
 	TSharedPtr<FExtender> GetAllExtenders();

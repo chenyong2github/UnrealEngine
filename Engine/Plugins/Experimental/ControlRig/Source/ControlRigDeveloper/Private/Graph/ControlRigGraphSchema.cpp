@@ -31,10 +31,10 @@ void UControlRigGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 
 }
 
-void UControlRigGraphSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UControlRigGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
 #if WITH_EDITOR
-	return IControlRigEditorModule::Get().GetContextMenuActions(this, CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	return IControlRigEditorModule::Get().GetContextMenuActions(this, Menu, Context);
 #else
 	check(0);
 #endif

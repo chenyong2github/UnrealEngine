@@ -152,7 +152,7 @@ private:
 };
 
 /** This is the context for a GetContextMenuActions call into a specific node. */
-struct FGraphNodeContextMenuBuilder
+struct ENGINE_API FGraphNodeContextMenuBuilder
 {
 	/** The blueprint associated with this context; may be NULL for non-Kismet related graphs. */
 	const UBlueprint* Blueprint;
@@ -168,6 +168,37 @@ struct FGraphNodeContextMenuBuilder
 	bool bIsDebugging;
 
 	FGraphNodeContextMenuBuilder(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, class FMenuBuilder* InMenuBuilder, bool bInDebuggingMode);
+};
+
+UCLASS()
+class ENGINE_API UGraphNodeContextMenuContext : public UObject
+{
+	GENERATED_BODY()
+
+public:
+
+	UGraphNodeContextMenuContext();
+
+	void Init(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, bool bInDebuggingMode);
+
+	/** The blueprint associated with this context; may be NULL for non-Kismet related graphs. */
+	UPROPERTY()
+	const UBlueprint* Blueprint;
+
+	/** The graph associated with this context. */
+	UPROPERTY()
+	const UEdGraph* Graph;
+
+	/** The node associated with this context. */
+	UPROPERTY()
+	const UEdGraphNode* Node;
+
+	/** The pin associated with this context; may be NULL when over a node. */
+	const UEdGraphPin* Pin;
+
+	/** Whether the graph editor is currently part of a debugging session (any non-debugging commands should be disabled). */
+	UPROPERTY()
+	bool bIsDebugging;
 };
 
 /** Deprecation types for node response. */
@@ -805,6 +836,9 @@ public:
 
 	/** Gets a list of actions that can be done to this particular node */
 	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const {}
+	
+	/** Gets a list of actions that can be done to this particular node */
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const {}
 
 	// Gives each visual node a chance to do final validation before it's node is harvested for use at runtime
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const {}

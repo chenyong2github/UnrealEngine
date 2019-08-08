@@ -40,6 +40,7 @@
 #include "Materials/Material.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "ControlRigEditModeSettings.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ControlRigSequenceExporter.h"
@@ -908,46 +909,39 @@ void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphNode* 
 	}
 }
 
-void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema* Schema, const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging)
+void FControlRigEditorModule::GetContextMenuActions(const UControlRigGraphSchema* Schema, UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if(MenuBuilder)
+	if (Menu && Context)
 	{
-		MenuBuilder->BeginSection("ContextMenu");
+		Schema->UEdGraphSchema::GetContextMenuActions(Menu, Context);
 
-		Schema->UEdGraphSchema::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
-
-		MenuBuilder->EndSection();
-
-		if (InGraphPin != NULL)
+		if (const UEdGraphPin* InGraphPin = Context->Pin)
 		{
-			MenuBuilder->BeginSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 			{
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
 				// Break pin links
 				if (InGraphPin->LinkedTo.Num() > 0)
 				{
-					MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakPinLinks );
+					Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
 				}
 			}
-			MenuBuilder->EndSection();
 
 			// Add the watch pin / unwatch pin menu items
-			MenuBuilder->BeginSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
 			{
-				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
+				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaWatches", LOCTEXT("WatchesHeader", "Watches"));
+				UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 				{
 					const UEdGraphPin* WatchedPin = ((InGraphPin->Direction == EGPD_Input) && (InGraphPin->LinkedTo.Num() > 0)) ? InGraphPin->LinkedTo[0] : InGraphPin;
 					if (FKismetDebugUtilities::IsPinBeingWatched(OwnerBlueprint, WatchedPin))
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StopWatchingPin);
 					}
 					else
 					{
-						MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
+						Section.AddMenuEntry(FGraphEditorCommands::Get().StartWatchingPin);
 					}
 				}
 			}
-			MenuBuilder->EndSection();
-
 		}
 	}
 }

@@ -8,6 +8,7 @@
 #include "Layout/SlateRect.h"
 #include "Animation/AnimationAsset.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EdGraph/EdGraph.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EdGraphNode_Comment.h"
@@ -319,34 +320,33 @@ EGraphType UAnimationStateMachineSchema::GetGraphType(const UEdGraph* TestEdGrap
 	return GT_StateMachine;
 }
 
-void UAnimationStateMachineSchema::GetContextMenuActions(const UEdGraph* CurrentGraph, const UEdGraphNode* InGraphNode, const UEdGraphPin* InGraphPin, FMenuBuilder* MenuBuilder, bool bIsDebugging) const
+void UAnimationStateMachineSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	check(CurrentGraph);
-	UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
+	check(Context && Context->Graph);
+	UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(Context->Graph);
 
-	if (InGraphNode != NULL)
+	if (Context->Node)
 	{
-		MenuBuilder->BeginSection("AnimationStateMachineNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
 		{
-			if (!bIsDebugging)
+			FToolMenuSection& Section = Menu->AddSection("AnimationStateMachineNodeActions", LOCTEXT("NodeActionsMenuHeader", "Node Actions"));
+			if (!Context->bIsDebugging)
 			{
 				// Node contextual actions
-				MenuBuilder->AddMenuEntry( FGenericCommands::Get().Delete );
-				MenuBuilder->AddMenuEntry( FGenericCommands::Get().Cut );
-				MenuBuilder->AddMenuEntry( FGenericCommands::Get().Copy );
-				MenuBuilder->AddMenuEntry( FGenericCommands::Get().Duplicate );
-				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ReconstructNodes );
-				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakNodeLinks );
-				if(InGraphNode->bCanRenameNode)
+				Section.AddMenuEntry(FGenericCommands::Get().Delete);
+				Section.AddMenuEntry(FGenericCommands::Get().Cut);
+				Section.AddMenuEntry(FGenericCommands::Get().Copy);
+				Section.AddMenuEntry(FGenericCommands::Get().Duplicate);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().ReconstructNodes);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakNodeLinks);
+				if(Context->Node->bCanRenameNode)
 				{
-					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Rename );
+					Section.AddMenuEntry(FGenericCommands::Get().Rename);
 				}
 			}
 		}
-		MenuBuilder->EndSection();
 	}
 
-	Super::GetContextMenuActions(CurrentGraph, InGraphNode, InGraphPin, MenuBuilder, bIsDebugging);
+	Super::GetContextMenuActions(Menu, Context);
 }
 
 FLinearColor UAnimationStateMachineSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const

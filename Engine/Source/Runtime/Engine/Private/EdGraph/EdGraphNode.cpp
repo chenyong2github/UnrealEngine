@@ -117,6 +117,31 @@ FGraphNodeContextMenuBuilder::FGraphNodeContextMenuBuilder(const UEdGraph* InGra
 }
 
 /////////////////////////////////////////////////////
+// UGraphNodeContextMenuContext
+
+UGraphNodeContextMenuContext::UGraphNodeContextMenuContext() :
+	Pin(nullptr)
+{
+}
+
+void UGraphNodeContextMenuContext::Init(const UEdGraph* InGraph, const UEdGraphNode* InNode, const UEdGraphPin* InPin, bool bInDebuggingMode)
+{
+	Graph = InGraph;
+	Node = InNode;
+	Pin = InPin;
+	bIsDebugging = bInDebuggingMode;
+
+#if WITH_EDITOR
+	Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(Graph);
+#endif
+
+	if (Pin)
+	{
+		Node = Pin->GetOwningNode();
+	}
+}
+
+/////////////////////////////////////////////////////
 // UEdGraphNode
 
 #if WITH_EDITORONLY_DATA

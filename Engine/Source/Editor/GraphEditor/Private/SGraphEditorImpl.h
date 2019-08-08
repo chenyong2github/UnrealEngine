@@ -333,6 +333,10 @@ private:
 	bool DisplayGraphAsReadOnly() const;
 
 	bool IsLocked() const;
+	
+	class UToolMenu* GenerateContextMenu(const class UEdGraphSchema* Schema, struct FToolMenuContext& MenuContext) const;
+
+	static void RegisterContextMenuFor_EdGraphSchema();
 
 private:
 	bool bIsActiveTimerRegistered;

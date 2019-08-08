@@ -69,7 +69,7 @@ public:
 
 private:
 
-	void InitGeneratedCopy(const UToolMenu* Source);
+	void InitGeneratedCopy(const UToolMenu* Source, const FName InMenuName, const FToolMenuContext* InContext = nullptr);
 
 	bool FindEntry(const FName EntryName, int32& SectionIndex, int32& EntryIndex) const;
 
