@@ -274,7 +274,7 @@ void UCompositeDataTable::OnParentTablesUpdated(EPropertyChangeType::Type Change
 	{
 		if (Table && OldParentTables.Find(Table) == INDEX_NONE)
 		{
-			Table->OnDataTableChanged().AddUObject(this, &UCompositeDataTable::UpdateCachedRowMap, true);
+			Table->OnDataTableChanged().AddUObject(this, &UCompositeDataTable::OnParentTablesUpdated, EPropertyChangeType::Unspecified);
 		}
 	}
 
