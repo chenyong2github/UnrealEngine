@@ -55,9 +55,9 @@ void UOSCClient::GetSendIPAddress(FString& InIPAddress, int32& Port)
 void UOSCClient::SendPacket(IOSCPacket& Packet)
 {
 	const FOSCAddress& OSCAddress = Packet.GetAddress();
-	if (!OSCAddress.IsValid())
+	if (Packet.IsMessage() && !OSCAddress.IsValidPath())
 	{
-		UE_LOG(LogOSC, Warning, TEXT("Failed to write bundle data. Invalid OSCAddress '%s'"), *OSCAddress.Value);
+		UE_LOG(LogOSC, Warning, TEXT("Failed to write packet data. Invalid OSCAddress '%s'"), *OSCAddress.GetFullPath());
 		return;
 	}
 
@@ -77,7 +77,7 @@ void UOSCClient::SendPacket(IOSCPacket& Packet)
 			if (!bSuccess || BytesSent <= 0)
 			{
 				UE_LOG(LogOSC, Verbose, TEXT("OSC Packet failed: Client '%s', OSCAddress '%s', Send IPAddress %s, Attempted Bytes = %d"),
-					*GetName(), *OSCAddress.Value, *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
+					*GetName(), *OSCAddress.GetFullPath(), *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
 				return;
 			}
 
@@ -86,7 +86,7 @@ void UOSCClient::SendPacket(IOSCPacket& Packet)
 		}
 
 		UE_LOG(LogOSC, Verbose, TEXT("OSC Packet sent: Client '%s', OSCAddress '%s', Send IPAddress %s, Bytes Sent = %d"),
-			*GetName(), *OSCAddress.Value, *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
+			*GetName(), *OSCAddress.GetFullPath(), *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
 	}
 }
 
