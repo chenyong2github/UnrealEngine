@@ -62,7 +62,23 @@ ANavSystemConfigOverride::ANavSystemConfigOverride(const FObjectInitializer& Obj
 void ANavSystemConfigOverride::PostLoad()
 {
 	Super::PostLoad();
+	
+	UWorld* World = GetWorld();
+	if (World != nullptr)
+	{
+		if (World->bInTick)
+		{
+			World->GetTimerManager().SetTimerForNextTick(this, &ANavSystemConfigOverride::ApplyConfig);
+		}
+		else
+		{
+			ApplyConfig();
+		}
+	}
+}
 
+void ANavSystemConfigOverride::ApplyConfig()
+{
 	UWorld* World = GetWorld();
 	if (World && NavigationSystemConfig)
 	{

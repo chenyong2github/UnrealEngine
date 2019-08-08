@@ -53,4 +53,6 @@ protected:
 	/** Called only in the editor mode*/
 	void InitializeForWorld(UNavigationSystemBase* NewNavSys, UWorld* World, const FNavigationSystemRunMode RunMode);
 #endif // WITH_EDITOR
+
+	void ApplyConfig();
 };
