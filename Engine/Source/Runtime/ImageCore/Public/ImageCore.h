@@ -34,7 +34,7 @@ namespace ERawImageFormat
 struct FImage
 {
 	/** Raw image data. */
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 
 	/** Width of the image. */
 	int32 SizeX;
