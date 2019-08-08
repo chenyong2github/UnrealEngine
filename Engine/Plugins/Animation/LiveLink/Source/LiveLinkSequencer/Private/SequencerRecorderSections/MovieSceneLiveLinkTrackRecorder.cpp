@@ -206,7 +206,7 @@ void UMovieSceneLiveLinkTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				}
 				else
 				{
-					const double Second = Frame.GetBaseData()->WorldTime.Time + Frame.GetBaseData()->WorldTime.Offset - SecondsDiff;
+					const double Second = Frame.GetBaseData()->WorldTime.GetOffsettedTime() - SecondsDiff;
 					FrameNumber = (Second * TickResolution).FloorToFrame();
 				}
 

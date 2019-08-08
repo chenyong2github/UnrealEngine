@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 			{
 				"HeadMountedDisplay",
 				"InputCore",
+				"Media",
 				"Projects",
 				"SlateCore",
 				"Slate",
