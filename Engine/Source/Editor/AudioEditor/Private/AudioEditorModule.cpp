@@ -309,7 +309,7 @@ private:
 		SET_AUDIO_ICON(SoundEffectSourcePreset, SourceEffectPreset);
 		SET_AUDIO_ICON(SoundEffectSourcePresetChain, SourceEffectPresetChain_1);
 		SET_AUDIO_ICON(ModularSynthPresetBank, SoundGenericIcon_2);
-		SET_AUDIO_ICON(MonoWaveTableSynthPresetBank, SoundGenericIcon_2);
+		SET_AUDIO_ICON(MonoWaveTableSynthPreset, SoundGenericIcon_2);
 		SET_AUDIO_ICON(TimeSynthClip, SoundGenericIcon_2);
 		SET_AUDIO_ICON(TimeSynthVolumeGroup, SoundGenericIcon_1);
 
