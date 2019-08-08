@@ -605,7 +605,7 @@ UNiagaraNode::FOnNodeVisualsChanged& UNiagaraNode::OnVisualsChanged()
 
 void UNiagaraNode::UpdateCompileHashForNode(FSHA1& HashState) const
 {
-	HashState.Update((const uint8*)&NodeGuid, sizeof(FGuid));
+	HashState.Update((const uint8*)&ChangeId, sizeof(FGuid));
 }
 
 
