@@ -329,7 +329,7 @@ class FStreamedAudioCacheDerivedDataWorker : public FNonAbandonableTask
 				if (bUseStreamCaching)
 				{
 					// Use the chunk size for this duration:
-					MaxChunkSize = FPlatformCompressionUtilities::GetChunkSizeForCookOverrides(CompressionOverrides);
+					MaxChunkSize = FPlatformCompressionUtilities::GetMaxChunkSizeForCookOverrides(CompressionOverrides);
 					UE_LOG(LogAudio, Display, TEXT("Chunk size for %s: %d"), *SoundWave.GetFullName(), MaxChunkSize);
 				}
 				

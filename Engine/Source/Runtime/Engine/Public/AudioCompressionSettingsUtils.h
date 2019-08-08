@@ -32,7 +32,7 @@ public:
 	static FCachedAudioStreamingManagerParams BuildCachedStreamingManagerParams();
 
 	/** This is used at runtime in BuildCachedStreamingManagerParams, as well as cooktime in FStreamedAudioCacheDerivedDataWorker::BuildStreamedAudio to split compressed audio.  */
-	static uint32 GetChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
+	static uint32 GetMaxChunkSizeForCookOverrides(const FPlatformAudioCookOverrides* InCompressionOverrides);
 
 private:
 	static const FPlatformRuntimeAudioCompressionOverrides* GetRuntimeCompressionOverridesForCurrentPlatform();
