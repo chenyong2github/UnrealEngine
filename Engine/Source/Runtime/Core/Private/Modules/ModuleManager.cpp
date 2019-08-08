@@ -308,6 +308,7 @@ void FModuleManager::AddModule(const FName InModuleName)
 	// Add this module to the set of modules that we know about
 	ModuleInfo->OriginalFilename = Prefix + Suffix;
 	ModuleInfo->Filename         = ModuleFilename;
+#endif // !IS_MONOLITHIC
 }
 
 
