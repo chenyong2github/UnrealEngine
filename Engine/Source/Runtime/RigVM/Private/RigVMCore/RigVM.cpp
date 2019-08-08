@@ -23,10 +23,10 @@ void URigVM::Reset()
 	Instructions.Reset();
 }
 
-int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InFunctionName)
+int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName)
 {
 	check(InRigVMStruct);
-	FString FunctionKey = FString::Printf(TEXT("F%s::%s"), *InRigVMStruct->GetName(), *InFunctionName.ToString());
+	FString FunctionKey = FString::Printf(TEXT("F%s::%s"), *InRigVMStruct->GetName(), *InMethodName.ToString());
 	int32 FunctionIndex = FunctionNames.Find(FunctionKey);
 	if (FunctionIndex != INDEX_NONE)
 	{
@@ -41,6 +41,12 @@ int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InFunc
 
 	FunctionNames.Add(FunctionKey);
 	return Functions.Add(Function);
+}
+
+const FRigVMInstructionArray& URigVM::GetInstructions()
+{
+	RefreshInstructionsIfRequired();
+	return Instructions;
 }
 
 void URigVM::ResolveFunctionsIfRequired()
@@ -61,7 +67,7 @@ void URigVM::RefreshInstructionsIfRequired()
 {
 	if (Instructions.Num() == 0)
 	{
-		Instructions = ByteCode.GetTable();
+		Instructions = ByteCode.GetInstructions();
 	}
 }
 

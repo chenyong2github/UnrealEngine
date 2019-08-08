@@ -2,24 +2,24 @@
 
 #include "RigVMCore/RigVMByteCode.h"
 
-FRigVMByteCodeTable::FRigVMByteCodeTable()
+FRigVMInstructionArray::FRigVMInstructionArray()
 {
 }
 
-FRigVMByteCodeTable::FRigVMByteCodeTable(const FRigVMByteCode& InByteCode)
+FRigVMInstructionArray::FRigVMInstructionArray(const FRigVMByteCode& InByteCode)
 {
 	uint64 ByteIndex = 0;
 	while (ByteIndex < InByteCode.Num())
 	{
 		ERigVMOpCode OpCode = InByteCode.GetOpCodeAt(ByteIndex);
-		Entries.Add(FRigVMByteCodeTableEntry(OpCode, ByteIndex));
+		Instructions.Add(FRigVMInstruction(OpCode, ByteIndex));
 		ByteIndex += InByteCode.GetOpNumBytesAt(ByteIndex);
 	}
 }
 
-void FRigVMByteCodeTable::Reset()
+void FRigVMInstructionArray::Reset()
 {
-	Entries.Reset();
+	Instructions.Reset();
 }
 
 FRigVMByteCode::FRigVMByteCode()
@@ -230,9 +230,9 @@ uint64 FRigVMByteCode::AddJumpOp(ERigVMOpCode InOpCode, uint16 InInstructionInde
 	return AddOp(Op);
 }
 
-uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMArgument& InConditionArg, bool bInCondition)
+uint64 FRigVMByteCode::AddJumpIfOp(ERigVMOpCode InOpCode, uint16 InInstructionIndex, const FRigVMArgument& InConditionArg, bool bJumpWhenConditionIs)
 {
-	FRigVMJumpIfOp Op(InOpCode, InInstructionIndex, InConditionArg, bInCondition);
+	FRigVMJumpIfOp Op(InOpCode, InInstructionIndex, InConditionArg, bJumpWhenConditionIs);
 	return AddOp(Op);
 }
 

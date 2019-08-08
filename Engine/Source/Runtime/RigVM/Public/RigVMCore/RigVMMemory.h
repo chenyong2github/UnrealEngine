@@ -173,7 +173,7 @@ struct RIGVM_API FRigVMRegister
 	// Returns true if the register stores plain / shallow memory
 	FORCEINLINE bool IsPlain() const { return ScriptStructIndex == INDEX_NONE; }
 
-	// Returns the number of allocated bytes (inclusing alignment + trailing bytes)
+	// Returns the number of allocated bytes (including alignment + trailing bytes)
 	FORCEINLINE uint16 GetAllocatedBytes() const { return ElementCount * ElementSize * SliceCount + (uint16)AlignmentBytes + TrailingBytes; }
 
 	// Returns the number of bytes for a complete slice
