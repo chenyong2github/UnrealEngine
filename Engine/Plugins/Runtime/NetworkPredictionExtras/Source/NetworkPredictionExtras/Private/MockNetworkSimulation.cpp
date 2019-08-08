@@ -139,17 +139,10 @@ IReplicationProxy* UMockNetworkSimulationComponent::InstantiateNetworkSimulation
 	return NetworkSim.Get();
 }
 
-	// Child classes should override this an initialize their NetworkSim here
+// Child classes should override this an initialize their NetworkSim here
 void UMockNetworkSimulationComponent::InitializeForNetworkRole(ENetRole Role)
-{
-	FNetworkSimulationModelInitParameters InitParams;
-	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 0;
-	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
-	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
-	InitParams.DebugBufferSize = 32;
-	InitParams.HistoricBufferSize = 128;
-	
-	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), InitParams);
+{	
+	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), GetSimulationInitParameters(Role));
 }
 
 void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)

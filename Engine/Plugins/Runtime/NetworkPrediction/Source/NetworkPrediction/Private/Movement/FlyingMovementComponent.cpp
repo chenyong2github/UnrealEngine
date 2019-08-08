@@ -55,124 +55,7 @@ static FAutoConsoleVariableRef CVarRequestMispredict(TEXT("fp.RequestMispredict"
 
 UFlyingMovementComponent::UFlyingMovementComponent()
 {
-	PrimaryComponentTick.TickGroup = TG_PrePhysics;
-	PrimaryComponentTick.bCanEverTick = true;
-	
-	bWantsInitializeComponent = true;
-	bAutoActivate = true;
-	bReplicates = true;
 
-	bWantsInitializeComponent = true;
-}
-
-void UFlyingMovementComponent::RegisterComponentTickFunctions(bool bRegister)
-{
-	Super::RegisterComponentTickFunctions(bRegister);
-
-	// Super may start up the tick function when we don't want to.
-	UpdateTickRegistration();
-
-	// If the owner ticks, make sure we tick first. This is to ensure the owner's location will be up to date when it ticks.
-	AActor* Owner = GetOwner();
-	
-	if (bRegister && PrimaryComponentTick.bCanEverTick && Owner && Owner->CanEverTick())
-	{
-		Owner->PrimaryActorTick.AddPrerequisite(this, PrimaryComponentTick);
-	}
-}
-
-void UFlyingMovementComponent::UpdateTickRegistration()
-{
-	const bool bHasUpdatedComponent = (UpdatedComponent != NULL);
-	SetComponentTickEnabled(bHasUpdatedComponent && bAutoActivate);
-}
-
-void UFlyingMovementComponent::InitializeComponent()
-{
-	TGuardValue<bool> InInitializeComponentGuard(bInInitializeComponent, true);
-	Super::InitializeComponent();
-
-	// RootComponent is null in OnRegister for blueprint (non-native) root components.
-	if (!UpdatedComponent)
-	{
-		// Auto-register owner's root component if found.
-		if (AActor* MyActor = GetOwner())
-		{
-			if (USceneComponent* NewUpdatedComponent = MyActor->GetRootComponent())
-			{
-				SetUpdatedComponent(NewUpdatedComponent);
-			}
-		}
-	}
-}
-
-void UFlyingMovementComponent::OnRegister()
-{
-	TGuardValue<bool> InOnRegisterGuard(bInOnRegister, true);
-
-	UpdatedPrimitive = Cast<UPrimitiveComponent>(UpdatedComponent);
-	Super::OnRegister();
-
-	const UWorld* MyWorld = GetWorld();
-	if (MyWorld && MyWorld->IsGameWorld())
-	{
-		USceneComponent* NewUpdatedComponent = UpdatedComponent;
-		if (!UpdatedComponent)
-		{
-			// Auto-register owner's root component if found.
-			AActor* MyActor = GetOwner();
-			if (MyActor)
-			{
-				NewUpdatedComponent = MyActor->GetRootComponent();
-			}
-		}
-
-		SetUpdatedComponent(NewUpdatedComponent);
-	}
-}
-
-void UFlyingMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComponent)
-{
-	if (UpdatedComponent && UpdatedComponent != NewUpdatedComponent)
-	{
-		UpdatedComponent->SetShouldUpdatePhysicsVolume(false);
-		if (!UpdatedComponent->IsPendingKill())
-		{
-			UpdatedComponent->SetPhysicsVolume(NULL, true);
-			UpdatedComponent->PhysicsVolumeChangedDelegate.RemoveDynamic(this, &UFlyingMovementComponent::PhysicsVolumeChanged);
-		}
-
-		// remove from tick prerequisite
-		UpdatedComponent->PrimaryComponentTick.RemovePrerequisite(this, PrimaryComponentTick); 
-	}
-
-	// Don't assign pending kill components, but allow those to null out previous UpdatedComponent.
-	UpdatedComponent = IsValid(NewUpdatedComponent) ? NewUpdatedComponent : NULL;
-	UpdatedPrimitive = Cast<UPrimitiveComponent>(UpdatedComponent);
-
-	// Assign delegates
-	if (UpdatedComponent && !UpdatedComponent->IsPendingKill())
-	{
-		UpdatedComponent->SetShouldUpdatePhysicsVolume(true);
-		UpdatedComponent->PhysicsVolumeChangedDelegate.AddUniqueDynamic(this, &UFlyingMovementComponent::PhysicsVolumeChanged);
-
-		if (!bInOnRegister && !bInInitializeComponent)
-		{
-			// UpdateOverlaps() in component registration will take care of this.
-			UpdatedComponent->UpdatePhysicsVolume(true);
-		}
-		
-		// force ticks after movement component updates
-		UpdatedComponent->PrimaryComponentTick.AddPrerequisite(this, PrimaryComponentTick); 
-	}
-	UpdateTickRegistration();
-}
-
-void UFlyingMovementComponent::PhysicsVolumeChanged(APhysicsVolume* NewVolume)
-{
-	// This itself feels bad. When will this be called? Its impossible to know what is allowed and not allowed to be done in this callback.
-	// Callbacks instead should be trapped within the simulation update function. This isn't really possible though since the UpdateComponent
-	// is the one that will call this.
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -189,18 +72,10 @@ IReplicationProxy* UFlyingMovementComponent::InstantiateNetworkSimulation()
 	return NetworkSim.Get();
 }
 
-	// Child classes should override this an initialize their NetworkSim here
 void UFlyingMovementComponent::InitializeForNetworkRole(ENetRole Role)
-{
+{	
 	check(NetworkSim);
-
-	FNetworkSimulationModelInitParameters InitParams;
-	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 0;
-	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
-	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
-	InitParams.DebugBufferSize = 32;
-	InitParams.HistoricBufferSize = 128;
-	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), InitParams);
+	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), GetSimulationInitParameters(Role));
 }
 
 void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -213,9 +88,10 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			if (OldComp->IsActive())
 			{
 				OldComp->Deactivate();
-				Owner->bReplicateMovement = false;
 			}
 		}
+
+		Owner->bReplicateMovement = false;
 	}
 
 
@@ -283,163 +159,6 @@ FlyingMovement::FInputCmd* UFlyingMovementComponent::GetNextClientInputCmdForWri
 //
 // ----------------------------------------------------------------------------------------------------------
 
-FVector UFlyingMovementComponent::GetPenetrationAdjustment(const FHitResult& Hit)
-{
-	if (!Hit.bStartPenetrating)
-	{
-		return FVector::ZeroVector;
-	}
-
-	FVector Result;
-	const float PullBackDistance = FMath::Abs(FlyingMovementCVars::PenetrationPullbackDistance);
-	const float PenetrationDepth = (Hit.PenetrationDepth > 0.f ? Hit.PenetrationDepth : 0.125f);
-
-	Result = Hit.Normal * (PenetrationDepth + PullBackDistance);
-	
-	return Result;
-}
-
-bool UFlyingMovementComponent::OverlapTest(const FVector& Location, const FQuat& RotationQuat, const ECollisionChannel CollisionChannel, const FCollisionShape& CollisionShape, const AActor* IgnoreActor) const
-{
-	FCollisionQueryParams QueryParams(SCENE_QUERY_STAT(MovementOverlapTest), false, IgnoreActor);
-	FCollisionResponseParams ResponseParam;
-	InitCollisionParams(QueryParams, ResponseParam);
-	return GetWorld()->OverlapBlockingTestByChannel(Location, RotationQuat, CollisionChannel, CollisionShape, QueryParams, ResponseParam);
-}
-
-void UFlyingMovementComponent::InitCollisionParams(FCollisionQueryParams &OutParams, FCollisionResponseParams& OutResponseParam) const
-{
-	if (UpdatedPrimitive)
-	{
-		UpdatedPrimitive->InitSweepCollisionParams(OutParams, OutResponseParam);
-	}
-}
-
-bool UFlyingMovementComponent::ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotationQuat) const
-{
-	// SceneComponent can't be in penetration, so this function really only applies to PrimitiveComponent.
-	const FVector Adjustment = ProposedAdjustment; //ConstrainDirectionToPlane(ProposedAdjustment);
-	if (!Adjustment.IsZero() && UpdatedPrimitive)
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FlyingMovementComponent_ResolvePenetration);
-		// See if we can fit at the adjusted location without overlapping anything.
-		AActor* ActorOwner = UpdatedComponent->GetOwner();
-		if (!ActorOwner)
-		{
-			return false;
-		}
-
-		UE_LOG(LogFlyingMovement, Verbose, TEXT("ResolvePenetration: %s.%s at location %s inside %s.%s at location %s by %.3f (netmode: %d)"),
-			   *ActorOwner->GetName(),
-			   *UpdatedComponent->GetName(),
-			   *UpdatedComponent->GetComponentLocation().ToString(),
-			   *GetNameSafe(Hit.GetActor()),
-			   *GetNameSafe(Hit.GetComponent()),
-			   Hit.Component.IsValid() ? *Hit.GetComponent()->GetComponentLocation().ToString() : TEXT("<unknown>"),
-			   Hit.PenetrationDepth,
-			   (uint32)GetNetMode());
-
-		// We really want to make sure that precision differences or differences between the overlap test and sweep tests don't put us into another overlap,
-		// so make the overlap test a bit more restrictive.
-		const float OverlapInflation = FlyingMovementCVars::PenetrationOverlapCheckInflation;
-		bool bEncroached = OverlapTest(Hit.TraceStart + Adjustment, NewRotationQuat, UpdatedPrimitive->GetCollisionObjectType(), UpdatedPrimitive->GetCollisionShape(OverlapInflation), ActorOwner);
-		if (!bEncroached)
-		{
-			// Move without sweeping.
-			MoveUpdatedComponent(Adjustment, NewRotationQuat, false, nullptr, ETeleportType::TeleportPhysics);
-			UE_LOG(LogFlyingMovement, Verbose, TEXT("ResolvePenetration:   teleport by %s"), *Adjustment.ToString());
-			return true;
-		}
-		else
-		{
-			// Disable MOVECOMP_NeverIgnoreBlockingOverlaps if it is enabled, otherwise we wouldn't be able to sweep out of the object to fix the penetration.
-			TGuardValue<EMoveComponentFlags> ScopedFlagRestore(MoveComponentFlags, EMoveComponentFlags(MoveComponentFlags & (~MOVECOMP_NeverIgnoreBlockingOverlaps)));
-
-			// Try sweeping as far as possible...
-			FHitResult SweepOutHit(1.f);
-			bool bMoved = MoveUpdatedComponent(Adjustment, NewRotationQuat, true, &SweepOutHit, ETeleportType::TeleportPhysics);
-			UE_LOG(LogFlyingMovement, Verbose, TEXT("ResolvePenetration:   sweep by %s (success = %d)"), *Adjustment.ToString(), bMoved);
-			
-			// Still stuck?
-			if (!bMoved && SweepOutHit.bStartPenetrating)
-			{
-				// Combine two MTD results to get a new direction that gets out of multiple surfaces.
-				const FVector SecondMTD = GetPenetrationAdjustment(SweepOutHit);
-				const FVector CombinedMTD = Adjustment + SecondMTD;
-				if (SecondMTD != Adjustment && !CombinedMTD.IsZero())
-				{
-					bMoved = MoveUpdatedComponent(CombinedMTD, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);
-					UE_LOG(LogFlyingMovement, Verbose, TEXT("ResolvePenetration:   sweep by %s (MTD combo success = %d)"), *CombinedMTD.ToString(), bMoved);
-				}
-			}
-
-			// Still stuck?
-			if (!bMoved)
-			{
-				// Try moving the proposed adjustment plus the attempted move direction. This can sometimes get out of penetrations with multiple objects
-				const FVector MoveDelta = (Hit.TraceEnd - Hit.TraceStart); //ConstrainDirectionToPlane(Hit.TraceEnd - Hit.TraceStart);
-				if (!MoveDelta.IsZero())
-				{
-					bMoved = MoveUpdatedComponent(Adjustment + MoveDelta, NewRotationQuat, true, nullptr, ETeleportType::TeleportPhysics);
-					UE_LOG(LogFlyingMovement, Verbose, TEXT("ResolvePenetration:   sweep by %s (adjusted attempt success = %d)"), *(Adjustment + MoveDelta).ToString(), bMoved);
-				}
-			}	
-
-			return bMoved;
-		}
-	}
-
-	return false;
-}
-
-bool UFlyingMovementComponent::SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport) const
-{
-	if (UpdatedComponent == NULL)
-	{
-		OutHit.Reset(1.f);
-		return false;
-	}
-
-	bool bMoveResult = false;
-
-	// Scope for move flags
-	{
-		bMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);
-	}
-
-	// Handle initial penetrations
-	if (OutHit.bStartPenetrating && UpdatedComponent)
-	{
-		const FVector RequestedAdjustment = GetPenetrationAdjustment(OutHit);
-		if (ResolvePenetration(RequestedAdjustment, OutHit, NewRotation))
-		{
-			// Retry original move
-			bMoveResult = MoveUpdatedComponent(Delta, NewRotation, bSweep, &OutHit, Teleport);
-		}
-	}
-
-	return bMoveResult;
-}
-
-bool UFlyingMovementComponent::MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const
-{
-	if (UpdatedComponent)
-	{
-		const FVector NewDelta = Delta; //ConstrainDirectionToPlane(Delta);
-		return UpdatedComponent->MoveComponent(NewDelta, NewRotation, bSweep, OutHit, MoveComponentFlags, Teleport);
-	}
-
-	return false;
-}
-
-FTransform UFlyingMovementComponent::GetUpdateComponentTransform() const
-{
-	if (ensure(UpdatedComponent))
-	{
-		return UpdatedComponent->GetComponentTransform();		
-	}
-	return FTransform::Identity;
-}
 
 void UFlyingMovementComponent::InitSyncState(FlyingMovement::FMoveState& OutSyncState) const
 {
@@ -457,22 +176,4 @@ void UFlyingMovementComponent::SyncTo(const FlyingMovement::FMoveState& SyncStat
 
 		UpdatedComponent->ComponentVelocity = SyncState.Velocity;
 	}
-}
-
-void UFlyingMovementComponent::GetCapsuleDimensions(float &Radius, float& HalfHeight) const
-{
-	if (UCapsuleComponent const* CapsuleComponent = Cast<UCapsuleComponent>(UpdatedComponent))
-	{
-		CapsuleComponent->GetScaledCapsuleSize(Radius, HalfHeight);
-	}
-}
-
-FTransform UFlyingMovementComponent::GetDebugWorldTransform() const
-{
-	return GetOwner()->GetActorTransform();
-}
-
-UObject* UFlyingMovementComponent::GetVLogOwner() const
-{
-	return GetOwner();
 }

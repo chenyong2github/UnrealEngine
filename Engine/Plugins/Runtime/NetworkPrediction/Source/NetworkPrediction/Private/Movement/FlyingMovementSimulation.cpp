@@ -113,7 +113,9 @@ namespace FlyingMovement
 
 		if ((SlideDelta | Delta) > 0.f)
 		{
-			Driver->SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
+			IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
+
+			BaseMovementDriver.SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
 
 			const float FirstHitPercent = Hit.Time;
 			PercentTimeApplied = FirstHitPercent;
@@ -132,7 +134,7 @@ namespace FlyingMovement
 				if (!SlideDelta.IsNearlyZero(1e-3f) && (SlideDelta | Delta) > 0.f)
 				{
 					// Perform second move
-					Driver->SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
+					BaseMovementDriver.SafeMoveUpdatedComponent(SlideDelta, Rotation, true, Hit, ETeleportType::None);
 					const float SecondHitPercent = Hit.Time * (1.f - FirstHitPercent);
 					PercentTimeApplied += SecondHitPercent;
 
@@ -163,6 +165,8 @@ namespace FlyingMovement
 
 		const float DeltaSeconds = InputCmd.FrameDeltaTime;
 		OutputState = InputState;
+
+		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
 
 		// --------------------------------------------------------------
 		//	Rotation Update
@@ -245,7 +249,7 @@ namespace FlyingMovement
 		if (!Delta.IsNearlyZero(1e-6f))
 		{
 			FHitResult Hit(1.f);
-			Driver->SafeMoveUpdatedComponent(Delta, OutputQuat, true, Hit, ETeleportType::None);
+			BaseMovementDriver.SafeMoveUpdatedComponent(Delta, OutputQuat, true, Hit, ETeleportType::None);
 
 			if (Hit.IsValidBlockingHit())
 			{
@@ -264,7 +268,7 @@ namespace FlyingMovement
 		}
 
 		// Finalize. This is unfortunate. The component mirrors our internal motion state and since we call into it to update, at this point, it has the real position.
-		const FTransform UpdateComponentTransform = Driver->GetUpdateComponentTransform();
+		const FTransform UpdateComponentTransform = BaseMovementDriver.GetUpdateComponentTransform();
 		OutputState.Location = UpdateComponentTransform.GetLocation();
 
 		// Note that we don't pull the rotation out of the final update transform. Converting back from a quat will lead to a different FRotator than what we are storing
@@ -273,47 +277,15 @@ namespace FlyingMovement
 
 	void FMoveState::VisualLog(const FVisualLoggingParameters& Parameters, IFlyingMovementDriver* Driver, IFlyingMovementDriver* LogDriver)
 	{
-		const bool DrawPointOnly = (Parameters.Context == EVisualLoggingContext::OtherMispredicted || Parameters.Context == EVisualLoggingContext::OtherPredicted);
-		const bool DrawPersistent = (Parameters.Lifetime == EVisualLoggingLifetime::Persistent);
-		const float Lifetime = Parameters.Lifetime == EVisualLoggingLifetime::Persistent ? FlyingPawnSimCVars::DrawDebugDefaultLifeTime : -1.f;
+		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();		
+		FTransform Transform(Rotation, Location);		
 
-		float Radius=0.f;
-		float HalfHeight=0.f;
-		Driver->GetCapsuleDimensions(Radius, HalfHeight);
+		IBaseMovementDriver::FDrawDebugParams DrawParams(Parameters, &LogDriver->GetBaseMovementDriver());		
+		DrawParams.Transform = Transform;		
+		DrawParams.InWorldText = LexToString(Parameters.Keyframe);
+		DrawParams.LogText = FString::Printf(TEXT("[%d] %s. Location: %s. Rotation: %s"), Parameters.Keyframe, *LexToString(Parameters.Context), *Transform.GetLocation().ToString(), *Transform.GetRotation().Rotator().ToString());
 
-		if (FlyingPawnSimCVars::UseDrawDebug)
-		{
-			FVector DrawPosition = Location;
-			const float Thickness = 2.f;
-
-			if (DrawPointOnly)
-			{
-				static float PointSize = 3.f;
-				DrawDebugPoint(LogDriver->GetDriverWorld(), DrawPosition, PointSize, Parameters.GetDebugColor(), DrawPersistent, Lifetime);
-			}
-			else
-			{
-				DrawDebugCapsule(LogDriver->GetDriverWorld(), DrawPosition, HalfHeight, Radius, Rotation.Quaternion(), Parameters.GetDebugColor(), DrawPersistent, Lifetime, 0.f, Thickness);
-			}
-		}
-
-	
-		if (FlyingPawnSimCVars::UseVLogger)
-		{
-			FVector DrawPosition = Location;
-			if (DrawPointOnly)
-			{
-				static float CrumbRadius = 3.f;
-				UE_VLOG_LOCATION(LogDriver->GetVLogOwner(), LogFlyingPawnSimulation, Log, DrawPosition, CrumbRadius, Parameters.GetDebugColor(), TEXT("%d"), Parameters.Keyframe);
-			}
-			else
-			{
-				DrawPosition.Z -= HalfHeight;
-				UE_VLOG_CAPSULE(LogDriver->GetVLogOwner(), LogFlyingPawnSimulation, Log, DrawPosition, HalfHeight, Radius, Rotation.Quaternion(), Parameters.GetDebugColor(), TEXT("%d"), Parameters.Keyframe);
-			}
-
-			UE_VLOG(LogDriver->GetVLogOwner(), LogFlyingPawnSimulation, Log, TEXT("[%d] %s. Location: %s."), Parameters.Keyframe, *LexToString(Parameters.Context), *Location.ToString());
-		}
+		BaseMovementDriver.DrawDebug(DrawParams);
 	}
 
 } // end namespace

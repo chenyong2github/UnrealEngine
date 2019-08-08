@@ -98,6 +98,12 @@ inline FString LexToString(EVisualLoggingContext A)
 	return *UEnum::GetValueAsString(TEXT("NetworkPrediction.EVisualLoggingContext"), A);
 }
 
+enum class EVisualLoggingDrawType : uint8
+{
+	Full,				// Draw "the full thing" (maybe a collision capsule for example)
+	Crumb,				// Draw a small/minimal representation (E.g, a point or small axis)
+};
+
 enum class EVisualLoggingLifetime : uint8
 {
 	Transient,			// This logging is transient and will (probably) be done every frame. Don't persist (in contexts where that would matter).

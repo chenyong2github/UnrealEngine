@@ -11,7 +11,8 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Engine/World.h"
 #include "Engine/LocalPlayer.h"
-
+#include "Components/CapsuleComponent.h"
+#include "DrawDebugHelpers.h"
 
 namespace FlyingPawnCVars
 {
@@ -139,7 +140,6 @@ void ANetworkPredictionExtrasFlyingPawn::InputAxis_MoveDown(float Value)
 void ANetworkPredictionExtrasFlyingPawn::Tick( float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
-
 	// Do whatever you want here. By now we have the latest movement state and latest input processed.
 }
 
@@ -152,8 +152,10 @@ void ANetworkPredictionExtrasFlyingPawn::GenerateLocalInput(float DeltaSeconds)
 	//
 	// Its worth calling out: the code that happens here is happening *outside* of the flying movement simulation. All we are doing
 	// is generating the input being fed into that simulation. That said, this means that A) the code below does not run on the server
-	// (and non controlling clients) and B) the code is not rerun during reconcile/resimulates. This this information guide any
-	// decisions about where something should go (such as aim assist, lock on targeting systems, etc).
+	// (and non controlling clients) and B) the code is not rerun during reconcile/resimulates. Use this information guide any
+	// decisions about where something should go (such as aim assist, lock on targeting systems, etc): it is hard to give absolute
+	// answers and will depend on the game and its specific needs. In general, at this time, I'd recommend aim assist and lock on 
+	// targeting systems to happen /outside/ of the system, i.e, here. But I can think of scenarios where that may not be ideal too.
 
 	check(Controller);
 	if (FlyingMovement::FInputCmd* NextCmd = FlyingMovementComponent->GetNextClientInputCmdForWrite(DeltaSeconds))

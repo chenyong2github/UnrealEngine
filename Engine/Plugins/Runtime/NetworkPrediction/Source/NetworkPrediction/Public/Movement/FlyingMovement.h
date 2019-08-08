@@ -14,7 +14,7 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
 #include "NetworkSimulationModelTemplates.h"
-#include "NetworkPredictionComponent.h"
+#include "BaseMovementComponent.h"
 
 #include "FlyingMovement.generated.h"
 
@@ -119,16 +119,8 @@ namespace FlyingMovement
 		class IMovementDriver : public IDriver
 		{
 		public:
-
-			virtual bool SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport) const = 0;
-			virtual bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const = 0;
-			virtual FTransform GetUpdateComponentTransform() const = 0;
-
-
-			virtual void GetCapsuleDimensions(float &Radius, float& HalfHeight) const = 0;
-			virtual UWorld* GetDriverWorld() const = 0;
-			virtual UObject* GetVLogOwner() const = 0;
-			virtual FTransform GetDebugWorldTransform() const = 0;
+			// FlyingMovement only really needs the base driver functions for moving a primitive component around.
+			virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
 		};
 
 		/** Main update function */
@@ -145,75 +137,37 @@ namespace FlyingMovement
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
 // Also needed for forward declaring. Can't just be a typedef/using =
-class IFlyingMovementDriver : public FlyingMovement::FMovementSystem::IMovementDriver { };
+class IFlyingMovementDriver : virtual public FlyingMovement::FMovementSystem::IMovementDriver { };
 
 // -------------------------------------------------------------------------------------------------------------------------------
 // ActorComponent for running FlyingMovement 
 // -------------------------------------------------------------------------------------------------------------------------------
 
 UCLASS(BlueprintType, meta=(BlueprintSpawnableComponent))
-class NETWORKPREDICTION_API UFlyingMovementComponent : public UNetworkPredictionComponent, public IFlyingMovementDriver
+class NETWORKPREDICTION_API UFlyingMovementComponent : public UBaseMovementComponent, public IFlyingMovementDriver
 {
 	GENERATED_BODY()
 
 public:
 
 	UFlyingMovementComponent();
-
-	virtual void InitializeComponent() override;
-	virtual void OnRegister() override;
-	virtual void RegisterComponentTickFunctions(bool bRegister) override;
+	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
 	// Gets writable copy of FClientInputCmd for this frame. Should only be called once per frame by the local player.
 	FlyingMovement::FInputCmd* GetNextClientInputCmdForWrite(float DeltaTime);
 
-	// IFlyingMovementDriver
-	bool SafeMoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult& OutHit, ETeleportType Teleport) const;
-	bool MoveUpdatedComponent(const FVector& Delta, const FQuat& NewRotation, bool bSweep, FHitResult* OutHit, ETeleportType Teleport) const;
-	FTransform GetUpdateComponentTransform() const;
+	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
 
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
 	void SyncTo(const FlyingMovement::FMoveState& SyncState) override;
-	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
-	virtual UObject* GetVLogOwner() const override final;
-	virtual FTransform GetDebugWorldTransform() const override final;
-	virtual void GetCapsuleDimensions(float &Radius, float& HalfHeight) const;
 
 protected:
 
-	// Basic "Update Component/Ticking"
-	virtual void SetUpdatedComponent(USceneComponent* NewUpdatedComponent);
-	virtual void UpdateTickRegistration();
-
-	UFUNCTION()
-	virtual void PhysicsVolumeChanged(class APhysicsVolume* NewVolume);
-
 	// Network Prediction
-	virtual IReplicationProxy* InstantiateNetworkSimulation() override;	
+	virtual IReplicationProxy* InstantiateNetworkSimulation() override;
 	virtual void InitializeForNetworkRole(ENetRole Role) override;
+
 	TUniquePtr<FlyingMovement::FMovementSystem> NetworkSim; // The Network sim that this component is managing. This is what is doing all the work.
-
-private:
-
-	UPROPERTY()
-	USceneComponent* UpdatedComponent = nullptr;
-
-	UPROPERTY()
-	UPrimitiveComponent* UpdatedPrimitive = nullptr;
-
-	/** Transient flag indicating whether we are executing OnRegister(). */
-	bool bInOnRegister = false;
 	
-	/** Transient flag indicating whether we are executing InitializeComponent(). */
-	bool bInInitializeComponent = false;
-
-	static FVector GetPenetrationAdjustment(const FHitResult& Hit);
-
-	bool OverlapTest(const FVector& Location, const FQuat& RotationQuat, const ECollisionChannel CollisionChannel, const FCollisionShape& CollisionShape, const AActor* IgnoreActor) const;
-	void InitCollisionParams(FCollisionQueryParams &OutParams, FCollisionResponseParams& OutResponseParam) const;
-	bool ResolvePenetration(const FVector& ProposedAdjustment, const FHitResult& Hit, const FQuat& NewRotationQuat) const;
-
-	/**  Flags that control the behavior of calls to MoveComponent() on our UpdatedComponent. */
-	mutable EMoveComponentFlags MoveComponentFlags = MOVECOMP_NoFlags; // Mutable because we sometimes need to disable these flags ::ResolvePenetration. Better way may be possible
 };
