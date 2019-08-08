@@ -245,6 +245,7 @@ public:
 
 	virtual EUINavigation GetNavigationDirectionFromKey( const FKeyEvent& InKeyEvent ) const = 0;
 	virtual EUINavigation GetNavigationDirectionFromAnalog(const FAnalogInputEvent& InAnalogEvent) = 0;
+	virtual EUINavigationAction GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const = 0;
 	virtual EUINavigationAction GetNavigationActionForKey(const FKey& InKey) const = 0;
 
 	/** @return	Returns true if there are any pop-up menus summoned */

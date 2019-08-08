@@ -1104,7 +1104,7 @@ FReply FSlateEditableTextLayout::HandleKeyDown(const FKeyEvent& InKeyEvent)
 
 FReply FSlateEditableTextLayout::HandleKeyUp(const FKeyEvent& InKeyEvent)
 {
-	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
+	if (FPlatformApplicationMisc::RequiresVirtualKeyboard() && FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		if (!OwnerWidget->IsTextReadOnly())
 		{

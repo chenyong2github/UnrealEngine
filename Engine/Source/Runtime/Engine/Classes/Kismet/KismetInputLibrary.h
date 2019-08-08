@@ -90,9 +90,12 @@ class ENGINE_API UKismetInputLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Is Valid"), Category = "Utilities|Key")
 	static bool Key_IsValid(const FKey& Key);
 
-	/** Returns the navigation action corresponding to this key, or Invalid if not found */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Navigation Action"), Category = "Utilities|Key")
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Navigation Action", DeprecatedFunction, DeprecationMessage = "Use Get Key Event Navigation Action instead"), Category = "Utilities|Key")
 	static EUINavigationAction Key_GetNavigationAction(const FKey& InKey);
+
+	/** Returns the navigation action corresponding to this key, or Invalid if not found */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Event Navigation Action"), Category = "Utilities|KeyEvent")
+	static EUINavigationAction Key_GetNavigationActionFromKey(const FKeyEvent& InKeyEvent);
 
 	/** Returns the navigation action corresponding to this key, or Invalid if not found */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Get Key Event Navigation Direction"), Category = "Utilities|KeyEvent")

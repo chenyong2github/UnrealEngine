@@ -79,7 +79,7 @@ bool SCheckBox::SupportsKeyboardFocus() const
 
 FReply SCheckBox::OnKeyUp( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
 {
-	if (FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
+	if (FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		ToggleCheckedState();
 

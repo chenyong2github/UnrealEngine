@@ -284,37 +284,14 @@ public:
 
 protected:
 	/** Handle key presses that SListView ignores */
-	virtual FReply OnHandleKeyPressed(FKey KeyPressed)
-	{
-		EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionForKey(KeyPressed);
-		if (NavAction == EUINavigationAction::Accept)
-		{
-			TArray<OptionType> SelectedItems = ComboListView->GetSelectedItems();
-			if (SelectedItems.Num() > 0)
-			{
-				ComboListView->SetSelection(SelectedItems[0]);
-			}
-			return FReply::Handled();
-		}
-		else if (NavAction == EUINavigationAction::Back)
-		{
-			this->SetIsOpen(false);
-			return FReply::Handled();
-		}
-		return FReply::Unhandled();
-	}
-
 	FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override
 	{
-
-		const FKey KeyPressed = InKeyEvent.GetKey();
-
 		if (IsInteractable())
 		{
-
+			const EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent);
+			const EUINavigation NavDirection = FSlateApplication::Get().GetNavigationDirectionFromKey(InKeyEvent);
 			if (EnableGamepadNavigationMode)
 			{
-				EUINavigationAction NavAction = FSlateApplication::Get().GetNavigationActionForKey(KeyPressed);
 				// The controller's bottom face button must be pressed once to begin manipulating the combobox's value.
 				// Navigation away from the widget is prevented until the button has been pressed again or focus is lost.
 				if (NavAction == EUINavigationAction::Accept)
@@ -346,7 +323,7 @@ protected:
 					}
 
 				}
-				else if (NavAction == EUINavigationAction::Back || KeyPressed == EKeys::BackSpace)
+				else if (NavAction == EUINavigationAction::Back || InKeyEvent.GetKey() == EKeys::BackSpace)
 				{
 					const bool bWasInputCaptured = bControllerInputCaptured;
 
@@ -366,7 +343,7 @@ protected:
 			}
 			else
 			{
-				if (KeyPressed == EKeys::Up || KeyPressed == EKeys::Gamepad_DPad_Up || KeyPressed == EKeys::Gamepad_LeftStick_Up)
+				if (NavDirection == EUINavigation::Up)
 				{
 					NullableOptionType NullableSelected = GetSelectedItem();
 					if (TListTypeTraits<OptionType>::IsPtrValid(NullableSelected))
@@ -382,7 +359,7 @@ protected:
 
 					return FReply::Handled();
 				}
-				else if (KeyPressed == EKeys::Down || KeyPressed == EKeys::Gamepad_DPad_Down || KeyPressed == EKeys::Gamepad_LeftStick_Down)
+				else if (NavDirection == EUINavigation::Down)
 				{
 					NullableOptionType NullableSelected = GetSelectedItem();
 					if (TListTypeTraits<OptionType>::IsPtrValid(NullableSelected))

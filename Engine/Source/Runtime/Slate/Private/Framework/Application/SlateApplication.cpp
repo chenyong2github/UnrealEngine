@@ -2170,9 +2170,16 @@ EUINavigation FSlateApplication::GetNavigationDirectionFromAnalog(const FAnalogI
 	return NavigationConfig->GetNavigationDirectionFromAnalog(InAnalogEvent);
 }
 
+EUINavigationAction FSlateApplication::GetNavigationActionFromKey(const FKeyEvent& InKeyEvent) const
+{
+	return NavigationConfig->GetNavigationActionFromKey(InKeyEvent);
+}
+
 EUINavigationAction FSlateApplication::GetNavigationActionForKey(const FKey& InKey) const
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return NavigationConfig->GetNavigationActionForKey(InKey);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const TSharedPtr<const SWidget> InParentWidget, bool bSlowTaskWindow )

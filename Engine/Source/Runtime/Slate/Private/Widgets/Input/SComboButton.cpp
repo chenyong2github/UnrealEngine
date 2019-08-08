@@ -128,7 +128,7 @@ FReply SComboButton::OnButtonClicked()
 FReply SComboButton::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	FReply Reply = FReply::Unhandled();
-	if (FSlateApplication::Get().GetNavigationActionForKey(InKeyEvent.GetKey()) == EUINavigationAction::Accept)
+	if (FSlateApplication::Get().GetNavigationActionFromKey(InKeyEvent) == EUINavigationAction::Accept)
 	{
 		// Handle menu open with controller.
 		Reply = OnButtonClicked();
