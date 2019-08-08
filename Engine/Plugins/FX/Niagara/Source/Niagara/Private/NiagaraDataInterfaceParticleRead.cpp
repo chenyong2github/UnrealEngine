@@ -62,7 +62,7 @@ bool UNiagaraDataInterfaceParticleRead::InitPerInstanceData(void* PerInstanceDat
 			break;
 		}
 	}
-	return PIData->EmitterInstance;
+	return PIData->EmitterInstance != nullptr;
 }
 
 void UNiagaraDataInterfaceParticleRead::DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance)
