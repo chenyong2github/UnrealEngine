@@ -4,7 +4,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "GraphEditorActions.h"
 #include "ScopedTransaction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 
 
 /////////////////////////////////////////////////////
@@ -37,26 +37,25 @@ FText UAnimGraphNode_MultiWayBlend::GetNodeTitle(ENodeTitleType::Type TitleType)
 	return LOCTEXT("Blend", "Blend Multi");
 }
 
-void UAnimGraphNode_MultiWayBlend::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_MultiWayBlend::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
-		Context.MenuBuilder->BeginSection("AnimGraphBlendMulti", LOCTEXT("BlendMultiHeader", "BlendMulti"));
 		{
-			if (Context.Pin != NULL)
+			FToolMenuSection& Section = Menu->AddSection("AnimGraphBlendMulti", LOCTEXT("BlendMultiHeader", "BlendMulti"));
+			if (Context->Pin != NULL)
 			{
 				// we only do this for normal BlendMulti/BlendMulti by enum, BlendMulti by Bool doesn't support add/remove pins
-				if (Context.Pin->Direction == EGPD_Input)
+				if (Context->Pin->Direction == EGPD_Input)
 				{
-					Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().RemoveBlendListPin);
+					Section.AddMenuEntry(FGraphEditorCommands::Get().RemoveBlendListPin);
 				}
 			}
 			else
 			{
-				Context.MenuBuilder->AddMenuEntry(FGraphEditorCommands::Get().AddBlendListPin);
+				Section.AddMenuEntry(FGraphEditorCommands::Get().AddBlendListPin);
 			}
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

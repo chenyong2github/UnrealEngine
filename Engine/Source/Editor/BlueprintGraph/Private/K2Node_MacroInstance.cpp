@@ -3,7 +3,7 @@
 #include "K2Node_MacroInstance.h"
 #include "Engine/Blueprint.h"
 #include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EdGraphSchema_K2.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "EditorStyleSet.h"
@@ -198,20 +198,20 @@ FLinearColor UK2Node_MacroInstance::GetNodeTitleColor() const
 	return FLinearColor::White;
 }
 
-void UK2Node_MacroInstance::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UK2Node_MacroInstance::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if ( Context.Pin == nullptr )
+	if ( Context->Pin == nullptr )
 	{
-		Context.MenuBuilder->BeginSection("K2NodeMacroInstance", NSLOCTEXT("K2Node", "MacroInstanceHeader", "Macro Instance"));
 		{
-			Context.MenuBuilder->AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection("K2NodeMacroInstance", NSLOCTEXT("K2Node", "MacroInstanceHeader", "Macro Instance"));
+			Section.AddMenuEntry(
+				"MacroInstanceFindInContentBrowser",
 				NSLOCTEXT("K2Node", "MacroInstanceFindInContentBrowser", "Find in Content Browser"),
 				NSLOCTEXT("K2Node", "MacroInstanceFindInContentBrowserTooltip", "Finds the Blueprint Macro Library that contains this Macro in the Content Browser"),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "PropertyWindow.Button_Browse"),
 				FUIAction( FExecuteAction::CreateStatic( &UK2Node_MacroInstance::FindInContentBrowser, MakeWeakObjectPtr(const_cast<UK2Node_MacroInstance*>(this)) ) )
 				);
 		}
-		Context.MenuBuilder->EndSection();
 	}
 }
 

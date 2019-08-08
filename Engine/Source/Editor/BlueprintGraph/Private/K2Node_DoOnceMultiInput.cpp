@@ -3,7 +3,7 @@
 #include "K2Node_DoOnceMultiInput.h"
 #include "Textures/SlateIcon.h"
 #include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_AssignmentStatement.h"
 #include "K2Node_IfThenElse.h"
@@ -268,34 +268,35 @@ void UK2Node_DoOnceMultiInput::RemoveInputPin(UEdGraphPin* Pin)
 	}
 }
 
-void UK2Node_DoOnceMultiInput::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UK2Node_DoOnceMultiInput::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(Context);
+	Super::GetNodeContextMenuActions(Menu, Context);
 
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
 		static FName CommutativeAssociativeBinaryOperatorNodeName = FName("CommutativeAssociativeBinaryOperatorNode");
 		FText CommutativeAssociativeBinaryOperatorStr = LOCTEXT("CommutativeAssociativeBinaryOperatorNode", "Operator Node");
-		if (Context.Pin != NULL)
+		if (Context->Pin != NULL)
 		{
-			if(CanRemovePin(Context.Pin))
+			if(CanRemovePin(Context->Pin))
 			{
-				Context.MenuBuilder->BeginSection(CommutativeAssociativeBinaryOperatorNodeName, CommutativeAssociativeBinaryOperatorStr);
-				Context.MenuBuilder->AddMenuEntry(
+				FToolMenuSection& Section = Menu->AddSection(CommutativeAssociativeBinaryOperatorNodeName, CommutativeAssociativeBinaryOperatorStr);
+				Section.AddMenuEntry(
+					"RemovePin",
 					LOCTEXT("RemovePin", "Remove pin"),
 					LOCTEXT("RemovePinTooltip", "Remove this input pin"),
 					FSlateIcon(),
 					FUIAction(
-						FExecuteAction::CreateUObject(const_cast<UK2Node_DoOnceMultiInput*>(this), &UK2Node_DoOnceMultiInput::RemoveInputPin, const_cast<UEdGraphPin*>(Context.Pin))
+						FExecuteAction::CreateUObject(const_cast<UK2Node_DoOnceMultiInput*>(this), &UK2Node_DoOnceMultiInput::RemoveInputPin, const_cast<UEdGraphPin*>(Context->Pin))
 					)
 				);
-				Context.MenuBuilder->EndSection();
 			}
 		}
 		else if(CanAddPin())
 		{
-			Context.MenuBuilder->BeginSection(CommutativeAssociativeBinaryOperatorNodeName, CommutativeAssociativeBinaryOperatorStr);
-			Context.MenuBuilder->AddMenuEntry(
+			FToolMenuSection& Section = Menu->AddSection(CommutativeAssociativeBinaryOperatorNodeName, CommutativeAssociativeBinaryOperatorStr);
+			Section.AddMenuEntry(
+				"AddPin",
 				LOCTEXT("AddPin", "Add pin"),
 				LOCTEXT("AddPinTooltip", "Add another input pin"),
 				FSlateIcon(),
@@ -303,7 +304,6 @@ void UK2Node_DoOnceMultiInput::GetContextMenuActions(const FGraphNodeContextMenu
 					FExecuteAction::CreateUObject(const_cast<UK2Node_DoOnceMultiInput*>(this), &UK2Node_DoOnceMultiInput::AddInputPin)
 				)
 			);
-			Context.MenuBuilder->EndSection();
 		}
 	}
 }

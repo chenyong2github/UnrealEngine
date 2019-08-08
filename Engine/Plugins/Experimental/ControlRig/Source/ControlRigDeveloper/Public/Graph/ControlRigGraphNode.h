@@ -168,7 +168,7 @@ public:
 	virtual void AllocateDefaultPins() override;
 	virtual void ReconstructNode() override;
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual void DestroyNode() override;
 	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
 	virtual TSharedPtr<INameValidatorInterface> MakeNameValidator() const override;

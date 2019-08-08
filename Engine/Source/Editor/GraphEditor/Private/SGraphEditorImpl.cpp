@@ -513,18 +513,10 @@ void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema()
 
 	Menu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 	{
-		if (UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>())
+		UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
+		if (Context && Context->Node)
 		{
 			Context->Node->GetNodeContextMenuActions(InMenu, Context);
-		}
-	}));
-
-	Menu->AddDynamicSection("GetNodeContextMenuActionsLegacy", FNewToolMenuDelegateLegacy::CreateLambda([](FMenuBuilder& InMenuBuilder, UToolMenu* InMenu)
-	{
-		if (UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>())
-		{
-			FGraphNodeContextMenuBuilder MenuBuilderContext(Context->Graph, Context->Node, Context->Pin, &InMenuBuilder, Context->bIsDebugging);
-			Context->Node->GetContextMenuActions(MenuBuilderContext);
 		}
 	}));
 
@@ -656,8 +648,31 @@ void SGraphEditorImpl::RegisterContextMenuFor_EdGraphSchema()
 	}));
 }
 
+FName SGraphEditorImpl::GetNodeParentContextMenuName(UClass* InClass)
+{
+	if (InClass && InClass != UEdGraphNode::StaticClass())
+	{
+		if (InClass->GetDefaultObject<UEdGraphNode>()->IncludeParentNodeContextMenu())
+		{
+			if (UClass* SuperClass = InClass->GetSuperClass())
+			{
+				return GetNodeContextMenuName(SuperClass);
+			}
+		}
+	}
+
+	return NAME_None;
+}
+
+FName SGraphEditorImpl::GetNodeContextMenuName(UClass* InClass)
+{
+	return FName(*(FString(TEXT("GraphEditor.GraphNodeContextMenu.")) + InClass->GetName()));
+}
+
 UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const
 {
+	UGraphNodeContextMenuContext* Context = MenuContext.Find<UGraphNodeContextMenuContext>();
+
 	// Register UEdGraphSchema's menu here to reduce amount of editor code in engine module
 	RegisterContextMenuFor_EdGraphSchema();
 
@@ -671,19 +686,47 @@ UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, F
 		{
 			ToolMenus->RegisterMenu(CheckMenuName, CurrentSchema->GetParentContextMenuName());
 		}
-
-		CurrentClass = CurrentClass->GetSuperClass();
 	}
 
 	const FName MenuName = Schema->GetContextMenuName();
 	TArray<UToolMenu*> Hierarchy = ToolMenus->CollectHierarchy(MenuName);
 
+	// Insert list of node specific menus
+	if (Context->Node)
+	{
+		// Only insert list if graph schema includes actions for nodes
+		static const FName EdGraphSchemaMenuName = UEdGraphSchema::GetContextMenuName(UEdGraphSchema::StaticClass());
+		if (Hierarchy.ContainsByPredicate([=](UToolMenu* OtherMenu) { return OtherMenu->MenuName == EdGraphSchemaMenuName; }))
+		{
+			// Walk class hierarchy
+			for (UClass* CurrentClass = Context->Node->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphNode::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
+			{
+				const FName CheckMenuName = GetNodeContextMenuName(CurrentClass);
+				const FName CheckParentName = GetNodeParentContextMenuName(CurrentClass);
+
+				// Register if not already registered
+				if (!ToolMenus->IsMenuRegistered(CheckMenuName))
+				{
+					ToolMenus->RegisterMenu(CheckMenuName, CheckParentName);
+				}
+
+				// Parent rest of hierarchy to this menu
+				Hierarchy.Insert(ToolMenus->FindMenu(CheckMenuName), 0);
+
+				// Stop walking class hierarchy if IncludeParentNodeContextMenu() returns false for current class
+				if (CheckParentName == NAME_None)
+				{
+					break;
+				}
+			}
+		}
+	}
+
 	// Add extra menu into hierarchy for calling GetContextMenuActions()
 	const FName CommonRootMenuName = "GraphEditor.GraphContextMenu.Common";
-	UToolMenu* CommonRootMenu = nullptr;
 	if (!ToolMenus->IsMenuRegistered(CommonRootMenuName))
 	{
-		CommonRootMenu = ToolMenus->RegisterMenu(CommonRootMenuName);
+		UToolMenu* CommonRootMenu = ToolMenus->RegisterMenu(CommonRootMenuName);
 		CommonRootMenu->AddDynamicSection("GetContextMenuActions", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 		{
 			if (UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>())
@@ -695,11 +738,7 @@ UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, F
 			}
 		}));
 	}
-	else
-	{
-		CommonRootMenu = ToolMenus->FindMenu(CommonRootMenuName);
-	}
-	Hierarchy.Insert(CommonRootMenu, 0);
+	Hierarchy.Insert(ToolMenus->FindMenu(CommonRootMenuName), 0);
 
 	return ToolMenus->GenerateMenu(Hierarchy, MenuContext);
 }

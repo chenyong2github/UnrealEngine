@@ -59,6 +59,7 @@ public class MovieSceneTools : ModuleRules
                 "AnimationCore",
 				"TimeManagement",
                 "XmlParser",
+				"ToolMenus",
 			}
 		);
 

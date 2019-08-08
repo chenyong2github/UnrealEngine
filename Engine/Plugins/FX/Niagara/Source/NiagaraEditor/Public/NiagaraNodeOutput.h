@@ -41,7 +41,8 @@ public:
 	virtual bool CanDuplicateNode() const override;
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FLinearColor GetNodeTitleColor() const override;
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	//~ End EdGraphNode Interface
 
 	/** Notifies the node that it's output variables have been modified externally. */

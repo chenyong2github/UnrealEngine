@@ -32,7 +32,7 @@ class UMaterialGraphNode_Comment : public UEdGraphNode_Comment
 
 	//~ Begin UEdGraphNode Interface.
 	virtual void PrepareForCopying() override;
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
 	virtual bool CanCreateUnderSpecifiedSchema(const UEdGraphSchema* Schema) const override;
 	virtual void PostPlacedNewNode() override;
 	virtual void OnRenameNode(const FString& NewName) override;

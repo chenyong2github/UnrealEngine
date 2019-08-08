@@ -9,7 +9,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "PropertyCustomizationHelpers.h"
 #include "MovieSceneSequence.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "MovieSceneObjectBindingIDPicker.h"
 #include "SGraphNode.h"
 #include "ContentBrowserModule.h"
@@ -239,18 +239,22 @@ FSlateIcon UK2Node_GetSequenceBinding::GetIconAndTint(FLinearColor& OutColor) co
 	return Icon;
 }
 
-void UK2Node_GetSequenceBinding::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UK2Node_GetSequenceBinding::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	Super::GetContextMenuActions(Context);
+	Super::GetNodeContextMenuActions(Menu, Context);
 
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
-		Context.MenuBuilder->BeginSection("K2NodeGetSequenceBinding", LOCTEXT("ThisNodeHeader", "This Node"));
-		if (!Context.Pin)
+		FToolMenuSection& Section = Menu->AddSection("K2NodeGetSequenceBinding", LOCTEXT("ThisNodeHeader", "This Node"));
+		if (!Context->Pin)
 		{
 			UMovieSceneSequence* Sequence = GetSequence();
 
-			auto SubMenu = [=](FMenuBuilder& SubMenuBuilder)
+			Section.AddSubMenu(
+				"SetSequence",
+				LOCTEXT("SetSequence_Text", "Sequence"),
+				LOCTEXT("SetSequence_ToolTip", "Sets the sequence to get a binding from"),
+				FNewToolMenuDelegate::CreateLambda([=](UToolMenu* SubMenu)
 				{
 					TArray<const UClass*> AllowedClasses({ UMovieSceneSequence::StaticClass() });
 
@@ -263,17 +267,9 @@ void UK2Node_GetSequenceBinding::GetContextMenuActions(const FGraphNodeContextMe
 						FOnAssetSelected::CreateUObject(const_cast<UK2Node_GetSequenceBinding*>(this), &UK2Node_GetSequenceBinding::SetSequence),
 						FSimpleDelegate());
 					
-					SubMenuBuilder.AddWidget(MenuContent, FText::GetEmpty(), false);
-				};
-
-			Context.MenuBuilder->AddSubMenu(
-				LOCTEXT("SetSequence_Text", "Sequence"),
-				LOCTEXT("SetSequence_ToolTip", "Sets the sequence to get a binding from"),
-				FNewMenuDelegate::CreateLambda(SubMenu)
-				);
+					SubMenu->AddMenuEntry("Section", FToolMenuEntry::InitWidget("Widget", MenuContent, FText::GetEmpty(), false));
+				}));
 		}
-
-		Context.MenuBuilder->EndSection();
 	}
 }
 

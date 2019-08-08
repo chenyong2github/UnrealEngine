@@ -433,25 +433,29 @@ void UMaterialGraphNode::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 			
 		{
 			FToolMenuSection& Section = Menu->AddSection("Alignment");
-			Section.AddSubMenu(Menu->GetMenuName(), "Alignment", LOCTEXT("AlignmentHeader", "Alignment"), FText(), FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
-			{
+			Section.AddSubMenu(
+				"Alignment",
+				LOCTEXT("AlignmentHeader", "Alignment"),
+				FText(),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
 				{
-					FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
-				}
+					{
+						FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaAlignment", LOCTEXT("AlignHeader", "Align"));
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesTop);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesMiddle);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesBottom);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesLeft);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesCenter);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().AlignNodesRight);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections);
+					}
 
-				{
-					FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
-					SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
-				}
-			}));
+					{
+						FToolMenuSection& SubMenuSection = InMenu->AddSection("EdGraphSchemaDistribution", LOCTEXT("DistributionHeader", "Distribution"));
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesHorizontally);
+						SubMenuSection.AddMenuEntry(FGraphEditorCommands::Get().DistributeNodesVertically);
+					}
+				}));
 		}
 
 		{

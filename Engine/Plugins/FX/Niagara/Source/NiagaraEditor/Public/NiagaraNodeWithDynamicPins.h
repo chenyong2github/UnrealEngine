@@ -23,7 +23,8 @@ public:
 
 	//~ UEdGraphNode interface
 	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual bool IncludeParentNodeContextMenu() const { return true; }
 
 	/** Requests a new pin be added to the node with the specified direction, type, and name. */
 	UEdGraphPin* RequestNewTypedPin(EEdGraphPinDirection Direction, const FNiagaraTypeDefinition& Type, FName InName);

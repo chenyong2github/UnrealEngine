@@ -32,7 +32,8 @@ public:
 
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
 
-	virtual void GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const override;
+	virtual void GetNodeContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;
+	virtual bool IncludeParentNodeContextMenu() const { return true; }
 	virtual void PostLoad() override;
 
 	void SetPinName(UEdGraphPin* InPin, const FName& InName);

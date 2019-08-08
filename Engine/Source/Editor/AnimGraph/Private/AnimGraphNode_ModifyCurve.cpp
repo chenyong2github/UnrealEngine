@@ -8,7 +8,7 @@
 #include "AnimationGraphSchema.h"
 #include "BlueprintActionDatabaseRegistrar.h"
 #include "Framework/Commands/UIAction.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "ToolMenus.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "ModifyCurve"
@@ -74,34 +74,36 @@ void UAnimGraphNode_ModifyCurve::GetRemoveCurveMenuActions(FMenuBuilder& MenuBui
 }
 
 
-void UAnimGraphNode_ModifyCurve::GetContextMenuActions(const FGraphNodeContextMenuBuilder& Context) const
+void UAnimGraphNode_ModifyCurve::GetNodeContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (!Context.bIsDebugging)
+	if (!Context->bIsDebugging)
 	{
-		Context.MenuBuilder->BeginSection("AnimGraphNodeModifyCurve", LOCTEXT("ModifyCurve", "Modify Curve"));
+		FToolMenuSection& Section = Menu->AddSection("AnimGraphNodeModifyCurve", LOCTEXT("ModifyCurve", "Modify Curve"));
 
 		// Clicked pin
-		if (Context.Pin != NULL)
+		if (Context->Pin != NULL)
 		{
 			// Get proeprty from pin
 			UProperty* AssociatedProperty;
 			int32 ArrayIndex;
-			GetPinAssociatedProperty(GetFNodeType(), Context.Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
+			GetPinAssociatedProperty(GetFNodeType(), Context->Pin, /*out*/ AssociatedProperty, /*out*/ ArrayIndex);
 			FName PinPropertyName = AssociatedProperty->GetFName();
 
-			if (PinPropertyName  == GET_MEMBER_NAME_CHECKED(FAnimNode_ModifyCurve, CurveValues) && Context.Pin->Direction == EGPD_Input)
+			if (PinPropertyName  == GET_MEMBER_NAME_CHECKED(FAnimNode_ModifyCurve, CurveValues) && Context->Pin->Direction == EGPD_Input)
 			{
-				FString PinName = Context.Pin->PinFriendlyName.ToString();
+				FString PinName = Context->Pin->PinFriendlyName.ToString();
 				FUIAction Action = FUIAction( FExecuteAction::CreateUObject(const_cast<UAnimGraphNode_ModifyCurve*>(this), &UAnimGraphNode_ModifyCurve::RemoveCurvePin, FName(*PinName)) );
 				FText RemovePinLabelText = FText::Format(LOCTEXT("RemoveThisPin", "Remove This Curve Pin: {0}"), FText::FromString(PinName));
-				Context.MenuBuilder->AddMenuEntry(RemovePinLabelText, LOCTEXT("RemoveThisPinTooltip", "Remove this curve pin from this node"), FSlateIcon(), Action);
+				Section.AddMenuEntry("RemoveThisPin", RemovePinLabelText, LOCTEXT("RemoveThisPinTooltip", "Remove this curve pin from this node"), FSlateIcon(), Action);
 			}
 		}
 
 		// If we have more curves to add, create submenu to offer them
 		if (GetCurvesToAdd().Num() > 0)
 		{
-			Context.MenuBuilder->AddSubMenu(
+			Section.AddSubMenu(
+				Menu->GetMenuName(),
+				"AddCurvePin",
 				LOCTEXT("AddCurvePin", "Add Curve Pin"),
 				LOCTEXT("AddCurvePinTooltip", "Add a new pin to drive a curve"),
 				FNewMenuDelegate::CreateUObject(this, &UAnimGraphNode_ModifyCurve::GetAddCurveMenuActions));
@@ -110,14 +112,14 @@ void UAnimGraphNode_ModifyCurve::GetContextMenuActions(const FGraphNodeContextMe
 		// If we have curves to remove, create submenu to offer them
 		if (Node.CurveNames.Num() > 0)
 		{
-			Context.MenuBuilder->AddSubMenu(
+			Section.AddSubMenu(
+				Menu->GetMenuName(),
+				"RemoveCurvePin",
 				LOCTEXT("RemoveCurvePin", "Remove Curve Pin"),
 				LOCTEXT("RemoveCurvePinTooltip", "Remove a pin driving a curve"),
 				FNewMenuDelegate::CreateUObject(this, &UAnimGraphNode_ModifyCurve::GetRemoveCurveMenuActions));
 		}
 	}
-
-	Context.MenuBuilder->EndSection();
 }
 
 void UAnimGraphNode_ModifyCurve::RemoveCurvePin(FName CurveName)

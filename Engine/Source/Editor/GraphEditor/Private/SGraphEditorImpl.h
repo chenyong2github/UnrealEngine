@@ -337,6 +337,8 @@ private:
 	class UToolMenu* GenerateContextMenu(const class UEdGraphSchema* Schema, struct FToolMenuContext& MenuContext) const;
 
 	static void RegisterContextMenuFor_EdGraphSchema();
+	static FName GetNodeParentContextMenuName(UClass* InClass);
+	static FName GetNodeContextMenuName(UClass* InClass);
 
 private:
 	bool bIsActiveTimerRegistered;
