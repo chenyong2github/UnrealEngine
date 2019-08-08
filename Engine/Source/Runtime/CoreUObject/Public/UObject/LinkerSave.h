@@ -67,11 +67,11 @@ public:
 	/** A mapping of package name to generated script SHA keys */
 	COREUOBJECT_API static TMap<FString, TArray<uint8> > PackagesToScriptSHAMap;
 
-	/** Constructor */
+	/** Constructor for file writer */
 	FLinkerSave(UPackage* InParent, const TCHAR* InFilename, bool bForceByteSwapping, bool bInSaveUnversioned = false );
 	/** Constructor for memory writer */
 	FLinkerSave(UPackage* InParent, bool bForceByteSwapping, bool bInSaveUnversioned = false );
-	/** Constructor for custom savers */
+	/** Constructor for custom savers. The linker assumes ownership of the custom saver. */
 	FLinkerSave(UPackage* InParent, FArchive *InSaver, bool bForceByteSwapping, bool bInSaveUnversioned = false);
 
 	/** Returns the appropriate name index for the source name, or 0 if not found in NameIndices */
@@ -110,9 +110,10 @@ public:
 	void Serialize( void* V, int64 Length );
 
 	/**
-	 * Detaches file saver and hence file handle.
+	 * Closes and deletes the Saver (file, memory or custom writer) which will close any associated file handle.
+	 * Returns false if the owned saver contains errors after closing it, true otherwise.
 	 */
-	void Detach();
+	bool CloseAndDestroySaver();
 
 	/**
 	 * Sets a flag indicating that this archive contains data required to be gathered for localization.
