@@ -28,7 +28,7 @@ struct FSimulationScratchBuffer
 	int32 BufferSize;
 };
 
-#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX
 
 class FPhysicsReplication;
 class IPhysicsReplicationFactory;

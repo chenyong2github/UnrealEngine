@@ -11,6 +11,7 @@
 #include "Chaos/Framework/BufferedData.h"
 #include "Framework/DebugSolverTasks.h"
 #include "Chaos/PBDRigidsEvolution.h"
+#include "Chaos/Declares.h"
 
 #define CHAOSTHREADSTATS_ENABLED 1
 #define CHAOSTHREADSTATS_PERSOLVER 1
@@ -21,7 +22,6 @@ struct FSolverStateStorage;
 
 namespace Chaos
 {
-	class FPBDRigidsSolver;
 	class FPhysicsProxy;
 	class ITimeStep;
 }
@@ -114,7 +114,7 @@ namespace Chaos
 		friend class FAsyncTask<FPersistentPhysicsTask>;
 
 	public:
-		FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, FDispatcher<EThreadingMode::DedicatedThread>* InDispatcher);
+		FPersistentPhysicsTask(float InTargetDt, bool bInAvoidSpiral, IDispatcher* InDispatcher);
 		virtual ~FPersistentPhysicsTask();
 
 		/**
@@ -129,12 +129,12 @@ namespace Chaos
 		 * Once the solver has been added to this task the game thread should never
 		 * touch the internal state again unless performing a sync of the data
 		 */
-		void AddSolver(FPBDRigidsSolver* InSolver);
+		void AddSolver(FPhysicsSolver* InSolver);
 
 		/**
 		 * Removes a solver from the internal list of solvers to run on the async task
 		 */
-		void RemoveSolver(FPBDRigidsSolver* InSolver);
+		void RemoveSolver(FPhysicsSolver* InSolver);
 
 		/**
 		 * Synchronize proxies to their most recent gamethread readable results
@@ -201,12 +201,12 @@ namespace Chaos
 			RETURN_QUICK_DECLARE_CYCLE_STAT(FPersistentPhysicsTask, STATGROUP_ThreadPoolAsyncTasks);
 		}
 
-		void StepSolver(FPBDRigidsSolver* InSolver, float InDt);
-		void HandleSolverCommands(FPBDRigidsSolver* InSolver);
-		void AdvanceSolver(FPBDRigidsSolver* InSolver, float InDt);
+		void StepSolver(FPhysicsSolver* InSolver, float InDt);
+		void HandleSolverCommands(FPhysicsSolver* InSolver);
+		void AdvanceSolver(FPhysicsSolver* InSolver, float InDt);
 
 		// List of solvers we'll advance in this task
-		TArray<FPBDRigidsSolver*> Solvers;
+		TArray<FPhysicsSolver*> Solvers;
 
 		// Debug threads used to debug substep solver advance.
 		FDebugSolverTasks DebugSolverTasks;
@@ -222,7 +222,7 @@ namespace Chaos
 		FThreadSafeBool bRunning;
 
 		// The dispatcher made by the Chaos module to enable the gamethread to communicate with this one.
-		FDispatcher<EThreadingMode::DedicatedThread>* CommandDispatcher;
+		IDispatcher* CommandDispatcher;
 
 		// Event to fire after we've broken from the running physics loop as the thread shuts down
 		FEvent* ShutdownEvent;

@@ -19,8 +19,8 @@
 #include "HAL/IConsoleManager.h"
 #if INCLUDE_CHAOS
 #include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 #endif  // #if INCLUDE_CHAOS
-
 
 DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionDebugDrawActor, Log, All);
 
@@ -286,6 +286,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 	if (World && SelectedRigidBody.Id != INDEX_NONE && !SelectedRigidBody.GeometryCollection)
 	{
 #if INCLUDE_CHAOS
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		// Check the id is within the selected solver range
 		const Chaos::FPBDRigidsSolver* const Solver = 
 			SelectedRigidBody.Solver ? SelectedRigidBody.Solver->GetSolver() :  // Selected solver
@@ -298,6 +299,7 @@ void AGeometryCollectionDebugDrawActor::Tick(float DeltaSeconds)
 			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection id is out of range."));
 		}
 		else  // Statement continues below...
+#endif  // #if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 #endif  // #if INCLUDE_CHAOS
 		{
 			UE_LOG(LogGeometryCollectionDebugDrawActor, VeryVerbose, TEXT("The selection couldn't be found. The property update will run on all components still containing any invalid rigid body ids."));

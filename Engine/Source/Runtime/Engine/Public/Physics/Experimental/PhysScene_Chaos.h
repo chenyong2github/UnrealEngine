@@ -9,13 +9,12 @@
 #include "Physics/PhysScene.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/GCObject.h"
-#include "SolverObjects/SolverObject.h"
 #include "GameFramework/Actor.h"
 #include "PhysicsPublic.h"
 #include "PhysInterface_Chaos.h"
 #include "Chaos/Transform.h"
-#include "Chaos/PBDSpringConstraints.h"
-#include "Chaos/PerParticleGravity.h"
+#include "Chaos/Declares.h"
+#include "Chaos/Framework/SingleParticlePhysicsProxyFwd.h"
 
 #ifndef CHAOS_WITH_PAUSABLE_SOLVER
 #define CHAOS_WITH_PAUSABLE_SOLVER 1
@@ -29,23 +28,22 @@ class FChaosSolversModule;
 struct FForceFieldProxy;
 struct FSolverStateStorage;
 
-class FSkeletalMeshPhysicsObject;
-class FStaticMeshPhysicsObject;
-class FBodyInstancePhysicsObject;
-class FGeometryCollectionPhysicsObject;
-class FFieldSystemPhysicsObject;
+class FSkeletalMeshPhysicsProxy;
+class FStaticMeshPhysicsProxy;
+class FGeometryCollectionPhysicsProxy;
+class FFieldSystemPhysicsProxy;
+
+class IPhysicsProxyBase;
 
 namespace Chaos
 {
-	class FPBDRigidsSolver;
 	class FPhysicsProxy;
 	class IDispatcher;
 
-	template <typename T, int>
-	class PerParticleGravity;
+	enum EEventType;
 
-	template <typename T, int>
-	class TPBDSpringConstraints;
+	template<typename PayloadType, typename HandlerType>
+	class TRawEventHandler;
 }
 
 /**
@@ -75,7 +73,7 @@ public:
 	/**
 	 * Get the internal Chaos solver object
 	 */
-	Chaos::FPBDRigidsSolver* GetSolver() const;
+	Chaos::FPhysicsSolver* GetSolver() const;
 
 	/** Returns the actor that owns this solver. */
 	AActor* GetSolverActor() const;
@@ -89,21 +87,29 @@ public:
 	/**
 	 * Called during creation of the physics state for gamethread objects to pass off an object to the physics thread
 	 */
-	void AddObject(UPrimitiveComponent* Component, FSkeletalMeshPhysicsObject* InObject);
-	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsObject* InObject);
-	void AddObject(UPrimitiveComponent* Component, FBodyInstancePhysicsObject* InObject);
-	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsObject* InObject);
-	void AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsObject* InObject);
+	void AddObject(UPrimitiveComponent* Component, FSkeletalMeshPhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, FStaticMeshPhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, FGeometryParticlePhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, FGeometryCollectionPhysicsProxy* InObject);
+	void AddObject(UPrimitiveComponent* Component, FFieldSystemPhysicsProxy* InObject);
 
 	/**
 	 * Called during physics state destruction for the game thread to remove objects from the simulation
 	 * #BG TODO - Doesn't actually remove from the evolution at the moment
 	 */
-	void RemoveObject(FSkeletalMeshPhysicsObject* InObject);
-	void RemoveObject(FStaticMeshPhysicsObject* InObject);
-	void RemoveObject(FBodyInstancePhysicsObject* InObject);
-	void RemoveObject(FGeometryCollectionPhysicsObject* InObject);
-	void RemoveObject(FFieldSystemPhysicsObject* InObject);	
+	void RemoveObject(FSkeletalMeshPhysicsProxy* InObject);
+	void RemoveObject(FStaticMeshPhysicsProxy* InObject);
+	void RemoveObject(FGeometryParticlePhysicsProxy* InObject);
+	void RemoveObject(FGeometryCollectionPhysicsProxy* InObject);
+	void RemoveObject(FFieldSystemPhysicsProxy* InObject);	
+
+	template<typename PayloadType>
+	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda);
+	void UnregisterEvent(const Chaos::EEventType& EventID);
+
+	template<typename PayloadType, typename HandlerType>
+	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func);
+	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler);
 
 	void Shutdown();
 
@@ -117,17 +123,17 @@ public:
 	
 	/** Given a solver object, returns its associated component. */
 	template<class OwnerType>
-	OwnerType* GetOwningComponent(ISolverObjectBase* SolverObject) const
+	OwnerType* GetOwningComponent(IPhysicsProxyBase* PhysicsProxy) const
 	{ 
-		UPrimitiveComponent* const* CompPtr = SolverObjectToComponentMap.Find(SolverObject);
+		UPrimitiveComponent* const* CompPtr = PhysicsProxyToComponentMap.Find(PhysicsProxy);
 		return CompPtr ? Cast<OwnerType>(*CompPtr) : nullptr;
 	}
 
 	/** Given a component, returns its associated solver object. */
-	ISolverObjectBase* GetOwnedSolverObject(UPrimitiveComponent* Comp) const
+	IPhysicsProxyBase* GetOwnedPhysicsProxy(UPrimitiveComponent* Comp) const
 	{
-		ISolverObjectBase* const* SolverObjectPtr = ComponentToSolverObjectMap.Find(Comp);
-		return SolverObjectPtr ? *SolverObjectPtr : nullptr;
+		IPhysicsProxyBase* const* PhysicsProxyPtr = ComponentToPhysicsProxyMap.Find(Comp);
+		return PhysicsProxyPtr ? *PhysicsProxyPtr : nullptr;
 	}
 
 private:
@@ -136,8 +142,8 @@ private:
 	void OnUpdateWorldPause();
 #endif
 
-	void AddToComponentMaps(UPrimitiveComponent* Component, ISolverObjectBase* InObject);
-	void RemoveFromComponentMaps(ISolverObjectBase* InObject);
+	void AddToComponentMaps(UPrimitiveComponent* Component, IPhysicsProxyBase* InObject);
+	void RemoveFromComponentMaps(IPhysicsProxyBase* InObject);
 
 #if WITH_EDITOR
 	/**
@@ -154,13 +160,13 @@ private:
 	FChaosSolversModule* ChaosModule;
 
 	// Solver representing this scene
-	Chaos::FPBDRigidsSolver* SceneSolver;
+	Chaos::FPhysicsSolver* SceneSolver;
 
-	// Maps SolverObject to Component that created the SolverObject
-	TMap<ISolverObjectBase*, UPrimitiveComponent*> SolverObjectToComponentMap;
+	// Maps PhysicsProxy to Component that created the PhysicsProxy
+	TMap<IPhysicsProxyBase*, UPrimitiveComponent*> PhysicsProxyToComponentMap;
 
-	// Maps Component to SolverObject that is created
-	TMap<UPrimitiveComponent*, ISolverObjectBase*> ComponentToSolverObjectMap;
+	// Maps Component to PhysicsProxy that is created
+	TMap<UPrimitiveComponent*, IPhysicsProxyBase*> ComponentToPhysicsProxyMap;
 
 	/** The SolverActor that spawned and owns this scene */
 	TWeakObjectPtr<AActor> SolverActor;
@@ -175,6 +181,40 @@ private:
 	bool bIsWorldPaused;
 #endif
 };
+
+template<typename PayloadType>
+void FPhysScene_Chaos::RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
+{
+	check(IsInGameThread());
+
+	Chaos::IDispatcher* Dispatcher = GetDispatcher();
+	Chaos::FPBDRigidsSolver* Solver = GetSolver();
+
+	if (Dispatcher)
+	{
+		Dispatcher->EnqueueCommandImmediate([EventID, InLambda, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			InSolver->GetEventManager()->RegisterEvent<PayloadType>(InSolver, InLambda);
+		});
+	}
+}
+
+template<typename PayloadType, typename HandlerType>
+void FPhysScene_Chaos::RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func)
+{
+	check(IsInGameThread());
+
+	Chaos::IDispatcher* Dispatcher = GetDispatcher();
+	Chaos::FPBDRigidsSolver* Solver = GetSolver();
+
+	if (Dispatcher)
+	{
+		Dispatcher->EnqueueCommandImmediate([EventID, Handler, Func, InSolver = Solver](Chaos::FPersistentPhysicsTask* PhysThread)
+		{
+			InSolver->GetEventManager()->RegisterHandler<PayloadType>(EventID, Handler, Func);
+		});
+	}
+}
 
 class UWorld;
 class AWorldSettings;
@@ -196,7 +236,9 @@ public:
 	void OnWorldBeginPlay();
 	void OnWorldEndPlay();
 
-	void AddActorsToScene_AssumesLocked(const TArray<FPhysicsActorHandle>& InActors);
+	// In Chaos, this function will update the pointers from actor handles to their proxies.
+	// So the array of handles must be non-const.
+	void ENGINE_API AddActorsToScene_AssumesLocked(TArray<FPhysicsActorHandle>& InActors);
 	void AddAggregateToScene(const FPhysicsAggregateHandle& InAggregate);
 
 	void SetOwningWorld(UWorld* InOwningWorld);
@@ -204,8 +246,8 @@ public:
 	UWorld* GetOwningWorld();
 	const UWorld* GetOwningWorld() const;
 
-	Chaos::FPBDRigidsSolver* GetSolver();
-	const Chaos::FPBDRigidsSolver* GetSolver() const;
+	Chaos::FPhysicsSolver* GetSolver();
+	const Chaos::FPhysicsSolver* GetSolver() const;
 
 	FPhysicsReplication* GetPhysicsReplication();
 	void RemoveBodyInstanceFromPendingLists_AssumesLocked(FBodyInstance* BodyInstance, int32 SceneType);
@@ -260,15 +302,36 @@ public:
 	ENGINE_API bool ExecPxVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 	ENGINE_API bool ExecApexVis(uint32 SceneType, const TCHAR* Cmd, FOutputDevice* Ar);
 
+	template<typename PayloadType>
+	void RegisterEvent(const Chaos::EEventType& EventID, TFunction<void(const Chaos::FPBDRigidsSolver* Solver, PayloadType& EventData)> InLambda)
+	{
+		Scene.RegisterEvent(EventID, InLambda);
+	}
+	void UnregisterEvent(const Chaos::EEventType& EventID)
+	{
+		Scene.UnregisterEvent(EventID);
+	}
+
+	template<typename PayloadType, typename HandlerType>
+	void RegisterEventHandler(const Chaos::EEventType& EventID, HandlerType* Handler, typename Chaos::TRawEventHandler<PayloadType, HandlerType>::FHandlerFunction Func)
+	{
+		Scene.RegisterEventHandler<PayloadType, HandlerType>(EventID, Handler, Func);
+	}
+	void UnregisterEventHandler(const Chaos::EEventType& EventID, const void* Handler)
+	{
+		Scene.UnregisterEventHandler(EventID, Handler);
+	}
+
 private:
 
 	void SyncBodies();
+	void SyncBodies(Chaos::FPhysicsSolver* Solver);
 
-	void SetKinematicTransform(FPhysicsActorReference_Chaos& InActorReference, const Chaos::TRigidTransform<float, 3>& NewTransform)
+	void SetKinematicTransform(FPhysicsActorHandle& InActorReference, const Chaos::TRigidTransform<float, 3>& NewTransform)
 	{
 		// #todo : Initialize
 		// Set the buffered kinematic data on the game and render thread
-		// InActorReference.GetPhysicsObject()->SetKinematicData(...)
+		// InActorReference.GetPhysicsProxy()->SetKinematicData(...)
 	}
 
 	void Lock()
@@ -296,15 +359,15 @@ private:
 		// #todo : Implement
 	}
 
-	FPhysicsConstraintReference_Chaos AddSpringConstraint(const TArray< TPair<FPhysicsActorReference_Chaos, FPhysicsActorReference_Chaos> >& Constraint);
+	FPhysicsConstraintReference_Chaos AddSpringConstraint(const TArray< TPair<FPhysicsActorHandle, FPhysicsActorHandle> >& Constraint);
 	void RemoveSpringConstraint(const FPhysicsConstraintReference_Chaos& Constraint);
 
-	void AddForce(const Chaos::TVector<float, 3>& Force, FPhysicsActorReference_Chaos& Handle)
+	void AddForce(const Chaos::TVector<float, 3>& Force, FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}
 
-	void AddTorque(const Chaos::TVector<float, 3>& Torque, FPhysicsActorReference_Chaos& Handle)
+	void AddTorque(const Chaos::TVector<float, 3>& Torque, FPhysicsActorHandle& Handle)
 	{
 		// #todo : Implement
 	}
@@ -317,9 +380,6 @@ private:
 	// @todo(mlentine): Locking is very heavy handed right now; need to make less so.
 	FCriticalSection MCriticalSection;
 	float MDeltaTime;
-	TUniquePtr<Chaos::PerParticleGravity<float, 3>> MGravity;
-	//Springs
-	TUniquePtr<Chaos::TPBDSpringConstraints<float, 3>> MSpringConstraints;
 	//Body Instances
 	Chaos::TArrayCollectionArray<FBodyInstance*> BodyInstances;
 	// Temp Interface

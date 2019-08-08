@@ -13,41 +13,47 @@ bool bSkipCapture = false;
 bool GCollisionAnalyzerIsRecording = false;
 
 /** Util to convert from PhysX shape and rotation to unreal shape enum, dimension vector and rotation */
-static void ConvertGeometryCollection(const FPhysicsGeometryCollection& GeomCollection, FQuat& InOutRot, ECAQueryShape::Type& OutQueryShape, FVector& OutDims)
+inline static void ConvertGeometryCollection(const FPhysicsGeometryCollection& GeomCollection, FQuat& InOutRot, ECAQueryShape::Type& OutQueryShape, FVector& OutDims)
 {
 	OutQueryShape = ECAQueryShape::Capsule;
 	OutDims = FVector(0, 0, 0);
 	
-#if WITH_CHAOS || PHYSICS_INTERFACE_LLIMMEDIATE
-    ensure(false);
-#else
 	switch (GeomCollection.GetType())
 	{
 		case ECollisionShapeType::Capsule:
 		{
 			OutQueryShape = ECAQueryShape::Capsule;
-			PxCapsuleGeometry PCapsuleGeom;
-			GeomCollection.GetCapsuleGeometry(PCapsuleGeom);
-			OutDims = FVector(PCapsuleGeom.radius, PCapsuleGeom.radius, PCapsuleGeom.halfHeight + PCapsuleGeom.radius);
+			const auto& CapsuleGeom = GeomCollection.GetCapsuleGeometry();
+#if PHYSICS_INTERFACE_PHYSX
+			OutDims = FVector(CapsuleGeom.radius, CapsuleGeom.radius, CapsuleGeom.halfHeight + CapsuleGeom.radius);
 			InOutRot = ConvertToUECapsuleRot(InOutRot);
+#else
+			OutDims = FVector(CapsuleGeom.GetRadius(), CapsuleGeom.GetRadius(), CapsuleGeom.GetHeight() * 0.5f + CapsuleGeom.GetRadius());
+#endif
 			break;
 		}
 
 		case ECollisionShapeType::Sphere:
 		{
 			OutQueryShape = ECAQueryShape::Sphere;
-			PxSphereGeometry PSphereGeom;
-			GeomCollection.GetSphereGeometry(PSphereGeom);
-			OutDims = FVector(PSphereGeom.radius);
+			const auto& SphereGeom = GeomCollection.GetSphereGeometry();
+#if PHYSICS_INTERFACE_PHYSX
+			OutDims = FVector(SphereGeom.radius);
+#else
+			OutDims = FVector(SphereGeom.GetRadius());
+#endif
 			break;
 		}
 
 		case ECollisionShapeType::Box:
 		{
 			OutQueryShape = ECAQueryShape::Box;
-			PxBoxGeometry PBoxGeom;
-			GeomCollection.GetBoxGeometry(PBoxGeom);
-			OutDims = P2UVector(PBoxGeom.halfExtents);
+			const auto& BoxGeom = GeomCollection.GetBoxGeometry();
+#if PHYSICS_INTERFACE_PHYSX
+			OutDims = P2UVector(BoxGeom.halfExtents);
+#else
+			OutDims = FVector(BoxGeom.Extents() * 0.5f);
+#endif
 			break;
 		}
 
@@ -60,10 +66,9 @@ static void ConvertGeometryCollection(const FPhysicsGeometryCollection& GeomColl
 		default:
 			UE_LOG(LogCollision, Warning, TEXT("CaptureGeomSweep: Unknown geom type."));
 	}
-#endif
 }
 
-bool CollisionShapeToAnalyzerType(const FCollisionShape& InShape, ECAQueryShape::Type& OutType, FVector& OutDims)
+inline bool CollisionShapeToAnalyzerType(const FCollisionShape& InShape, ECAQueryShape::Type& OutType, FVector& OutDims)
 {
 	switch(InShape.ShapeType)
 	{
@@ -95,7 +100,7 @@ bool CollisionShapeToAnalyzerType(const FCollisionShape& InShape, ECAQueryShape:
 }
 
 /** Util to extract type and dimensions from physx geom being swept, and pass info to CollisionAnalyzer, if its recording */
-void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& End, const FQuat& Rot, ECAQueryMode::Type QueryMode, const FCollisionShape& PGeom, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
+inline void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& End, const FQuat& Rot, ECAQueryMode::Type QueryMode, const FCollisionShape& PGeom, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
 {
 	if (bSkipCapture || !GCollisionAnalyzerIsRecording || !IsInGameThread())
 	{
@@ -119,7 +124,7 @@ void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& 
 }
 
 /** Util to extract type and dimensions from physx geom being swept, and pass info to CollisionAnalyzer, if its recording */
-void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& End, const FQuat& GeomRot, ECAQueryMode::Type QueryMode, const FPhysicsGeometryCollection& GeomCollection, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
+inline void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& End, const FQuat& GeomRot, ECAQueryMode::Type QueryMode, const FPhysicsGeometryCollection& GeomCollection, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
 {
 	if(bSkipCapture || !GCollisionAnalyzerIsRecording || !IsInGameThread())
 	{
@@ -144,7 +149,7 @@ void CaptureGeomSweep(const UWorld* World, const FVector& Start, const FVector& 
 }
 
 /** Util to capture a raycast with the CollisionAnalyzer if recording */
-void CaptureRaycast(const UWorld* World, const FVector& Start, const FVector& End, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
+inline void CaptureRaycast(const UWorld* World, const FVector& Start, const FVector& End, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, const TArray<FHitResult>& Results, double CPUTime)
 {
 	if (bSkipCapture || !GCollisionAnalyzerIsRecording || !IsInGameThread())
 	{
@@ -160,7 +165,7 @@ void CaptureRaycast(const UWorld* World, const FVector& Start, const FVector& En
 	FCollisionAnalyzerModule::Get()->CaptureQuery(Start, End, FQuat::Identity, ECAQueryType::Raycast, ECAQueryShape::Sphere, QueryMode, FVector(0, 0, 0), TraceChannel, Params, ResponseParams, ObjectParams, Results, TouchAllResults, CPUTime);
 }
 
-void CaptureOverlap(const UWorld* World, const FPhysicsGeometryCollection& PGeom, const FTransform& InGeomTransform, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& Results, double CPUTime)
+inline void CaptureOverlap(const UWorld* World, const FPhysicsGeometryCollection& PGeom, const FTransform& InGeomTransform, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& Results, double CPUTime)
 {
 	if (bSkipCapture || !GCollisionAnalyzerIsRecording || !IsInGameThread())
 	{
@@ -189,7 +194,7 @@ void CaptureOverlap(const UWorld* World, const FPhysicsGeometryCollection& PGeom
 	FCollisionAnalyzerModule::Get()->CaptureQuery(InGeomTransform.GetTranslation(), FVector(0, 0, 0), UseRot, ECAQueryType::GeomOverlap, QueryShape, QueryMode, Dims, TraceChannel, Params, ResponseParams, ObjectParams, HitResults, TouchAllResults, CPUTime);
 }
 
-void CaptureOverlap(const UWorld* World, const FCollisionShape& PGeom, const FTransform& InGeomTransform, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& Results, double CPUTime)
+inline void CaptureOverlap(const UWorld* World, const FCollisionShape& PGeom, const FTransform& InGeomTransform, ECAQueryMode::Type QueryMode, ECollisionChannel TraceChannel, const struct FCollisionQueryParams& Params, const struct FCollisionResponseParams& ResponseParams, const struct FCollisionObjectQueryParams& ObjectParams, TArray<FOverlapResult>& Results, double CPUTime)
 {
 	if(bSkipCapture || !GCollisionAnalyzerIsRecording || !IsInGameThread())
 	{

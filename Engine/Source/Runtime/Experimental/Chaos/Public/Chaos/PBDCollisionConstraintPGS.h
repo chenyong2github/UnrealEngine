@@ -9,6 +9,8 @@
 #include <queue>
 #include <sstream>
 
+#if CHAOS_PARTICLEHANDLE_TODO
+
 namespace ChaosTest
 {
 	template<class T> void CollisionPGS();
@@ -87,3 +89,5 @@ class TPBDCollisionConstraintPGS
 	const bool bUseCCD;
 };
 }
+
+#endif

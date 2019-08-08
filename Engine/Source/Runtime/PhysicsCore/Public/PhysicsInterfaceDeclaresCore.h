@@ -14,18 +14,7 @@
 #define WITH_IMMEDIATE_PHYSX 0
 #endif
 
-#ifndef PHYSICS_INTERFACE_LLIMMEDIATE
-#define PHYSICS_INTERFACE_LLIMMEDIATE 0
-#endif
-
-
 #if PHYSICS_INTERFACE_PHYSX
-
-#if WITH_IMMEDIATE_PHYSX
-
-
-
-#else
 
 namespace physx
 {
@@ -46,8 +35,10 @@ namespace physx
 	struct PxHitBuffer;
 }
 
-template<typename T>
-class FSingleHitBuffer;
+namespace PhysXInterface
+{
+	struct FDummyPhysType {};
+}
 
 using FHitLocation = physx::PxLocationHit;
 using FHitSweep = physx::PxSweepHit;
@@ -56,6 +47,7 @@ using FHitOverlap = physx::PxOverlapHit;
 using FPhysicsQueryHit = physx::PxQueryHit;
 
 using FPhysicsTransform = physx::PxTransform;
+using FPhysTypeDummy = PhysXInterface::FDummyPhysType;
 
 using FPhysicsShape = physx::PxShape;
 using FPhysicsGeometry = physx::PxGeometry;
@@ -63,57 +55,9 @@ using FPhysicsCapsuleGeometry = physx::PxCapsuleGeometry;
 using FPhysicsMaterial = physx::PxMaterial;
 using FPhysicsActor = physx::PxRigidActor;
 
-using FPhysicsSweepBuffer = FSingleHitBuffer<physx::PxSweepHit>;
-using FPhysicsRaycastBuffer = FSingleHitBuffer<physx::PxRaycastHit>;
-
-#endif
-
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-
-namespace physx
-{
-	//struct PxLocationHit;
-	//struct PxSweepHit;
-	//struct PxRaycastHit;
-	//struct PxOverlapHit;
-	//
-	//class PxShape;
-	class PxGeometry;
-	class PxCapsuleGeometry;
-	//class PxMaterial;
-	//class PxRigidActor;
-	//
-	//template<typename T>
-	//struct PxHitBuffer;
-
-	//struct PxSweepBuffer;
-	//struct PxRaycastBuffer;
-}
-
-// Temporary dummy types until SQ implemented
-struct FPhysTypeDummy {};
-struct FPhysActorDummy {};
-template<typename T>
-struct FCallbackDummy;
-
-using FHitLocation = FPhysTypeDummy;
-using FHitSweep = FPhysTypeDummy;
-using FHitRaycast = FPhysTypeDummy;
-using FHitOverlap = FPhysTypeDummy;
-using FPhysicsQueryHit = FPhysTypeDummy;
-
-using FPhysicsTransform = FTransform;
-
-using FPhysicsShape = FPhysTypeDummy;
-using FPhysicsGeometry = physx::PxGeometry;
-using FPhysicsCapsuleGeometry = physx::PxCapsuleGeometry;
-using FPhysicsMaterial = FPhysTypeDummy;
-using FPhysicsActor = FPhysActorDummy;
-
-using FPhysicsSweepBuffer = FCallbackDummy<FHitSweep>;
-using FPhysicsRaycastBuffer = FCallbackDummy<FHitRaycast>;
-
 #elif WITH_CHAOS
+
+#include "ChaosSQTypes.h"
 
 namespace Chaos
 {
@@ -122,34 +66,51 @@ namespace Chaos
 
 	template<class T>
 	class TCapsule;
+
+	template <typename T, int d>
+	class TGeometryParticle;
+
+	template <typename T, int d>
+	class TPerShapeData;
 }
 
 // Temporary dummy types until SQ implemented
-struct FPhysTypeDummy {};
-struct FPhysSweepDummy : public FPhysTypeDummy {};
-struct FPhysRaycastDummy : public FPhysTypeDummy {};
-struct FPhysActorDummy {};
-
+namespace ChaosInterface
+{
+	struct FDummyPhysType;
+	struct FDummyPhysActor;
+	template<typename T> struct FDummyCallback;
+}
+using FPhysTypeDummy = ChaosInterface::FDummyPhysType;
+using FPhysActorDummy = ChaosInterface::FDummyPhysActor;
 
 template<typename T>
-struct FCallbackDummy;
+using FCallbackDummy = ChaosInterface::FDummyCallback<T>;
 
-using FHitLocation = FPhysTypeDummy;
-using FHitSweep = FPhysSweepDummy;
-using FHitRaycast = FPhysRaycastDummy;
-using FHitOverlap = FPhysTypeDummy;
-using FPhysicsQueryHit = FPhysTypeDummy;
+struct FTransform;
+
+using FHitLocation = ChaosInterface::FLocationHit;
+using FHitSweep = ChaosInterface::FSweepHit;
+using FHitRaycast = ChaosInterface::FRaycastHit;
+using FHitOverlap = ChaosInterface::FOverlapHit;
+using FPhysicsQueryHit = ChaosInterface::FQueryHit;
 
 using FPhysicsTransform = FTransform;
 
-using FPhysicsShape = Chaos::TImplicitObject<float, 3>;
+using FPhysicsShape = Chaos::TPerShapeData<float, 3>;
 using FPhysicsGeometry = Chaos::TImplicitObject<float, 3>;
 using FPhysicsCapsuleGeometry = Chaos::TCapsule<float>;
 using FPhysicsMaterial = FPhysTypeDummy;
-using FPhysicsActor = FPhysActorDummy;
+using FPhysicsActor = Chaos::TGeometryParticle<float,3>;
 
-using FPhysicsSweepBuffer = FCallbackDummy<FHitSweep>;
-using FPhysicsRaycastBuffer = FCallbackDummy<FHitRaycast>;
+template <typename T>
+using FPhysicsHitCallback = ChaosInterface::FSQHitBuffer<T>;
+
+template <typename T>
+using FSingleHitBuffer = ChaosInterface::FSQSingleHitBuffer<T>;
+
+template <typename T>
+using FDynamicHitBuffer = ChaosInterface::FSQHitBuffer<T>;
 
 #else
 
@@ -170,6 +131,8 @@ struct FPhysicsCommand_ImmediatePhysX;
 struct FPhysicsShapeReference_ImmediatePhysX;
 struct FPhysicsMaterialReference_ImmediatePhysX;
 struct FPhysicsGeometryCollection_ImmediatePhysX;
+struct FPhysXShapeAdapter;
+struct FPhysxUserData;
 
 typedef FPhysicsActorReference_ImmediatePhysX		FPhysicsActorHandle;
 typedef FPhysicsConstraintReference_ImmediatePhysX	FPhysicsConstraintHandle;
@@ -178,8 +141,12 @@ typedef FPhysScene_ImmediatePhysX					FPhysScene;
 typedef FPhysicsAggregateReference_ImmediatePhysX	FPhysicsAggregateHandle;
 typedef FPhysicsCommand_ImmediatePhysX				FPhysicsCommand;
 typedef FPhysicsShapeReference_ImmediatePhysX		FPhysicsShapeHandle;
-typedef FPhysicsGeometryCollection_ImmediatePhysX   FPhysicsGeometryCollection;
-typedef FPhysicsMaterialReference_ImmediatePhysX    FPhysicsMaterialHandle;
+typedef FPhysicsGeometryCollection_ImmediatePhysX	FPhysicsGeometryCollection;
+typedef FPhysicsMaterialReference_ImmediatePhysX	FPhysicsMaterialHandle;
+typedef FPhysXShapeAdapter							FPhysicsShapeAdapter;
+typedef FPhysxUserData								FPhysicsUserData;
+
+inline FPhysicsActorHandle DefaultPhysicsActorHandle() { return FPhysicsActorHandle(); }
 
 #else
 
@@ -192,6 +159,8 @@ struct FPhysicsCommand_PhysX;
 struct FPhysicsShapeHandle_PhysX;
 struct FPhysicsGeometryCollection_PhysX;
 struct FPhysicsMaterialHandle_PhysX;
+struct FPhysXShapeAdapter;
+struct FPhysxUserData;
 
 typedef FPhysicsActorHandle_PhysX			FPhysicsActorHandle;
 typedef FPhysicsConstraintHandle_PhysX		FPhysicsConstraintHandle;
@@ -202,55 +171,39 @@ typedef FPhysicsCommand_PhysX				FPhysicsCommand;
 typedef FPhysicsShapeHandle_PhysX			FPhysicsShapeHandle;
 typedef FPhysicsGeometryCollection_PhysX	FPhysicsGeometryCollection;
 typedef FPhysicsMaterialHandle_PhysX		FPhysicsMaterialHandle;
+typedef FPhysXShapeAdapter					FPhysicsShapeAdapter;
+typedef FPhysxUserData						FPhysicsUserData;
 
-
+extern FPhysicsActorHandle DefaultPhysicsActorHandle();
 
 #endif
 
-#elif PHYSICS_INTERFACE_LLIMMEDIATE
-
-struct FPhysicsActorHandle_LLImmediate;
-struct FPhysicsAggregateHandle_LLImmediate;
-struct FPhysicsConstraintHandle_LLImmediate;
-struct FPhysicsShapeHandle_LLImmediate;
-struct FPhysicsCommand_LLImmediate;
-struct FPhysicsGeometryCollection_LLImmediate;
-struct FPhysicsMaterialHandle_LLImmediate;
-class FPhysInterface_LLImmediate;
-
-typedef FPhysicsActorHandle_LLImmediate           FPhysicsActorHandle;
-typedef FPhysicsConstraintHandle_LLImmediate      FPhysicsConstraintHandle;
-typedef FPhysInterface_LLImmediate                FPhysicsInterface;
-typedef FPhysInterface_LLImmediate                FPhysScene;
-typedef FPhysicsAggregateHandle_LLImmediate       FPhysicsAggregateHandle;
-typedef FPhysicsCommand_LLImmediate               FPhysicsCommand;
-typedef FPhysicsShapeHandle_LLImmediate           FPhysicsShapeHandle;
-typedef FPhysicsGeometryCollection_LLImmediate    FPhysicsGeometryCollection;
-typedef FPhysicsMaterialHandle_LLImmediate        FPhysicsMaterialHandle;
-
-
-
 #elif WITH_CHAOS
+
+using FPhysicsActorHandle = Chaos::TGeometryParticle<float, 3>*;
 
 class FChaosSceneId;
 class FPhysInterface_Chaos;
-class FPhysicsActorReference_Chaos;
 class FPhysicsConstraintReference_Chaos;
 class FPhysicsAggregateReference_Chaos;
 class FPhysicsShapeReference_Chaos;
 class FPhysScene_ChaosInterface;
+class FPhysicsShapeAdapter_Chaos;
+struct FPhysicsGeometryCollection_Chaos;
+class FPhysicsUserData_Chaos;
 
-typedef FPhysicsActorReference_Chaos		FPhysicsActorHandle;
 typedef FPhysicsConstraintReference_Chaos	FPhysicsConstraintHandle;
-typedef FPhysInterface_Chaos    		    FPhysicsInterface;
-typedef FPhysScene_ChaosInterface		    FPhysScene;
+typedef FPhysInterface_Chaos				FPhysicsInterface;
+typedef FPhysScene_ChaosInterface			FPhysScene;
 typedef FPhysicsAggregateReference_Chaos	FPhysicsAggregateHandle;
 typedef FPhysInterface_Chaos				FPhysicsCommand;
 typedef FPhysicsShapeReference_Chaos		FPhysicsShapeHandle;
-typedef FPhysicsShapeReference_Chaos	    FPhysicsGeometryCollection;
-typedef void*                           	FPhysicsMaterialHandle;
+typedef FPhysicsGeometryCollection_Chaos	FPhysicsGeometryCollection;
+typedef void*								FPhysicsMaterialHandle;
+typedef FPhysicsShapeAdapter_Chaos			FPhysicsShapeAdapter;
+typedef FPhysicsUserData_Chaos				FPhysicsUserData;
 
-
+inline FPhysicsActorHandle DefaultPhysicsActorHandle() { return nullptr; }
 
 #else
 

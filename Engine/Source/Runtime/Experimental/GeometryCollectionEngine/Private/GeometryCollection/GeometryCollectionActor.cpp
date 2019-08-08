@@ -4,9 +4,9 @@
 GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 =============================================================================*/
 
-#if INCLUDE_CHAOS
-
 #include "GeometryCollection/GeometryCollectionActor.h"
+
+#if INCLUDE_CHAOS
 
 #include "Chaos/Utilities.h"
 #include "Chaos/Plane.h"
@@ -20,7 +20,7 @@ GeometryCollectionActor.cpp: AGeometryCollectionActor methods.
 #include "GeometryCollection/GeometryCollectionUtility.h"
 #include "Math/Box.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "PBDRigidsSolver.h"
+#include "PhysicsSolver.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(AGeometryCollectionActorLogging, Log, All);
@@ -55,7 +55,7 @@ void AGeometryCollectionActor::Tick(float DeltaTime)
 }
 
 
-const Chaos::FPBDRigidsSolver* GetSolver(const AGeometryCollectionActor& GeomCollectionActor)
+const Chaos::FPhysicsSolver* GetSolver(const AGeometryCollectionActor& GeomCollectionActor)
 {
 	return GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor != nullptr ? GeomCollectionActor.GetGeometryCollectionComponent()->ChaosSolverActor->GetSolver() : GeomCollectionActor.GetWorld()->PhysicsScene_Chaos->GetSolver();
 }
@@ -69,9 +69,10 @@ bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVec
 	const TSharedPtr<FPhysScene_Chaos> Scene = GeomCollectionActor.GetGeometryCollectionComponent()->GetPhysicsScene();
 	ensure(Scene);
 
-	const Chaos::FPBDRigidsSolver* Solver = GetSolver(GeomCollectionActor);
+	const Chaos::FPhysicsSolver* Solver = GetSolver(GeomCollectionActor);
 	if(ensure(Solver))
 	{
+#if TODO_REIMPLEMENT_GET_RIGID_PARTICLES
 		const TPBDRigidParticles<float, 3>& Particles = Solver->GetRigidParticles();	//todo(ocohen): should these just get passed in instead of hopping through scene?
 		TBox<float, 3> RayBox(Start, Start);
 		RayBox.Thicken(Dir * DeltaMag);
@@ -105,6 +106,7 @@ bool LowLevelRaycastImp(const Chaos::TVector<float, 3>& Start, const Chaos::TVec
 				return true;
 			}
 		}
+#endif
 	}
 
 	return false;
@@ -128,9 +130,12 @@ bool AGeometryCollectionActor::RaycastSingle(FVector Start, FVector End, FHitRes
 	return false;
 }
 
+#endif
+
 #if WITH_EDITOR
 bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Objects) const
 {
+#if INCLUDE_CHAOS
 	Super::GetReferencedContentObjects(Objects);
 
 	if (GeometryCollectionComponent)
@@ -141,8 +146,7 @@ bool AGeometryCollectionActor::GetReferencedContentObjects(TArray<UObject*>& Obj
 			Objects.Add(GeometryCollection);
 		}
 	}
+#endif
 	return true;
 }
-#endif
-
 #endif

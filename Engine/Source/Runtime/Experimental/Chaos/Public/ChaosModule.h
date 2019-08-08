@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if INCLUDE_CHAOS
+//#if INCLUDE_CHAOS
 
 #pragma once
 
@@ -14,4 +14,4 @@ public:
 	virtual void ShutdownModule() override {};
 };
 
-#endif
+//#endif

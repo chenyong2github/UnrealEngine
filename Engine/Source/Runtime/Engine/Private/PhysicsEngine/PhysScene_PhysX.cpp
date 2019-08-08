@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#if !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX
 
 #include "Physics/PhysScene_PhysX.h"
 #include "Misc/CommandLine.h"
@@ -23,7 +23,10 @@
 
 #include "PhysicsInterfaceDeclaresCore.h"
 #if !WITH_CHAOS_NEEDS_TO_BE_FIXED
+
+#if INCLUDE_CHAOS
 #include "SQAccelerator.h"
+#endif
 
 #if WITH_PHYSX
 #include "PhysXPublic.h"
@@ -2298,4 +2301,4 @@ int32 FPhysScene::GetNumAwakeBodies()
 
 #endif // !WITH_CHAOS_NEEDS_TO_BE_FIXED
 
-#endif //  !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX && !PHYSICS_INTERFACE_LLIMMEDIATE
+#endif //  !WITH_CHAOS && !WITH_IMMEDIATE_PHYSX

@@ -17,6 +17,7 @@
 #define PARAM_MAP_INITIAL_STR TEXT("Initial.")
 #define PARAM_MAP_INITIAL_BASE_STR TEXT("Initial")
 #define PARAM_MAP_RAPID_ITERATION_STR TEXT("Constants.")
+#define PARAM_MAP_INDICES_STR TEXT("Array.")
 #define PARAM_MAP_RAPID_ITERATION_BASE_STR TEXT("Constants")
 
 

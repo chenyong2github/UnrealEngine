@@ -22,7 +22,6 @@ class TOrientedParticles : public TParticles<T, d>
 	{
 		TArrayCollection::AddArray(&MR);
 	}
-	~TOrientedParticles() {}
 
 	const TRotation<T, d>& R(const int32 Index) const { return MR[Index]; }
 	TRotation<T, d>& R(const int32 Index) { return MR[Index]; }

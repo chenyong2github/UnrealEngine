@@ -12,6 +12,8 @@
 
 #include "ProfilingDebugging/ScopedTimers.h"
 
+#if CHAOS_PARTICLEHANDLE_TODO
+
 using namespace Chaos;
 
 template<class T_PARTICLES, class T, int d>
@@ -1043,14 +1045,14 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateBoxConstraint(const T_PARTICLES& In
 		{
 			TSphere<T, d> Sphere1(Box1Transform.TransformPosition(Box1.Center()), Box1.Extents().Min() / 2);
 			TSphere<T, d> Sphere2(Box2Transform.TransformPosition(Box2.Center()), Box2.Extents().Min() / 2);
-			const TVector<T, d> Direction = Sphere1.Center() - Sphere2.Center();
+			const TVector<T, d> Direction = Sphere1.GetCenter() - Sphere2.GetCenter();
 			T Size = Direction.Size();
-			if (Size < (Sphere1.Radius() + Sphere2.Radius()))
+			if (Size < (Sphere1.GetRadius() + Sphere2.GetRadius()))
 			{
 				TVector<T, d> Normal = Size > SMALL_NUMBER ? Direction / Size : TVector<T, d>(0, 0, 1);
 				Constraint.Normal.Add(Normal);
-				Constraint.Phi.Add(Size - (Sphere1.Radius() + Sphere2.Radius()));
-				Constraint.Location.Add(Sphere1.Center() - Sphere1.Radius() * Normal);
+				Constraint.Phi.Add(Size - (Sphere1.GetRadius() + Sphere2.GetRadius()));
+				Constraint.Location.Add(Sphere1.GetCenter() - Sphere1.GetRadius() * Normal);
 			}
 		}
 		if (!Constraint.Phi.Num())
@@ -1109,16 +1111,16 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateSphereConstraint(const T_PARTICLES&
 	const TRigidTransform<T, d> Sphere2Transform = GetTransformPGS(InParticles, Constraint.LevelsetIndex);
 	const auto& Sphere1 = *InParticles.Geometry(Constraint.ParticleIndex)->template GetObject<TSphere<T, d>>();
 	const auto& Sphere2 = *InParticles.Geometry(Constraint.LevelsetIndex)->template GetObject<TSphere<T, d>>();
-	const TVector<T, d> Center1 = Sphere1Transform.TransformPosition(Sphere1.Center());
-	const TVector<T, d> Center2 = Sphere2Transform.TransformPosition(Sphere2.Center());
+	const TVector<T, d> Center1 = Sphere1Transform.TransformPosition(Sphere1.GetCenter());
+	const TVector<T, d> Center2 = Sphere2Transform.TransformPosition(Sphere2.GetCenter());
 	const TVector<T, d> Direction = Center1 - Center2;
 	const T Size = Direction.Size();
-	if (Size < (Sphere1.Radius() + Sphere2.Radius() + Thickness))
+	if (Size < (Sphere1.GetRadius() + Sphere2.GetRadius() + Thickness))
 	{
 		TVector<T, d> Normal = Size > SMALL_NUMBER ? Direction / Size : TVector<T, d>(0, 0, 1);
 		Constraint.Normal.Add(Normal);
-		Constraint.Phi.Add(Size - (Sphere1.Radius() + Sphere2.Radius()));
-		Constraint.Location.Add(Center1 - Sphere1.Radius() * Normal);
+		Constraint.Phi.Add(Size - (Sphere1.GetRadius() + Sphere2.GetRadius()));
+		Constraint.Location.Add(Center1 - Sphere1.GetRadius() * Normal);
 	}
 }
 
@@ -1134,11 +1136,11 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateSpherePlaneConstraint(const T_PARTI
 	const auto& ObjectSphere = *InParticles.Geometry(Constraint.ParticleIndex)->template GetObject<TSphere<T, d>>();
 	const auto& ObjectPlane = *InParticles.Geometry(Constraint.LevelsetIndex)->template GetObject<TPlane<T, d>>();
 	const TRigidTransform<T, d> SphereToPlaneTransform(PlaneTransform.Inverse() * SphereTransform);
-	const TVector<T, d> SphereCenter = SphereToPlaneTransform.TransformPosition(ObjectSphere.Center());
+	const TVector<T, d> SphereCenter = SphereToPlaneTransform.TransformPosition(ObjectSphere.GetCenter());
 	Constraint.Normal.SetNum(1);
 	Constraint.Phi.Add(ObjectPlane.PhiWithNormal(SphereCenter, Constraint.Normal[0]));
-	Constraint.Phi[0] -= ObjectSphere.Radius();
-	Constraint.Location.Add(SphereCenter - Constraint.Normal[0] * ObjectSphere.Radius());
+	Constraint.Phi[0] -= ObjectSphere.GetRadius();
+	Constraint.Location.Add(SphereCenter - Constraint.Normal[0] * ObjectSphere.GetRadius());
 }
 
 template<class T, int d>
@@ -1153,11 +1155,11 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateSphereBoxConstraint(const T_PARTICL
 	const auto& ObjectSphere = *InParticles.Geometry(Constraint.ParticleIndex)->template GetObject<TSphere<T, d>>();
 	const auto& ObjectBox = *InParticles.Geometry(Constraint.LevelsetIndex)->template GetObject<TBox<T, d>>();
 	const TRigidTransform<T, d> SphereToBoxTransform(SphereTransform * BoxTransform.Inverse());
-	const TVector<T, d> SphereCenter = SphereToBoxTransform.TransformPosition(ObjectSphere.Center());
+	const TVector<T, d> SphereCenter = SphereToBoxTransform.TransformPosition(ObjectSphere.GetCenter());
 	Constraint.Normal.SetNum(1);
 	Constraint.Phi.Add(ObjectBox.PhiWithNormal(SphereCenter, Constraint.Normal[0]));
-	Constraint.Phi[0] -= ObjectSphere.Radius();
-	Constraint.Location.Add(SphereCenter - Constraint.Normal[0] * ObjectSphere.Radius());
+	Constraint.Phi[0] -= ObjectSphere.GetRadius();
+	Constraint.Location.Add(SphereCenter - Constraint.Normal[0] * ObjectSphere.GetRadius());
 }
 
 template<class T, int d>
@@ -1328,3 +1330,5 @@ void TPBDCollisionConstraintPGS<T, d>::UpdateConstraint(const T_PARTICLES& InPar
 }
 
 template class Chaos::TPBDCollisionConstraintPGS<float, 3>;
+
+#endif
