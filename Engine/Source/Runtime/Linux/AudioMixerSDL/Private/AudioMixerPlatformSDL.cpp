@@ -114,7 +114,7 @@ namespace Audio
 		DesiredSpec.format = AUDIO_S16;
 		DesiredSpec.channels = 2;
 #endif
-		
+
 		DesiredSpec.samples = PlatformSettings.CallbackBufferFrameSize;
 		DesiredSpec.callback = OnBufferEnd;
 		DesiredSpec.userdata = (void*)this;
@@ -213,7 +213,15 @@ namespace Audio
 			DeviceName = SDL_GetAudioDeviceName(OpenStreamParams.OutputDeviceIndex, 0);
 		}
 
-		AudioDeviceID = SDL_OpenAudioDevice(DeviceName, 0, &AudioSpecPrefered, &AudioSpecReceived, 0);
+		FString CurrentDeviceName = GetCurrentDeviceName();
+		if (CurrentDeviceName.Len() <= 0)
+		{
+			AudioDeviceID = SDL_OpenAudioDevice(DeviceName, 0, &AudioSpecPrefered, &AudioSpecReceived, 0);
+		}
+		else
+		{
+			AudioDeviceID = SDL_OpenAudioDevice(TCHAR_TO_ANSI(*CurrentDeviceName), 0, &AudioSpecPrefered, &AudioSpecReceived, 0);
+		}
 
 		if (!AudioDeviceID)
 		{
@@ -238,6 +246,11 @@ namespace Audio
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Open;
 
 		return true;
+	}
+
+	FString FMixerPlatformSDL::GetCurrentDeviceName() const
+	{
+		return {};
 	}
 
 	bool FMixerPlatformSDL::CloseAudioStream()

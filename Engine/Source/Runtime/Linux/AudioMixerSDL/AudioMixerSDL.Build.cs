@@ -12,6 +12,8 @@ public class AudioMixerSDL : ModuleRules
 		PublicIncludePaths.Add("Runtime/AudioMixer/Public");
 		PrivateIncludePaths.Add("Runtime/AudioMixer/Private");
 
+		PrivateIncludePaths.Add("Runtime/Linux/AudioMixerSDL/Private/" + Target.Platform);
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
