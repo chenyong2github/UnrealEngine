@@ -90,7 +90,7 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 
 	// Checks whether the LiveLink Source is valid via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	static bool IsSourceStillValid(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
+	static bool IsSourceValid(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
 
 	// Requests the given LiveLink Source to shut down via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
