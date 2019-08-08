@@ -286,7 +286,7 @@ namespace DetailedCookStats
 			UE_LOG(LogCookCommandlet, Display, TEXT("================="));
 			for (const auto& Attr : DDCSummaryStats)
 			{
-				UE_LOG(LogCookCommandlet, Display, TEXT("%-14s=%10s"), *Attr.Key, *Attr.Value);
+				UE_LOG(LogCookCommandlet, Display, TEXT("%-16s=%10s"), *Attr.Key, *Attr.Value);
 			}
 		}
 		if (DDCResourceUsageStats.Num() > 0)

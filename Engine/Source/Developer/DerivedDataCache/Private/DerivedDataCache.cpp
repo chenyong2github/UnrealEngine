@@ -37,6 +37,12 @@ DEFINE_STAT(STAT_DDC_ExistTime);
 #include "DerivedDataCacheUsageStats.h"
 namespace DerivedDataCacheCookStats
 {
+	// Use to prevent potential divide by zero issues
+	inline double SafeDivide(const int64 Numerator, const int64 Denominator)
+	{
+		return Denominator != 0 ? (double)Numerator / (double)Denominator : 0.0;
+	}
+
 	FCookStatsManager::FAutoRegisterCallback RegisterCookStats([](FCookStatsManager::AddStatFuncRef AddStat)
 	{
 		TMap<FString, FDerivedDataCacheUsageStats> DDCStats;
@@ -102,15 +108,15 @@ namespace DerivedDataCacheCookStats
 				AddStat(TEXT("DDC.Summary"), FCookStatsManager::CreateKeyValueArray(
 					TEXT("TotalGetHits"), TotalGetHits,
 					TEXT("TotalGets"), TotalGets,
-					TEXT("TotalGetHitPct"), (double)TotalGetHits / TotalGets,
-					TEXT("LocalGetHitPct"), (double)LocalHits / TotalGets,
-					TEXT("SharedGetHitPct"), (double)SharedHits / TotalGets,
-					TEXT("OtherGetHitPct"), double(TotalGetHits - LocalHits - SharedHits) / TotalGets,
-					TEXT("GetMissPct"), (double)TotalGetMisses / TotalGets,
+					TEXT("TotalGetHitPct"), SafeDivide(TotalGetHits, TotalGets),
+					TEXT("LocalGetHitPct"), SafeDivide(LocalHits, TotalGets),
+					TEXT("SharedGetHitPct"), SafeDivide(SharedHits, TotalGets),
+					TEXT("OtherGetHitPct"), SafeDivide((TotalGetHits - LocalHits - SharedHits), TotalGets),
+					TEXT("GetMissPct"), SafeDivide(TotalGetMisses, TotalGets),
 					TEXT("TotalPutHits"), TotalPutHits,
 					TEXT("TotalPuts"), TotalPuts,
-					TEXT("TotalPutHitPct"), (double)TotalPutHits / TotalPuts,
-					TEXT("PutMissPct"), (double)TotalPutMisses / TotalPuts
+					TEXT("TotalPutHitPct"), SafeDivide(TotalPutHits, TotalPuts),
+					TEXT("PutMissPct"), SafeDivide(TotalPutMisses, TotalPuts)
 					));
 			}
 		}
