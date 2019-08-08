@@ -822,7 +822,8 @@ private:
 
 		GLog->PanicFlushThreadedLogs();
 
-		FCoreDelegates::OnBeforeHandleSystemError.Broadcast();
+		// Then try run time crash processing and broadcast information about a crash.
+		FCoreDelegates::OnHandleSystemError.Broadcast();
 
 		// Get the default settings for the crash context
 		ECrashContextType Type = ECrashContextType::Crash;
@@ -870,9 +871,6 @@ private:
 			CrashContext.SerializeContentToBuffer();
 			WriteMinidump(CrashContext, MiniDumpFilenameW, ExceptionInfo);
 		}
-
-		// Then try run time crash processing and broadcast information about a crash.
-		FCoreDelegates::OnHandleSystemError.Broadcast();
 
 		const bool bGenerateRuntimeCallstack =
 #if UE_LOG_CRASH_CALLSTACK
