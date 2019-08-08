@@ -326,7 +326,7 @@ UTexture2D* TexturePaintHelpers::CreateTempUncompressedTexture(UTexture2D* Sourc
 	check(SourceTexture->Source.IsValid());
 
 	// Decompress PNG image
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	SourceTexture->Source.GetMipData(RawData, 0);
 
 	// We are using the source art so grab the original width/height
