@@ -13,24 +13,23 @@ class ULiveLinkTimeSynchronizationSource : public UTimeSynchronizationSource
 {
 	GENERATED_BODY()
 
-private:
-
+public:
 	UPROPERTY(EditAnywhere, Category="LiveLink")
-	FName SubjectName;
+	FLiveLinkSubjectName SubjectName;
 
+private:
 	FLiveLinkClient* LiveLinkClient;
 
 	enum class ESyncState
 	{
 		NotSynced,
 		Opened,
-		Synced
 	};
 
 	mutable ESyncState State = ESyncState::NotSynced;
-	mutable int64 LastUpdateFrame;
 	mutable FLiveLinkSubjectTimeSyncData CachedData;
-	mutable FGuid LastUpdateGuid;
+	mutable int64 LastUpdateFrame;
+	FLiveLinkSubjectKey SubjectKey;
 
 public:
 
@@ -49,6 +48,7 @@ public:
 
 private:
 
+	bool IsCurrentStateValid() const;
 	void OnModularFeatureRegistered(const FName& FeatureName, class IModularFeature* Feature);
 	void OnModularFeatureUnregistered(const FName& FeatureName, class IModularFeature* Feature);
 	void UpdateCachedState() const;

@@ -179,7 +179,7 @@ void SLiveLinkDataView::Tick(const FGeometry& AllottedGeometry, const double InC
 	{
 		LastUpdateSeconds = InCurrentTime;
 
-		if (Client->IsSubjectEnabled(SubjectKey))
+		if (Client->IsSubjectEnabled(SubjectKey, true))
 		{
 			TSubclassOf<ULiveLinkRole> SubjectRole = Client->GetSubjectRole(SubjectKey.SubjectName);
 			FLiveLinkSubjectFrameData SubjectData;
