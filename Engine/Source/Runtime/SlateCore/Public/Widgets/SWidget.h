@@ -1002,8 +1002,11 @@ public:
 	 */
 	FORCEINLINE void ForceVolatile(bool bForce)
 	{
-		bForceVolatile = bForce;
-		Invalidate(EInvalidateWidget::LayoutAndVolatility);
+		if (bForceVolatile != bForce)
+		{
+			bForceVolatile = bForce;
+			Invalidate(EInvalidateWidgetReason::Volatility);
+		}
 	}
 
 	FORCEINLINE bool ShouldInvalidatePrepassDueToVolatility() { return bVolatilityAlwaysInvalidatesPrepass; }
@@ -1012,7 +1015,7 @@ public:
 	 * Invalidates the widget from the view of a layout caching widget that may own this widget.
 	 * will force the owning widget to redraw and cache children on the next paint pass.
 	 */
-	void Invalidate(EInvalidateWidget InvalidateReason);
+	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 
 	/**
 	 * Recalculates volatility of the widget and caches the result.  Should be called any time 
