@@ -58,7 +58,7 @@ struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataI
 		FNiagaraDataInterfaceProxyGrid2DCollection* VFDI = static_cast<FNiagaraDataInterfaceProxyGrid2DCollection*>(Context.DataInterface);
 		
 		Grid2DCollectionRWInstanceData* ProxyData = VFDI->SystemInstancesToProxyData.Find(Context.SystemInstance);
-		ensure(ProxyData);
+		check(ProxyData);
 
 		int NumCellsTmp[2];
 		NumCellsTmp[0] = ProxyData->NumCellsX;
