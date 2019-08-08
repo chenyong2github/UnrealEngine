@@ -322,6 +322,8 @@ bool FSourceControlWindows::PromptForCheckin(FCheckinResultInfo& OutResultInfo, 
 		}
 	}
 
+	SourceControlWidget->ClearChangeListDescription();
+
 	return true;
 }
 
