@@ -92,9 +92,9 @@ void ULiveLinkBlueprintLibrary::GetChildren(UPARAM(ref) FLiveLinkTransform& Live
 	LiveLinkTransform.GetChildren(Children);
 };
 
-bool ULiveLinkBlueprintLibrary::IsSourceValid(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
+bool ULiveLinkBlueprintLibrary::IsSourceStillValid(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
 {
-	return SourceHandle.SourcePointer.IsValid() && SourceHandle.SourcePointer->IsSourceValid();
+	return SourceHandle.SourcePointer.IsValid() && SourceHandle.SourcePointer->IsSourceStillValid();
 };
 
 bool ULiveLinkBlueprintLibrary::RequestShutdown(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
