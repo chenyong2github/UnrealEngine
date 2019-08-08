@@ -64,23 +64,6 @@ void FOSCStream::WriteChar(TCHAR Char)
 	Write(ToWrite, 1);
 }
 
-FColor FOSCStream::ReadColor()
-{
-	uint32 Packed = static_cast<uint32>(ReadInt32());
-	return FColor(Packed);
-}
-
-void FOSCStream::WriteColor(FColor Color)
-{
-#if PLATFORM_LITTLE_ENDIAN
-	uint32 Packed = Color.ToPackedABGR();
-#else // PLATFORM_LITTLE_ENDIAN
-	uint32 Packed = Color.ToPackedRGBA();
-#endif // !PLATFORM_LITTLE_ENDIAN
-
-	WriteInt32(static_cast<int32>(Packed));
-}
-
 int32 FOSCStream::ReadInt32()
 {
 	uint8 Temp[4];
@@ -100,7 +83,7 @@ int32 FOSCStream::ReadInt32()
 		return u.i;
 #else
 		return *(int32*)(Temp);
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 	}
 
 	return 0;
@@ -122,9 +105,9 @@ void FOSCStream::WriteInt32(int32 Value)
 	Temp[2] = u.c[1];
 	Temp[1] = u.c[2];
 	Temp[0] = u.c[3];
-#else // PLATFORM_LITTLE_ENDIAN
-	*(int32*)(Temp) = Value;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#else
+	*reinterpret_cast<int32*>(Temp) = Value;
+#endif
 	Write(Temp, 4);
 }
 
@@ -149,9 +132,9 @@ double FOSCStream::ReadDouble()
 		u.c[7] = Temp[0];
 
 		return u.d;
-#else // PLATFORM_LITTLE_ENDIAN
+#else
 		return *(double*)Temp;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 
 	}
 
@@ -178,9 +161,9 @@ void FOSCStream::WriteDouble(uint64 Value)
 	Temp[2] = u.c[5];
 	Temp[1] = u.c[6];
 	Temp[0] = u.c[7];
-#else // PLATFORM_LITTLE_ENDIAN
-	*(double*)(Temp) = Value;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#else
+	*reinterpret_cast<double*>(Temp) = Value;
+#endif
 	Write(Temp, 8);
 }
 
@@ -205,9 +188,9 @@ int64 FOSCStream::ReadInt64()
 		u.c[7] = Temp[0];
 
 		return u.i;
-#else // PLATFORM_LITTLE_ENDIAN
+#else
 		return *(int64*)Temp;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 	}
 
 	return 0;
@@ -233,9 +216,9 @@ void FOSCStream::WriteInt64(int64 Value)
 	Temp[2] = u.c[5];
 	Temp[1] = u.c[6];
 	Temp[0] = u.c[7];
-#else // PLATFORM_LITTLE_ENDIAN
-	*(int64*)(Temp) = Value;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#else
+	*reinterpret_cast<int64*>(Temp) = Value;
+#endif
 	Write(Temp, 8);
 }
 
@@ -260,9 +243,9 @@ uint64 FOSCStream::ReadUInt64()
 		u.c[7] = Temp[0];
 
 		return u.i;
-#else // PLATFORM_LITTLE_ENDIAN
+#else
 		return *(uint64*)Temp;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 
 	}
 
@@ -289,9 +272,9 @@ void FOSCStream::WriteUInt64(uint64 Value)
 	Temp[2] = u.c[5];
 	Temp[1] = u.c[6];
 	Temp[0] = u.c[7];
-#else // PLATFORM_LITTLE_ENDIAN
+#else
 	*reinterpret_cast<uint64*>(Temp) = Value;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 	Write(Temp, 8);
 }
 
@@ -312,9 +295,9 @@ float FOSCStream::ReadFloat()
 		u.c[3] = Temp[0];
 
 		return u.f;
-#else // PLATFORM_LITTLE_ENDIAN
+#else
 		return *(float*)Temp;
-#endif // !PLATFORM_LITTLE_ENDIAN
+#endif
 	}
 
 	return 0.0f;
@@ -337,7 +320,7 @@ void FOSCStream::WriteFloat(float Value)
 	Temp[1] = u.c[2];
 	Temp[0] = u.c[3];
 #else // if !PLATFORM_LITTLE_ENDIAN
-	*(float*)(Temp) = Value;
+	*reinterpret_cast<float*>(Temp) = Value;
 #endif // !PLATFORM_LITTLE_ENDIAN
 
 	Write(Temp, 4);
