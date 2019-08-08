@@ -1013,7 +1013,7 @@ void SWidget::SetVisibility(TAttribute<EVisibility> InVisibility)
 	SetAttribute(Visibility, InVisibility, EInvalidateWidgetReason::Visibility);
 }
 
-void SWidget::Invalidate(EInvalidateWidget InvalidateReason)
+void SWidget::Invalidate(EInvalidateWidgetReason InvalidateReason)
 {
 	SLATE_CROSS_THREAD_CHECK();
 
