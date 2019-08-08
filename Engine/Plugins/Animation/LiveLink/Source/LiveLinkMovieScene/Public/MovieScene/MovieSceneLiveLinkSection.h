@@ -55,13 +55,21 @@ public:
 
 	virtual FMovieSceneEvalTemplatePtr CreateSectionTemplate(const UMovieScenePropertyTrack& InTrack) const;
 
-protected:
-
-	virtual int32 GetChannelCount() const;
-
+public:
+	//~ Begin UObject interface
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostEditImport() override;
 	virtual void PostLoad() override;
+	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
+
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent);
+#endif
+	//~ End UObject interface
+
+protected:
+
+	virtual int32 GetChannelCount() const;
 
 private:
 	void ConvertPreRoleData();
