@@ -1775,6 +1775,31 @@ void APlayerController::ServerUpdateCamera_Implementation(FVector_NetQuantize Ca
 
 /// @endcond
 
+bool APlayerController::ServerExecRPC_Validate(const FString& Msg)
+{
+	return true;
+}
+
+void APlayerController::ServerExecRPC_Implementation(const FString& Msg)
+{
+#if !UE_BUILD_SHIPPING
+	ClientMessage(ConsoleCommand(Msg));
+#endif
+}
+	
+void APlayerController::ServerExec(const FString& Msg)
+{
+#if !UE_BUILD_SHIPPING
+
+	if (Msg.Len() > 128)
+	{
+		UE_LOG(LogPlayerController, Warning, TEXT("APlayerController::ServerExec. Msg too big for network RPC. Truncating to 128 character"));
+	}
+
+	ServerExecRPC(Msg.Left(128));
+#endif
+}
+
 void APlayerController::RestartLevel()
 {
 	if( GetNetMode()==NM_Standalone )
