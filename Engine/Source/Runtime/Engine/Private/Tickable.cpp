@@ -70,7 +70,14 @@ FTickableGameObject::FTickableGameObject()
 {
 	FTickableStatics& Statics = FTickableStatics::Get();
 
-	Statics.NewTickableObjects.Push(this);
+	if (UObjectInitialized())
+	{
+		Statics.NewTickableObjects.Push(this);
+	}
+	else
+	{
+		AddTickableObject(Statics.TickableObjects, this);
+	}
 }
 
 FTickableGameObject::~FTickableGameObject()
