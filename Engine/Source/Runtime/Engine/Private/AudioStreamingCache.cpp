@@ -515,7 +515,7 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 
 #if DEBUG_STREAM_CACHE
 			// Reset debug info:
-			CurrentElement->DebugInfo = FCacheElementDebugInfo();
+			CurrentElement->DebugInfo.Reset();
 #endif
 		}
 
@@ -613,7 +613,10 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			
 #if DEBUG_STREAM_CACHE
-			CurrentElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Add(ElementPosition);
+			{
+				FScopeLock ScopeLock(&CurrentElement->DebugInfo.PreviousLocationsLock);
+				CurrentElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Add(ElementPosition);
+			}
 #endif
 
 			return CurrentElement;
@@ -798,9 +801,12 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 	}
 
 #if DEBUG_STREAM_CACHE
-	// Reset debug information:
-	CacheElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Reset();
-	CacheElement->DebugInfo.NumTimesTouched = 0;
+	{
+		FScopeLock ScopeLock(&CacheElement->DebugInfo.PreviousLocationsLock);
+		// Reset debug information:
+		CacheElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Reset();
+		CacheElement->DebugInfo.NumTimesTouched = 0;
+	}
 #endif
 
 	return CacheElement;

@@ -160,6 +160,7 @@ private:
 	uint32			TotalSamplesPerChannel;			// Number of samples per channel, used to detect when an audio waveform has ended
 	uint32			SamplesPerBlock;				// The number of samples per block
 	uint32			FirstChunkSampleDataOffset;		// The size of the header in the first chunk, used to skip over it when looping or starting the sample over
+	uint32          FirstChunkSampleDataIndex;
 	const uint8*	CurCompressedChunkData;			// A pointer to the current chunk of data
 	FAudioChunkHandle CurCompressedChunkHandle;     // Shared reference to the current chunk of data.
 

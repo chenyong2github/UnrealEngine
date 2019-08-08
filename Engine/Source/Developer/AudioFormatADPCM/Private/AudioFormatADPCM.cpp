@@ -556,16 +556,19 @@ public:
 			check(InitialMaxChunkSize >= HeaderSize);
 			AddNewChunk(OutBuffers, InitialMaxChunkSize);
 			AddChunkData(OutBuffers, SrcData, HeaderSize);
-
 			int32 CurChunkDataSize = HeaderSize;
+
+			// Start looping through the rest of the chunks:
+			int32 ThisChunkMaxSize = InitialMaxChunkSize;
 
 			for (int32 BlockIndex = 0; BlockIndex < NumBlocksPerChannel; ++BlockIndex)
 			{
 				// If the next block size will put us over the max chunk size, then add a new chunk
-				if (CurChunkDataSize + NumChannels * BlockSize >= MaxChunkSize)
+				if (CurChunkDataSize + NumChannels * BlockSize >= ThisChunkMaxSize)
 				{
 					// Start a new chunk with the reserve memory for the max chunk size
 					AddNewChunk(OutBuffers, MaxChunkSize);
+					ThisChunkMaxSize = MaxChunkSize;
 					CurChunkDataSize = 0;
 				}
 
@@ -585,16 +588,17 @@ public:
 			int32 FrameSize = sizeof(uint16) * NumChannels;
 
 			// Add the first chunk and the header data
-			AddNewChunk(OutBuffers, MaxChunkSize);	
+			AddNewChunk(OutBuffers, InitialMaxChunkSize);	
 
 			// Add the header data
 			int32 HeaderSize = WaveInfo.SampleDataStart - SrcData;
+			check(InitialMaxChunkSize >= HeaderSize);
 			AddChunkData(OutBuffers, SrcData, HeaderSize);
 
 			SrcSize -= HeaderSize;
 			SrcData = WaveInfo.SampleDataStart;
 
-			int32 DataLeftInCurChunk = MaxChunkSize - HeaderSize;
+			int32 DataLeftInCurChunk = InitialMaxChunkSize - HeaderSize;
 
 			while (SrcSize > 0)
 			{

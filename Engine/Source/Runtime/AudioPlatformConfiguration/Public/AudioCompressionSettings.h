@@ -46,7 +46,7 @@ struct FPlatformAudioCookOverrides
 	// Increment this to force a recook on all Stream Caching assets.
 	// For testing, it's useful to set this to either a negative number or
 	// absurdly large number, to ensure you do not pollute the DDC.
-	static const int32 StreamCachingVersion = 5017;
+	static const int32 StreamCachingVersion = 5019;
 
 	bool bResampleForDevice;
 
