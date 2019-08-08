@@ -7,6 +7,7 @@
 #include "D3D11RHIPrivate.h"
 #include "Misc/CommandLine.h"
 #include "Misc/EngineVersion.h"
+#include "Windows/WindowsPlatformMisc.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
 	#include <delayimp.h>
 	#if !PLATFORM_HOLOLENS
