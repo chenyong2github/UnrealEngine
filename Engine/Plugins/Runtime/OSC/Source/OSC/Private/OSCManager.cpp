@@ -97,22 +97,26 @@ UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 	return NewOSCClient;
 }
 
-void UOSCManager::ClearMessage(FOSCMessage& Message)
+FOSCMessage& UOSCManager::ClearMessage(FOSCMessage& Message)
 {
 	const TSharedPtr<FOSCMessagePacket>& Packet = StaticCastSharedPtr<FOSCMessagePacket>(Message.GetPacket());
 	if (Packet.IsValid())
 	{
 		Packet->GetArguments().Reset();
 	}
+
+	return Message;
 }
 
-void UOSCManager::ClearBundle(FOSCBundle& Bundle)
+FOSCBundle& UOSCManager::ClearBundle(FOSCBundle& Bundle)
 {
 	const TSharedPtr<FOSCBundlePacket>& Packet = StaticCastSharedPtr<FOSCBundlePacket>(Bundle.GetPacket());
 	if (Packet.IsValid())
 	{
 		Packet->GetPackets().Reset();
 	}
+
+	return Bundle;
 }
 
 FOSCBundle& UOSCManager::AddMessageToBundle(const FOSCMessage& Message, FOSCBundle& Bundle)
@@ -360,7 +364,7 @@ bool UOSCManager::OSCAddressIsValidPattern(const FOSCAddress& Address)
 	return Address.IsValidPattern();
 }
 
-FOSCAddress UOSCManager::StringToOSCAddress(const FString& String)
+FOSCAddress UOSCManager::ConvertStringToOSCAddress(const FString& String)
 {
 	return FOSCAddress(String);
 }
@@ -399,7 +403,23 @@ TArray<FString> UOSCManager::GetOSCAddressContainers(const FOSCAddress& Address)
 	return MoveTemp(Containers);
 }
 
-FString UOSCManager::GetOSCAddressMethodName(const FOSCAddress& Address)
+FString UOSCManager::GetOSCAddressContainerPath(const FOSCAddress& Address)
 {
-	return Address.GetMethodName();
+	return Address.GetContainerPath();
+}
+
+FString UOSCManager::GetOSCAddressFullPath(const FOSCAddress& Address)
+{
+	return Address.GetFullPath();
+}
+
+FString UOSCManager::GetOSCAddressMethod(const FOSCAddress& Address)
+{
+	return Address.GetMethod();
+}
+
+FOSCAddress& UOSCManager::SetOSCAddressMethod(FOSCAddress& Address, const FString& Method)
+{
+	Address.SetMethod(Method);
+	return Address;
 }
