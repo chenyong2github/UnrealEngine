@@ -836,6 +836,68 @@ bool FJsonObjectConverter::JsonAttributesToUStruct(const TMap< FString, TSharedP
 	return JsonAttributesToUStructWithContainer(JsonAttributes, StructDefinition, OutStruct, StructDefinition, OutStruct, CheckFlags, SkipFlags);
 }
 
+//static 
+bool FJsonObjectConverter::GetTextFromField(const FString& FieldName, const TSharedPtr<FJsonValue>& FieldValue, FText& TextOut)
+{
+	if (FieldValue.IsValid())
+	{
+		switch (FieldValue->Type)
+		{
+			case EJson::Number:
+			{
+				// number
+				TextOut = FText::AsNumber(FieldValue->AsNumber());
+				return true;
+			}
+			case EJson::String:
+			{
+				if (FieldName.StartsWith(TEXT("date-")))
+				{
+					FDateTime Dte;
+					if (FDateTime::ParseIso8601(*FieldValue->AsString(), Dte))
+					{
+						TextOut = FText::AsDate(Dte);
+						return true;
+					}
+				}
+				else if (FieldName.StartsWith(TEXT("datetime-")))
+				{
+					FDateTime Dte;
+					if (FDateTime::ParseIso8601(*FieldValue->AsString(), Dte))
+					{
+						TextOut = FText::AsDateTime(Dte);
+						return true;
+					}
+				}
+				else
+				{
+					// culture invariant string
+					TextOut = FText::FromString(FieldValue->AsString());
+					return true;
+				}
+				break;
+			}
+			case EJson::Object:
+			{
+				// localized string
+				if (FJsonObjectConverter::GetTextFromObject(FieldValue->AsObject().ToSharedRef(), TextOut))
+				{
+					return true;
+				}
+
+				UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (could not parse object)"), *FieldName);
+				break;
+			}
+			default:
+			{
+				UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (bad type)"), *FieldName);
+				break;
+			}
+		}
+	}
+	return false;
+}
+
 FFormatNamedArguments FJsonObjectConverter::ParseTextArgumentsFromJson(const TSharedPtr<const FJsonObject>& JsonObject)
 {
 	FFormatNamedArguments NamedArgs;
@@ -843,55 +905,10 @@ FFormatNamedArguments FJsonObjectConverter::ParseTextArgumentsFromJson(const TSh
 	{
 		for (const auto& It : JsonObject->Values)
 		{
-			if (!It.Value.IsValid())
-				continue;
-
-			switch (It.Value->Type)
+			FText TextValue;
+			if (GetTextFromField(It.Key, It.Value, TextValue))
 			{
-			case EJson::Number:
-				// number
-				NamedArgs.Emplace(It.Key, It.Value->AsNumber());
-				break;
-			case EJson::String:
-				if (It.Key.StartsWith(TEXT("date-")))
-				{
-					FDateTime Dte;
-					if (FDateTime::ParseIso8601(*It.Value->AsString(), Dte))
-					{
-						NamedArgs.Emplace(It.Key, FText::AsDate(Dte));
-					}
-				}
-				else if (It.Key.StartsWith(TEXT("datetime-")))
-				{
-					FDateTime Dte;
-					if (FDateTime::ParseIso8601(*It.Value->AsString(), Dte))
-					{
-						NamedArgs.Emplace(It.Key, FText::AsDateTime(Dte));
-					}
-				}
-				else
-				{
-					// culture invariant string
-					NamedArgs.Emplace(It.Key, FText::FromString(It.Value->AsString()));
-				}
-				break;
-			case EJson::Object:
-			{
-				// localized string
-				FText TextOut;
-				if (FJsonObjectConverter::GetTextFromObject(It.Value->AsObject().ToSharedRef(), TextOut))
-				{
-					NamedArgs.Emplace(It.Key, TextOut);
-				}
-				else
-				{
-					UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (could not parse object)"), *It.Key);
-				}
-			}
-			break;
-			default:
-				UE_LOG(LogJson, Error, TEXT("Unable to apply Json parameter %s (bad type)"), *It.Key);
-				break;
+				NamedArgs.Emplace(It.Key, TextValue);
 			}
 		}
 	}
