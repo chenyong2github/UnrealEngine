@@ -249,11 +249,11 @@ struct FLockFreeLinkPolicy
 
 	static FORCEINLINE FIndexedLockFreeLink* DerefLink(uint32 Ptr)
 	{
-		return GetLinkAllocator().GetItem(Ptr);
+		return LinkAllocator.GetItem(Ptr);
 	}
 	static FORCEINLINE FIndexedLockFreeLink* IndexToLink(uint32 Index)
 	{
-		return GetLinkAllocator().GetItem(Index);
+		return LinkAllocator.GetItem(Index);
 	}
 	static FORCEINLINE uint32 IndexToPtr(uint32 Index)
 	{
@@ -262,18 +262,7 @@ struct FLockFreeLinkPolicy
 
 	CORE_API static uint32 AllocLockFreeLink();
 	CORE_API static void FreeLockFreeLink(uint32 Item);
-	CORE_API static TAllocator& GetLinkAllocator()
-	{
-		if (LinkAllocatorPtr == nullptr)
-		{
-			LinkAllocatorPtr = InternalGetLinkAllocator();
-		}
-		return *LinkAllocatorPtr;
-	}
-
-private:
-	CORE_API static TAllocator* LinkAllocatorPtr;
-	CORE_API static TAllocator* InternalGetLinkAllocator();
+	CORE_API static TAllocator LinkAllocator;
 };
 
 template<int TPaddingForCacheContention, uint64 TABAInc = 1>
