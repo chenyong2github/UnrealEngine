@@ -618,7 +618,10 @@ SNiagaraSpreadsheetView::~SNiagaraSpreadsheetView()
 {
 	if (SystemViewModel.IsValid())
 	{
-		SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+		if (SystemViewModel->GetSelectionViewModel() != nullptr)
+		{
+			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
+		}
 		SystemViewModel->OnPostSequencerTimeChanged().RemoveAll(this);
 	}
 }
