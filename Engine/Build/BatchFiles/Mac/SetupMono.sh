@@ -27,7 +27,7 @@ if [ ! $MONO_VERSION_PATH == "" ] && [ -f $MONO_VERSION_PATH ]; then
 	MONO_VERSION=(`echo ${MONO_VERSION:MONO_VERSION_PREFIX_LEN} |tr '.' ' '`)
 	if [ ${MONO_VERSION[0]} -ge 5 ]; then # Allow any Mono 5.x and up
 		IS_MONO_INSTALLED=1
-		IS_MS_BUILD_AVAILABLE=0
+		IS_MS_BUILD_AVAILABLE=1
 	fi
 fi
 
