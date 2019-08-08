@@ -7676,6 +7676,11 @@ bool FSlateApplication::InputPreProcessorsHelper::Add(TSharedPtr<IInputProcessor
 		bResult = true;
 	}
 
+	if (bResult)
+	{
+		ProcessorsPendingRemoval.Remove(InputProcessor);
+	}
+
 	return bResult;
 }
 
@@ -7723,7 +7728,7 @@ bool FSlateApplication::InputPreProcessorsHelper::PreProcessInput(TFunctionRef<b
 		}
 	}
 
-	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor){ return ProcessorsPendingRemoval.Contains(Processor); });
+	InputPreProcessorList.RemoveAll([this](const TSharedPtr<IInputProcessor> Processor) { return ProcessorsPendingRemoval.Contains(Processor); });
 	ProcessorsPendingRemoval.Reset();
 
 	return bShouldExit;
