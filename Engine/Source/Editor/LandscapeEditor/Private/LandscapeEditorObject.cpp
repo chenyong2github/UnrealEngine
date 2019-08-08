@@ -463,7 +463,7 @@ bool ULandscapeEditorObject::SetAlphaTexture(UTexture2D* InTexture, EColorChanne
 {
 	bool Result = true;
 
-	TArray<uint8> NewTextureData;
+	TArray64<uint8> NewTextureData;
 	UTexture2D* NewAlphaTexture = InTexture;
 
 	// No texture or no source art, try to use the previous texture.

@@ -22,7 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogImageUtils, Log, All);
 
 #define LOCTEXT_NAMESPACE "ImageUtils"
 
-static bool GetRawData(UTextureRenderTarget2D* TexRT, TArray<uint8>& RawData)
+static bool GetRawData(UTextureRenderTarget2D* TexRT, TArray64<uint8>& RawData)
 {
 	FRenderTarget* RenderTarget = TexRT->GameThread_GetRenderTargetResource();
 	EPixelFormat Format = TexRT->GetFormat();
@@ -375,7 +375,7 @@ public:
 		Size = RenderTarget->GetSizeXY();
 		Format = TexRT->GetFormat();
 
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 		bool bReadSuccess = GetRawData(TexRT, RawData);
 		if (bReadSuccess)
 		{
@@ -395,7 +395,7 @@ public:
 	{
 		check(Texture != nullptr);
 		bool bReadSuccess = true;
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 
 #if WITH_EDITORONLY_DATA
 		Size = FIntPoint(Texture->Source.GetSizeX(), Texture->Source.GetSizeY());
@@ -479,7 +479,7 @@ public:
 		check(TexCube != nullptr);
 
 		// Generate 2D image.
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 		bool bUnwrapSuccess = CubemapHelpers::GenerateLongLatUnwrap(TexCube, RawData, Size, Format);
 		bool bAcceptableFormat = (Format == PF_B8G8R8A8 || Format == PF_FloatRGBA);
 		if (bUnwrapSuccess == false || bAcceptableFormat == false)
@@ -504,7 +504,7 @@ public:
 		check(TexCube != nullptr);
 
 		// Generate 2D image.
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 		bool bUnwrapSuccess = CubemapHelpers::GenerateLongLatUnwrap(TexCube, RawData, Size, Format);
 		bool bAcceptableFormat = (Format == PF_B8G8R8A8 || Format == PF_FloatRGBA);
 		if (bUnwrapSuccess == false || bAcceptableFormat == false)
@@ -626,7 +626,7 @@ private:
 		Ar.Serialize(Header, Len);
 	}
 
-	void WriteHDRImage(const TArray<uint8>& RawData, FArchive& Ar)
+	void WriteHDRImage(const TArray64<uint8>& RawData, FArchive& Ar)
 	{
 		WriteHDRHeader(Ar);
 		if (Format == PF_FloatRGBA)
@@ -692,7 +692,7 @@ bool FImageUtils::ExportRenderTarget2DAsPNG(UTextureRenderTarget2D* TexRT, FArch
 		FRenderTarget* RenderTarget = TexRT->GameThread_GetRenderTargetResource();
 		FIntPoint Size = RenderTarget->GetSizeXY();
 
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 		bSuccess = GetRawData(TexRT, RawData);
 
 		IImageWrapperModule& ImageWrapperModule = FModuleManager::Get().LoadModuleChecked<IImageWrapperModule>(TEXT("ImageWrapper"));
@@ -718,7 +718,7 @@ ENGINE_API bool FImageUtils::ExportRenderTarget2DAsEXR(UTextureRenderTarget2D* T
 		FRenderTarget* RenderTarget = TexRT->GameThread_GetRenderTargetResource();
 		FIntPoint Size = RenderTarget->GetSizeXY();
 
-		TArray<uint8> RawData;
+		TArray64<uint8> RawData;
 		bSuccess = GetRawData(TexRT, RawData);
 
 		int32 BitsPerPixel = TexRT->GetFormat() == PF_B8G8R8A8 ? 8 : (sizeof(FFloat16Color) / 4) * 8;
