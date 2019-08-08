@@ -301,10 +301,6 @@ public:
 	const TArray<FMatrix>& GetMeshObjectReferenceToLocalMatrices() const;
 	const TIndirectArray<FSkeletalMeshLODRenderData>& GetSkeletalMeshRenderDataLOD() const;
 
-#if RHI_RAYTRACING
-	bool bAnySegmentUsesWorldPositionOffset : 1;
-#endif
-
 protected:
 	AActor* Owner;
 	class FSkeletalMeshObject* MeshObject;
@@ -314,6 +310,12 @@ protected:
 	const USkeletalMesh* SkeletalMeshForDebug;
 	class UPhysicsAsset* PhysicsAssetForDebug;
 
+public:
+#if RHI_RAYTRACING
+	bool bAnySegmentUsesWorldPositionOffset : 1;
+#endif
+
+protected:
 	/** data copied for rendering */
 	uint8 bForceWireframe : 1;
 	uint8 bIsCPUSkinned : 1;

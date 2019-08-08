@@ -145,11 +145,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
 ,	IndirectLightingCacheQuality(InComponent->IndirectLightingCacheQuality)
-,	LpvBiasMultiplier(InComponent->LpvBiasMultiplier)
-,	DynamicIndirectShadowMinVisibility(0)
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)
 ,	VirtualTextureCullMips(InComponent->VirtualTextureCullMips)
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
+,	LpvBiasMultiplier(InComponent->LpvBiasMultiplier)
+,	DynamicIndirectShadowMinVisibility(0)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
 ,	PrimitiveSceneInfo(NULL)
@@ -227,7 +227,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
-				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
+				RuntimeVirtualTextureMaterialTypes.AddUnique(VirtualTexture->GetMaterialType());
 			
 				//todo[vt]: Only flush this specific virtual texture
 				//todo[vt]: Only flush primitive bounds 
