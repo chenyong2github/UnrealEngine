@@ -9,6 +9,7 @@
 #include "Misc/NetworkGuid.h"
 #include "Engine/NetConnection.h"
 #include "Engine/NetDriver.h"
+#include "EngineUtils.h"
 
 FNetworkSimulationModelDebuggerManager& FNetworkSimulationModelDebuggerManager::Get()
 {
@@ -80,6 +81,51 @@ FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugCmd(TEXT("nms.Deb
 
 	APawn* Pawn = Player->GetPlayerController(World)->GetPawn();
 	FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(Pawn);
+}));
+
+FAutoConsoleCommandWithWorldAndArgs NetworkSimulationModelDebugClassCmd(TEXT("nms.Debug.Class"), TEXT(""),
+	FConsoleCommandWithWorldAndArgsDelegate::CreateLambda([](const TArray< FString >& Args, UWorld* World) 
+{
+	if (Args.Num() <= 0)
+	{
+		UE_LOG(LogNetworkSimDebug, Display, TEXT("Usage: nms.Debug.Class <Class>"));
+		return;
+	}
+
+	UClass* Class = FindObject<UClass>(ANY_PACKAGE, *Args[0]);
+	if (Class == nullptr)
+	{
+		UE_LOG(LogNetworkSimDebug, Display, TEXT("Could not find Class: %s. Searching for partial match."), *Args[0]);
+
+		for (TObjectIterator<UClass> ClassIt; ClassIt; ++ClassIt)
+		{
+			if (ClassIt->GetName().Contains(Args[0]))
+			{
+				Class = *ClassIt;
+				UE_LOG(LogNetworkSimDebug, Display, TEXT("Found: %s"), *Class->GetName());
+				break;
+			}
+
+		}
+
+		if (Class == nullptr)
+		{
+			UE_LOG(LogNetworkSimDebug, Display, TEXT("No Matches"));
+			return;
+		}
+	}
+
+	// Probably need to do distance based sorting or a way to specify which one you want.
+	for (TActorIterator<AActor> It(World); It; ++It)
+	{
+		if (It->GetClass()->IsChildOf(Class))
+		{
+			UE_LOG(LogNetworkSimDebug, Display, TEXT("Toggling NetworkSim debugger for %s"), *It->GetName());
+			FNetworkSimulationModelDebuggerManager::Get().ToggleDebuggerActive(*It);
+			break;
+		}
+	}
+	
 }));
 
 
