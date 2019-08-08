@@ -1622,6 +1622,13 @@ bool ServerCommandThread::actions::RegisterProcess::Execute(const CommandType* c
 						// EPIC REMOVED: g_theApp.GetMainFrame()->ResetStatusBarText();
 						// EPIC REMOVED: g_theApp.GetMainFrame()->SetBusy(false);
 					}
+					// BEGIN EPIC MOD - Prevent orphaned console instances if processes fail to restart. Job object will be duplicated into child process.
+					else
+					{
+						commandThread->m_restartCS.Leave();
+						LC_LOG_USER("---------- Restarting finished ----------");
+					}
+					// END EPIC MOD
 				}
 			}
 		}
