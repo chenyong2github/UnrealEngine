@@ -267,7 +267,12 @@ namespace Audio
 
 		if (AudioDeviceID != INDEX_NONE)
 		{
+			FScopeLock ScopedLock(&OutputBufferMutex);
+
 			SDL_CloseAudioDevice(AudioDeviceID);
+
+			OutputBuffer = nullptr;
+			OutputBufferByteLength = 0;
 		}
 
 		AudioStreamInfo.StreamState = EAudioOutputStreamState::Closed;
@@ -317,6 +322,9 @@ namespace Audio
 
 	void FMixerPlatformSDL::SubmitBuffer(const uint8* Buffer)
 	{
+		// Need to prevent the case in which we close down the audio stream leaving this point to potentially corrupt the free'ed pointer
+		FScopeLock ScopedLock(&OutputBufferMutex);
+
 		if (OutputBuffer)
 		{
 			FMemory::Memcpy(OutputBuffer, Buffer, OutputBufferByteLength);
