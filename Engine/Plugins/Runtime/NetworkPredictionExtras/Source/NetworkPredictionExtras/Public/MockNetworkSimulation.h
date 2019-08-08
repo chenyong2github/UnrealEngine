@@ -163,7 +163,7 @@ private:
 	
 public:
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void SyncTo(const FMockSyncState& SyncState) override;
+	void FinalizeFrame(const FMockSyncState& SyncState) override;
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
 	virtual UObject* GetVLogOwner() const override final;
 	virtual FTransform GetDebugWorldTransform() const override final;
