@@ -31,10 +31,22 @@ namespace AutomationTool
 
 				if (M.Success)
 				{
+					Log.TraceVerbose("Detected mono version as {0}.", VersionString);
 					try
 					{
 						Version Ver = Version.Parse(M.Groups[1].ToString());
 						CanUseMsBuild = Ver.Major >= 5;
+
+						if (Ver.Major >= 5)
+						{
+							// double check msbuild is in the path
+							CanUseMsBuild = string.IsNullOrEmpty(CommandUtils.WhichApp("msbuild")) == false;
+
+							if (!CanUseMsBuild)
+							{
+								Log.TraceWarning("mono 5.0 or greater exists but msbuild not found");
+							}
+						}
 					}
 					catch
 					{
