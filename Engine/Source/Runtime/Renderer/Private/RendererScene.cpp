@@ -1290,8 +1290,7 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
-	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() 
-		|| !UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
+	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer();
 
 	// Remove the primitive from the scene at its old location
 	// (note that the octree update relies on the bounds not being modified yet).
