@@ -15,10 +15,12 @@
 #include "OSCServer.generated.h"
 
 
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage &, Message);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedBundleEvent, const FOSCBundle &, Bundle);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOSCDispatchMessageEvent, const FOSCAddress&, AddressPattern, const FOSCMessage&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedBundleEvent, const FOSCBundle&, Bundle);
 
 class FSocket;
+
 
 UCLASS(BlueprintType)
 class OSC_API UOSCServer : public UObject
@@ -54,6 +56,11 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
 	FOSCReceivedMessageEvent OnOscReceived;
 
+	/** Event that gets called when an OSC message is dispatched
+	  * via passing OSCMethod filter. */
+	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
+	FOSCDispatchMessageEvent OnOscDispatched;
+
 	/** Event that gets called when an OSC bundle is received. */
 	UPROPERTY(BlueprintAssignable, Category = "Audio|OSC")
 	FOSCReceivedBundleEvent OnOscBundleReceived;
@@ -77,6 +84,22 @@ public:
 	/** Returns set of whitelisted clients. */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	TSet<FString> GetWhitelistedClients() const;
+
+	/** Adds OSCAddressPattern to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void AddOSCAddressPattern(const FOSCAddress& OSCAddressPattern);
+
+	/** Adds OSCAddressPattern to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void RemoveOSCAddressPattern(const FOSCAddress& OSCAddressPattern);
+
+	/** Returns set of OSCAddressPatterns to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	TArray<FOSCAddress> GetOSCAddressPatterns() const;
+
+	/** Returns set of OSCAddressPatterns to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void ClearOSCAddressPatterns();
 
 protected:
 	void BeginDestroy() override;
@@ -107,4 +130,7 @@ protected:
 
 	/** Whether or not to loopback if address provided is multicast */
 	bool bMulticastLoopback;
+	
+	/** Address patterns to check against when dispatching incoming messages */
+	TMap<uint32, FOSCAddress> AddressPatterns;
 };

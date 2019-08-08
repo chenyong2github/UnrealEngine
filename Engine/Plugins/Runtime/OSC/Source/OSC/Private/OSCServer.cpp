@@ -61,6 +61,14 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				{
 					FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
 					OnOscReceived.Broadcast(Message);
+
+					for (const TPair<uint32, FOSCAddress>& Pair: AddressPatterns)
+					{
+						if (Pair.Value.Matches(Message.GetAddress()))
+						{
+							OnOscDispatched.Broadcast(Pair.Value, Message);
+						}
+					}
 				}
 				else if (Packet->IsBundle())
 				{
@@ -69,7 +77,7 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				}
 				else
 				{
-					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().Value);
+					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().GetFullPath());
 				}
 			}
 		}),
@@ -220,4 +228,36 @@ TSet<FString> UOSCServer::GetWhitelistedClients() const
 	}
 
 	return OutWhitelist;
+}
+
+void UOSCServer::AddOSCAddressPattern(const FOSCAddress& OSCAddressPattern)
+{
+	if (OSCAddressPattern.IsValidPattern())
+	{
+		AddressPatterns.Add(OSCAddressPattern.GetHash(), OSCAddressPattern);
+	}
+}
+
+void UOSCServer::RemoveOSCAddressPattern(const FOSCAddress& OSCAddressPattern)
+{
+	if (OSCAddressPattern.IsValidPattern())
+	{
+		AddressPatterns.Remove(OSCAddressPattern.GetHash());
+	}
+}
+
+
+TArray<FOSCAddress> UOSCServer::GetOSCAddressPatterns() const
+{
+	TArray<FOSCAddress> Addresses;
+	for (const TPair<uint32, FOSCAddress>& Pair : AddressPatterns)
+	{
+		Addresses.Add(Pair.Value);
+	}
+	return MoveTemp(Addresses);
+}
+
+void UOSCServer::ClearOSCAddressPatterns()
+{
+	AddressPatterns.Reset();
 }
