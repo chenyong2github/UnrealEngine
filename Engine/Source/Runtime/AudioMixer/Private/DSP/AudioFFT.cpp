@@ -158,6 +158,7 @@ namespace Audio
 		{
 			check(FMath::CountBits(NumSamples) == 1)
 			const uint32 NumBits = FMath::CountTrailingZeros(NumSamples);
+
 			
 			for (uint32 Index = 0; Index < NumSamples; Index++)
 			{
@@ -173,6 +174,7 @@ namespace Audio
 		{
 			check(FMath::CountBits(NumSamples) == 1)
 			const uint32 NumBits = FMath::CountTrailingZeros(NumSamples);
+
 			for (uint32 Index = 0; Index < NumSamples; Index++)
 			{
 				const uint32 ReversedIndex = SlowBitReversal2(Index, NumBits);
