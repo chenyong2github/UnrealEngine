@@ -640,6 +640,9 @@ void InitDefaultGLContextState(void)
 		glClipControl(GL_UPPER_LEFT, GL_ZERO_TO_ONE);
 	}
 #endif
+
+	// optional per platform setup
+	FOpenGL::SetupDefaultGLContextState(ExtensionsString);
 }
 
 #undef LOCTEXT_NAMESPACE
