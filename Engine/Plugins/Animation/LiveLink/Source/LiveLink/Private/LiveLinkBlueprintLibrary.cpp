@@ -97,10 +97,9 @@ bool ULiveLinkBlueprintLibrary::IsSourceStillValid(UPARAM(ref) FLiveLinkSourceHa
 	return SourceHandle.SourcePointer.IsValid() && SourceHandle.SourcePointer->IsSourceStillValid();
 };
 
-bool ULiveLinkBlueprintLibrary::RequestShutdown(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
+bool ULiveLinkBlueprintLibrary::RemoveSource(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
 {
-	bool bSourceShutdown = SourceHandle.SourcePointer.IsValid() && SourceHandle.SourcePointer->RequestSourceShutdown();
-	if (bSourceShutdown)
+	if (SourceHandle.SourcePointer.IsValid())
 	{
 		IModularFeatures& ModularFeatures = IModularFeatures::Get();
 
@@ -108,9 +107,11 @@ bool ULiveLinkBlueprintLibrary::RequestShutdown(UPARAM(ref) FLiveLinkSourceHandl
 		{
 			ILiveLinkClient* LiveLinkClient = &ModularFeatures.GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 			LiveLinkClient->RemoveSource(SourceHandle.SourcePointer);
+			return true;
 		}
 	}
-	return bSourceShutdown;
+
+	return false;
 }
 
 FText ULiveLinkBlueprintLibrary::GetSourceStatus(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle)
