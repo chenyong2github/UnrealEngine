@@ -21,7 +21,7 @@ public:
 	bool			bLoading;
 	bool			bMakeVisibleAfterLoad;
 	bool			bShouldBlock;
-	ULevelStreaming* Level;
+	TWeakObjectPtr<ULevelStreaming> Level;
 	FName			LevelName;
 
 	FLatentActionInfo LatentInfo;
