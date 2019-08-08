@@ -21,13 +21,6 @@
 #include "SynthesisModule.h"
 #include "SynthComponentMonoWaveTable.generated.h"
 
-// ========================================================================
-// USynthComponentMonoWaveTable
-// Synth component class which implements USynthComponent
-// This is a simple hello-world type example which generates a sine-wave
-// tone using a DSP oscillator class and implements a single function to set
-// the frequency. 
-// ========================================================================
 
 class USynthComponentMonoWaveTable;
 
@@ -128,7 +121,6 @@ protected:
 
 	// cached asset data (before last edit)
 	int8 bWasLockedToGrid : 1;
-	int8 bWasSingleTable : 1;
 	int32 CachedTableResolution;
 	TArray<FRuntimeFloatCurve> CachedWaveTable;
 	uint8 bCachedNormalizationSetting : 1;
