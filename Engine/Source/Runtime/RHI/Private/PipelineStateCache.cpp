@@ -647,6 +647,7 @@ public:
 	{
 		FScopeLock ScopeLock(&CriticalSection);
 		Cache.Add(Initializer, State);
+		State->AddHit();
 	}
 
 	void Shutdown()
