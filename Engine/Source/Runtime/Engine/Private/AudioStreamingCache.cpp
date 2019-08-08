@@ -43,6 +43,14 @@ FAutoConsoleVariableRef CVarTrimCacheWhenOverBudget(
 	TEXT("n: Number of elements to display on screen."),
 	ECVF_Default);
 
+static int32 ReadRequestPriorityCVar = 2;
+FAutoConsoleVariableRef CVarReadRequestPriority(
+	TEXT("au.streamcaching.ReadRequestPriority"),
+	ReadRequestPriorityCVar,
+	TEXT("This cvar sets the default request priority for audio chunks when Stream Caching is turned on.\n")
+	TEXT("0: High, 1: Normal, 2: Below Normal, 3: Low, 4: Min"),
+	ECVF_Default);
+
 FCachedAudioStreamingManager::FCachedAudioStreamingManager(const FCachedAudioStreamingManagerParams& InitParams)
 {
 	check(FPlatformCompressionUtilities::IsCurrentPlatformUsingStreamCaching());
@@ -806,7 +814,7 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 	const FStreamedAudioChunk& Chunk = InKey.SoundWave->RunningPlatformData->Chunks[InKey.ChunkIndex];
 	int32 ChunkDataSize = Chunk.AudioDataSize;
 
-	EAsyncIOPriorityAndFlags AsyncIOPriority = AIOP_High;
+	EAsyncIOPriorityAndFlags AsyncIOPriority = GetAsyncPriorityForChunk(InKey);
 
 	MemoryCounterBytes -= CacheElement->ChunkData.Num();
 	// Reallocate our chunk data This allows us to shrink if possible.
@@ -908,6 +916,37 @@ void FAudioChunkCache::KickOffAsyncLoad(FCacheElement* CacheElement, const FChun
 			UE_LOG(LogAudio, Error, TEXT("Chunk load in audio LRU cache failed."));
 			OnLoadCompleted(EAudioChunkLoadResult::ChunkOutOfBounds);
 			NumberOfLoadsInFlight.Decrement();
+		}
+	}
+}
+
+EAsyncIOPriorityAndFlags FAudioChunkCache::GetAsyncPriorityForChunk(const FChunkKey& InKey)
+{
+
+	// TODO: In the future we can add an enum to USoundWaves to tweak load priority of individual assets.
+
+	switch (ReadRequestPriorityCVar)
+	{
+		case 4:
+		{
+			return AIOP_MIN;
+		}
+		case 3:
+		{
+			return AIOP_Low;
+		}
+		case 2:
+		{
+			return AIOP_BelowNormal;
+		}
+		case 1:
+		{
+			return AIOP_Normal;
+		}
+		case 0:
+		default:
+		{
+			return AIOP_High;
 		}
 	}
 }
