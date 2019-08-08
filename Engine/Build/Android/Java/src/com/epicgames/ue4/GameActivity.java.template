@@ -3897,7 +3897,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				break;
 				case VK_CMD_HIDE:
 				{
-						if(bKeyboardShowing)
+						if (bKeyboardShowing || newVirtualKeyboardInput.getVisibility() != View.GONE)
 						{
 							//Log.debug("VK: Hide newVirtualKeyboardInput");
 
