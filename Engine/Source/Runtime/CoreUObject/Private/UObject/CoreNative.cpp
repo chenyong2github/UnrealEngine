@@ -133,7 +133,7 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 	{
 		bool bAllowedSelfReference = bAllowSelfReference && SourceSubobject == SourceRoot;
 
-		bool bShouldInstance = bAllowedSelfReference || SourceSubobject->IsIn(SourceRoot);
+		bool bShouldInstance = bAllowedSelfReference || CurrentValue->IsIn(SourceRoot);
 		if ( !bShouldInstance && CurrentValue->GetOuter() == CurrentObject->GetArchetype() )
 		{
 			// this code is intended to catch cases where SourceRoot contains subobjects assigned to instanced object properties, where the subobject's class
