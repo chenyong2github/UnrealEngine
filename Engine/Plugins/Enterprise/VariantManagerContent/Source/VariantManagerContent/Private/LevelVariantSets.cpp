@@ -71,6 +71,11 @@ void ULevelVariantSets::AddVariantSets(const TArray<UVariantSet*>& NewVariantSet
 	TSet<ULevelVariantSets*> ParentsModified;
 	for (UVariantSet* NewVarSet : NewVariantSets)
 	{
+		if (NewVarSet == nullptr)
+		{
+			continue;
+		}
+
 		ULevelVariantSets* OldParent = NewVarSet->GetParent();
 
 		if (OldParent)
@@ -131,6 +136,11 @@ void ULevelVariantSets::AddVariantSets(const TArray<UVariantSet*>& NewVariantSet
 
 int32 ULevelVariantSets::GetVariantSetIndex(UVariantSet* VarSet)
 {
+	if (VarSet == nullptr)
+	{
+		return INDEX_NONE;
+	}
+
 	return VariantSets.Find(VarSet);
 }
 
