@@ -95,11 +95,6 @@ bool FOSCAddress::Matches(const FOSCAddress& Address) const
 	}
 }
 
-uint32 FOSCAddress::GetHash() const
-{
-	return Hash;
-}
-
 bool FOSCAddress::IsValidPattern() const
 {
 	return bIsValidPattern;
@@ -124,10 +119,26 @@ void FOSCAddress::PushContainer(const FString& Container)
 	Hash = GetTypeHash(GetFullPath());
 }
 
+FString FOSCAddress::PopContainer()
+{
+	if (Containers.Num() > 0)
+	{
+		FString Popped = Containers.Pop(false);
+		Hash = GetTypeHash(GetFullPath());
+	}
+
+	return FString();
+}
+
 void FOSCAddress::ClearContainers(const FString& Container)
 {
 	Containers.Reset();
 	Hash = GetTypeHash(GetFullPath());
+}
+
+const FString& FOSCAddress::GetMethod() const
+{
+	return Method;
 }
 
 void FOSCAddress::SetMethod(const FString& InMethod)
@@ -144,17 +155,6 @@ void FOSCAddress::SetMethod(const FString& InMethod)
 	Hash = GetTypeHash(GetFullPath());
 }
 
-FString FOSCAddress::PopContainer()
-{
-	if (Containers.Num() > 0)
-	{
-		FString Popped = Containers.Pop(false);
-		Hash = GetTypeHash(GetFullPath());
-	}
-
-	return FString();
-}
-
 FString FOSCAddress::GetContainerPath() const
 {
 	return OSC::PathSeparator + FString::Join(Containers, *OSC::PathSeparator);
@@ -162,7 +162,7 @@ FString FOSCAddress::GetContainerPath() const
 
 FString FOSCAddress::GetContainer(int32 Index) const
 {
-	if (Index < Containers.Num())
+	if (Index >= 0 && Index < Containers.Num())
 	{
 		return Containers[Index];
 	}
@@ -183,9 +183,4 @@ FString FOSCAddress::GetFullPath() const
 	}
 
 	return GetContainerPath() + OSC::PathSeparator + Method;
-}
-
-const FString& FOSCAddress::GetMethodName() const
-{
-	return Method;
 }
