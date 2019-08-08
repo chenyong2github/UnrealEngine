@@ -128,7 +128,7 @@ namespace
 void FEngineSessionManager::Initialize()
 {
 	// Register for crash and app state callbacks
-	FCoreDelegates::OnBeforeHandleSystemError.AddRaw(this, &FEngineSessionManager::OnCrashing);
+	FCoreDelegates::OnHandleSystemError.AddRaw(this, &FEngineSessionManager::OnCrashing);
 	FCoreDelegates::ApplicationHasReactivatedDelegate.AddRaw(this, &FEngineSessionManager::OnAppReactivate);
 	FCoreDelegates::ApplicationWillDeactivateDelegate.AddRaw(this, &FEngineSessionManager::OnAppDeactivate);
 	FCoreDelegates::ApplicationWillEnterBackgroundDelegate.AddRaw(this, &FEngineSessionManager::OnAppBackground);
