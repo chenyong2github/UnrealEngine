@@ -49,6 +49,7 @@ const FName FDataTableEditor::DataTableDetailsTabId("DataTableEditor_DataTableDe
 const FName FDataTableEditor::RowEditorTabId("DataTableEditor_RowEditor");
 const FName FDataTableEditor::RowNameColumnId("RowName");
 const FName FDataTableEditor::RowNumberColumnId("RowNumber");
+const FName FDataTableEditor::RowDragDropColumnId("RowDragDrop");
 
 void FDataTableEditor::RegisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
@@ -475,6 +476,22 @@ void FDataTableEditor::OnColumnNameSortModeChanged(const EColumnSortPriority::Ty
 	CellsListView->RequestListRefresh();
 }
 
+void FDataTableEditor::OnEditDataTableStructClicked()
+{
+	const UDataTable* DataTable = GetDataTable();
+	if (DataTable)
+	{
+
+		const UScriptStruct* ScriptStruct = DataTable->GetRowStruct();
+
+		if (ScriptStruct)
+		{
+			FAssetEditorManager::Get().OpenEditorForAsset(ScriptStruct->GetPathName());
+			FSourceCodeNavigation::NavigateToStruct(ScriptStruct);
+		}
+	}
+}
+
 UDataTable* FDataTableEditor::GetEditableDataTable() const
 {
 	return Cast<UDataTable>(GetEditingObject());
@@ -529,6 +546,31 @@ FText FDataTableEditor::GetCellToolTipText(FDataTableEditorRowListViewDataPtr In
 	}
 
 	return TooltipText;
+}
+
+float FDataTableEditor::GetRowNumberColumnWidth() const
+{
+	return RowNumberColumnWidth;
+}
+
+void FDataTableEditor::RefreshRowNumberColumnWidth()
+{
+
+	TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	const FTextBlockStyle& CellTextStyle = FEditorStyle::GetWidgetStyle<FTextBlockStyle>("DataTableEditor.CellText");
+	const float CellPadding = 10.0f;
+	RowNumberColumnWidth = 10.0f;
+	for (const FDataTableEditorRowListViewDataPtr& RowData : AvailableRows)
+	{
+		const float RowNumberWidth = FontMeasure->Measure(FString::FromInt(RowData->RowNum), CellTextStyle.Font).X + CellPadding;
+		RowNumberColumnWidth = FMath::Max(RowNumberColumnWidth, RowNumberWidth);
+	}
+
+}
+
+void FDataTableEditor::OnRowNumberColumnResized(const float NewWidth)
+{
+	RowNumberColumnWidth = NewWidth;
 }
 
 float FDataTableEditor::GetRowNameColumnWidth() const
@@ -837,11 +879,11 @@ void FDataTableEditor::PostRegenerateMenusAndToolbars()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
-				SNew(STextBlock)
-				.ShadowOffset(FVector2D::UnitVector)
+				SNew(SHyperlink)
+				.Style(FEditorStyle::Get(), "Common.GotoNativeCodeHyperlink")
+				.OnNavigate(this, &FDataTableEditor::OnEditDataTableStructClicked)
 				.Text(FText::FromName(DataTable->GetRowStructName()))
-				.ToolTipText(LOCTEXT("DataTableRowToolTip", "The struct used for each row in this data table"))
-				.Visibility(UDS ? EVisibility::Visible : EVisibility::Collapsed)
+				.ToolTipText(LOCTEXT("DataTableRowToolTip", "Open the struct used for each row in this data table"))
 			]
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
@@ -905,8 +947,9 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 
 	FDataTableEditorUtils::CacheDataTableForEditing(Table, AvailableColumns, AvailableRows);
 
-	// Update the desired width of the row names column
+	// Update the desired width of the row names and numbers column
 	// This prevents it growing or shrinking as you scroll the list view
+	RefreshRowNumberColumnWidth();
 	RefreshRowNameColumnWidth();
 
 	// Setup the default auto-sized columns
@@ -943,15 +986,49 @@ void FDataTableEditor::RefreshCachedDataTable(const FName InCachedSelection, con
 		ColumnNamesHeaderRow->ClearColumns();
 
 		ColumnNamesHeaderRow->AddColumn(
+			SHeaderRow::Column(RowDragDropColumnId)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Fill) 
+				.HAlign(HAlign_Fill)
+				.ToolTip(IDocumentation::Get()->CreateToolTip(
+				LOCTEXT("DataTableRowHandleTooltip", "Drag Drop Handles"),
+				nullptr,
+				*FDataTableEditorUtils::VariableTypesTooltipDocLink,
+				TEXT("DataTableRowHandle")))
+				[
+					SNew(STextBlock)
+					.Text(FText::GetEmpty())
+				]
+			]
+		);
+
+		ColumnNamesHeaderRow->AddColumn(
 			SHeaderRow::Column(RowNumberColumnId)
-			.DefaultLabel(FText::GetEmpty())
 			.SortMode(this, &FDataTableEditor::GetColumnSortMode, RowNumberColumnId)
 			.OnSort(this, &FDataTableEditor::OnColumnNumberSortModeChanged)
+			.ManualWidth(this, &FDataTableEditor::GetRowNumberColumnWidth)
+			.OnWidthChanged(this, &FDataTableEditor::OnRowNumberColumnResized)
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				.ToolTip(IDocumentation::Get()->CreateToolTip(
+				LOCTEXT("DataTableRowIndexTooltip", "Row Index"),
+				nullptr,
+				*FDataTableEditorUtils::VariableTypesTooltipDocLink,
+				TEXT("DataTableRowIndex")))
+				[
+					SNew(STextBlock)
+					.Text(FText::GetEmpty())
+				]
+			]
+
 		);
 
 		ColumnNamesHeaderRow->AddColumn(
 			SHeaderRow::Column(RowNameColumnId)
-			.DefaultLabel(FText::GetEmpty())
+			.DefaultLabel(LOCTEXT("DataTableRowName", "Row Name"))
 			.ManualWidth(this, &FDataTableEditor::GetRowNameColumnWidth)
 			.OnWidthChanged(this, &FDataTableEditor::OnRowNameColumnResized)
 			.SortMode(this, &FDataTableEditor::GetColumnSortMode, RowNameColumnId)
@@ -1249,6 +1326,13 @@ TSharedRef<SVerticalBox> FDataTableEditor::CreateContentBox()
 					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.14"))
 					.Text(FText::FromString(FString(TEXT("\xf103"))) /*fa-angle-double-down*/)
 				]
+			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(2)
+			[
+				SNew(SSeparator)
+				.Orientation(Orient_Vertical)
 			]
 			+ SHorizontalBox::Slot()
 			[

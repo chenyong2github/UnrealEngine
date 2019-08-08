@@ -10,9 +10,36 @@
 #include "Framework/Application/MenuStack.h"
 #include "Framework/Application/SlateApplication.h"
 #include "DataTableEditorUtils.h"
+#include "DragAndDrop/DecoratedDragDropOp.h"
 
 class FDataTableEditor;
 class SInlineEditableTextBlock;
+class SDataTableListViewRow;
+
+class SDataTableRowHandle: public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SDataTableRowHandle)
+	{}
+	SLATE_DEFAULT_SLOT(FArguments, Content)
+		SLATE_ARGUMENT(TSharedPtr<SDataTableListViewRow>, ParentRow)
+		SLATE_END_ARGS()
+
+		void Construct(const FArguments& InArgs);
+
+	FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		return FReply::Handled().DetectDrag(SharedThis(this), EKeys::LeftMouseButton);
+	};
+
+
+	FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	TSharedPtr<class FDataTableRowDragDropOp> CreateDragDropOperation(TSharedPtr<SDataTableListViewRow> InRow);
+
+private:
+	TWeakPtr<SDataTableListViewRow> ParentRow;
+};
+
 /**
  * A widget to represent a row in a Data Table Editor widget. This widget allows us to do things like right-click
  * and take actions on a particular row of a Data Table.
@@ -48,7 +75,9 @@ public:
 private:
 
 	void OnSearchForReferences();
-	void OnInsertNewRow();
+	void OnInsertNewRow(ERowInsertionPosition InsertPosition);
+	
+	FReply OnRowDrop(const FDragDropEvent& DragDropEvent);
 
 	TSharedRef<SWidget> MakeCellWidget(const int32 InRowIndex, const FName& InColumnId);
 
@@ -58,4 +87,22 @@ private:
 
 	FDataTableEditorRowListViewDataPtr RowDataPtr;
 	TWeakPtr<FDataTableEditor> DataTableEditor;
+
+};
+
+class FDataTableRowDragDropOp : public FDecoratedDragDropOp
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FDataTableRowDragDropOp, FDecoratedDragDropOp)
+
+		FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow);
+
+	TSharedPtr<SWidget> DecoratorWidget;
+
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		return DecoratorWidget;
+	}
+
+	TWeakPtr<class SDataTableListViewRow> Row;
 };

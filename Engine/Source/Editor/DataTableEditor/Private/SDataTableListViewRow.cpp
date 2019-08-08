@@ -19,7 +19,8 @@ void SDataTableListViewRow::Construct(const FArguments& InArgs, const TSharedRef
 	DataTableEditor = InArgs._DataTableEditor;
 	SMultiColumnTableRow<FDataTableEditorRowListViewDataPtr>::Construct(
 		FSuperRowType::FArguments()
-		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow"),
+		.Style(FEditorStyle::Get(), "DataTableEditor.CellListViewRow")
+		.OnDrop(this, &SDataTableListViewRow::OnRowDrop),
 		InOwnerTableView
 	);
 
@@ -32,7 +33,10 @@ FReply SDataTableListViewRow::OnMouseButtonUp(const FGeometry& MyGeometry, const
 		FDataTableEditorUtils::SelectRow(DataTableEditor.Pin()->GetDataTable(), RowDataPtr->RowId);
 		TSharedRef<SWidget> MenuWidget = FDataTableRowUtils::MakeRowActionsMenu(DataTableEditor.Pin(),
 			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnSearchForReferences),
-			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow));
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Bottom),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Above),
+			FExecuteAction::CreateSP(this, &SDataTableListViewRow::OnInsertNewRow, ERowInsertionPosition::Below)
+		);
 
 		FWidgetPath WidgetPath = MouseEvent.GetEventPath() != nullptr ? *MouseEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuWidget, MouseEvent.GetScreenSpacePosition(), FPopupTransitionEffect::ContextMenu);
@@ -58,7 +62,7 @@ void SDataTableListViewRow::OnSearchForReferences()
 	}
 }
 
-void SDataTableListViewRow::OnInsertNewRow()
+void SDataTableListViewRow::OnInsertNewRow(ERowInsertionPosition InsertPosition)
 {
 	if (DataTableEditor.IsValid() && RowDataPtr.IsValid())
 	{
@@ -74,11 +78,55 @@ void SDataTableListViewRow::OnInsertNewRow()
 					NewName.SetNumber(NewName.GetNumber() + 1);
 				}
 
-				FDataTableEditorUtils::AddRow(SourceDataTable, NewName);
+				if (InsertPosition == ERowInsertionPosition::Bottom)
+				{
+					FDataTableEditorUtils::AddRow(SourceDataTable, NewName);
+				}
+				else
+				{
+					FDataTableEditorUtils::AddRowAboveOrBelowSelection(SourceDataTable, *CurrentName, NewName, InsertPosition);
+				}
 				FDataTableEditorUtils::SelectRow(SourceDataTable, NewName);
 			}
 		}
 	}
+}
+
+FReply SDataTableListViewRow::OnRowDrop(const FDragDropEvent& DragDropEvent)
+{
+	TSharedPtr<FDataTableRowDragDropOp> DataTableDropOp = DragDropEvent.GetOperationAs< FDataTableRowDragDropOp >();
+	TSharedPtr<SDataTableListViewRow> RowPtr = nullptr;
+	if (DataTableDropOp.IsValid() && DataTableDropOp->Row.IsValid())
+	{
+		RowPtr = DataTableDropOp->Row.Pin();
+	}
+	if (!RowPtr.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	int32 JumpCount = (RowPtr->RowDataPtr)->RowNum - RowDataPtr->RowNum;
+
+	if (!JumpCount)
+	{
+		return FReply::Handled();
+	}
+
+	FDataTableEditorUtils::ERowMoveDirection Direction = JumpCount > 0 ? FDataTableEditorUtils::ERowMoveDirection::Up : FDataTableEditorUtils::ERowMoveDirection::Down;
+
+	if (FDataTableEditor* DataTableEditorPtr = DataTableEditor.Pin().Get())
+	{
+		UDataTable* SourceDataTable = const_cast<UDataTable*>(DataTableEditorPtr->GetDataTable());
+
+		if (SourceDataTable)
+		{
+			FDataTableEditorUtils::MoveRow(SourceDataTable, (RowPtr->RowDataPtr)->RowId, Direction, FMath::Abs<int32>(JumpCount));
+
+			return FReply::Handled();
+		}
+	}
+
+	return FReply::Unhandled();
 }
 
 FReply SDataTableListViewRow::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
@@ -153,12 +201,32 @@ TSharedRef<SWidget> SDataTableListViewRow::GenerateWidgetForColumn(const FName& 
 
 TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex, const FName& InColumnId)
 {
+	const FName RowDragDropColumnId("RowDragDrop");
+
 	int32 ColumnIndex = 0;
 
 	FDataTableEditor* DataTableEdit = DataTableEditor.Pin().Get();
 	TArray<FDataTableEditorColumnHeaderDataPtr>& AvailableColumns = DataTableEdit->AvailableColumns;
 
-	if (InColumnId.IsEqual(FName(TEXT("RowNumber"))))
+	if (InColumnId.IsEqual(RowDragDropColumnId))
+	{
+		return SNew(SDataTableRowHandle)
+		.Content()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(5.0f, 1.0f)
+				[
+					SNew(SImage)
+					.Image(FCoreStyle::Get().GetBrush("VerticalBoxDragIndicatorShort"))
+				]
+			]
+		.ParentRow(SharedThis(this));
+	}
+
+	const FName RowNumberColumnId("RowNumber");
+
+	if (InColumnId.IsEqual(RowNumberColumnId))
 	{
 		return SNew(SBox)
 			.Padding(FMargin(4, 2, 4, 2))
@@ -171,7 +239,9 @@ TSharedRef<SWidget> SDataTableListViewRow::MakeCellWidget(const int32 InRowIndex
 			];
 	}
 
-	if (InColumnId.IsEqual(FName(TEXT("RowName"))))
+	const FName RowNameColumnId("RowName");
+
+	if (InColumnId.IsEqual(RowNameColumnId))
 	{
 		return SNew(SBox)
 			.Padding(FMargin(4, 2, 4, 2))
@@ -235,6 +305,60 @@ void SDataTableListViewRow::SetRowForRename()
 FText SDataTableListViewRow::GetCurrentNameAsText() const
 {
 	return FText::FromName(GetCurrentName());
+}
+
+void SDataTableRowHandle::Construct(const FArguments& InArgs)
+{
+	ParentRow = InArgs._ParentRow;
+
+	ChildSlot
+		[
+			InArgs._Content.Widget
+		];
+}
+
+FReply SDataTableRowHandle::OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
+	{
+		TSharedPtr<FDragDropOperation> DragDropOp = CreateDragDropOperation(ParentRow.Pin());
+		if (DragDropOp.IsValid())
+		{
+			return FReply::Handled().BeginDragDrop(DragDropOp.ToSharedRef());
+		}
+	}
+
+	return FReply::Unhandled();
+
+}
+
+TSharedPtr<FDataTableRowDragDropOp> SDataTableRowHandle::CreateDragDropOperation(TSharedPtr<SDataTableListViewRow> InRow)
+{
+	TSharedPtr<FDataTableRowDragDropOp> Operation = MakeShareable(new FDataTableRowDragDropOp(InRow));
+
+	return Operation;
+}
+
+FDataTableRowDragDropOp::FDataTableRowDragDropOp(TSharedPtr<SDataTableListViewRow> InRow)
+{
+	Row = InRow;
+
+	DecoratorWidget = SNew(SBorder)
+		.Padding(8.f)
+		.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+		.Content()
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("PlaceRowHere", "Place Row Here"))
+			]
+		];
+
+	Construct();
 }
 
 #undef LOCTEXT_NAMESPACE

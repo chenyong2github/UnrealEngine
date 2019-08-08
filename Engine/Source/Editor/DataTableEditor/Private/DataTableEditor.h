@@ -122,11 +122,16 @@ protected:
 	float GetRowNameColumnWidth() const;
 	void RefreshRowNameColumnWidth();
 
+	float GetRowNumberColumnWidth() const;
+	void RefreshRowNumberColumnWidth();
+
 	float GetColumnWidth(const int32 ColumnIndex) const;
 
 	void OnColumnResized(const float NewWidth, const int32 ColumnIndex);
 
 	void OnRowNameColumnResized(const float NewWidth);
+
+	void OnRowNumberColumnResized(const float NewWidth);
 
 	void LoadLayoutData();
 
@@ -171,6 +176,8 @@ protected:
 	void OnColumnSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
 	void OnColumnNumberSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
 	void OnColumnNameSortModeChanged(const EColumnSortPriority::Type SortPriority, const FName& ColumnId, const EColumnSortMode::Type InSortMode);
+
+	void OnEditDataTableStructClicked();
 
 private:
 	UDataTable* GetEditableDataTable() const;
@@ -222,6 +229,9 @@ protected:
 	/** Width of the row name column */
 	float RowNameColumnWidth;
 
+	/** Width of the row number column */
+	float RowNumberColumnWidth;
+
 	/** Widths of data table cell columns */
 	TArray<FColumnWidth> ColumnWidths;
 
@@ -261,4 +271,7 @@ protected:
 
 	/** The column id for the row number list view column */
 	static const FName RowNumberColumnId;
+
+	/** The column id for the drag drop column */
+	static const FName RowDragDropColumnId;
 };
