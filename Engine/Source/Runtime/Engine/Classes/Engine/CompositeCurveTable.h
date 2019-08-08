@@ -39,9 +39,9 @@ protected:
 	// Returns a pointer to the first table found that depends on itself if a loop exists. Returns nullptr if no loops are found.
 	const UCompositeCurveTable* FindLoops(TArray<const UCompositeCurveTable*> AlreadySeenTables) const;
 
-	void UpdateCachedRowMap();
+	void UpdateCachedRowMap(bool bWarnOnInvalidChildren = true);
 
-	void OnParentTablesUpdated();
+	void OnParentTablesUpdated(EPropertyChangeType::Type ChangeType = EPropertyChangeType::Unspecified);
 
 	// true if this asset is currently being loaded; false otherwise
 	uint8 bIsLoading : 1;
