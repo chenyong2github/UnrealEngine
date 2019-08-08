@@ -403,7 +403,7 @@ struct TReplicator_BasicReconciliar
 				// We don't have corresponding local state. There are two cases:
 				if (NetworkSimulationModelCVars::EnableLocalPrediction) // Fixme: this is awkward. Expected if player prediction is disabled but coupling like this feels bad.
 				{
-					UE_LOG(LogNetworkSim, Warning, TEXT("::NetSerialize Fault: MotionStateBuffer does not contain data for frame %d. [%d-%d]"), SerializedHeadKeyframe, SyncBuffer.GetTailKeyframe(), SyncBuffer.GetHeadKeyframe());
+					UE_LOG(LogNetworkSim, Warning, TEXT("::NetSerialize Fault: SyncBuffer does not contain data for frame %d. [%d-%d]"), SerializedHeadKeyframe, SyncBuffer.GetTailKeyframe(), SyncBuffer.GetHeadKeyframe());
 				}
 
 				// Case 1: the serialized state is older than what we've kept in our buffer. A bigger buffer would solve this! (at the price of more resimulated frames to recover when this happens)
@@ -476,7 +476,7 @@ struct TReplicator_BasicReconciliar
 		// Copy authoritative state over client state (FIXME: we may want to store this off historically somewhere? Or will VLog be enough for debugging?)
 		*ClientSyncState = *ServerState;
 		
-		// Resimulate up to our latest MotionStateBuffer frame. Note that we may have unprocessed user commands in the command buffer at this point.
+		// Resimulate up to our latest SyncBuffer frame. Note that we may have unprocessed user commands in the command buffer at this point.
 		const int32 LatestKeyframe = SyncBuffer.GetHeadKeyframe();		
 		for (int32 Keyframe = ReconciliationKeyframe+1; Keyframe <= LatestKeyframe; ++Keyframe)
 		{
@@ -554,8 +554,8 @@ public:
 	class IDriver
 	{
 	public:
-		virtual void InitSyncState(TSyncedState& OutSyncState) const = 0;
-		virtual void SyncTo(const TSyncedState& SyncState) = 0;
+		virtual void InitSyncState(TSyncedState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
+		virtual void FinalizeFrame(const TSyncedState& SyncState) = 0;		// Called only from the Network Sim at the end of the sim frame when there is new sync data.
 	};
 
 	struct FTickParameters
@@ -586,10 +586,12 @@ public:
 		// How many commands we are allowed to process right now. This will need to be built out a bit more to handle shifting network conditions etc. For now, just a cvar.
 		int32 AllowCmds = NetworkSimulationModelCVars::MaxInputCmdsFrame;
 
+		switch (Parameters.Role) {
+
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//														Reconciliation
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
-		if (Parameters.Role == ROLE_AutonomousProxy)
+		case ROLE_AutonomousProxy:
 		{
 			// Client: don't allow buffering and ensure continuous stream of inputs. This will need to be built out a bit more. The main points are:
 			// -Don't buffer input locally (unless we explicitly opt into it as a lag hiding measurement). Don't want to accidentally introduce application latency.
@@ -633,7 +635,7 @@ public:
 				checkf(InputBuffer.IsValidKeyframe(SyncBuffer.GetHeadKeyframe()), TEXT("MotionState and InputCmd buffers are out of system. LastProcessedInputKeyframe: %d {%s} vs {%s}"),
 					LastProcessedInputKeyframe, *SyncBuffer.GetBasicDebugStr(), *InputBuffer.GetBasicDebugStr());
 
-				UE_LOG(LogNetworkSim, Warning, TEXT("Skipping local input frames because we have newer data in MotionStateBuffer. LastProcessedInputKeyframe: %d. {%s} {%s}"),
+				UE_LOG(LogNetworkSim, Warning, TEXT("Skipping local input frames because we have newer data in SyncBuffer. LastProcessedInputKeyframe: %d. {%s} {%s}"),
 					LastProcessedInputKeyframe, *SyncBuffer.GetBasicDebugStr(), *InputBuffer.GetBasicDebugStr());
 
 				LastProcessedInputKeyframe = SyncBuffer.GetHeadKeyframe();
@@ -644,9 +646,11 @@ public:
 				AllowCmds = 0; // Don't process any commands this frame
 				LastProcessedInputKeyframe = InputBuffer.GetHeadKeyframe(); // Increment so we can accept a new command next frame
 			}
+
+			break;
 		}
 
-		if (Parameters.Role == ROLE_Authority)
+		case ROLE_Authority:
 		{
 			if ( LastProcessedInputKeyframe+1 < InputBuffer.GetTailKeyframe() )
 			{
@@ -654,7 +658,32 @@ public:
 				UE_LOG(LogNetworkSim, Warning, TEXT("::Tick missing inputcmds. LastProcessedInputKeyframe: %d. %s"), LastProcessedInputKeyframe, *InputBuffer.GetBasicDebugStr());
 				LastProcessedInputKeyframe = InputBuffer.GetTailKeyframe()+1;
 			}
+			break;
 		}
+
+		case ROLE_SimulatedProxy:
+		{
+			// (TODO: only if extrapolating, which is currently not a setting anywhere)
+			// Take last user command and reuse it, with this frame's frame delta 
+			if (TInputCmd* SynthesizedCmd = GetNextInputForWrite(Parameters.LocalDeltaTimeSeconds))
+			{
+				// Having some way to base the Synthesized off the last command, and be customizable per type, would be powerful
+			}
+
+			if (LastProcessedInputKeyframe+1 == SyncBuffer.GetHeadKeyframe())
+			{
+				// UE_LOG(LogNetworkSim, Warning, TEXT("Skipping synthetic input frame because we have data from server (%d / %d)"), LastProcessedInputKeyframe, SyncBuffer.GetHeadKeyframe());
+
+				// We've received new sync buffer data from replication and haven't processed a user command for it
+				// (we don't need to process a user command for it, because this is the authoritative state from the server)
+				LastProcessedInputKeyframe++;
+				AllowCmds = 0;
+			}
+
+			break;
+		}
+
+		} // end switch
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//														Input Processing
@@ -724,7 +753,7 @@ public:
 			//check(SyncBuffer.GetNumValidElements() > 0);
 			if (SyncBuffer.GetNumValidElements() > 0)
 			{
-				Driver->SyncTo(*SyncBuffer.GetElementFromHead(0));
+				Driver->FinalizeFrame(*SyncBuffer.GetElementFromHead(0));
 			}
 		}
 
@@ -830,6 +859,7 @@ public:
 		{
 			// Only return a cmd if we have processed the last one. This is a bit heavy handed but is a good practice to start with. We want buffering of input to be very explicit, never something that accidently happens.
 			TInputCmd* Next = InputBuffer.GetWriteNext();
+			*Next = TInputCmd();
 			Next->FrameDeltaTime = DeltaTime;
 			return Next;
 		}
@@ -843,7 +873,6 @@ public:
 
 		// We want to start with an empty command in the input buffer. See notes in input buffer processing function.
 		*InputBuffer.GetWriteNext() = TInputCmd();
-
 		LastLocalInputGFrameNumber = 0;
 	}
 
