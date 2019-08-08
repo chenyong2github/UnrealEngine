@@ -294,6 +294,7 @@ void UAnimGraphNode_Layer::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 		];
 	}
 
+	GenerateExposedPinsDetails(DetailBuilder);
 	UAnimGraphNode_CustomProperty::CustomizeDetails(DetailBuilder);
 
 	// Customize InstanceClass with unique visibility (identical to parent class apart from this)
