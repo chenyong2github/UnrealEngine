@@ -18,6 +18,7 @@
 #include "NiagaraCustomVersion.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
 #include "SNiagaraGraphNodeFunctionCallWithSpecifiers.h"
+#include "Misc/SecureHash.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraNodeFunctionCall"
 
@@ -703,6 +704,12 @@ void UNiagaraNodeFunctionCall::GatherExternalDependencyIDs(ENiagaraScriptUsage I
 			}
 		}
 	}
+}
+
+void UNiagaraNodeFunctionCall::UpdateCompileHashForNode(FSHA1& HashState) const
+{
+	Super::UpdateCompileHashForNode(HashState);
+	HashState.UpdateWithString(*GetFunctionName(), GetFunctionName().Len());
 }
 
 bool UNiagaraNodeFunctionCall::ScriptIsValid() const
