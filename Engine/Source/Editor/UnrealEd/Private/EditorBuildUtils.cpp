@@ -1017,7 +1017,11 @@ void FBuildAllHandler::ProcessBuild(const TWeakPtr<SBuildProgressWidget>& BuildP
 			LightingOptions.QualityLevel = (ELightingBuildQuality)QualityLevel;
 
 			GUnrealEd->BuildLighting(LightingOptions);
-
+			while (GUnrealEd->IsLightingBuildCurrentlyRunning())
+			{
+				GUnrealEd->UpdateBuildLighting();
+			}
+			
 			// TODO!
 			//bShouldMapCheck = false;
 
