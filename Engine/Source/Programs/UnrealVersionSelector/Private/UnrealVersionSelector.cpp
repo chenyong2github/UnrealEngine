@@ -4,6 +4,7 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "DesktopPlatformModule.h"
 #include "PlatformInstallation.h"
+#include "Json/Public/Serialization/JsonSerializer.h"
 
 IMPLEMENT_APPLICATION(UnrealVersionSelector, "UnrealVersionSelector")
 
@@ -183,13 +184,98 @@ bool LaunchEditor()
 	FDesktopPlatformModule::Get()->GetEngineRootDirFromIdentifier(Identifier, RootDir);
 
 	// Launch the editor
-	if (!FPlatformInstallation::LaunchEditor(RootDir, FString()))
+	if (!FPlatformInstallation::LaunchEditor(RootDir, FString(), FString()))
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Failed to launch editor"), TEXT("Error"));
 		return false;
 	}
 
 	return true;
+}
+
+bool ReadLaunchPathFromTargetFile(const FString& TargetFileName, FString& OutLaunchPath)
+{
+	// Read the file to a string
+	FString FileContents;
+	if (!FFileHelper::LoadFileToString(FileContents, *TargetFileName))
+	{
+		return false;
+	}
+
+	// Deserialize a JSON object from the string
+	TSharedPtr<FJsonObject> Object;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(FileContents);
+	if (!FJsonSerializer::Deserialize(Reader, Object) || !Object.IsValid())
+	{
+		return false;
+	}
+
+	// Check it's an editor target
+	FString TargetType;
+	if(!Object->TryGetStringField(TEXT("TargetType"), TargetType) || TargetType != TEXT("Editor"))
+	{
+		return false;
+	}
+
+	// Check it's development configuration
+	FString Configuration;
+	if (!Object->TryGetStringField(TEXT("Configuration"), Configuration) || Configuration != TEXT("Development"))
+	{
+		return false;
+	}
+
+	// Get the launch path
+	OutLaunchPath.Empty();
+	Object->TryGetStringField(TEXT("Launch"), OutLaunchPath);
+	return true;
+}
+
+bool TryGetEditorFileName(const FString& EngineDir, const FString& ProjectFileName, FString& OutEditorFileName)
+{
+	IFileManager& FileManager = IFileManager::Get();
+
+	FString ProjectDir = FPaths::GetPath(ProjectFileName);
+	FString BinariesDir = ProjectDir / TEXT("Binaries") / FPlatformProcess::GetBinariesSubdirectory();
+	if (FileManager.DirectoryExists(*BinariesDir))
+	{
+		class FTargetFileVisitor : public IPlatformFile::FDirectoryStatVisitor
+		{
+		public:
+			TArray<TPair<FString, FDateTime>> Files;
+
+			virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
+			{
+				static const TCHAR Extension[] = TEXT(".target");
+				static const int ExtensionLen = ARRAY_COUNT(Extension) - 1;
+
+				int Length = FCString::Strlen(FilenameOrDirectory);
+				if(Length >= ExtensionLen && FCString::Stricmp(FilenameOrDirectory + Length - ExtensionLen, Extension) == 0)
+				{
+					Files.Add(TPair<FString, FDateTime>(FilenameOrDirectory, StatData.ModificationTime));
+				}
+
+				return true;
+			}
+		};
+
+		FTargetFileVisitor Visitor;
+		FileManager.IterateDirectoryStat(*BinariesDir, Visitor);
+
+		Visitor.Files.Sort([](const TPair<FString, FDateTime>& A, const TPair<FString, FDateTime>& B){ return A.Value > B.Value; });
+
+		for(const TPair<FString, FDateTime>& Pair : Visitor.Files)
+		{
+			FString LaunchPath;
+			if(ReadLaunchPathFromTargetFile(Pair.Key, LaunchPath))
+			{
+				OutEditorFileName = MoveTemp(LaunchPath);
+				OutEditorFileName.ReplaceInline(TEXT("$(EngineDir)"), *EngineDir);
+				OutEditorFileName.ReplaceInline(TEXT("$(ProjectDir)"), *ProjectDir);
+				return true;
+			}
+		}
+	}
+	return false;
 }
 
 bool LaunchEditor(const FString& ProjectFileName, const FString& Arguments)
@@ -201,8 +287,12 @@ bool LaunchEditor(const FString& ProjectFileName, const FString& Arguments)
 		return false;
 	}
 
+	// Figure out the path to the editor executable. This may be empty for older .target files; the platform layer should use the default path if necessary.
+	FString EditorFileName;
+	TryGetEditorFileName(RootDir / TEXT("Engine"), ProjectFileName, EditorFileName);
+
 	// Launch the editor
-	if (!FPlatformInstallation::LaunchEditor(RootDir, FString::Printf(TEXT("\"%s\" %s"), *ProjectFileName, *Arguments)))
+	if (!FPlatformInstallation::LaunchEditor(RootDir, EditorFileName, FString::Printf(TEXT("\"%s\" %s"), *ProjectFileName, *Arguments)))
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, TEXT("Failed to launch editor"), TEXT("Error"));
 		return false;
