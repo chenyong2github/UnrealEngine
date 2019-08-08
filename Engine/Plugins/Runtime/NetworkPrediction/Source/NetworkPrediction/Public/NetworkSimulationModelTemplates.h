@@ -470,13 +470,8 @@ struct TReplicator_BasicReconciliar
 
 		TSyncState* LatestClient = SyncBuffer.GetElementFromHead(0);
 
-		
+		//Temp		
 		UE_LOG(LogNetworkSim, Warning, TEXT("Client misprediction. Frame: %d"), ReconciliationKeyframe);
-		/*
-		UE_LOG(LogNetworkSim, Warning, TEXT("  Client: %s"), *ClientMotionState->Location.ToString());
-		UE_LOG(LogNetworkSim, Warning, TEXT("  Server: %s"), *ServerState->Location.ToString());
-		UE_LOG(LogNetworkSim, Warning, TEXT("  LatestClient: %s"), *LatestClient->Location.ToString());
-		*/
 
 		// Copy authoritative state over client state (FIXME: we may want to store this off historically somewhere? Or will VLog be enough for debugging?)
 		*ClientSyncState = *ServerState;
@@ -685,7 +680,7 @@ public:
 				{
 					if (LastProcessedInputKeyframe != 0)
 					{
-						// This shouldn't happen, but is not fatal. We are reseting the motion state buffer.
+						// This shouldn't happen, but is not fatal. We are reseting the sync state buffer.
 						UE_LOG(LogNetworkSim, Warning, TEXT("Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d. Role=%d"), LastProcessedInputKeyframe, SyncBuffer.GetHeadKeyframe(), (int32)Parameters.Role);
 					}
 
