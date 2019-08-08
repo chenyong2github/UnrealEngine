@@ -769,8 +769,11 @@ class FGenerateVulkanVisitor : public ir_visitor
 	/** Whether the shader being cross compiled needs EXT_shader_texture_lod. */
 	bool bUsesES2TextureLODExtension;
 
-	// Found dFdx or dFdy
+	/** Found dFdx or dFdy */
 	bool bUsesDXDY;
+
+	/** Found image atomic functions (e.g. imageAtomicAdd) */
+	bool bUsesImageWriteAtomic;
 
 	std::vector<std::string> SamplerStateNames;
 	TIRVarSet AtomicVariables;
@@ -2576,6 +2579,8 @@ class FGenerateVulkanVisitor : public ir_visitor
 				ir->operands[1]->accept(this);
 			}
 			ralloc_asprintf_append(buffer, ")");
+
+			bUsesImageWriteAtomic = true;
 		}
 	}
 
@@ -3345,7 +3350,7 @@ class FGenerateVulkanVisitor : public ir_visitor
 #endif		
 	}
 
-	void print_extensions(_mesa_glsl_parse_state* state, bool bUsesES31Extensions, bool bShouldEmitMultiview)
+	void print_extensions(_mesa_glsl_parse_state* state, bool bUsesES31Extensions, bool bShouldEmitOESExtensions, bool bShouldEmitMultiview)
 	{
 		if (bUsesES2TextureLODExtension)
 		{
@@ -3363,6 +3368,11 @@ class FGenerateVulkanVisitor : public ir_visitor
 		if (bUsesDXDY && bIsES)
 		{
 			ralloc_asprintf_append(buffer, "#extension GL_OES_standard_derivatives : enable\n");
+		}
+
+		if (bUsesImageWriteAtomic && bShouldEmitOESExtensions)
+		{
+			ralloc_asprintf_append(buffer, "#extension GL_OES_shader_image_atomic : enable\n");
 		}
 
 		if (bUsesES31Extensions)
@@ -3420,6 +3430,7 @@ public:
 		, loop_count(0)
 		, bUsesES2TextureLODExtension(false)
 		, bUsesDXDY(false)
+		, bUsesImageWriteAtomic(false)
 	{
 		printable_names = hash_table_ctor(32, hash_table_pointer_hash, hash_table_pointer_compare);
 		used_structures = hash_table_ctor(32, hash_table_pointer_hash, hash_table_pointer_compare);
@@ -3521,11 +3532,14 @@ public:
 		print_layout(state);
 		buffer = 0;
 
+		const FVulkanLanguageSpec* LanguageSpec = static_cast<const FVulkanLanguageSpec*>(state->LanguageSpec);
+
+		const bool bShouldEmitOESExtensions = LanguageSpec->RequiresOESExtensions();
 		const bool bShouldEmitMultiview = strstr(signature, "gl_ViewIndex") != nullptr;
 
 		char* Extensions = ralloc_asprintf(mem_ctx, "");
 		buffer = &Extensions;
-		print_extensions(state, state->language_version == 310, bShouldEmitMultiview);
+		print_extensions(state, state->language_version == 310, bShouldEmitOESExtensions, bShouldEmitMultiview);
 		if (state->bSeparateShaderObjects && !state->bGenerateES)
 		{
 			switch (state->target)
