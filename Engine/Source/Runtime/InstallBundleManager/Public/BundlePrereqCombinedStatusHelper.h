@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
+#include "InstallBundleManagerInterface.h"
 
 //Handles calculating the bundle status by combining progress from all of its
 //Prerequisites. Allows you to display one progress percent that is weighted based on all
@@ -88,6 +88,6 @@ private:
 	
 	bool bBundleNeedsUpdate;
 	
-	IPlatformInstallBundleManager* InstallBundleManager;
+	IInstallBundleManager* InstallBundleManager;
 	FDelegateHandle TickHandle;
 };

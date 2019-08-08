@@ -8,8 +8,6 @@
 	#include "UnrealEngine.h"
 #endif
 
-#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
-
 class FEngineService;
 class FPendingCleanupObjects;
 class ISessionService;
@@ -117,10 +115,6 @@ private:
 
 	/** Utility function that processes Slate operations. */
 	void ProcessLocalPlayerSlateOperations() const;
-
-	void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads);
-
-	void HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads);
 
 protected:
 

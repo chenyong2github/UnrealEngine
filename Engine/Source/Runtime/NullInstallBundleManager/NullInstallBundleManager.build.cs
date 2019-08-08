@@ -9,6 +9,7 @@ public class NullInstallBundleManager : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
+				"InstallBundleManager"
 			}
 			);
 	}

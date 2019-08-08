@@ -34,11 +34,12 @@ public class Launch : ModuleRules
 				"TraceLog",
 				"Overlay",
 				"UtilityShaders",
-				"PreLoadScreen"
+				"PreLoadScreen",
+				"InstallBundleManager"
 			});
 
 		// Set a macro allowing us to switch between debuggame/development configuration
-		if(Target.Configuration == UnrealTargetConfiguration.DebugGame)
+		if (Target.Configuration == UnrealTargetConfiguration.DebugGame)
 		{
 			PrivateDefinitions.Add("UE_BUILD_DEVELOPMENT_WITH_DEBUGGAME=1");
 		}

@@ -19,3 +19,43 @@ public:
 	{
 	}
 };
+
+/**
+ * Base Module Interface for InstallBundleManager implementation modules
+ */
+class IInstallBundleManagerModule : public IModuleInterface
+{
+public:
+	virtual void PreUnloadCallback() override
+	{
+		InstallBundleManager.Reset();
+	}
+
+	IInstallBundleManager* GetInstallBundleManager()
+	{
+		return InstallBundleManager.Get();
+	}
+
+protected:
+	TUniquePtr<IInstallBundleManager> InstallBundleManager;
+};
+
+/**
+ * Module Interface for InstallBundleManager implementation modules
+ */
+template<class InstallBundleManagerModuleImpl>
+class TInstallBundleManagerModule : public IInstallBundleManagerModule
+{
+public:
+	virtual void StartupModule() override
+	{
+		// Only instantiate the bundle manager if this is the version the game has been configured to use
+		FString ModuleName;
+		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
+
+		if (FModuleManager::Get().GetModule(*ModuleName) == this)
+		{
+			InstallBundleManager = MakeUnique<InstallBundleManagerModuleImpl>();
+		}
+	}
+};

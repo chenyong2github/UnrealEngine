@@ -84,13 +84,13 @@ void FBundlePrereqCombinedStatusHelper::SetupDelegates()
 {
 	CleanUpDelegates();
 	
-	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
+	IInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FBundlePrereqCombinedStatusHelper::OnBundleInstallComplete);
 	TickHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FBundlePrereqCombinedStatusHelper::Tick));
 }
 
 void FBundlePrereqCombinedStatusHelper::CleanUpDelegates()
 {
-	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 	if (TickHandle.IsValid())
 	{
 		FTicker::GetCoreTicker().RemoveTicker(TickHandle);
@@ -128,7 +128,7 @@ void FBundlePrereqCombinedStatusHelper::UpdateBundleCache()
 	//if we haven't already set this up, lets try to set it now
 	if (nullptr == InstallBundleManager)
 	{
-		InstallBundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+		InstallBundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 	}
 	
 	if (ensureAlwaysMsgf((nullptr != InstallBundleManager), TEXT("Invalid InstallBundleManager during UpdateBundleCache! Needs to be valid during run!")))
