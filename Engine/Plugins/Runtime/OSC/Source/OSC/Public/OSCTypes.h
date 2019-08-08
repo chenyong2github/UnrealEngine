@@ -62,7 +62,7 @@ public:
 		, Blob()
 	{
 	}
-	explicit FOSCType(char Value)
+	explicit FOSCType(ANSICHAR Value)
 		: TypeTag(EOSCTypeTag::CHAR)
 		, Data(Value)
 		, Blob()
@@ -136,7 +136,7 @@ public:
 	bool GetBool() const { return Data.Bool; }
 
 	bool IsChar() const { return TypeTag == EOSCTypeTag::CHAR; }
-	char GetChar() const { return Data.Char; }
+	ANSICHAR GetChar() const { return Data.Char; }
 
 	bool IsFloat() const { return TypeTag == EOSCTypeTag::FLOAT; }
 	float GetFloat() const { return Data.Float; }
@@ -171,7 +171,7 @@ private:
 			: Time(Value)
 		{
 		}
-		explicit DataTypes(char Value)
+		explicit DataTypes(ANSICHAR Value)
 			: Char(Value)
 		{
 		}
@@ -187,10 +187,10 @@ private:
 		int32 Int32;
 		int64 Int64;
 		uint64 Time;
-		char Char;
+		ANSICHAR Char;
 		float Float;
 		double Double;
-		bool Bool;		
+		bool Bool;
 	};
 
 	
