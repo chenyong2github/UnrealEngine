@@ -120,8 +120,6 @@ public:
 	/** Default constructor that initializes good defaults for UEditableStaticMeshAdapter */
 	UEditableStaticMeshAdapter();
 
-	virtual void BeginDestroy() override;
-
 	virtual void Serialize( FArchive& Ar ) override;
 
 	/** Creates a editable static mesh from the specified component and sub-mesh address */
