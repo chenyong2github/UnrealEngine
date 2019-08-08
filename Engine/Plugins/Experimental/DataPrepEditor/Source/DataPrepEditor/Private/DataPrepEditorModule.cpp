@@ -9,6 +9,7 @@
 
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
 #include "UObject/StrongObjectPtr.h"
@@ -43,6 +44,9 @@ public:
 		TSharedPtr<FAssetTypeActions_DataprepAsset> DataprepAssetTypeAction = MakeShareable(new FAssetTypeActions_DataprepAsset);
 		AssetTools.RegisterAssetTypeActions(DataprepAssetTypeAction.ToSharedRef());
 		AssetTypeActionsArray.Add(DataprepAssetTypeAction);
+
+		// Register mount point for Dataprep editors root package folder
+		FPackageName::RegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
 	}
 
 	virtual void ShutdownModule() override
@@ -62,6 +66,9 @@ public:
 		AssetTypeActionsArray.Empty();
 
 		FDataprepEditorStyle::Shutdown();
+
+		// Unregister mount point for Dataprep editors root package folder
+		FPackageName::UnRegisterMountPoint( FDataprepEditor::GetRootPackagePath() + TEXT("/"), FDataprepEditor::GetRootTemporaryDir() );
 	}
 
 	/** Gets the extensibility managers for outside entities to extend datasmith data prep editor's menus and toolbars */
