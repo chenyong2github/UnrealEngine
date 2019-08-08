@@ -155,6 +155,6 @@ class UKismetRenderingLibrary : public UBlueprintFunctionLibrary
 	/** Set the inset shadow casting state of the given component and all its child attachments. 
 	 *	Also choose if all attachments should be grouped for the inset shadow rendering. If enabled, one depth target will be shared for all attachments.
 	 */
-	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(Keywords="SetCastShadowForAllAttachments", WorldContext="WorldContextObject", UnsafeDuringActorConstruction="true"))
-	static ENGINE_API void SetCastInsetShadowForAllAttachments(UObject* WorldContextObject, UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup);
+	UFUNCTION(BlueprintCallable, Category="Rendering", meta=(Keywords="SetCastShadowForAllAttachments", UnsafeDuringActorConstruction="true"))
+	static ENGINE_API void SetCastInsetShadowForAllAttachments(UPrimitiveComponent* PrimitiveComponent, bool bCastInsetShadow, bool bLightAttachmentsAsGroup);
 };
