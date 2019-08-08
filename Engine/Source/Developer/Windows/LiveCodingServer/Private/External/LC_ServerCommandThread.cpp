@@ -1477,18 +1477,40 @@ bool ServerCommandThread::actions::EnableLazyLoadedModule::Execute(const Command
 	// protect against accepting this command while compilation is already in progress
 	CriticalSection::ScopedLock lock(&commandThread->m_actionCS);
 
+	// Check if this module is already enabled - it may have been lazy-loaded, then fully loaded, by a restarted process. If so, translate this into a call to EnableModules.
+	const std::wstring modulePath = file::NormalizePath(command->fileName);
+	for (LiveModule* module : commandThread->m_liveModules)
+	{
+		if(module->GetModuleName() == modulePath)
+		{
+			EnableModules::CommandType EnableCmd = { };
+			EnableCmd.moduleCount = 1;
+			EnableCmd.processId = command->processId;
+			EnableCmd.token = command->token;
+
+			commands::ModuleData Module;
+			Module.base = command->moduleBase;
+			wcscpy_s(Module.path, command->fileName);
+
+			return EnableModules::Execute(&EnableCmd, pipe, context, &Module, sizeof(Module));
+		}
+	}
+
+	// Acknowledge the command
+	pipe->SendAck();
+
+	// Register the module for lazy loading
 	for (LiveProcess* process : commandThread->m_liveProcesses)
 	{
 		if (process->GetProcessId() == command->processId)
 		{
-			const std::wstring modulePath = file::NormalizePath(command->fileName);
 			process->AddLazyLoadedModule(modulePath, command->moduleBase);
 			LC_LOG_DEV("Registered module %S for lazy-loading", modulePath.c_str());
 		}
 	}
 
-	pipe->SendAck();
-
+	// Tell the client we're done
+	pipe->SendCommandAndWaitForAck(commands::EnableModulesFinished { command->token }, nullptr, 0u);
 	return true;
 }
 // END EPIC MOD

@@ -468,14 +468,17 @@ void ClientUserCommandThread::SetBuildArguments(const wchar_t* arguments)
 // END EPIC MOD
 
 // BEGIN EPIC MOD - Adding support for lazy-loading modules
-void ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase)
+void* ClientUserCommandThread::EnableLazyLoadedModule(const wchar_t* fileName, Windows::HMODULE moduleBase)
 {
-	ProxyCommand<commands::EnableLazyLoadedModule>* proxy = new ProxyCommand<commands::EnableLazyLoadedModule>(false, 0u);
+	ProxyCommand<commands::EnableLazyLoadedModule>* proxy = new ProxyCommand<commands::EnableLazyLoadedModule>(true, 0u);
 	proxy->m_command.processId = process::GetId();
 	wcscpy_s(proxy->m_command.fileName, fileName);
 	proxy->m_command.moduleBase = moduleBase;
+	proxy->m_command.token = new Event(nullptr, Event::Type::AUTO_RESET);
 
 	PushUserCommand(proxy);
+
+	return proxy->m_command.token;
 }
 // END EPIC MOD
 
