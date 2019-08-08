@@ -392,8 +392,6 @@ void SSourceControlSubmitWidget::FillChangeListDescription(FChangeListDescriptio
 {
 	OutDesc.Description = ChangeListDescriptionTextCtrl->GetText();
 
-	ChangeListDescriptionTextCtrl->SetText(FText()); // Don't save description on Submit
-
 	OutDesc.FilesForAdd.Empty();
 	OutDesc.FilesForSubmit.Empty();
 
@@ -419,6 +417,10 @@ bool SSourceControlSubmitWidget::WantToKeepCheckedOut()
 	return KeepCheckedOut == ECheckBoxState::Checked ? true : false;
 }
 
+void SSourceControlSubmitWidget::ClearChangeListDescription()
+{
+	ChangeListDescriptionTextCtrl->SetText(FText());
+}
 
 FReply SSourceControlSubmitWidget::OKClicked()
 {
