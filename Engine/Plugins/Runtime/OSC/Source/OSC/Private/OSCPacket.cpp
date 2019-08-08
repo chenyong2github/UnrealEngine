@@ -117,7 +117,11 @@ void FOSCMessagePacket::WriteData(FOSCStream& Stream)
 		}
 		break;
 		case EOSCTypeTag::COLOR:
-			Stream.WriteInt32(OSCType.GetColor().GetInt32());
+#if PLATFORM_LITTLE_ENDIAN
+			Stream.WriteInt32(OSCType.GetColor().ToPackedABGR());
+#else
+			Stream.WriteInt32(OSCType.GetColor().ToPackedRGBA());
+#endif
 			break;
 		case EOSCTypeTag::TRUE:
 		case EOSCTypeTag::FALSE:
@@ -185,7 +189,7 @@ void FOSCMessagePacket::ReadData(FOSCStream& Stream)
 			Arguments.Add(FOSCType(Stream.ReadBlob()));
 			break;
 		case EOSCTypeTag::COLOR:
-			Arguments.Add(FOSCType(FOSCColor(Stream.ReadInt32())));
+			Arguments.Add(FOSCType(FColor(Stream.ReadInt32())));
 			break;
 		case EOSCTypeTag::TERMINATE:
 			Stream.ReadChar();

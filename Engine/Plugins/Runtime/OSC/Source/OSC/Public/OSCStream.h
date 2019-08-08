@@ -31,12 +31,18 @@ public:
 	/** Write an ansi char into the stream */
 	void WriteChar(TCHAR Char);
 
+	/** Write Color into the stream */
+	void WriteColor(FColor Color);
+
+	/** Read Color from the stream */
+	FColor ReadColor();
+
 	/** Read Int32 from the stream */
 	int32 ReadInt32();
 
 	/** Write Int32 into the stream */
 	void WriteInt32(int32 Value);
-	
+
 	/** Read Double from the stream */
 	double ReadDouble();
 
