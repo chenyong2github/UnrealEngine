@@ -181,7 +181,7 @@ public:
 
 	// ILiveLinkSource interface
 	virtual void ReceiveClient(ILiveLinkClient* InClient, FGuid InSourceGuid) override;
-	virtual bool IsSourceStillValid() const override;
+	virtual bool IsSourceValid() const override;
 	virtual bool RequestSourceShutdown() override;
 	virtual FText GetSourceMachineName() const override;
 	virtual FText GetSourceStatus() const override;
