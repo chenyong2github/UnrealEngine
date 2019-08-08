@@ -4,6 +4,7 @@
 
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "VPEditorTickableActorBase.h"
+#include "VPTransientEditorTickableActorBase.h"
 #include "VPUtilitiesEditorBlueprintLibrary.generated.h"
 
 
@@ -17,4 +18,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
 	static AVPEditorTickableActorBase* SpawnVPEditorTickableActor(UObject* ContextObject, const TSubclassOf<AVPEditorTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation);
 		
+	/** Spawn an editor-only Transient virtual production tickable actor */
+	UFUNCTION(BlueprintCallable, Category = "Virtual Production")
+	static AVPTransientEditorTickableActorBase* SpawnVPTransientEditorTickableActor(UObject* ContextObject, const TSubclassOf<AVPTransientEditorTickableActorBase> ActorClass, const FVector Location, const FRotator Rotation);
 };
