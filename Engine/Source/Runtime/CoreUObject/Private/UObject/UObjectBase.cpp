@@ -45,7 +45,6 @@ bool UObjectInitialized()
 	return Internal::GetUObjectSubsystemInitialised();
 }
 
-
 /** Objects to automatically register once the object system is ready.					*/
 struct FPendingRegistrantInfo
 {
