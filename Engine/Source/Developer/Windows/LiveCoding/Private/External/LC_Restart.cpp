@@ -5,6 +5,7 @@
 #include "LC_PrimitiveNames.h"
 #include "LC_Process.h"
 #include "LC_Memory.h"
+#include "HAL/PlatformMisc.h"
 
 
 namespace
@@ -55,6 +56,12 @@ void restart::Execute(lpp::RestartBehaviour behaviour, unsigned int exitCode)
 
 	switch (behaviour)
 	{
+		// BEGIN EPIC MODS - Use UE4 codepath for termination to ensure logs are flushed and session analytics are sent
+		case lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT:
+			FPlatformMisc::RequestExit(true);
+			break;
+		// END EPIC MODS
+
 		// https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-exitprocess
 		case lpp::LPP_RESTART_BEHAVIOUR_DEFAULT_EXIT:
 			ExitProcess(exitCode);

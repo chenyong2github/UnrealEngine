@@ -233,7 +233,7 @@ void FLiveCodingModule::Tick()
 {
 	if (LppWantsRestart())
 	{
-		LppRestart(lpp::LPP_RESTART_BEHAVIOUR_INSTANT_TERMINATION, 0);
+		LppRestart(lpp::LPP_RESTART_BEHAVIOR_REQUEST_EXIT, 0);
 	}
 
 	if (Settings->bEnabled != bEnabledLastTick && Settings->Startup != ELiveCodingStartupMode::Manual)
