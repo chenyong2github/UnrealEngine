@@ -5,6 +5,8 @@
 #include "Cluster/DisplayClusterClusterEvent.h"
 #include "Misc/ScopeLock.h"
 #include "IMessageContext.h"
+#include "IMessageBus.h"
+#include "Cluster/IDisplayClusterClusterManager.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogDisplayClusterInterception, Log, All);
