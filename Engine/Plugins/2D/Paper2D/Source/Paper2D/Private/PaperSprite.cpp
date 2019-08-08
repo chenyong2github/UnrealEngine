@@ -10,7 +10,7 @@
 #include "PhysicsEngine/BodySetup.h"
 
 #include "PaperCustomVersion.h"
-#include "PaperGeomTools.h"
+#include "GeomTools.h"
 #include "PaperSpriteComponent.h"
 #include "PaperFlipbookComponent.h"
 #include "PaperGroupedSpriteComponent.h"
@@ -1078,7 +1078,7 @@ void UPaperSprite::BuildGeometryFromContours(FSpriteGeometryCollection& GeomOwne
 			NewShape.SetNewPivot(AverageCenterSnapped);
 
 			// Get intended winding
-			NewShape.bNegativeWinding = !PaperGeomTools::IsPolygonWindingCCW(NewShape.Vertices);
+			NewShape.bNegativeWinding = !FGeomTools2D::IsPolygonWindingCCW(NewShape.Vertices);
 		}
 	}
 }
@@ -1332,7 +1332,7 @@ void UPaperSprite::FindContours(const FIntPoint& ScanPos, const FIntPoint& ScanS
 						// Remove collinear points from the result
 						RemoveCollinearPoints(/*inout*/ ContourPoly);
 
-						if (!PaperGeomTools::IsPolygonWindingCCW(ContourPoly))
+						if (!FGeomTools2D::IsPolygonWindingCCW(ContourPoly))
 						{
 							// Remove newly added polygon, we don't support holes just yet
 							OutPoints.RemoveAt(OutPoints.Num() - 1);
@@ -1956,7 +1956,7 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 				SourcePolygon.GetTextureSpaceVertices(/*out*/ TextureSpaceVertices);
 
 				TArray<FVector2D>& FixedVertices = *new (ValidPolygonTriangles) TArray<FVector2D>();
-				PaperGeomTools::CorrectPolygonWinding(/*out*/ FixedVertices, TextureSpaceVertices, SourcePolygon.bNegativeWinding);
+				FGeomTools2D::CorrectPolygonWinding(/*out*/ FixedVertices, TextureSpaceVertices, SourcePolygon.bNegativeWinding);
 				PolygonsNegativeWinding.Add(SourcePolygon.bNegativeWinding);
 			}
 
@@ -1968,19 +1968,19 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 	}
 
 	// Check if polygons overlap, or have inconsistent winding, or edges overlap
-	if (!PaperGeomTools::ArePolygonsValid(ValidPolygonTriangles))
+	if (!FGeomTools2D::ArePolygonsValid(ValidPolygonTriangles))
 	{
 		return;
 	}
 
 	// Merge each additive and associated subtractive polygons to form a list of polygons in CCW winding
-	ValidPolygonTriangles = PaperGeomTools::ReducePolygons(ValidPolygonTriangles, PolygonsNegativeWinding);
+	ValidPolygonTriangles = FGeomTools2D::ReducePolygons(ValidPolygonTriangles, PolygonsNegativeWinding);
 
 	// Triangulate the polygons
 	for (int32 PolygonIndex = 0; PolygonIndex < ValidPolygonTriangles.Num(); ++PolygonIndex)
 	{
 		TArray<FVector2D> Generated2DTriangles;
-		if (PaperGeomTools::TriangulatePoly(Generated2DTriangles, ValidPolygonTriangles[PolygonIndex], bAvoidVertexMerging))
+		if (FGeomTools2D::TriangulatePoly(Generated2DTriangles, ValidPolygonTriangles[PolygonIndex], bAvoidVertexMerging))
 		{
 			AllGeneratedTriangles.Append(Generated2DTriangles);
 		}
@@ -1991,7 +1991,7 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 	{
 		TArray<FVector2D> TrianglesCopy = AllGeneratedTriangles;
 		AllGeneratedTriangles.Empty();
-		PaperGeomTools::RemoveRedundantTriangles(/*out*/ AllGeneratedTriangles, TrianglesCopy);
+		FGeomTools2D::RemoveRedundantTriangles(/*out*/ AllGeneratedTriangles, TrianglesCopy);
 	}
 
 	Target.Append(AllGeneratedTriangles);
