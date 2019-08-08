@@ -332,6 +332,9 @@ private:
 	/** Whether the track selection changed. */
 	bool SelectionChanged;
 
+	/** Flag to display if the topology node has requested hardware acceleration. */
+	bool bVideoTrackRequestedHardwareAcceleration;
+
 	/** Video sample object pool. */
 	FWmfMediaTextureSamplePool* VideoSamplePool;
 	TSharedPtr<FWmfMediaHardwareVideoDecodingTextureSamplePool> VideoHardwareVideoDecodingSamplePool;
