@@ -162,6 +162,9 @@ private:
 	 */
 	static TSharedPtr<IPropertyTypeCustomization> GetPropertyCustomization( const TSharedRef<FPropertyNode>& InPropertyNode, const TSharedRef<FDetailCategoryImpl>& InParentCategory );
 
+	/** Does the given property node require a key node to be created, or is a key property editor sufficient? */
+	static bool NeedsKeyNode(TSharedRef<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory);
+
 private:
 	/** User driven enabled state */
 	TAttribute<bool> CustomIsEnabledAttrib;

@@ -52,17 +52,23 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 
 		if (PropertyNode->GetPropertyKeyNode().IsValid())
 		{
-			UStructProperty* KeyStructProp = Cast<UStructProperty>(PropertyNode->GetPropertyKeyNode()->GetProperty());
-
 			// Only struct and customized properties require their own nodes. Everything else just needs a property editor.
-			bool bNeedsKeyPropEditor = KeyStructProp == nullptr && !GetPropertyCustomization(PropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid();
-
-			if ( bNeedsKeyPropEditor )
+			if (!NeedsKeyNode(PropertyNodeRef, InParentCategory))
 			{
 				MakePropertyEditor(PropertyNode->GetPropertyKeyNode().ToSharedRef(), Utilities, PropertyKeyEditor);
 			}
 		}
 	}
+}
+
+bool FDetailPropertyRow::NeedsKeyNode(TSharedRef<FPropertyNode> InPropertyNode, TSharedRef<FDetailCategoryImpl> InParentCategory)
+{
+	UStructProperty* KeyStructProp = Cast<UStructProperty>(InPropertyNode->GetPropertyKeyNode()->GetProperty());
+	UStructProperty* ValueStructProp = Cast<UStructProperty>(InPropertyNode->GetProperty());
+
+	return KeyStructProp != nullptr || ValueStructProp != nullptr ||
+		GetPropertyCustomization(InPropertyNode->GetPropertyKeyNode().ToSharedRef(), InParentCategory).IsValid() ||
+		GetPropertyCustomization(InPropertyNode, InParentCategory).IsValid();
 }
 
 IDetailPropertyRow& FDetailPropertyRow::DisplayName( const FText& InDisplayName )
@@ -600,7 +606,7 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 	EHorizontalAlignment HorizontalAlignment = HAlign_Fill;
 
 	// We will only use key widgets for non-struct keys
-	const bool bHasKeyNode =  PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
+	const bool bHasKeyNode = PropertyKeyEditor.IsValid() && !PropertyHandle->HasMetaData(TEXT("ReadOnlyKeys"));
 
 	if( !bHasKeyNode && InCustomRow.IsValid() )
 	{
