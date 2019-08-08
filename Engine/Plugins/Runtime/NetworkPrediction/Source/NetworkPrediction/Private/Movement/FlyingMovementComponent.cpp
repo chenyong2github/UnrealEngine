@@ -166,7 +166,7 @@ void UFlyingMovementComponent::InitSyncState(FlyingMovement::FMoveState& OutSync
 	OutSyncState.Rotation = UpdatedComponent->GetComponentQuat().Rotator();	
 }
 
-void UFlyingMovementComponent::SyncTo(const FlyingMovement::FMoveState& SyncState)
+void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& SyncState)
 {
 	// Does checking equality make any sense here? This is unfortunate
 	if (UpdatedComponent->GetComponentLocation().Equals(SyncState.Location) == false || UpdatedComponent->GetComponentQuat().Rotator().Equals(SyncState.Rotation, FlyingMovement::ROTATOR_TOLERANCE) == false)
@@ -176,4 +176,9 @@ void UFlyingMovementComponent::SyncTo(const FlyingMovement::FMoveState& SyncStat
 
 		UpdatedComponent->ComponentVelocity = SyncState.Velocity;
 	}
+}
+
+void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)
+{
+	PreSimSync(SyncState);
 }
