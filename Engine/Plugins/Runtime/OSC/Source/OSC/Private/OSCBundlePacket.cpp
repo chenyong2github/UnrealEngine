@@ -29,14 +29,8 @@ uint64 FOSCBundlePacket::GetTimeTag() const
 
 void FOSCBundlePacket::WriteData(FOSCStream& Stream)
 {
-	if (!GetAddress().IsBundle())
-	{
-		UE_LOG(LogOSC, Warning, TEXT("Failed to write OSCBundlePacket. Invalid OSCAddress '%s'"), *GetAddress().Value);
-		return;
-	}
-
 	// Write bundle & time tag
-	Stream.WriteString(GetAddress().Value);
+	Stream.WriteString(OSC::BundleTag);
 	Stream.WriteUInt64(GetTimeTag());
 
 	for (TSharedPtr<IOSCPacket>& Packet : Packets)
