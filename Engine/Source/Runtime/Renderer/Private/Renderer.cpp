@@ -105,7 +105,7 @@ void FRendererModule::DrawTileMesh(FRHICommandListImmediate& RHICmdList, FMeshPa
 
 		FSinglePrimitiveStructuredBuffer SinglePrimitiveStructuredBuffer;
 
-		if (Mesh.VertexFactory->HasPrimitiveIdStream(EVertexInputStreamType::PositionOnly))
+		if (Mesh.VertexFactory->GetPrimitiveIdStreamIndex(EVertexInputStreamType::PositionOnly) >= 0)
 		{
 			FMeshBatchElement& MeshElement = Mesh.Elements[0];
 
