@@ -2468,6 +2468,17 @@ UMaterialExpressionTextureObjectParameter::UMaterialExpressionTextureObjectParam
 #endif // WITH_EDITORONLY_DATA
 }
 
+bool UMaterialExpressionTextureObjectParameter::TextureIsValid(UTexture* InTexture, FString& OutMessage)
+{
+	if (!InTexture)
+	{
+		OutMessage = TEXT("Requires valid texture");
+		return false;
+	}
+
+	return true;
+}
+
 #if WITH_EDITOR
 void UMaterialExpressionTextureObjectParameter::GetCaption(TArray<FString>& OutCaptions) const
 {
@@ -2483,9 +2494,10 @@ const TArray<FExpressionInput*> UMaterialExpressionTextureObjectParameter::GetIn
 
 int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Texture)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, TEXT("Requires valid texture"));
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	// It seems like this error should be checked here, but this can break existing materials, see https://jira.it.epicgames.net/browse/UE-68862
@@ -2499,9 +2511,10 @@ int32 UMaterialExpressionTextureObjectParameter::Compile(class FMaterialCompiler
 
 int32 UMaterialExpressionTextureObjectParameter::CompilePreview(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
-	if (!Texture)
+	FString ErrorMessage;
+	if (!TextureIsValid(Texture, ErrorMessage))
 	{
-		return CompilerError(Compiler, TEXT("Requires valid texture"));
+		return CompilerError(Compiler, *ErrorMessage);
 	}
 
 	// Preview the texture object by actually sampling it
