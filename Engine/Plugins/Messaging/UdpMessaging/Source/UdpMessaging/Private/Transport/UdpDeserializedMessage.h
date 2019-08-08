@@ -57,6 +57,7 @@ public:
 	virtual EMessageFlags GetFlags() const override;
 
 	virtual const FMessageAddress& GetSender() const override;
+	virtual const FMessageAddress& GetForwarder() const override;
 	virtual ENamedThreads::Type GetSenderThread() const override;
 	virtual const FDateTime& GetTimeForwarded() const override;
 	virtual const FDateTime& GetTimeSent() const override;
