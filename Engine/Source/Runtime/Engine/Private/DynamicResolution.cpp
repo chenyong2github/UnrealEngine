@@ -632,13 +632,9 @@ public:
 		// Wait for all queries to land.
 		HandLandedQueriesToHeuristic(/* bWait = */ true);
 
-		for (InFlightFrameQueries& Query : InFlightFrames)
-		{
-			Query.BeginDynamicResolutionQuery.ReleaseQuery();
-			Query.BeginFrameQuery.ReleaseQuery();
-			Query.EndDynamicResolutionQuery.ReleaseQuery();
-			Query.EndFrameQuery.ReleaseQuery();
-		}
+		// Reset the frame properties
+		InFlightFrames.Empty();
+		QueryPool = nullptr;
 	}
 
 
