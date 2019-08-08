@@ -773,7 +773,7 @@ private:
 	UPROPERTY(transient)
 	TArray<uint8> Data;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	TArray<UScriptStruct*> ScriptStructs;
 
 	UPROPERTY(transient)
