@@ -253,15 +253,12 @@ public:
 	UToolMenu* GenerateMenu(const FName Name, FToolMenuContext& InMenuContext);
 
 	/** Create a finalized menu that combines given hierarchy array that will generate a widget. Advanced special use cases only. */
-	UToolMenu* GenerateMenu(const TArray<UToolMenu*>& Hierarchy, FToolMenuContext& InMenuContext);
+	UToolMenu* GenerateMenu(const TArray<UToolMenu*>& Hierarchy, const FToolMenuContext& InMenuContext);
 
 	/** Create a finalized menu based on a custom crafted menu. Advanced special use cases only. */
 	UToolMenu* GenerateMenuAsBuilder(const UToolMenu* InMenu, FToolMenuContext& InMenuContext);
 
-	/** For advanced use cases */
-	void AssembleMenuByName(UToolMenu* GeneratedMenu, const FName Name);
-
-	/** For advanced use cases */
+	/** Bake final menu including calls to construction delegates, sorting, and customization */
 	void AssembleMenuHierarchy(UToolMenu* GeneratedMenu, const TArray<UToolMenu*>& Hierarchy);
 
 	/* Returns list of menus starting with root parent */
@@ -336,7 +333,7 @@ private:
 
 	static void ExecuteStringCommand(const FToolMenuStringCommand StringCommand, const FToolMenuContext Context);
 
-	void FillMenuDynamic(FMenuBuilder& Builder, FNewToolMenuDelegate InConstructMenu, const FToolMenuContext Context);
+	void FillMenuDynamic(FMenuBuilder& Builder, const FName SubMenuFullName, FNewToolMenuDelegate InConstructMenu, const FToolMenuContext Context);
 
 	void ListAllParents(const FName Name, TArray<FName>& AllParents);
 
