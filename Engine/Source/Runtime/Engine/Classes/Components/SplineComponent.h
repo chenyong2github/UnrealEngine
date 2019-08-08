@@ -357,6 +357,12 @@ public:
 	/** Get scale at the provided input key value */
 	FVector GetScaleAtSplineInputKey(float InKey) const;
 
+	/** Get a metadata property float value along the spline at spline input key */
+	float GetFloatPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
+
+	/** Get a metadata property vector value along the spline at spline input key */
+	FVector GetVectorPropertyAtSplineInputKey(float InKey, FName PropertyName) const;
+
 	/** Specify unselected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
 	void SetUnselectedSplineSegmentColor(const FLinearColor& SegmentColor);
