@@ -252,16 +252,10 @@ ENGINE_API TAutoConsoleVariable<int32> CVarFramesForFullUpdate(
 	5,
 	TEXT("Texture streaming is time sliced per frame. This values gives the number of frames to visit all textures."));
 
-TAutoConsoleVariable<int32> CVarPrioritizeMeshRetention(
-	TEXT("r.Streaming.PrioritizeMeshRetention"),
-	0,
+static TAutoConsoleVariable<int32> CVarPrioritizeMeshLODRetention(
+	TEXT("r.Streaming.PrioritizeMeshLODRetention"),
+	1,
 	TEXT("Whether to prioritize retaining mesh LODs"),
-	ECVF_Default);
-
-TAutoConsoleVariable<int32> CVarMeshRetentionPrivilegeLevel(
-	TEXT("r.Streaming.MeshRetentionPriviledgeLevel"),
-	0,
-	TEXT("The streamer won't consider evicting mesh LODs until each streaming texture has this many mips evicted."),
 	ECVF_Default);
 
 static TAutoConsoleVariable<int32> CVarStreamingStressTest(
@@ -303,8 +297,7 @@ void FRenderAssetStreamingSettings::Update()
 	bUseMaterialData = bUseNewMetrics && CVarStreamingUseMaterialData.GetValueOnAnyThread() != 0;
 	HiddenPrimitiveScale = bUseNewMetrics ? CVarStreamingHiddenPrimitiveScale.GetValueOnAnyThread() : 1.f;
 	bMipCalculationEnablePerLevelList = CVarStreamingMipCalculationEnablePerLevelList.GetValueOnAnyThread() != 0;
-	bPrioritizeMeshRetention = CVarPrioritizeMeshRetention.GetValueOnAnyThread() != 0;
-	MeshRetentionPrivilegeLevel = CVarMeshRetentionPrivilegeLevel.GetValueOnAnyThread();
+	bPrioritizeMeshLODRetention = CVarPrioritizeMeshLODRetention.GetValueOnAnyThread() != 0;
 
 	MaterialQualityLevel = (int32)GetCachedScalabilityCVars().MaterialQualityLevel;
 
