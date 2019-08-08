@@ -658,6 +658,16 @@ static float ComputeMipLevel(const IAllocatedVirtualTexture* AllocatedVT, const 
 	return 0.5f * FMath::Log2(FMath::Max(ppx, ppy));
 }
 
+void FVirtualTextureSystem::RequestTiles(const FVector2D& InScreenSpaceSize, int32 InMipLevel)
+{
+	check(IsInRenderingThread());
+
+	for (auto const Pair : AllocatedVTs)
+	{
+		RequestTilesForRegion(Pair.Value, InScreenSpaceSize, FIntRect(), InMipLevel);
+	}
+}
+
 void FVirtualTextureSystem::RequestTilesForRegion(const IAllocatedVirtualTexture* AllocatedVT, const FVector2D& InScreenSpaceSize, const FIntRect& InTextureRegion, int32 InMipLevel)
 {
 	FIntRect TextureRegion(InTextureRegion);
