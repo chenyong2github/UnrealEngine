@@ -107,8 +107,8 @@ void FVulkanBackBuffer::AcquireBackBufferImage(FVulkanCommandListContext& Contex
 			LayoutMgr.EndEmulatedRenderPass(CmdBuffer);
 		}
 			
-		// Add a dependency with the acquired semaphore
-		CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, Viewport->AcquiredSemaphore);
+		// Wait for semaphore signal before writing to backbuffer image
+		CmdBuffer->AddWaitSemaphore(VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, Viewport->AcquiredSemaphore);
 	}
 }
 
