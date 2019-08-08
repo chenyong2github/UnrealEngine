@@ -1042,12 +1042,6 @@ ResourcesString = TEXT("");
 				CompileCustomOutputs(CustomOutputExpressions, SeenCustomOutputExpressionsClasses, false);
 			}
 
-			// Output the implementation for any custom expressions we will call below.
-			for (int32 ExpressionIndex = 0; ExpressionIndex < CustomExpressionImplementations.Num(); ExpressionIndex++)
-			{
-				ResourcesString += CustomExpressionImplementations[ExpressionIndex] + "\r\n\r\n";
-			}
-
 			// No more calls to non-vertex shader CompilePropertyAndSetMaterialProperty beyond this point
 			const uint32 SavedNumUserTexCoords = GetNumUserTexCoords();
 
@@ -1060,6 +1054,12 @@ ResourcesString = TEXT("");
 				{
 					Chunk[CustomUVIndex] = Material->CompilePropertyAndSetMaterialProperty((EMaterialProperty)CustomUVIndex, this);
 				}
+			}
+
+			// Output the implementation for any custom expressions we will call below.
+			for (int32 ExpressionIndex = 0; ExpressionIndex < CustomExpressionImplementations.Num(); ExpressionIndex++)
+			{
+				ResourcesString += CustomExpressionImplementations[ExpressionIndex] + "\r\n\r\n";
 			}
 
 			// Translation is designed to have a code chunk generation phase followed by several passes that only has readonly access to the code chunks.
