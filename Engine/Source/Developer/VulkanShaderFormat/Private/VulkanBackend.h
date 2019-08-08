@@ -11,10 +11,12 @@ class FVulkanLanguageSpec : public ILanguageSpec
 {
 protected:
 	bool bShareSamplers;
+	bool bRequiresOESExtensions;
 
 public:
-	FVulkanLanguageSpec(bool bInShareSamplers)
+	FVulkanLanguageSpec(bool bInShareSamplers, bool bInRequiresOESExtensions)
 		: bShareSamplers(bInShareSamplers)
+		, bRequiresOESExtensions(bInRequiresOESExtensions)
 	{}
 
 	virtual bool SupportsDeterminantIntrinsic() const override
@@ -39,6 +41,9 @@ public:
 	virtual bool AllowsSharingSamplers() const override { return bShareSamplers; }
 
 	virtual bool RequiresNegateDDY() const override { return false; }
+
+public:
+	bool RequiresOESExtensions() const { return bRequiresOESExtensions; }
 };
 
 class ir_variable;
