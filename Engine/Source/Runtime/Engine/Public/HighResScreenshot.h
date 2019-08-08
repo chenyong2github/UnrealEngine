@@ -21,6 +21,7 @@ struct ENGINE_API FHighResScreenshotConfig
 	float ResolutionMultiplier;
 	float ResolutionMultiplierScale;
 	bool bMaskEnabled;
+	bool bDateTimeBasedNaming;
 	bool bDumpBufferVisualizationTargets;
 	TWeakPtr<FSceneViewport> TargetViewport;
 	bool bDisplayCaptureRegion;

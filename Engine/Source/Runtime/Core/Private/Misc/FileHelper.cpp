@@ -312,6 +312,28 @@ bool FFileHelper::GenerateNextBitmapFilename( const FString& Pattern, const FStr
 }
 
 /**
+ * Generates the next unique bitmap filename with a specified extension
+ *
+ * @param Pattern		Filename with path, but without extension.
+ * @oaran Extension		File extension to be appended
+ * @param OutFilename	Reference to an FString where the newly generated filename will be placed
+ *
+ * @return true if success
+ */
+void FFileHelper::GenerateDateTimeBasedBitmapFilename(const FString& Pattern, const FString& Extension, FString& OutFilename)
+{
+	// Use current date & time to obtain more organized screenshot libraries
+	// There is no need to check for file duplicate, as two certian moments, can't occure twice in the world!
+	
+	OutFilename = "";
+
+	static int32 LastScreenShotIndex = 0;
+	int32 SearchIndex = 0;
+
+	OutFilename = FString::Printf(TEXT("%s_%s.%s"), *Pattern, *FDateTime::Now().ToString(), *Extension);
+}
+
+/**
  * Saves a 24Bit BMP file to disk
  * 
  * @param Pattern filename with path, must not be 0, if with "bmp" extension (e.g. "out.bmp") the filename stays like this, if without (e.g. "out") automatic index numbers are addended (e.g. "out00002.bmp")

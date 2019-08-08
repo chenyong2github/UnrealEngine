@@ -291,7 +291,14 @@ void FScreenshotRequest::RequestScreenshot(const FString& InFilename, bool bInSh
 	{
 		const bool bRemovePath = false;
 		GeneratedFilename = FPaths::GetBaseFilename(GeneratedFilename, bRemovePath);
-		FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		if (GetHighResScreenshotConfig().bDateTimeBasedNaming)
+		{
+			FFileHelper::GenerateDateTimeBasedBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		}
+		else
+		{
+			FFileHelper::GenerateNextBitmapFilename(GeneratedFilename, TEXT("png"), Filename);
+		}
 	}
 	else
 	{
@@ -2133,7 +2140,7 @@ ENGINE_API bool GetViewportScreenShot(FViewport* Viewport, TArray<FColor>& Bitma
 
 extern bool ParseResolution( const TCHAR* InResolution, uint32& OutX, uint32& OutY, int32& WindowMode );
 
-ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride)
+ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, uint32& OutXRes, uint32& OutYRes, float& OutResMult, FIntRect& OutCaptureRegion, bool& OutShouldEnableMask, bool& OutDumpBufferVisualizationTargets, bool& OutCaptureHDR, FString& OutFilenameOverride, bool& OutUseDateTimeAsFileName)
 {
 	FString CmdString = Cmd;
 	int32 SeperatorPos = -1;
@@ -2204,6 +2211,8 @@ ENGINE_API bool GetHighResScreenShotInput(const TCHAR* Cmd, FOutputDevice& Ar, u
 		OutShouldEnableMask = NumArguments > 5 ? FCString::Atoi(*Arguments[5]) != 0 : false;
 		OutDumpBufferVisualizationTargets = NumArguments > 6 ? FCString::Atoi(*Arguments[6]) != 0 : false;
 		OutCaptureHDR = NumArguments > 7 ? FCString::Atoi(*Arguments[7]) != 0 : false;
+		OutUseDateTimeAsFileName = NumArguments > 8 ? FCString::Atoi(*Arguments[8]) != 0 : false;
+
 
 		return true;
 	}
