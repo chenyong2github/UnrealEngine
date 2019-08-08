@@ -15,6 +15,7 @@ public class SSL : ModuleRules
 			Target.IsInPlatformGroup(UnrealPlatformGroup.Unix) ||
             Target.Platform == UnrealTargetPlatform.IOS ||
             Target.Platform == UnrealTargetPlatform.Android ||
+			Target.Platform == UnrealTargetPlatform.Lumin ||
             Target.Platform == UnrealTargetPlatform.PS4;
 
 		PrivateDependencyModuleNames.AddRange(
