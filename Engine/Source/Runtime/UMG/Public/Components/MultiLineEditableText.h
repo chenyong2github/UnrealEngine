@@ -111,7 +111,11 @@ public:
 
 	UFUNCTION(BlueprintSetter)
 	void SetWidgetStyle(const FTextBlockStyle& InWidgetStyle);
-	
+
+	//~ Begin UTextLayoutWidget Interface
+	virtual void SetJustification(ETextJustify::Type InJustification) override;
+	//~ End UTextLayoutWidget Interface
+
 	//~ Begin UWidget Interface
 	virtual void SynchronizeProperties() override;
 	//~ End UWidget Interface
@@ -132,8 +136,6 @@ protected:
 	//~ Begin UWidget Interface
 	virtual TSharedRef<SWidget> RebuildWidget() override;
 	// End of UWidget
-
-	virtual void SetJustification(ETextJustify::Type InJustification) override;
 
 	void HandleOnTextChanged(const FText& Text);
 	void HandleOnTextCommitted(const FText& Text, ETextCommit::Type CommitMethod);
