@@ -1,6 +1,7 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SEditableTextBoxWithVerification.h"
+#include "Widgets/Input/SEditableTextBox.h"
 
 void SEditableTextBoxWithVerification::Construct(const FArguments& InArgs)
 {
