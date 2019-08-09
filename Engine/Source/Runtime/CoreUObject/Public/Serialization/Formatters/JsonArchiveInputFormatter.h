@@ -53,6 +53,7 @@ public:
 	virtual void EnterAttributedValueValue() override;
 	virtual void LeaveAttribute() override;
 	virtual void LeaveAttributedValue() override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSavin) override;
 
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;

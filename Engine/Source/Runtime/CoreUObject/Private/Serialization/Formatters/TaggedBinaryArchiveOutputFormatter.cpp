@@ -268,6 +268,15 @@ void FTaggedBinaryArchiveOutputFormatter::LeaveAttributedValue()
 	AttributedValues.Pop();
 }
 
+bool FTaggedBinaryArchiveOutputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	if (bEnterWhenSaving)
+	{
+		EnterAttribute(AttributeName);
+	}
+	return bEnterWhenSaving;
+}
+
 void FTaggedBinaryArchiveOutputFormatter::Serialize(uint8& Value)
 {
 	WriteType(EArchiveValueType::UInt8);

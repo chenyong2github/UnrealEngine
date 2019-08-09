@@ -369,6 +369,52 @@ FStructuredArchive::FSlot FStructuredArchive::FSlot::EnterAttribute(FArchiveFiel
 	return FSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
 }
 
+TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
+{
+	check(Ar.CurrentScope.Num() > 0);
+
+	int32 NewDepth = Depth + 1;
+	if (NewDepth >= Ar.CurrentScope.Num() || Ar.CurrentScope[NewDepth].Id != ElementId || Ar.CurrentScope[NewDepth].Type != EElementType::AttributedValue)
+	{
+		int32 NewDepthCheck = Ar.EnterSlot(Depth, ElementId, EElementType::AttributedValue);
+		checkSlow(NewDepth == NewDepthCheck);
+
+		Ar.Formatter.EnterAttributedValue();
+
+#if DO_GUARD_SLOW
+		Ar.CurrentContainer.Add(new FContainer(0));
+#endif
+	}
+
+#if DO_GUARD_SLOW
+#if CHECK_UNIQUE_FIELD_NAMES
+	if (!Ar.GetUnderlyingArchive().IsLoading())
+	{
+		FContainer& Container = *Ar.CurrentContainer.Top();
+		checkf(!Container.KeyNames.Contains(Name.Name), TEXT("Multiple attributes called '%s' serialized into attributed value"), AttributeName.Name);
+		Container.KeyNames.Add(Name.Name);
+	}
+#endif
+#endif
+
+	int32 AttributedValueId = Ar.CurrentScope[NewDepth].Id;
+
+	Ar.SetScope(NewDepth, AttributedValueId);
+
+	if (Ar.Formatter.TryEnterAttribute(AttributeName, bEnterWhenWriting))
+	{
+		Ar.CurrentEnteringAttributeState = EEnteringAttributeState::NotEnteringAttribute;
+
+		Ar.CurrentSlotElementId = Ar.NextElementId++;
+
+		return FSlot(Ar, NewDepth, Ar.CurrentSlotElementId);
+	}
+	else
+	{
+		return {};
+	}
+}
+
 void FStructuredArchive::FSlot::Serialize(TArray<uint8>& Data)
 {
 	Ar.EnterSlot(Depth, ElementId);
@@ -455,11 +501,11 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FRecord::TryEnterField(
 	if (Ar.Formatter.TryEnterField(Name, bEnterWhenWriting))
 	{
 		Ar.CurrentSlotElementId = Ar.NextElementId++;
-		return TOptional<FStructuredArchive::FSlot>(FSlot(Ar, Depth, Ar.CurrentSlotElementId));
+		return FSlot(Ar, Depth, Ar.CurrentSlotElementId);
 	}
 	else
 	{
-		return TOptional<FStructuredArchive::FSlot>();
+		return {};
 	}
 }
 

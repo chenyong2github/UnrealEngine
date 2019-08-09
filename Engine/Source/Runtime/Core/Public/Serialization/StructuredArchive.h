@@ -44,6 +44,24 @@ template<typename T> struct TNamedAttribute
 };
 
 /**
+ * Class to contain a named attribute for serialization, with a default. Intended to be created as a temporary and passed to object
+ * serialization methods, which can choose not to serialize the attribute if it matches the default.
+ */
+template<typename T> struct TDefaultedNamedAttribute
+{
+	FArchiveFieldName Name;
+	T& Value;
+	const T& Default;
+
+	explicit FORCEINLINE TDefaultedNamedAttribute(FArchiveFieldName InName, T& InValue, const T& InDefault)
+		: Name(InName)
+		, Value(InValue)
+		, Default(InDefault)
+	{
+	}
+};
+
+/**
  * Helper function to construct a TNamedValue, deducing the value type.
  */
 template<typename T> FORCEINLINE TNamedValue<T> MakeNamedValue(FArchiveFieldName Name, T& Value)
@@ -52,11 +70,19 @@ template<typename T> FORCEINLINE TNamedValue<T> MakeNamedValue(FArchiveFieldName
 }
 
 /**
- * Helper function to construct a TNamedValue, deducing the value type.
+ * Helper function to construct a TNamedAttribute, deducing the value type.
  */
 template<typename T> FORCEINLINE TNamedAttribute<T> MakeNamedAttribute(FArchiveFieldName Name, T& Value)
 {
 	return TNamedAttribute<T>(Name, Value);
+}
+
+/**
+ * Helper function to construct a TDefaultedNamedAttribute, deducing the value type.
+ */
+template<typename T> FORCEINLINE TDefaultedNamedAttribute<T> MakeDefaultedNamedAttribute(FArchiveFieldName Name, T& Value, const typename TIdentity<T>::Type& Default)
+{
+	return TDefaultedNamedAttribute<T>(Name, Value, Default);
 }
 
 /** Construct a TNamedValue given an ANSI string and value reference. */
@@ -66,11 +92,18 @@ template<typename T> FORCEINLINE TNamedAttribute<T> MakeNamedAttribute(FArchiveF
 	#define SA_VALUE(Name, Value) MakeNamedValue(FArchiveFieldName(), Value)
 #endif
 
-/** Construct a TNamedValue given an ANSI string and value reference. */
+/** Construct a TNamedAttribute given an ANSI string and value reference. */
 #if WITH_TEXT_ARCHIVE_SUPPORT
 	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(Name), Value)
 #else
 	#define SA_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
+#endif
+
+/** Construct a TDefaultedNamedAttribute given an ANSI string and value reference. */
+#if WITH_TEXT_ARCHIVE_SUPPORT
+	#define SA_DEFAULTED_ATTRIBUTE(Name, Value, Default) MakeDefaultedNamedAttribute(FArchiveFieldName(Name), Value, Default)
+#else
+	#define SA_DEFAULTED_ATTRIBUTE(Name, Value) MakeNamedAttribute(FArchiveFieldName(), Value)
 #endif
 
 /** Typedef for which formatter type to support */
@@ -173,6 +206,7 @@ public:
 		FStream EnterStream_TextOnly(int32& OutNumElements);
 		FMap EnterMap(int32& Num);
 		FSlot EnterAttribute(FArchiveFieldName AttributeName);
+		TOptional<FSlot> TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting);
 
 		// We don't support chaining writes to a single slot, so this returns void.
 		template <typename ArgType>
@@ -193,6 +227,19 @@ public:
 		FORCEINLINE void operator<<(TNamedAttribute<T> Item)
 		{
 			EnterAttribute(Item.Name) << Item.Value;
+		}
+
+		template <typename T>
+		FORCEINLINE void operator<<(TDefaultedNamedAttribute<T> Item)
+		{
+			if (TOptional<FSlot> Attribute = TryEnterAttribute(Item.Name, Item.Value != Item.Default))
+			{
+				Attribute.GetValue() << Item.Value;
+			}
+			else
+			{
+				Item.Value = Item.Default;
+			}
 		}
 
 		void Serialize(TArray<uint8>& Data);

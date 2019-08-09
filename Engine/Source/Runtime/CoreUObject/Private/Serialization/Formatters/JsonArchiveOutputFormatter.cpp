@@ -217,6 +217,15 @@ void FJsonArchiveOutputFormatter::EnterAttributedValueValue()
 	WriteOptionalAttributedBlockValue();
 }
 
+bool FJsonArchiveOutputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	if (bEnterWhenSaving)
+	{
+		EnterAttribute(AttributeName);
+	}
+	return bEnterWhenSaving;
+}
+
 void FJsonArchiveOutputFormatter::Serialize(uint8& Value)
 {
 	WriteValue(LexToString(Value));

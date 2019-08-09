@@ -112,6 +112,7 @@ void FTaggedBinaryArchiveInputFormatter::EnterField(FArchiveFieldName Name)
 
 	int32 NameIdx = NameToIndex.FindChecked(Name.Name);
 	const FField* Field = Record.Fields.FindByPredicate([NameIdx](const FField& TestField) -> bool { return TestField.NameIdx == NameIdx; });
+	check(Field);
 	Inner.Seek(Field->Offset);
 }
 
@@ -290,6 +291,22 @@ void FTaggedBinaryArchiveInputFormatter::LeaveAttributedValue()
 
 	Inner.Seek(AttributedValue.ValueOffset + AttributedValue.ValueSize);
 	AttributedValues.Pop();
+}
+
+bool FTaggedBinaryArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	ExpectType(EArchiveValueType::Attribute);
+
+	FAttributedValue& AttributedValue = AttributedValues.Top();
+
+	int32 NameIdx = NameToIndex.FindChecked(AttributeName.Name);
+	const FAttribute* Attribute = Algo::FindBy(AttributedValue.Attributes, NameIdx, &FAttribute::NameIdx);
+	if (Attribute)
+	{
+		Inner.Seek(Attribute->StartOffset);
+		return true;
+	}
+	return false;
 }
 
 void FTaggedBinaryArchiveInputFormatter::Serialize(uint8& Value)

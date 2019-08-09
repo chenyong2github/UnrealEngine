@@ -47,6 +47,7 @@ public:
 	virtual void EnterAttributedValueValue() override;
 	virtual void LeaveAttribute() override;
 	virtual void LeaveAttributedValue() override;
+	virtual bool TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting) override;
 
 	virtual void Serialize(uint8& Value) override;
 	virtual void Serialize(uint16& Value) override;
@@ -176,6 +177,17 @@ inline void FBinaryArchiveFormatter::LeaveAttribute()
 
 inline void FBinaryArchiveFormatter::LeaveAttributedValue()
 {
+}
+
+inline bool FBinaryArchiveFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenWriting)
+{
+	bool bValue = bEnterWhenWriting;
+	Inner << bValue;
+	if (bValue)
+	{
+		EnterAttribute(AttributeName);
+	}
+	return bValue;
 }
 
 inline void FBinaryArchiveFormatter::Serialize(uint8& Value)

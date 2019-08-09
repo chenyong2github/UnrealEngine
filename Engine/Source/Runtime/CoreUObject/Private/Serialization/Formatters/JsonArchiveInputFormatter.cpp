@@ -265,6 +265,23 @@ void FJsonArchiveInputFormatter::LeaveAttributedValue()
 	ObjectStack.Pop();
 }
 
+bool FJsonArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeName, bool bEnterWhenSaving)
+{
+	if (TSharedPtr<FJsonObject>& Object = ObjectStack.Top().JsonObject)
+	{
+		if (TSharedPtr<FJsonValue> Field = Object->TryGetField(EscapeFieldName(TEXT("_Value"))))
+		{
+			TSharedPtr<FJsonValue> Attribute = Object->TryGetField(EscapeFieldName(*FString::Printf(TEXT("_%s"), AttributeName.Name)));
+			if (Attribute.IsValid())
+			{
+				ValueStack.Add(Attribute);
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 void FJsonArchiveInputFormatter::Serialize(uint8& Value)
 {
 	Value = (uint8)ValueStack.Top()->AsNumber();
