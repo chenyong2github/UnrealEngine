@@ -524,7 +524,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 		Options.enableDebugInfo = false;
 		Options.enable16bitTypes = false;
 		Options.disableOptimizations = false;
-		Options.enableFMAPass = true;
+		Options.enableFMAPass = (VersionEnum == 2 || VersionEnum == 3);
 		
         ShaderConductor::Compiler::SourceDesc SourceDesc;
 		
@@ -567,6 +567,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_PixelShader:
             {
+				Options.enableFMAPass = false;
                 SourceDesc.stage = ShaderConductor::ShaderStage::PixelShader;
                 break;
             }
@@ -577,6 +578,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_HullShader:
             {
+				Options.enableFMAPass = true;
                 SourceDesc.stage = ShaderConductor::ShaderStage::HullShader;
                 break;
             }
@@ -587,6 +589,7 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
             }
             case HSF_ComputeShader:
             {
+				Options.enableFMAPass = false;
                 SourceDesc.stage = ShaderConductor::ShaderStage::ComputeShader;
                 break;
             }
@@ -1884,8 +1887,8 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			FCStringAnsi::Snprintf(BufferIdx, 3, "%d", SideTableIndex);
 			BufferIndices &= ~(1 << SideTableIndex);
 
-			ShaderConductor::MacroDefine Defines[14] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
-			TargetDesc.numOptions = 3;
+			ShaderConductor::MacroDefine Defines[15] = {{"texel_buffer_texture_width", "0"}, {"enforce_storge_buffer_bounds", "1"}, {"buffer_size_buffer_index", BufferIdx}, {"invariant_float_math", Options.enableFMAPass ? "1" : "0"}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}, {nullptr, nullptr}};
+			TargetDesc.numOptions = 4;
 			TargetDesc.options = &Defines[0];
 			switch(Semantics)
 			{
@@ -2060,24 +2063,18 @@ bool FMetalShaderOutputCooker::Build(TArray<uint8>& OutData)
 			MetalSource += std::string((const char*)Results.target->Data(), Results.target->Size());
 			
 			// Tessellation vertex & hull shaders must always use FMA
-			if (!((bUsingTessellation && Frequency == HSF_VertexShader) || Frequency == HSF_HullShader))
+			if (Options.enableFMAPass)
 			{
-				std::string FMADefine;
-				// Fragment shaders and compute shaders need not use FMAs.
-				if (Frequency == HSF_PixelShader || Frequency == HSF_ComputeShader)
-				{
-					FMADefine = "#include <metal_stdlib>\n\n";
-				}
-				// Plain vertex & domain shaders need only use FMAs on Metal 1.2-2.0
-				else
-				{
-					FMADefine = std::string("#include <metal_stdlib>\n\n"
-									 "#if __METAL_VERSION__ < 120 || __METAL_VERSION__ >= 210\n"
-									 "\ttemplate<typename T> T ue4_fma(T a, T b, T c) { return (((a) * (b)) + (c)); }\n"
-									 "\t#define fma ue4_fma\n"
-									 "#endif\n\n");
-				}
-			
+				std::string FMADefine = std::string("#include <metal_stdlib>\n\n"
+										"template<typename T> static inline __attribute__((always_inline)) T ue4_cross(T x, T y)\n"
+										"{\n"
+										"	float3 fx = float3(x);\n"
+										"	float3 fy = float3(y);\n"
+										"	return T(metal::fma(fx[1], fy[2], -metal::fma(fy[1], fx[2], 0.0)), metal::fma(fx[2], fy[0], -metal::fma(fy[2], fx[0], 0.0)), metal::fma(fx[0], fy[1], -metal::fma(fy[0], fx[1], 0.0)));\n"
+										"}\n"
+										"\t#define cross ue4_cross\n"
+										);
+				
 				std::string IncludeString = "#include <metal_stdlib>";
 				size_t IncludePos = MetalSource.find(IncludeString);
 				if (IncludePos != std::string::npos)

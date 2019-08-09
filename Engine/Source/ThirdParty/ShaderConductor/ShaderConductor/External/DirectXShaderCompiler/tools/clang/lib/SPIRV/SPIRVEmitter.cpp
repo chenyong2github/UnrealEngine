@@ -193,7 +193,7 @@ bool spirvToolsOptimize(spv_target_env env, std::vector<uint32_t> *module,
 
 /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
 bool spirvToolsFuseMultiplyAdd(spv_target_env env, std::vector<uint32_t> *module,
-                        std::string *messages) {
+                        std::string *messages, bool bFirst) {
   spvtools::Optimizer optimizer(env);
 
   optimizer.SetMessageConsumer(
@@ -205,11 +205,14 @@ bool spirvToolsFuseMultiplyAdd(spv_target_env env, std::vector<uint32_t> *module
   options.set_run_validator(false);
 
   optimizer.RegisterPass(spvtools::CreateFusedMultiplyAddPass());
-  optimizer.RegisterPass(spvtools::CreateDeadVariableEliminationPass());
-  optimizer.RegisterPass(spvtools::CreateSimplificationPass());
-  optimizer.RegisterPass(spvtools::CreateAggressiveDCEPass());
+  if(!bFirst)
+  {
+    optimizer.RegisterPass(spvtools::CreateDeadVariableEliminationPass());
+    optimizer.RegisterPass(spvtools::CreateSimplificationPass());
+    optimizer.RegisterPass(spvtools::CreateAggressiveDCEPass());
 
-  optimizer.RegisterPass(spvtools::CreateCompactIdsPass());
+    optimizer.RegisterPass(spvtools::CreateCompactIdsPass());
+  }
 
   return optimizer.Run(module->data(), module->size(), module, options);
 }
@@ -702,6 +705,19 @@ void SpirvEmitter::HandleTranslationUnit(ASTContext &context) {
     // Run optimization passes
     if (theCompilerInstance.getCodeGenOpts().OptimizationLevel > 0) {
       std::string messages;
+		
+		
+		/* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+		if (spirvOptions.enableFMAPass && !spirvToolsFuseMultiplyAdd(targetEnv, &m, &messages, true)) {
+			emitFatalError("failed to fuse multiply-add pairs in SPIR-V: %0", {}) << messages;
+			emitNote("please file a bug report on "
+					 "https://github.com/Microsoft/DirectXShaderCompiler/issues "
+					 "with source code if possible",
+					 {});
+			return;
+		}
+		/* UE Change End: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
+		
       if (!spirvToolsOptimize(targetEnv, &m, spirvOptions.optConfig,
                               &messages)) {
         emitFatalError("failed to optimize SPIR-V: %0", {}) << messages;
@@ -713,7 +729,7 @@ void SpirvEmitter::HandleTranslationUnit(ASTContext &context) {
       }
 
       /* UE Change Begin: Implement a fused-multiply-add pass to reduce the possibility of reassociation. */
-      if (spirvOptions.enableFMAPass && !spirvToolsFuseMultiplyAdd(targetEnv, &m, &messages)) {
+      if (spirvOptions.enableFMAPass && !spirvToolsFuseMultiplyAdd(targetEnv, &m, &messages, false)) {
         emitFatalError("failed to fuse multiply-add pairs in SPIR-V: %0", {}) << messages;
         emitNote("please file a bug report on "
                  "https://github.com/Microsoft/DirectXShaderCompiler/issues "

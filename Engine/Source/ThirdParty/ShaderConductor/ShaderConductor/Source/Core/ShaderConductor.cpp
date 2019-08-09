@@ -879,6 +879,10 @@ namespace ShaderConductor
 					mslOpts.argument_buffer_offset = (uint32_t)std::stoi(Define.value);
 				}
 				/* UE Change End: Allow the caller to specify the Metal translation should use argument buffers */
+				if (!strcmp(Define.name, "invariant_float_math"))
+				{
+					mslOpts.invariant_float_math = (std::stoi(Define.value) != 0);
+				}
 			}
 			
 			mslCompiler->set_msl_options(mslOpts);

@@ -792,7 +792,30 @@ void CompilerMSL::preprocess_op_codes()
 	/* UE Change Begin: Allow Metal to use the array<T> template to make arrays a value type */
 	// UnsafeArray
 	{
-		add_header_line("	");
+		if (msl_options.invariant_float_math)
+		{
+			add_header_line("template <typename T> T fmul(T l, T r) { return metal::fma(l, r, T(0)); }");
+			add_header_line("template <typename T> T fadd(T l, T r) { return metal::fma(T(1), l, r); }");
+			
+			add_header_line("template <typename T, int Cols, int Rows> metal::vec<T, Rows> fmul_mv(metal::matrix<T, Cols, Rows> m, metal::vec<T, Cols> v) { metal::vec<T, Rows> res = metal::vec<T, Rows>(0); for(uint i = Cols; i > 0; --i) { res = metal::fma(m[i-1], metal::vec<T, Rows>(v[i-1]), res); } return res; }");
+			
+			add_header_line("template <typename T, int LCols, int LRows, int RCols, int RRows>");
+			add_header_line("metal::matrix<T, RCols, LRows> fmul_mat(metal::matrix<T, LCols, LRows> l, metal::matrix<T, RCols, RRows> r)");
+			add_header_line("{");
+			add_header_line("	metal::matrix<T, RCols, LRows> res;");
+			add_header_line("	for(uint i = 0; i < RCols; i++)");
+			add_header_line("	{");
+			add_header_line("		metal::vec<T, RCols> tmp(0);");
+			add_header_line("		for(uint j = 0; j < LCols; j++)");
+			add_header_line("		{");
+			add_header_line("			tmp = metal::fma(metal::vec<T, RCols>(r[i][j]),l[j],tmp);");
+			add_header_line("		}");
+			add_header_line("		res[i] = tmp;");
+			add_header_line("	}");
+			add_header_line("	return res;");
+			add_header_line("}");
+		}
+		
 		add_header_line("template <typename T, size_t Num>");
 		add_header_line("struct unsafe_array");
 		add_header_line("{");
@@ -3853,6 +3876,20 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 	case OpFRem:
 		MSL_BFOP(fmod);
 		break;
+			
+	case OpFMul:
+		if (msl_options.invariant_float_math)
+			MSL_BFOP(fmul);
+		else
+			MSL_BOP(*);
+		break;
+			
+	case OpFAdd:
+		if (msl_options.invariant_float_math)
+			MSL_BFOP(fadd);
+		else
+			MSL_BOP(+);
+		break;
 
 	// Atomics
 	case OpAtomicExchange:
@@ -4260,15 +4297,27 @@ void CompilerMSL::emit_instruction(const Instruction &instruction)
 			// The simplest solution for now is to just avoid unpacking the matrix in this operation.
 			unset_extended_decoration(mtx_id, SPIRVCrossDecorationPacked);
 
-			emit_binary_op(ops[0], ops[1], ops[3], ops[2], "*");
+			if (opcode == OpVectorTimesMatrix && msl_options.invariant_float_math)
+				emit_binary_func_op(ops[0], ops[1], ops[2], ops[3], "fmul_mv");
+			else
+				emit_binary_op(ops[0], ops[1], ops[3], ops[2], "*");
+			
 			if (is_packed)
 				set_extended_decoration(mtx_id, SPIRVCrossDecorationPacked);
 			e->need_transpose = true;
 		}
+		else if (opcode == OpMatrixTimesVector && msl_options.invariant_float_math)
+			MSL_BFOP(fmul_mv);
 		else
 			MSL_BOP(*);
 		break;
 	}
+	case OpMatrixTimesMatrix:
+		if (msl_options.invariant_float_math)
+			MSL_BFOP(fmul_mat);
+		else
+			MSL_BOP(*);
+		break;
 
 		// OpOuterProduct
 
