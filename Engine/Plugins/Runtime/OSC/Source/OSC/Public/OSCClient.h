@@ -14,11 +14,10 @@ class FSocket;
 UCLASS(BlueprintType)
 class OSC_API UOSCClient : public UObject
 {
-	GENERATED_BODY()
+	GENERATED_UCLASS_BODY()
 
 public:
 	UOSCClient();
-	virtual ~UOSCClient();
 
 	/** Sets the OSC Client IP address and port. Returns whether 
 	  * address and port was successfully set. */
