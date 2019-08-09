@@ -5574,12 +5574,12 @@ void FBlueprintEditor::OnConvertEventToFunction()
 
 		UFunction* const FunctionSig = FFunctionFromNodeHelper::FunctionFromNode(SelectedEventNode);
 		UEdGraph* const SourceGraph = SelectedEventNode->GetGraph();
-		SourceGraph->Modify();
-
 		const FName OriginalEventName = SelectedEventNode->GetFunctionName();
 
 		if (FunctionSig && SourceGraph)
 		{
+			SourceGraph->Modify(); 
+
 			// Check if this is an override function
 			UFunction* ParentFunction = FindField<UFunction>(NodeBP->ParentClass, OriginalEventName);
 			const bool bIsOverrideFunc = FunctionSig->GetSuperFunction() || (ParentFunction != nullptr);
