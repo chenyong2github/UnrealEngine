@@ -48,7 +48,7 @@ int32 FHTML5TargetDevice::GetProcessSnapshot( TArray<FTargetDeviceProcessInfo>& 
 }
 
 
-bool FHTML5TargetDevice::Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
+bool FHTML5TargetDevice::Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
 {
 	return Run(AppId, Params, OutProcessId);
 }

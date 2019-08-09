@@ -943,7 +943,7 @@ void FEngineSessionManager::StartWatchdog(const FString& RunType, const FString&
 		}
 	}
 
-	FString WatchdogPath = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("UnrealWatchdog"), EBuildConfigurations::Development));
+	FString WatchdogPath = FPaths::ConvertRelativePathToFull(FPlatformProcess::GenerateApplicationPath(TEXT("UnrealWatchdog"), EBuildConfiguration::Development));
 
 	TArray< FAnalyticsEventAttribute > WatchdogStartedAttributes;
 	WatchdogStartedAttributes.Add(FAnalyticsEventAttribute(TEXT("RunType"), RunType));

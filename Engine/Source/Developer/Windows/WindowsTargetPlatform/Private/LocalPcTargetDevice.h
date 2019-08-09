@@ -237,7 +237,7 @@ public:
 		return true;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
+	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
 	{
 		// build executable path
 		FString PlatformName = WIN64 ? TEXT("Win64") : TEXT("Win32");
@@ -256,9 +256,9 @@ public:
 			ExecutablePath /= TEXT("UE4Editor");
 		}
 
-		if (BuildConfiguration != EBuildConfigurations::Development)
+		if (BuildConfiguration != EBuildConfiguration::Development)
 		{
-			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 		}
 
 		ExecutablePath += TEXT(".exe");

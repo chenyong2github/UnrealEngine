@@ -57,12 +57,12 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	bool bCanCreateEntry = true;
 
 	FString ConfigurationName;
-	EBuildConfigurations::Type Configuration = EBuildConfigurations::Unknown;
+	EBuildConfiguration Configuration = EBuildConfiguration::Unknown;
 	if (FParse::Value(*PlatformConfiguration, TEXT("Configuration="), ConfigurationName))
 	{
-		Configuration = EBuildConfigurations::FromString(ConfigurationName);
+		LexFromString(Configuration, *ConfigurationName);
 	}
-	if (Configuration == EBuildConfigurations::Unknown)
+	if (Configuration == EBuildConfiguration::Unknown)
 	{
 		UE_LOG(LogInstalledPlatforms, Warning, TEXT("Unable to read configuration from %s"), *PlatformConfiguration);
 		bCanCreateEntry = false;
@@ -79,7 +79,7 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	EBuildTargetType PlatformType = EBuildTargetType::Game;
 	if (FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName))
 	{
-		PlatformType = LexFromString(*PlatformTypeName);
+		LexFromString(PlatformType, *PlatformTypeName);
 	}
 
 	FString Architecture;
@@ -113,7 +113,7 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	}
 }
 
-bool FInstalledPlatformInfo::IsValidConfiguration(const EBuildConfigurations::Type Configuration, EProjectType ProjectType) const
+bool FInstalledPlatformInfo::IsValidConfiguration(const EBuildConfiguration Configuration, EProjectType ProjectType) const
 {
 	return ContainsValidConfiguration(
 		[Configuration, ProjectType](const FInstalledPlatformConfiguration& CurConfig)
@@ -137,7 +137,7 @@ bool FInstalledPlatformInfo::IsValidPlatform(const FString& PlatformName, EProje
 	);
 }
 
-bool FInstalledPlatformInfo::IsValidPlatformAndConfiguration(const EBuildConfigurations::Type Configuration, const FString& PlatformName, EProjectType ProjectType) const
+bool FInstalledPlatformInfo::IsValidPlatformAndConfiguration(const EBuildConfiguration Configuration, const FString& PlatformName, EProjectType ProjectType) const
 {
 	return ContainsValidConfiguration(
 		[Configuration, PlatformName, ProjectType](const FInstalledPlatformConfiguration& CurConfig)

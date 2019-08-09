@@ -1095,7 +1095,7 @@ void FModuleManager::MakeUniqueModuleFilename( const FName InModuleName, FString
 
 const TCHAR *FModuleManager::GetUBTConfiguration()
 {
-	return EBuildConfigurations::ToString(FApp::GetBuildConfiguration());
+	return LexToString(FApp::GetBuildConfiguration());
 }
 
 void FModuleManager::StartProcessingNewlyLoadedObjects()

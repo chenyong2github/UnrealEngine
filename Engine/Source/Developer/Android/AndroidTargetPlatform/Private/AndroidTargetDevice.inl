@@ -48,7 +48,7 @@ inline int32 FAndroidTargetDevice::GetProcessSnapshot( TArray<FTargetDeviceProce
 }
 
 
-inline bool FAndroidTargetDevice::Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
+inline bool FAndroidTargetDevice::Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
 {
 	// this isn't used, UAT handles it all
 	return false;

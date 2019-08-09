@@ -26,39 +26,77 @@ class TFunction;
 #define UE_DEBUG_BREAK() ((void)(FPlatformMisc::IsDebuggerPresent() && ([] () { UE_DEBUG_BREAK_IMPL(); } (), 1)))
 #endif
 
+/**
+ * Available build configurations. Mirorred from UnrealTargetConfiguration.
+ */
+enum class EBuildConfiguration : uint8
+{
+	/** Unknown build configuration. */
+	Unknown,
+
+	/** Debug build. */
+	Debug,
+
+	/** DebugGame build. */
+	DebugGame,
+
+	/** Development build. */
+	Development,
+
+	/** Shipping build. */
+	Shipping,
+
+	/** Test build. */
+	Test
+};
+
+/**
+ * Returns the string representation of the specified EBuildConfiguration value.
+ *
+ * @param Configuration The string to get the EBuildConfiguration for.
+ * @return An EBuildConfiguration value.
+ */
+CORE_API void LexFromString( EBuildConfiguration& OutConfiguration, const TCHAR* Configuration );
+
+/**
+ * Returns the string representation of the specified EBuildConfiguration value.
+ *
+ * @param Configuration The value to get the string for.
+ * @return The string representation.
+ */
+CORE_API const TCHAR* LexToString( EBuildConfiguration Configuration );
+
 namespace EBuildConfigurations
 {
-	/**
-	 * Enumerates build configurations.
-	 */
-	enum Type
-	{
-		/** Unknown build configuration. */
-		Unknown,
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Type is deprecated. Use EBuildConfiguration instead.")
+	typedef EBuildConfiguration Type;
 
-		/** Debug build. */
-		Debug,
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Unknown is deprecated. Use EBuildConfiguration::Unknown instead.")
+	static const EBuildConfiguration Unknown = EBuildConfiguration::Unknown;
 
-		/** DebugGame build. */
-		DebugGame,
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Debug is deprecated. Use EBuildConfiguration::Debug instead.")
+	static const EBuildConfiguration Debug = EBuildConfiguration::Debug;
 
-		/** Development build. */
-		Development,
+	UE_DEPRECATED(4.24, "EBuildConfigurations::DebugGame is deprecated. Use EBuildConfiguration::DebugGame instead.")
+	static const EBuildConfiguration DebugGame = EBuildConfiguration::DebugGame;
 
-		/** Shipping build. */
-		Shipping,
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Development is deprecated. Use EBuildConfiguration::Development instead.")
+	static const EBuildConfiguration Development = EBuildConfiguration::Development;
 
-		/** Test build. */
-		Test
-	};
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Test is deprecated. Use EBuildConfiguration::Test instead.")
+	static const EBuildConfiguration Test = EBuildConfiguration::Test;
+
+	UE_DEPRECATED(4.24, "EBuildConfigurations::Shipping is deprecated. Use EBuildConfiguration::Shipping instead.")
+	static const EBuildConfiguration Shipping = EBuildConfiguration::Shipping;
 
 	/**
 	 * Returns the string representation of the specified EBuildConfiguration value.
 	 *
-	 * @param Configuration The string to get the EBuildConfiguration::Type for.
-	 * @return An EBuildConfiguration::Type value.
+	 * @param Configuration The string to get the EBuildConfiguration for.
+	 * @return An EBuildConfiguration value.
 	 */
-	CORE_API EBuildConfigurations::Type FromString( const FString& Configuration );
+	UE_DEPRECATED(4.24, "EBuildConfigurations::FromString() is deprecated. Use LexFromString() instead.")
+	CORE_API EBuildConfiguration FromString( const FString& Configuration );
 
 	/**
 	 * Returns the string representation of the specified EBuildConfiguration value.
@@ -66,7 +104,8 @@ namespace EBuildConfigurations
 	 * @param Configuration The value to get the string for.
 	 * @return The string representation.
 	 */
-	CORE_API const TCHAR* ToString( EBuildConfigurations::Type Configuration );
+	UE_DEPRECATED(4.24, "EBuildConfigurations::ToString() is deprecated. Use LexToString() instead.")
+	CORE_API const TCHAR* ToString( EBuildConfiguration Configuration );
 
 	/**
 	 * Returns the localized text representation of the specified EBuildConfiguration value.
@@ -74,18 +113,13 @@ namespace EBuildConfigurations
 	 * @param Configuration The value to get the text for.
 	 * @return The localized Build configuration text
 	 */
-	CORE_API FText ToText( EBuildConfigurations::Type Configuration );
-}
-
-FORCEINLINE const TCHAR* LexToString(EBuildConfigurations::Type Configuration)
-{
-	return EBuildConfigurations::ToString(Configuration);
+	CORE_API FText ToText( EBuildConfiguration Configuration );
 }
 
 /**
  * Enumerates build target types.
  */
-enum class EBuildTargetType
+enum class EBuildTargetType : uint8
 {
 	/** Unknown build target. */
 	Unknown,
@@ -109,10 +143,11 @@ enum class EBuildTargetType
 /**
  * Returns the string representation of the specified EBuildTarget value.
  *
- * @param Target The value to get the string for.
+ * @param OutType The value to get the string for.
+ * @param Text The text to parse.
  * @return The string representation.
  */
-CORE_API EBuildTargetType LexFromString(const TCHAR* Type);
+CORE_API void LexFromString(EBuildTargetType& OutType, const TCHAR* Text);
 
 /**
  * Returns the string representation of the specified EBuildTargetType value.

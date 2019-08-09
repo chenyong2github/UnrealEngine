@@ -167,7 +167,7 @@ public:
 	}
 
 	virtual bool DeployApp(FName InVariant, const TMap<FString, FString>& Files, const FGuid& TransactionId) override;
-	virtual bool LaunchApp(FName InVariant, const FString& AppId, EBuildConfigurations::Type BuildConfiguration, const FString& Params) override;
+	virtual bool LaunchApp(FName InVariant, const FString& AppId, EBuildConfiguration BuildConfiguration, const FString& Params) override;
 	
 	virtual bool TerminateLaunchedProcess(FName InVariant, const FString& ProcessIdentifier) override;
 

@@ -21,7 +21,7 @@ EProjectType EProjectTypeFromString(const FString& ProjectTypeName);
 struct FInstalledPlatformConfiguration
 {
 	/** Build Configuration of this combination */
-	EBuildConfigurations::Type Configuration;
+	EBuildConfiguration Configuration;
 
 	/** Name of the Platform for this combination */
 	FString PlatformName;
@@ -60,7 +60,7 @@ public:
 	/**
 	 * Queries whether a configuration is valid for any available platform
 	 */
-	bool IsValidConfiguration(const EBuildConfigurations::Type Configuration, EProjectType ProjectType = EProjectType::Any) const;
+	bool IsValidConfiguration(const EBuildConfiguration Configuration, EProjectType ProjectType = EProjectType::Any) const;
 
 	/**
 	 * Queries whether a platform has any valid configurations
@@ -70,7 +70,7 @@ public:
 	/**
 	 * Queries whether a platform and configuration combination is valid
 	 */
-	bool IsValidPlatformAndConfiguration(const EBuildConfigurations::Type Configuration, const FString& PlatformName, EProjectType ProjectType = EProjectType::Any) const;
+	bool IsValidPlatformAndConfiguration(const EBuildConfiguration Configuration, const FString& PlatformName, EProjectType ProjectType = EProjectType::Any) const;
 
 	/**
 	 * Queries whether a platform can be displayed as an option, even if it's not supported for the specified project type

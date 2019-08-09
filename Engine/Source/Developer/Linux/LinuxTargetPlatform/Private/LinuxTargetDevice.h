@@ -143,7 +143,7 @@ public:
 		return false;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
+	virtual bool Launch( const FString& AppId, EBuildConfiguration BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
 	{
 #if PLATFORM_LINUX	// if running natively, support launching in place
 		// build executable path
@@ -163,9 +163,9 @@ public:
 			ExecutablePath /= TEXT("UE4Editor");
 		}
 
-		if (BuildConfiguration != EBuildConfigurations::Development)
+		if (BuildConfiguration != EBuildConfiguration::Development)
 		{
-			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, EBuildConfigurations::ToString(BuildConfiguration));
+			ExecutablePath += FString::Printf(TEXT("-%s-%s"), *PlatformName, LexToString(BuildConfiguration));
 		}
 
 		// launch the game
