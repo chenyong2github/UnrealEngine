@@ -44,9 +44,9 @@ namespace UnrealBuildTool.Rules
 				}
 				else
 				{
-					PublicAdditionalLibraries.Add("mfplat.lib");
-					PublicAdditionalLibraries.Add("mfreadwrite.lib");
-					PublicAdditionalLibraries.Add("mfuuid.lib");
+					PublicSystemLibraries.Add("mfplat.lib");
+					PublicSystemLibraries.Add("mfreadwrite.lib");
+					PublicSystemLibraries.Add("mfuuid.lib");
 				}
 			}
 		}

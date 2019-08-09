@@ -24,13 +24,9 @@ public class llvm : ModuleRules
 				Path.Combine(RootDirectory, "include"),
 			});
 
-		PublicLibraryPaths.AddRange(
-			new string[] {
-				Path.Combine(RootDirectory, "lib", TargetArch, VSVersion, "Release"),
-			});
+		string LibDir = Path.Combine(RootDirectory, "lib", TargetArch, VSVersion, "Release");
 
-		PublicAdditionalLibraries.AddRange(
-			new string[] {
+		string[] Libs = new string[] {
 				"LLVMAggressiveInstCombine.lib",
 				"LLVMAnalysis.lib",
 				"LLVMAsmPrinter.lib",
@@ -63,6 +59,11 @@ public class llvm : ModuleRules
 				"LLVMX86Desc.lib",
 				"LLVMX86Info.lib",
 				"LLVMX86Utils.lib",
-			});
+			};
+
+			foreach(string Lib in Libs)
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(LibDir, Lib));
+			}
 	}
 }

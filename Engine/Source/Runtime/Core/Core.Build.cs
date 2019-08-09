@@ -135,7 +135,7 @@ public class Core : ModuleRules
                 );
 
 			// Core uses dlopen()
-			PublicAdditionalLibraries.Add("dl");
+			PublicSystemLibraries.Add("dl");
         }
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
@@ -144,7 +144,7 @@ public class Core : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.PS4)
         {
-            PublicAdditionalLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
+            PublicSystemLibraries.Add("SceRtc_stub_weak"); //ORBIS SDK rtc.h, used in PS4Time.cpp
         }
 
 		if ( Target.bCompileICU == true )

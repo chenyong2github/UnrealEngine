@@ -20,7 +20,7 @@ namespace UnrealBuildTool.Rules
 
         private void LoadMixedReality(ReadOnlyTargetRules Target)
         {
-            PublicAdditionalLibraries.Add("DXGI.lib");
+            PublicSystemLibraries.Add("DXGI.lib");
         }
 
         public WindowsMixedRealityRHI(ReadOnlyTargetRules Target) : base(Target)

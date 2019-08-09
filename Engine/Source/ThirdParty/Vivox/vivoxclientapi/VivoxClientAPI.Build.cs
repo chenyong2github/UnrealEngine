@@ -21,14 +21,14 @@ public class VivoxClientAPI : ModuleRules
 		if (Target.Platform == UnrealTargetPlatform.Win64
 			|| Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(Path.Combine(VivoxClientAPIPath, PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigurationSubdir));
-			PublicAdditionalLibraries.Add("vivoxclientapi.lib");
+			string LibDir = Path.Combine(VivoxClientAPIPath, PlatformSubdir, "VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), ConfigurationSubdir);
+			PublicAdditionalLibraries.Add(LibDir + "/vivoxclientapi.lib");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4
 			|| Target.Platform == UnrealTargetPlatform.Switch)
 		{
-			PublicLibraryPaths.Add(Path.Combine(VivoxClientAPIPath, PlatformSubdir, ConfigurationSubdir));
-			PublicAdditionalLibraries.Add("vivoxclientapi");
+			string LibDir = Path.Combine(VivoxClientAPIPath, PlatformSubdir, ConfigurationSubdir);
+			PublicAdditionalLibraries.Add(LibDir + "/libvivoxclientapi.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Mac
 			|| Target.Platform == UnrealTargetPlatform.IOS)
@@ -50,9 +50,8 @@ public class VivoxClientAPI : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Android)
 		{
-			PublicLibraryPaths.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARMv7"));
-			PublicLibraryPaths.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARM64"));
-			PublicAdditionalLibraries.Add("vivoxclientapi");
+			PublicAdditionalLibraries.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARMv7", "libvivoxclientapi.a"));
+			PublicAdditionalLibraries.Add(Path.Combine(VivoxClientAPIPath, Target.Platform.ToString(), ConfigurationSubdir, "ARM64", "libvivoxclientapi.a"));
 		}
 	}
 }

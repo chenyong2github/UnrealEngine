@@ -71,8 +71,7 @@ public class OpenVDB : ModuleRules
                     throw new BuildException(Err);
                 }
             }
-            PublicLibraryPaths.Add(LibDirName);
-            PublicAdditionalLibraries.Add("OpenVDB.lib");
+            PublicAdditionalLibraries.Add(LibDirName + "OpenVDB.lib");
 
             // Add openexr
             PublicIncludePaths.Add(Target.UEThirdPartySourceDirectory);// + "openexr/Deploy/include");
@@ -88,26 +87,24 @@ public class OpenVDB : ModuleRules
                 if (bDebug)
                 {
                     TBBLibPath += "Debug-MT";
-                    PublicAdditionalLibraries.Add("tbb_debug.lib");
+                    PublicAdditionalLibraries.Add(Path.Combine(TBBLibPath, "tbb_debug.lib"));
                 }
                 else
                 {
                     TBBLibPath += "Release-MT";
-                    PublicAdditionalLibraries.Add("tbb.lib");
+                    PublicAdditionalLibraries.Add(Path.Combine(TBBLibPath, "tbb.lib"));
                 }
-                PublicLibraryPaths.Add(TBBLibPath);
             }
             // Add LibZ
             {
                 string ZLibPath = Target.UEThirdPartySourceDirectory + "zlib/zlib-1.2.5/Lib/Win64";
-                PublicLibraryPaths.Add(ZLibPath);
                 if (bDebug)
                 {
-                    PublicAdditionalLibraries.Add("zlibd_64.lib");
+                    PublicAdditionalLibraries.Add(Path.Combine(ZLibPath, "zlibd_64.lib"));
                 }
                 else
                 {
-                    PublicAdditionalLibraries.Add("zlib_64.lib");
+                    PublicAdditionalLibraries.Add(Path.Combine(ZLibPath, "zlib_64.lib"));
                 }
             }
         }

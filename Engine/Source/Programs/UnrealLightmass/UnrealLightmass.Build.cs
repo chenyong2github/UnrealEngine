@@ -17,7 +17,7 @@ public class UnrealLightmass : ModuleRules
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "DX9");
 
 			// Unreallightmass requires GetProcessMemoryInfo exported by psapi.dll. http://msdn.microsoft.com/en-us/library/windows/desktop/ms683219(v=vs.85).aspx
-			PublicAdditionalLibraries.Add("psapi.lib");
+			PublicSystemLibraries.Add("psapi.lib");
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Messaging",
@@ -64,8 +64,7 @@ public class UnrealLightmass : ModuleRules
             string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree270/Win64/";
 
             PublicIncludePaths.Add(SDKDir + "include");
-            PublicLibraryPaths.Add(SDKDir + "lib");
-            PublicAdditionalLibraries.Add("embree.lib");
+            PublicAdditionalLibraries.Add(SDKDir + "lib/embree.lib");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/embree.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/tbb.dll");
 			RuntimeDependencies.Add("$(EngineDir)/Binaries/Win64/tbbmalloc.dll");

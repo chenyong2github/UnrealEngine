@@ -9,33 +9,32 @@ public class UElibPNG : ModuleRules
 		Type = ModuleType.External;
 
 		string libPNGPath = Target.UEThirdPartySourceDirectory + "libPNG/libPNG-1.5.2";
+		string LibDir = libPNGPath;
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			string LibPath = libPNGPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(LibPath);
+			LibDir = libPNGPath + "/lib/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
 			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + "_64.lib";
-			PublicAdditionalLibraries.Add(LibFileName);
+			PublicAdditionalLibraries.Add(LibDir + LibFileName);
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			libPNGPath = libPNGPath + "/lib/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(libPNGPath);
+			LibDir = libPNGPath + "/lib/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
 			string LibFileName = "libpng" + (Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT ? "d" : "") + ".lib";
-			PublicAdditionalLibraries.Add(LibFileName);
+			PublicAdditionalLibraries.Add(LibDir + LibFileName);
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             string PlatformSubpath = Target.Platform.ToString();
             if (Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM32 || Target.WindowsPlatform.Architecture == WindowsArchitecture.ARM64)
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/{3}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()));
+                LibDir = System.String.Format("{0}/lib/{1}/VS{2}/{3}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName(), Target.WindowsPlatform.GetArchitectureSubpath()) + "/";
             }
             else
             {
-                PublicLibraryPaths.Add(System.String.Format("{0}/lib/{1}/VS{2}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()));
+                LibDir = System.String.Format("{0}/lib/{1}/VS{2}/", libPNGPath, PlatformSubpath, Target.WindowsPlatform.GetVisualStudioCompilerVersionName()) + "/";
             }
 
             string LibFileName = "libpng";
@@ -47,48 +46,46 @@ public class UElibPNG : ModuleRules
             {
                 LibFileName += "_64";
             }
-            PublicAdditionalLibraries.Add(LibFileName + ".lib");
+            PublicAdditionalLibraries.Add(LibDir + LibFileName + ".lib");
         }
 		else if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Mac/libpng.a");
+			PublicAdditionalLibraries.Add(LibDir + "/lib/Mac/libpng.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.IOS)
 		{
 			if (Target.Architecture == "-simulator")
 			{
-				PublicLibraryPaths.Add(libPNGPath + "/lib/ios/Simulator");
+				LibDir = libPNGPath + "/lib/ios/Simulator/";
 			}
 			else
 			{
-				PublicLibraryPaths.Add(libPNGPath + "/lib/ios/Device");
+				LibDir = libPNGPath + "/lib/ios/Device/";
 			}
 
-			PublicAdditionalLibraries.Add("png152");
+			PublicAdditionalLibraries.Add(LibDir + "libpng152.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.TVOS)
 		{
 			if (Target.Architecture == "-simulator")
 			{
-				PublicLibraryPaths.Add(libPNGPath + "/lib/TVOS/Simulator");
+				LibDir = libPNGPath + "/lib/TVOS/Simulator/";
 			}
 			else
 			{
-				PublicLibraryPaths.Add(libPNGPath + "/lib/TVOS/Device");
+				LibDir = libPNGPath + "/lib/TVOS/Device/";
 			}
 
-			PublicAdditionalLibraries.Add("png152");
+			PublicAdditionalLibraries.Add(LibDir + "libpng152.a");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))
 		{
 			libPNGPath = Target.UEThirdPartySourceDirectory + "libPNG/libPNG-1.5.27";
 
-			PublicLibraryPaths.Add(libPNGPath + "/lib/Android/ARMv7");
-			PublicLibraryPaths.Add(libPNGPath + "/lib/Android/ARM64");
-			PublicLibraryPaths.Add(libPNGPath + "/lib/Android/x86");
-			PublicLibraryPaths.Add(libPNGPath + "/lib/Android/x64");
-
-			PublicAdditionalLibraries.Add("png");
+			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Android/ARM64/libpng.a");
+			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Android/x86/libpng.a");
+			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Android/x64/libpng.a");
+			PublicAdditionalLibraries.Add(libPNGPath + "/lib/Android/ARMv7/libpng.a");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
@@ -102,7 +99,6 @@ public class UElibPNG : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.HTML5)
 		{
-			PublicLibraryPaths.Add(libPNGPath + "/lib/HTML5");
 			string OpimizationSuffix = "";
 			if (Target.bCompileForSize)
 			{
@@ -119,12 +115,12 @@ public class UElibPNG : ModuleRules
 					OpimizationSuffix = "_O3";
 				}
 			}
-			PublicAdditionalLibraries.Add(libPNGPath + "/lib/HTML5/libpng" + OpimizationSuffix + ".bc");
+			PublicAdditionalLibraries.Add(LibDir + "/lib/HTML5/libpng" + OpimizationSuffix + ".bc");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.PS4)
 		{
-			PublicLibraryPaths.Add(libPNGPath + "/lib/PS4");
-			PublicAdditionalLibraries.Add("png152");
+			LibDir = libPNGPath + "/lib/PS4/";
+			PublicAdditionalLibraries.Add(LibDir + "libpng152.a");
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -133,8 +129,8 @@ public class UElibPNG : ModuleRules
 			if (XboxOnePlatformType != null)
 			{
 				System.Object VersionName = XboxOnePlatformType.GetMethod("GetVisualStudioCompilerVersionName").Invoke(null, null);
-				PublicLibraryPaths.Add(libPNGPath + "/lib/XboxOne/VS" + VersionName.ToString());
-				PublicAdditionalLibraries.Add("libpng125_XboxOne.lib");
+				LibDir = libPNGPath + "/lib/XboxOne/VS" + VersionName.ToString() + "/";
+				PublicAdditionalLibraries.Add(LibDir + "libpng125_XboxOne.lib");
 			}
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Switch)

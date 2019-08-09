@@ -62,7 +62,7 @@ public class ICU : ModuleRules
 				"d" : string.Empty;
 
 			// Library Paths
-			PublicLibraryPaths.Add(TargetSpecificPath + "lib" + "/");
+			string LibDir = TargetSpecificPath + "lib" + "/";
 
 			EICULinkType ICULinkType = (Target.LinkType == TargetLinkType.Monolithic)? EICULinkType.Static : EICULinkType.Dynamic;
 			switch(ICULinkType)
@@ -71,14 +71,14 @@ public class ICU : ModuleRules
 				foreach (string Stem in LibraryNameStems)
 				{
 					string LibraryName = "sicu" + Stem + LibraryNamePostfix + "." + "lib";
-					PublicAdditionalLibraries.Add(LibraryName);
+					PublicAdditionalLibraries.Add(LibDir + LibraryName);
 				}
 				break;
 			case EICULinkType.Dynamic:
 				foreach (string Stem in LibraryNameStems)
 				{
 					string LibraryName = "icu" + Stem + LibraryNamePostfix + "." + "lib";
-					PublicAdditionalLibraries.Add(LibraryName);
+					PublicAdditionalLibraries.Add(LibDir + LibraryName);
 				}
 
 				foreach (string Stem in LibraryNameStems)
@@ -124,14 +124,7 @@ public class ICU : ModuleRules
 
 			if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 			{
-					TargetSpecificPath += Target.Architecture + "/";
-			}
-			else
-			{
-					PublicLibraryPaths.Add(TargetSpecificPath + "ARMv7/lib");
-					PublicLibraryPaths.Add(TargetSpecificPath + "ARM64/lib");
-					PublicLibraryPaths.Add(TargetSpecificPath + "x86/lib");
-					PublicLibraryPaths.Add(TargetSpecificPath + "x64/lib");
+				TargetSpecificPath += Target.Architecture + "/";
 			}
 
 			string[] LibraryNameStems =
@@ -163,8 +156,11 @@ public class ICU : ModuleRules
 						}
 						else
 						{
-							// other platforms will just use the library name
-							PublicAdditionalLibraries.Add(LibraryName);
+							// android platforms needs to add the library for each architecture
+							PublicAdditionalLibraries.Add(TargetSpecificPath + "ARMv7/lib/" + "lib" + LibraryName + "." + StaticLibraryExtension);
+							PublicAdditionalLibraries.Add(TargetSpecificPath + "ARM64/lib/" + "lib" + LibraryName + "." + StaticLibraryExtension);
+							PublicAdditionalLibraries.Add(TargetSpecificPath + "x86/lib/" + "lib" + LibraryName + "." + StaticLibraryExtension);
+							PublicAdditionalLibraries.Add(TargetSpecificPath + "x64/lib/" + "lib" + LibraryName + "." + StaticLibraryExtension);
 						}
 					}
 					break;
@@ -179,8 +175,7 @@ public class ICU : ModuleRules
 							string LibraryName = "icu" + Stem + LibraryNamePostfix;
 							string LibraryPath = Target.UEThirdPartyBinariesDirectory + "ICU/icu4c-53_1/Linux/" + Target.Architecture + "/";
 
-							PublicLibraryPaths.Add(LibraryPath);
-							PublicAdditionalLibraries.Add(LibraryName);
+							PublicAdditionalLibraries.Add(LibraryPath + LibraryName);
 
 							// add runtime dependencies (for staging)
 							RuntimeDependencies.Add(PathToBinary + "lib" + LibraryName + ".so");

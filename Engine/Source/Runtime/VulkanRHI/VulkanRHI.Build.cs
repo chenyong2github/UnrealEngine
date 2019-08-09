@@ -58,8 +58,7 @@ public class VulkanRHI : ModuleRules
 				{
 					PrivateIncludePaths.Add(VulkanSDKPath + "/include");
 					PrivateIncludePaths.Add(VulkanSDKPath + "/include/vulkan");
-					PublicLibraryPaths.Add(VulkanSDKPath + "/lib");
-					PublicAdditionalLibraries.Add("vulkan");
+					PublicAdditionalLibraries.Add(Path.Combine(VulkanSDKPath, "lib", "vulkan"));
 				}
 			}
 			else

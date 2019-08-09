@@ -20,27 +20,28 @@ public class DX9 : ModuleRules
 		}
 		PublicSystemIncludePaths.Add(DirectXSDKDir + "/include");
 
+		string LibDir = null;
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x64");
+			LibDir = DirectXSDKDir + "/Lib/x64/";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			PublicLibraryPaths.Add(DirectXSDKDir + "/Lib/x86");
+			LibDir = DirectXSDKDir + "/Lib/x86/";
 		}
 
 		PublicAdditionalLibraries.AddRange(
 			new string[] {
-				"d3d9.lib",
-				"dxguid.lib",
-				"d3dcompiler.lib",
-				(Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? "d3dx9d.lib" : "d3dx9.lib",
-				"dinput8.lib",
-				"X3DAudio.lib",
-				"xapobase.lib",
-				"XAPOFX.lib"
+				LibDir + "d3d9.lib",
+				LibDir + "dxguid.lib",
+				LibDir + "d3dcompiler.lib",
+				(Target.Configuration == UnrealTargetConfiguration.Debug && Target.bDebugBuildsActuallyUseDebugCRT) ? LibDir + "d3dx9d.lib" : LibDir + "d3dx9.lib",
+				LibDir + "dinput8.lib",
+				LibDir + "X3DAudio.lib",
+				LibDir + "xapobase.lib",
+				LibDir + "XAPOFX.lib"
 			}
-			);
+		);
 	}
 }
 

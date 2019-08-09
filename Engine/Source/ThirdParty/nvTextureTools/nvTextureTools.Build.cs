@@ -16,10 +16,9 @@ public class nvTextureTools : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			nvttLibPath += ("/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicLibraryPaths.Add(nvttLibPath);
+			nvttLibPath += ("/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/");
 
-			PublicAdditionalLibraries.Add("nvtt_64.lib");
+			PublicAdditionalLibraries.Add(nvttLibPath + "nvtt_64.lib");
 
 			PublicDelayLoadDLLs.Add("nvtt_64.dll");
 
@@ -27,10 +26,9 @@ public class nvTextureTools : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			nvttLibPath += ("/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName());
-			PublicLibraryPaths.Add(nvttLibPath);
+			nvttLibPath += ("/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/");
 
-			PublicAdditionalLibraries.Add("nvtt.lib");
+			PublicAdditionalLibraries.Add(nvttLibPath + "nvtt.lib");
 
 			PublicDelayLoadDLLs.Add("nvtt.dll");
 

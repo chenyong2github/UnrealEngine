@@ -116,10 +116,9 @@ public class APEX : ModuleRules
 		// Libraries and DLLs for windows platform
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(APEXLibDir);
+			APEXLibDir += "/Win64/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
-			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x64.lib", LibrarySuffix));
+			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_x64.lib", LibrarySuffix));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x64.dll", LibrarySuffix));
 
 			string[] RuntimeDependenciesX64 =
@@ -144,10 +143,9 @@ public class APEX : ModuleRules
 		}
 		else if (Target.Platform == UnrealTargetPlatform.Win32)
 		{
-			APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(APEXLibDir);
+			APEXLibDir += "/Win32/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
-			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_x86.lib", LibrarySuffix));
+			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_x86.lib", LibrarySuffix));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_x86.dll", LibrarySuffix));
 
 			string[] RuntimeDependenciesX86 =
@@ -173,10 +171,9 @@ public class APEX : ModuleRules
 		{
             string Arch = Target.WindowsPlatform.GetArchitectureSubpath();
 
-            APEXLibDir += "/" + Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName();
-			PublicLibraryPaths.Add(APEXLibDir);
+            APEXLibDir += "/" + Target.Platform.ToString() + "/VS" + Target.WindowsPlatform.GetVisualStudioCompilerVersionName() + "/";
 
-			PublicAdditionalLibraries.Add(String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
+			PublicAdditionalLibraries.Add(APEXLibDir + String.Format("APEXFramework{0}_{1}.lib", LibrarySuffix, Arch));
 			PublicDelayLoadDLLs.Add(String.Format("APEXFramework{0}_{1}.dll", LibrarySuffix, Arch));
 
 
@@ -213,7 +210,7 @@ public class APEX : ModuleRules
 					"ApexShared{0}",
 				});
 
-			LibraryFormatString = APEXLibDir + "/lib{0}" + ".a";
+			LibraryFormatString = "lib{0}" + ".a";
 
 			string[] DynamicLibrariesMac = new string[] {
 				"/libAPEX_Clothing{0}.dylib",
@@ -266,12 +263,11 @@ public class APEX : ModuleRules
 			bHasApexLegacy = false;
 
 			APEXLibDir += "/PS4";
-			PublicLibraryPaths.Add(APEXLibDir);
 
             ApexLibraries.Add("NvParameterized{0}");
             ApexLibraries.Add("RenderDebug{0}");
 
-			LibraryFormatString = "{0}";
+			LibraryFormatString = "lib{0}.a";
 		}
 		else if (Target.Platform == UnrealTargetPlatform.XboxOne)
 		{
@@ -284,7 +280,6 @@ public class APEX : ModuleRules
 			PublicDefinitions.Add("PX_HAS_SECURE_STRCPY=1");
 
 			APEXLibDir += "/XboxOne/VS2015";
-			PublicLibraryPaths.Add(APEXLibDir);
 
 			ApexLibraries.Add("NvParameterized{0}");
 			ApexLibraries.Add("RenderDebug{0}");
@@ -297,12 +292,11 @@ public class APEX : ModuleRules
 			bHasApexLegacy = false;
 
 			APEXLibDir += "/Switch";
-			PublicLibraryPaths.Add(APEXLibDir);
 
 			ApexLibraries.Add("NvParameterized{0}");
 			ApexLibraries.Add("RenderDebug{0}");
 
-			LibraryFormatString = "{0}";
+			LibraryFormatString = "lib{0}.a";
 		}
 
 		PublicDefinitions.Add("APEX_UE4=1");
@@ -317,7 +311,7 @@ public class APEX : ModuleRules
 			{
 				string ConfiguredLib = String.Format(Lib, LibrarySuffix);
 				string FinalLib = String.Format(LibraryFormatString, ConfiguredLib);
-				PublicAdditionalLibraries.Add(FinalLib);
+				PublicAdditionalLibraries.Add(Path.Combine(APEXLibDir, FinalLib));
 			}
 		}
 	}
