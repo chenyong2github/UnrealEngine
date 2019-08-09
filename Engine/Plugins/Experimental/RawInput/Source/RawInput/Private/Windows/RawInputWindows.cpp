@@ -895,6 +895,8 @@ void FRawInputWindows::ShowDeviceInfo(const FConnectedDeviceInfo& DeviceInfo) co
 	}
 }
 
+static FName RawInputInterfaceName = FName("RawInput");
+
 void FRawInputWindows::SendControllerEvents()
 {
 	for (TPair<int32, FRawWindowsDeviceEntry>& DeviceEntryPair : RegisteredDeviceList)
@@ -904,6 +906,8 @@ void FRawInputWindows::SendControllerEvents()
 		// e.g if a button is still down or axis has a value (e.g. wheel not in centre)
 		if (DeviceEntry.bNeedsUpdate)
 		{
+			FInputDeviceScope InputScope(this, RawInputInterfaceName, DeviceEntryPair.Key, DeviceEntry.DeviceData.DeviceName);
+
 			for (FButtonData& DeviceButtonData : DeviceEntry.ButtonData)
 			{
 				if (!DeviceButtonData.ButtonName.IsNone())
