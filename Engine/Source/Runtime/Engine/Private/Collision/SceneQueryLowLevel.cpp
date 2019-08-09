@@ -46,7 +46,7 @@ void FinalizeCapture(FPhysTestSerializer& Serializer)
 	if (ReplaySQs)
 	{
 		const bool bReplaySuccess = SQComparisonHelper(Serializer);
-		if (!bReplaySuccess)'ve just'
+		if (!bReplaySuccess)
 		{
 			UE_LOG(LogPhysicsCore, Warning, TEXT("Chaos SQ does not match physx"));
 			if (SerializeBadSQs && !SerializeSQs)
