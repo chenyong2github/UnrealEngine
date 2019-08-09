@@ -2442,8 +2442,8 @@ bool CompilerMSL::is_member_packable(SPIRType const&ib_type, uint32_t index)
 
 	uint32_t component_size = mbr_type.width / 8;
 	uint32_t unpacked_mbr_size;
-	if (mbr_type.vecsize == 2 || mbr_type.vecsize == 3)
-		unpacked_mbr_size = component_size * (4) * mbr_type.columns;
+	if (mbr_type.vecsize == 3)
+		unpacked_mbr_size = component_size * (mbr_type.vecsize + 1) * mbr_type.columns;
 	else
 		unpacked_mbr_size = component_size * mbr_type.vecsize * mbr_type.columns;
 
@@ -8631,7 +8631,7 @@ size_t CompilerMSL::get_declared_struct_member_size(const SPIRType &struct_type,
 		uint32_t columns = type.columns;
 
 		// An unpacked 3-element vector or matrix column is the same memory size as a 4-element.
-		if ((vecsize == 2 || vecsize == 3) && !has_extended_member_decoration(struct_type.self, index, SPIRVCrossDecorationPacked))
+		if (vecsize == 3 && !has_extended_member_decoration(struct_type.self, index, SPIRVCrossDecorationPacked))
 			vecsize = 4;
 
 		return component_size * vecsize * columns;
