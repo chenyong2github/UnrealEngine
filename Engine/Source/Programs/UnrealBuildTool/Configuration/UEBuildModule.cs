@@ -97,14 +97,19 @@ namespace UnrealBuildTool
 		protected readonly HashSet<DirectoryReference> PublicSystemIncludePaths;
 
 		/// <summary>
-		/// Set of all public library paths
+		/// Set of all public system library paths
 		/// </summary>
-		protected readonly HashSet<DirectoryReference> PublicLibraryPaths;
+		protected readonly HashSet<DirectoryReference> PublicSystemLibraryPaths;
 
 		/// <summary>
 		/// Set of all additional libraries
 		/// </summary>
 		protected readonly HashSet<string> PublicAdditionalLibraries;
+
+		/// <summary>
+		/// Set of all system libraries
+		/// </summary>
+		protected readonly HashSet<string> PublicSystemLibraries;
 
 		/// <summary>
 		/// Set of additional frameworks
@@ -175,10 +180,23 @@ namespace UnrealBuildTool
 			PublicDefinitions = HashSetFromOptionalEnumerableStringParameter(Rules.PublicDefinitions);
 			PublicIncludePaths = CreateDirectoryHashSet(Rules.PublicIncludePaths);
 			PublicSystemIncludePaths = CreateDirectoryHashSet(Rules.PublicSystemIncludePaths);
-			PublicLibraryPaths = CreateDirectoryHashSet(Rules.PublicLibraryPaths);
+			PublicSystemLibraryPaths = CreateDirectoryHashSet(Rules.PublicSystemLibraryPaths);
 			PublicAdditionalLibraries = HashSetFromOptionalEnumerableStringParameter(Rules.PublicAdditionalLibraries);
+			PublicSystemLibraries = HashSetFromOptionalEnumerableStringParameter(Rules.PublicSystemLibraries);
 			PublicFrameworks = HashSetFromOptionalEnumerableStringParameter(Rules.PublicFrameworks);
 			PublicWeakFrameworks = HashSetFromOptionalEnumerableStringParameter(Rules.PublicWeakFrameworks);
+
+			foreach (string LibraryName in PublicAdditionalLibraries)
+			{
+				// if the library path is fully qualified we just add it, this is the preferred method of adding a library
+				if (File.Exists(LibraryName))
+				{
+					continue;
+				}
+
+				// the library path does not seem to be resolvable as is, lets warn about it as dependency checking will not work for it
+				Log.TraceWarning("Library '{0}' was not resolvable to a file when used in Module '{1}', assuming it is a filename and will search library paths for it. This is slow and dependency checking will not work for it. Please update reference to be fully qualified alternatively use PublicSystemLibraryPaths if you do intended to use this slow path to suppress this warning. ", LibraryName, Name);
+			}
 
 			PublicAdditionalFrameworks = new HashSet<UEBuildFramework>();
 			if(Rules.PublicAdditionalFrameworks != null)
@@ -312,6 +330,7 @@ namespace UnrealBuildTool
 		public void GatherAdditionalResources(List<string> Libraries, List<UEBuildBundleResource> BundleResources)
 		{
 			Libraries.AddRange(PublicAdditionalLibraries);
+			Libraries.AddRange(PublicSystemLibraries);
 			BundleResources.AddRange(PublicAdditionalBundleResources);
 		}
 
@@ -387,9 +406,9 @@ namespace UnrealBuildTool
 			{
 				Directories.Add(PublicSystemIncludePath);
 			}
-			foreach(DirectoryReference PublicLibraryPath in PublicLibraryPaths)
+			foreach (DirectoryReference PublicSystemLibraryPath in PublicSystemLibraryPaths)
 			{
-				Directories.Add(PublicLibraryPath);
+				Directories.Add(PublicSystemLibraryPath);
 			}
 		}
 
@@ -706,8 +725,9 @@ namespace UnrealBuildTool
 				}
 
 				// Add this module's public include library paths and additional libraries.
-				LibraryPaths.AddRange(PublicLibraryPaths);
+				LibraryPaths.AddRange(PublicSystemLibraryPaths);
 				AdditionalLibraries.AddRange(PublicAdditionalLibraries);
+				AdditionalLibraries.AddRange(PublicSystemLibraries);
 				RuntimeLibraryPaths.AddRange(ExpandPathVariables(Rules.PublicRuntimeLibraryPaths, SourceBinary.OutputDir, ExeDir));
 				Frameworks.AddRange(PublicFrameworks);
 				WeakFrameworks.AddRange(PublicWeakFrameworks);
@@ -883,8 +903,9 @@ namespace UnrealBuildTool
 			ExportJsonStringArray(Writer, "PublicSystemIncludePaths", PublicSystemIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicIncludePaths", PublicIncludePaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PrivateIncludePaths", PrivateIncludePaths.Select(x => x.FullName));
-			ExportJsonStringArray(Writer, "PublicLibraryPaths", PublicLibraryPaths.Select(x => x.FullName));
+			ExportJsonStringArray(Writer, "PublicSystemLibraryPaths", PublicSystemLibraryPaths.Select(x => x.FullName));
 			ExportJsonStringArray(Writer, "PublicAdditionalLibraries", PublicAdditionalLibraries);
+			ExportJsonStringArray(Writer, "PublicSystemLibraries", PublicSystemLibraries);
 			ExportJsonStringArray(Writer, "PublicFrameworks", PublicFrameworks);
 			ExportJsonStringArray(Writer, "PublicWeakFrameworks", PublicWeakFrameworks);
 			ExportJsonStringArray(Writer, "PublicDelayLoadDLLs", PublicDelayLoadDLLs);

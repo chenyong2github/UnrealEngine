@@ -1157,7 +1157,10 @@ namespace UnrealBuildTool
 				// Get a list of all the library paths
 				List<string> LibraryPaths = new List<string>();
 				LibraryPaths.Add(Directory.GetCurrentDirectory());
-				LibraryPaths.AddRange(Rules.PublicLibraryPaths.Where(x => !x.StartsWith("$(")).Select(x => Path.GetFullPath(x.Replace('/', Path.DirectorySeparatorChar))));
+
+				List<string> SystemLibraryPaths = new List<string>();
+				SystemLibraryPaths.Add(Directory.GetCurrentDirectory());
+				SystemLibraryPaths.AddRange(Rules.PublicSystemLibraryPaths.Where(x => !x.StartsWith("$(")).Select(x => Path.GetFullPath(x.Replace('/', Path.DirectorySeparatorChar))));
 
 				// Get all the extensions to look for
 				List<string> LibraryExtensions = new List<string>();
@@ -1171,20 +1174,15 @@ namespace UnrealBuildTool
 					{
 						foreach (string LibraryPath in LibraryPaths)
 						{
-							string LibraryFileName = Path.Combine(LibraryPath, LibraryName);
-							if (File.Exists(LibraryFileName))
-							{
-								Files.Add(new FileReference(LibraryFileName));
-							}
+							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
+						}
+					}
 
-							if(LibraryName.IndexOfAny(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) == -1)
-							{
-								string UnixLibraryFileName = Path.Combine(LibraryPath, "lib" + LibraryName + LibraryExtension);
-								if (File.Exists(UnixLibraryFileName))
-								{
-									Files.Add(new FileReference(UnixLibraryFileName));
-								}
-							}
+					foreach (string LibraryName in Rules.PublicSystemLibraryPaths)
+					{
+						foreach (string LibraryPath in SystemLibraryPaths)
+						{
+							ResolveLibraryName(LibraryPath, LibraryName, LibraryExtension, Files);
 						}
 					}
 				}
@@ -1217,6 +1215,23 @@ namespace UnrealBuildTool
 			FileReference.WriteAllLines(Location, Files.Where(x => x.IsUnderDirectory(UnrealBuildTool.RootDirectory)).Select(x => x.MakeRelativeTo(UnrealBuildTool.RootDirectory).Replace(Path.DirectorySeparatorChar, '/')).OrderBy(x => x));
 		}
 
+		private void ResolveLibraryName(string LibraryPath, string LibraryName, string LibraryExtension, HashSet<FileReference> Files)
+		{
+			string LibraryFileName = Path.Combine(LibraryPath, LibraryName);
+			if (File.Exists(LibraryFileName))
+			{
+				Files.Add(new FileReference(LibraryFileName));
+			}
+
+			if (LibraryName.IndexOfAny(new char[] { Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar }) == -1)
+			{
+				string UnixLibraryFileName = Path.Combine(LibraryPath, "lib" + LibraryName + LibraryExtension);
+				if (File.Exists(UnixLibraryFileName))
+				{
+					Files.Add(new FileReference(UnixLibraryFileName));
+				}
+			}
+		}
 		/// <summary>
 		/// Generates a public manifest file for writing out
 		/// </summary>
@@ -3597,7 +3612,7 @@ namespace UnrealBuildTool
 			RemoveTrailingSlashes(RulesObject.PublicIncludePaths);
 			RemoveTrailingSlashes(RulesObject.PublicSystemIncludePaths);
 			RemoveTrailingSlashes(RulesObject.PrivateIncludePaths);
-			RemoveTrailingSlashes(RulesObject.PublicLibraryPaths);
+			RemoveTrailingSlashes(RulesObject.PublicSystemLibraryPaths);
 
 			// Validate rules object
 			if (RulesObject.Type == ModuleRules.ModuleType.CPlusPlus)
@@ -3714,7 +3729,7 @@ namespace UnrealBuildTool
 					{
 						RulesObject.PublicIncludePaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicIncludePaths);
 						RulesObject.PrivateIncludePaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PrivateIncludePaths);
-						RulesObject.PublicLibraryPaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicLibraryPaths);
+						RulesObject.PublicSystemLibraryPaths = CombinePathList(ProjectSourceDirectoryName, RulesObject.PublicSystemLibraryPaths);
 					}
 				}
 

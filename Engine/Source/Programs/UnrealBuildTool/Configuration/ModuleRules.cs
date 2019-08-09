@@ -682,7 +682,14 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// List of system/library paths (directory of .lib files) - typically used for External (third party) modules
 		/// </summary>
-		public List<string> PublicLibraryPaths = new List<string>();
+		[Obsolete(
+			"For external libraries use the full path in PublicAdditionalLibraries, if its a system library then use PublicSystemLibraries/PublicSystemLibraryPaths")]
+		public List<string> PublicLibraryPaths => PublicSystemLibraryPaths;
+
+		/// <summary>
+		/// List of system library paths (directory of .lib files) - for External (third party) modules please use the PublicAdditionalLibaries instead
+		/// </summary>
+		public List<string> PublicSystemLibraryPaths = new List<string>();
 
 		/// <summary>
 		/// List of search paths for libraries at runtime (eg. .so files)
@@ -698,6 +705,11 @@ namespace UnrealBuildTool
 		/// List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules
 		/// </summary>
 		public List<string> PublicAdditionalLibraries = new List<string>();
+
+		/// <summary>
+		/// List of system libraries to use - these are typically referenced via name and then found via the system paths. If you need to reference a .lib file use the PublicAdditionalLibraries instead
+		/// </summary>
+		public List<string> PublicSystemLibraries = new List<string>();
 
 		/// <summary>
 		/// List of XCode frameworks (iOS and MacOS)
