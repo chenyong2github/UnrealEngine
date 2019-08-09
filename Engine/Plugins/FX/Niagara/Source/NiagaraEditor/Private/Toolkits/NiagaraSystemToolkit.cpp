@@ -548,7 +548,7 @@ public:
 
 	~SNiagaraSelectedEmitterGraph()
 	{
-		if (SystemViewModel.IsValid())
+		if (SystemViewModel.IsValid() && SystemViewModel->GetSelectionViewModel())
 		{
 			SystemViewModel->GetSelectionViewModel()->OnSelectionChanged().RemoveAll(this);
 		}
