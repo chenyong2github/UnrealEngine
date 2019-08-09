@@ -134,7 +134,7 @@ void FControlClient::FormatAndSend(const TCHAR* Format, ...)
     TCHAR Buffer[512];
 	va_list Args;
 	va_start(Args, Format);
-	int Length = FCString::GetVarArgs(Buffer, ARRAY_COUNT(Buffer), Format, Args);
+	int Length = FCString::GetVarArgs(Buffer, UE_ARRAY_COUNT(Buffer), Format, Args);
     if (Length > sizeof(Buffer))
     {
         Length = sizeof(Buffer);

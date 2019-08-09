@@ -1388,7 +1388,7 @@ struct FIOSApplicationInfo
         TempSysCtlBufferSize = PATH_MAX+1;
         sysctlbyname("machdep.cpu.brand_string", MachineCPUString, &TempSysCtlBufferSize, NULL, 0);
         
-        gethostname(MachineName, ARRAY_COUNT(MachineName));
+        gethostname(MachineName, UE_ARRAY_COUNT(MachineName));
         
        BranchBaseDir = FString::Printf( TEXT( "%s!%s!%s!%d" ), *FApp::GetBranchName(), FPlatformProcess::BaseDir(), FPlatformMisc::GetEngineMode(), FEngineVersion::Current().GetChangelist() );
         

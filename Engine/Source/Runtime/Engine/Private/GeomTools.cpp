@@ -27,7 +27,7 @@ static FClipSMVertex GetVert(const UStaticMesh* StaticMesh, int32 VertIndex)
 	{
 		Result.UVs[UVIndex] = LODModel.VertexBuffers.StaticMeshVertexBuffer.GetVertexUV(VertIndex,UVIndex);
 	}
-	for(int32 UVIndex = NumUVs;UVIndex < ARRAY_COUNT(Result.UVs);UVIndex++)
+	for(int32 UVIndex = NumUVs;UVIndex < UE_ARRAY_COUNT(Result.UVs);UVIndex++)
 	{
 		Result.UVs[UVIndex] = FVector2D::ZeroVector;
 	}
@@ -380,7 +380,7 @@ static bool VertsAreEqual(const FClipSMVertex& A,const FClipSMVertex& B)
 		return false;
 	}
 
-	for(int32 i=0; i<ARRAY_COUNT(A.UVs); i++)
+	for(int32 i=0; i<UE_ARRAY_COUNT(A.UVs); i++)
 	{
 		if( !A.UVs[i].Equals(B.UVs[i], 1.0f / 1024.0f) )
 		{

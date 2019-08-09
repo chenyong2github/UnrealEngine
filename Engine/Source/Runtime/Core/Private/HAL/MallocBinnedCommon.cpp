@@ -119,31 +119,31 @@ uint8 FSizeTableEntry::FillSizeTable(uint64 PlatformPageSize, FSizeTableEntry* S
 {
 	int32 Index = 0;
 
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes4k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes4k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes4k[Sub], PlatformPageSize, 1, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes8k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes8k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes8k[Sub], PlatformPageSize, 2, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes12k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes12k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes12k[Sub], PlatformPageSize, 3, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes16k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes16k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes16k[Sub], PlatformPageSize, 4, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes20k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes20k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes20k[Sub], PlatformPageSize, 5, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes24k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes24k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes24k[Sub], PlatformPageSize, 6, BasePageSize, MinimumAlignment);
 	}
-	for (int32 Sub = 0; Sub < ARRAY_COUNT(BinnedCommonSmallBlockSizes28k); Sub++)
+	for (int32 Sub = 0; Sub < UE_ARRAY_COUNT(BinnedCommonSmallBlockSizes28k); Sub++)
 	{
 		SizeTable[Index++] = FSizeTableEntry(BinnedCommonSmallBlockSizes28k[Sub], PlatformPageSize, 7, BasePageSize, MinimumAlignment);
 	}

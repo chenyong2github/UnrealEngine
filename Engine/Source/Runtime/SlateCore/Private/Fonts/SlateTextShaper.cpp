@@ -600,7 +600,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 			const hb_feature_t HarfBuzzFeatures[] = {
 				{ HB_TAG('k','e','r','n'), bHasKerning, 0, uint32(-1) }
 			};
-			const int32 HarfBuzzFeaturesCount = ARRAY_COUNT(HarfBuzzFeatures);
+			const int32 HarfBuzzFeaturesCount = UE_ARRAY_COUNT(HarfBuzzFeatures);
 
 			hb_font_t* HarfBuzzFont = HarfBuzzFontFactory.CreateFont(*HarfBuzzTextSequenceEntry.FaceAndMemory, GlyphFlags, InFontInfo.Size, FinalFontScale);
 

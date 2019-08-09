@@ -89,7 +89,7 @@ ETrackingStatus FXRMotionControllerBase::GetControllerTrackingStatus(const int32
 
 void FXRMotionControllerBase::EnumerateSources(TArray<FMotionControllerSource>& SourcesOut) const
 {
-	const int32 HandsCount = ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
+	const int32 HandsCount = UE_ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
 	ensure(HandsCount == (int32)EControllerHand::ControllerHand_Count);
 
 	for (int32 HandIndex = 0; HandIndex < HandsCount; ++HandIndex)
@@ -100,7 +100,7 @@ void FXRMotionControllerBase::EnumerateSources(TArray<FMotionControllerSource>& 
 
 bool FXRMotionControllerBase::GetHandEnumForSourceName(const FName Source, EControllerHand& OutHand)
 {
-	const int32 HandsCount = ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
+	const int32 HandsCount = UE_ARRAY_COUNT(XRMotionControllerBase_Impl::LegacyHandMappings);
 	ensure(HandsCount == (int32)EControllerHand::ControllerHand_Count);
 
 	bool bFound = false;

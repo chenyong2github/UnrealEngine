@@ -138,7 +138,7 @@ void FIOSInputInterface::HandleConnection(GCController* Controller)
 
 	// find a good controller index to use
 	bool bFoundSlot = false;
-	for (int32 ControllerIndex = 0; ControllerIndex < ARRAY_COUNT(Controllers); ControllerIndex++)
+	for (int32 ControllerIndex = 0; ControllerIndex < UE_ARRAY_COUNT(Controllers); ControllerIndex++)
 	{
 		// is this one already connected for this type of controller?
 		if ((!bIsTreatedAsGamepad && Controllers[ControllerIndex].bIsRemoteConnected == false) ||
@@ -686,7 +686,7 @@ void FIOSInputInterface::CalibrateMotion(uint32 PlayerIndex)
 	}
 #endif
 
-	if (PlayerIndex >= 0 && PlayerIndex < ARRAY_COUNT(Controllers))
+	if (PlayerIndex >= 0 && PlayerIndex < UE_ARRAY_COUNT(Controllers))
 	{
 		Controllers[PlayerIndex].bNeedsReferenceAttitude = true;
 	}
@@ -708,7 +708,7 @@ bool FIOSInputInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& 
 }
 bool FIOSInputInterface::IsControllerAssignedToGamepad(int32 ControllerId) const
 {
-	return ControllerId < ARRAY_COUNT(Controllers) &&
+	return ControllerId < UE_ARRAY_COUNT(Controllers) &&
 		(Controllers[ControllerId].bIsGamepadConnected ||
 		 Controllers[ControllerId].bIsRemoteConnected);
 }
@@ -716,7 +716,7 @@ bool FIOSInputInterface::IsControllerAssignedToGamepad(int32 ControllerId) const
 bool FIOSInputInterface::IsGamepadAttached() const
 {
 	bool bIsAttached = false;
-	for(int32 i = 0; i < ARRAY_COUNT(Controllers); ++i)
+	for(int32 i = 0; i < UE_ARRAY_COUNT(Controllers); ++i)
 	{
 		bIsAttached |= IsControllerAssignedToGamepad(i);
 	}

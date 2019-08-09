@@ -1049,7 +1049,7 @@ void FMetalSubBufferRing::Shrink()
 	if(Buffer.IsValid())
 	{
 		NSUInteger FrameMax = 0;
-		for (uint32 i = 0; i < ARRAY_COUNT(FrameSize); i++)
+		for (uint32 i = 0; i < UE_ARRAY_COUNT(FrameSize); i++)
 		{
 			FrameMax = FMath::Max(FrameMax, FrameSize[i]);
 		}
@@ -1071,7 +1071,7 @@ void FMetalSubBufferRing::Shrink()
 			LastFrameChange = GFrameNumberRenderThread;
 		}
 		
-		FrameSize[GFrameNumberRenderThread % ARRAY_COUNT(FrameSize)] = 0;
+		FrameSize[GFrameNumberRenderThread % UE_ARRAY_COUNT(FrameSize)] = 0;
 	}
 }
 
@@ -1112,7 +1112,7 @@ void FMetalSubBufferRing::Commit(mtlpp::CommandBuffer& CmdBuf)
 			BytesWritten = TrailLen + WriteHead;
 		}
 		
-		FrameSize[GFrameNumberRenderThread % ARRAY_COUNT(FrameSize)] += Align(BytesWritten, MinAlign);
+		FrameSize[GFrameNumberRenderThread % UE_ARRAY_COUNT(FrameSize)] += Align(BytesWritten, MinAlign);
 		
 		TSharedPtr<FMetalRingBufferRef, ESPMode::ThreadSafe> CmdBufferRingBuffer = Buffer;
 		FPlatformMisc::MemoryBarrier();

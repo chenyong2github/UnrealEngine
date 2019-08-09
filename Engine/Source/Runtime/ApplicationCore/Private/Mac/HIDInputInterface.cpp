@@ -311,7 +311,7 @@ void HIDInputInterface::FHIDDeviceInfo::SetupMappings()
 
 		bool bIsXbox360Controller = false;
 
-		for (int i = 0; i < ARRAY_COUNT(XBox360Controllers); ++i)
+		for (int i = 0; i < UE_ARRAY_COUNT(XBox360Controllers); ++i)
 		{
 			const FXBox360ControllerID ControllerID = XBox360Controllers[i];
 			if (ControllerID.VendorID == VendorID && ControllerID.ProductID == ProductID)

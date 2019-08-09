@@ -1299,7 +1299,7 @@ bool ULocalPlayer::HandleListPawnComponentsCommand( const TCHAR* Cmd, FOutputDev
 bool ULocalPlayer::HandleExecCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	TCHAR Filename[512];
-	if( FParse::Token( Cmd, Filename, ARRAY_COUNT(Filename), 0 ) )
+	if( FParse::Token( Cmd, Filename, UE_ARRAY_COUNT(Filename), 0 ) )
 	{
 		ExecMacro( Filename, Ar );
 	}

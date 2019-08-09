@@ -44,14 +44,14 @@ void FWindowsPlatformSslCertificateManager::BuildRootCertificateArray()
 				else
 				{
 					TCHAR Name[128];
-					CertGetNameString(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, Name, ARRAY_COUNT(Name));
+					CertGetNameString(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, Name, UE_ARRAY_COUNT(Name));
 					UE_LOG(LogSsl, Log, TEXT("Unable to convert certificate: name:%s error:%s"), Name, *GetSslErrorString());
 				}
 			}
 			else
 			{
 				TCHAR Name[128];
-				CertGetNameString(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, Name, ARRAY_COUNT(Name));
+				CertGetNameString(CertContext, CERT_NAME_SIMPLE_DISPLAY_TYPE, 0, nullptr, Name, UE_ARRAY_COUNT(Name));
 				UE_LOG(LogSsl, Log, TEXT("Unhandled certificate encoding: name:%s encodingType:0x%08x"), Name, CertContext->dwCertEncodingType);
 			}
 		}

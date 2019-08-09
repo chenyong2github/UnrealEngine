@@ -111,7 +111,7 @@ TArrayView<const FMediaIOCommonDisplayModeResolutionInfo> FMediaIOCommonDisplayM
 
 const FMediaIOCommonDisplayModeResolutionInfo* FMediaIOCommonDisplayModes::Find(int32 InWidth, int32 InHeight)
 {
-	const int32 NumModeResolutions = ARRAY_COUNT(MediaIOCommonDisplayModeInfo::AllCommonDisplayModeResolutions);
+	const int32 NumModeResolutions = UE_ARRAY_COUNT(MediaIOCommonDisplayModeInfo::AllCommonDisplayModeResolutions);
 	for(int32 Index = 0; Index < NumModeResolutions; ++Index)
 	{
 		const FMediaIOCommonDisplayModeResolutionInfo* Info = MediaIOCommonDisplayModeInfo::AllCommonDisplayModeResolutions + Index;
@@ -125,7 +125,7 @@ const FMediaIOCommonDisplayModeResolutionInfo* FMediaIOCommonDisplayModes::Find(
 
 const FMediaIOCommonDisplayModeInfo* FMediaIOCommonDisplayModes::Find(int32 InWidth, int32 InHeight, const FFrameRate& InFrameRate, EMediaIOStandardType InStandard)
 {
-	const int32 NumModes = ARRAY_COUNT(MediaIOCommonDisplayModeInfo::AllCommonDisplayModes);
+	const int32 NumModes = UE_ARRAY_COUNT(MediaIOCommonDisplayModeInfo::AllCommonDisplayModes);
 	for (int32 Index = 0; Index < NumModes; ++Index)
 	{
 		const FMediaIOCommonDisplayModeInfo* Info = MediaIOCommonDisplayModeInfo::AllCommonDisplayModes + Index;

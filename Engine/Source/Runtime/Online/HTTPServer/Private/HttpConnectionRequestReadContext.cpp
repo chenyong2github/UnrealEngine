@@ -345,7 +345,7 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 
 					ANSICHAR Buffer[8] = { 0 };
 					ANSICHAR* BufferPtr = Buffer;
-					const int32 Len = ARRAY_COUNT(Buffer);
+					const int32 Len = UE_ARRAY_COUNT(Buffer);
 					const int32 WrittenChars = FTCHARToUTF8_Convert::Utf8FromCodepoint(Value, BufferPtr, Len);
 
 					Data.Append(Buffer, WrittenChars);

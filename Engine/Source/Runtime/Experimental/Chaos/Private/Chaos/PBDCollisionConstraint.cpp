@@ -156,7 +156,7 @@ struct FStatHelper2
 template <>
 struct FStatHelper2<true>
 {
-	int32 BucketCount[ARRAY_COUNT(BucketSizes2)];
+	int32 BucketCount[UE_ARRAY_COUNT(BucketSizes2)];
 	int32 MaxCount;
 
 	FStatHelper2()
@@ -167,7 +167,7 @@ struct FStatHelper2<true>
 
 	void Record(int32 Count)
 	{
-		for (int32 BucketIdx = 1; BucketIdx < ARRAY_COUNT(BucketSizes2); ++BucketIdx)
+		for (int32 BucketIdx = 1; BucketIdx < UE_ARRAY_COUNT(BucketSizes2); ++BucketIdx)
 		{
 			if (Count >= BucketSizes2[BucketIdx - 1] && Count < BucketSizes2[BucketIdx])
 			{
@@ -194,10 +194,10 @@ struct FStatHelper2<true>
 		}
 
 		const float CountPerChar = MaxBucketCount / 20.f;
-		for (int32 Idx = 1; Idx < ARRAY_COUNT(BucketSizes2); ++Idx)
+		for (int32 Idx = 1; Idx < UE_ARRAY_COUNT(BucketSizes2); ++Idx)
 		{
 			int32 NumChars = BucketCount[Idx] / CountPerChar;
-			if (Idx < ARRAY_COUNT(BucketSizes2) - 1)
+			if (Idx < UE_ARRAY_COUNT(BucketSizes2) - 1)
 			{
 				OutLog += FString::Printf(TEXT("\t[%4d - %4d) (%4d) |"), BucketSizes2[Idx - 1], BucketSizes2[Idx], BucketCount[Idx]);
 			}

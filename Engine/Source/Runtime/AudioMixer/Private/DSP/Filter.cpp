@@ -552,8 +552,8 @@ namespace Audio
 		, Alpha(0.0f)
 		, PassBandGainCompensation(0.0f)
 	{
-		FMemory::Memzero(Factors, sizeof(float) * ARRAY_COUNT(Beta));
-		FMemory::Memzero(Beta, sizeof(float) * ARRAY_COUNT(Beta));
+		FMemory::Memzero(Factors, sizeof(float) * UE_ARRAY_COUNT(Beta));
+		FMemory::Memzero(Beta, sizeof(float) * UE_ARRAY_COUNT(Beta));
 	}
 
 	FLadderFilter::~FLadderFilter()

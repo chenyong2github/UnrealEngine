@@ -2168,11 +2168,11 @@ public:
 	{
 		Ar << H.Manufacturer << H.Version << H.Encoding << H.BitsPerPixel;
 		Ar << H.XMin << H.YMin << H.XMax << H.YMax << H.XDotsPerInch << H.YDotsPerInch;
-		for( int32 i=0; i<ARRAY_COUNT(H.OldColorMap); i++ )
+		for( int32 i=0; i<UE_ARRAY_COUNT(H.OldColorMap); i++ )
 			Ar << H.OldColorMap[i];
 		Ar << H.Reserved1 << H.NumPlanes;
 		Ar << H.BytesPerLine << H.PaletteType << H.HScreenSize << H.VScreenSize;
-		for( int32 i=0; i<ARRAY_COUNT(H.Reserved2); i++ )
+		for( int32 i=0; i<UE_ARRAY_COUNT(H.Reserved2); i++ )
 			Ar << H.Reserved2[i];
 		return Ar;
 	}

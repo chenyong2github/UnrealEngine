@@ -246,7 +246,7 @@ bool TryGetEditorFileName(const FString& EngineDir, const FString& ProjectFileNa
 			virtual bool Visit(const TCHAR* FilenameOrDirectory, const FFileStatData& StatData)
 			{
 				static const TCHAR Extension[] = TEXT(".target");
-				static const int ExtensionLen = ARRAY_COUNT(Extension) - 1;
+				static const int ExtensionLen = UE_ARRAY_COUNT(Extension) - 1;
 
 				int Length = FCString::Strlen(FilenameOrDirectory);
 				if(Length >= ExtensionLen && FCString::Stricmp(FilenameOrDirectory + Length - ExtensionLen, Extension) == 0)

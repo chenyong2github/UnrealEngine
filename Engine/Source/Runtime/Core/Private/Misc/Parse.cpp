@@ -316,7 +316,7 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, FString& Value, boo
 	if (StreamLen < 4096)
 	{
 		TCHAR Temp[4096]=TEXT("");
-		if (FParse::Value(Stream, Match, Temp, ARRAY_COUNT(Temp), bShouldStopOnSeparator))
+		if (FParse::Value(Stream, Match, Temp, UE_ARRAY_COUNT(Temp), bShouldStopOnSeparator))
 		{
 			Value = Temp;
 			return true;
@@ -516,7 +516,7 @@ bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, uint64& Value )
 bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, int64& Value )
 {
 	TCHAR Temp[4096]=TEXT(""), *Ptr=Temp;
-	if( FParse::Value( Stream, Match, Temp, ARRAY_COUNT(Temp) ) )
+	if( FParse::Value( Stream, Match, Temp, UE_ARRAY_COUNT(Temp) ) )
 	{
 		Value = 0;
 		bool Negative = (*Ptr=='-');
@@ -663,7 +663,7 @@ bool FParse::Bool( const TCHAR* Stream, const TCHAR* Match, bool& OnOff )
 bool FParse::Value( const TCHAR* Stream, const TCHAR* Match, struct FGuid& Guid )
 {
 	TCHAR Temp[256];
-	if( !FParse::Value( Stream, Match, Temp, ARRAY_COUNT(Temp) ) )
+	if( !FParse::Value( Stream, Match, Temp, UE_ARRAY_COUNT(Temp) ) )
 		return false;
 
 	Guid.A = Guid.B = Guid.C = Guid.D = 0;
@@ -912,7 +912,7 @@ bool FParse::Token( const TCHAR*& Str, FString& Arg, bool UseEscape )
 FString FParse::Token( const TCHAR*& Str, bool UseEscape )
 {
 	TCHAR Buffer[1024];
-	if( FParse::Token( Str, Buffer, ARRAY_COUNT(Buffer), UseEscape ) )
+	if( FParse::Token( Str, Buffer, UE_ARRAY_COUNT(Buffer), UseEscape ) )
 		return Buffer;
 	else
 		return TEXT("");
@@ -1263,7 +1263,7 @@ bool FParseLineExtendedTest::RunTest(const FString& Parameters)
 	int32 LinesConsumed = 0;
 	FString Result;
 
-	for (int32 Index = 0; Index < ARRAY_COUNT(Tests); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Tests); ++Index)
 	{
 		LinesConsumed = 0;
 		Result.Reset();

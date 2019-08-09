@@ -580,11 +580,11 @@ FName FeatureLevelNames[] =
 	FName(TEXT("SM5")),
 };
 
-static_assert(ARRAY_COUNT(FeatureLevelNames) == ERHIFeatureLevel::Num, "Missing entry from feature level names.");
+static_assert(UE_ARRAY_COUNT(FeatureLevelNames) == ERHIFeatureLevel::Num, "Missing entry from feature level names.");
 
 RHI_API bool GetFeatureLevelFromName(FName Name, ERHIFeatureLevel::Type& OutFeatureLevel)
 {
-	for (int32 NameIndex = 0; NameIndex < ARRAY_COUNT(FeatureLevelNames); NameIndex++)
+	for (int32 NameIndex = 0; NameIndex < UE_ARRAY_COUNT(FeatureLevelNames); NameIndex++)
 	{
 		if (FeatureLevelNames[NameIndex] == Name)
 		{
@@ -599,8 +599,8 @@ RHI_API bool GetFeatureLevelFromName(FName Name, ERHIFeatureLevel::Type& OutFeat
 
 RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FString& OutName)
 {
-	check(InFeatureLevel < ARRAY_COUNT(FeatureLevelNames));
-	if (InFeatureLevel < ARRAY_COUNT(FeatureLevelNames))
+	check(InFeatureLevel < UE_ARRAY_COUNT(FeatureLevelNames));
+	if (InFeatureLevel < UE_ARRAY_COUNT(FeatureLevelNames))
 	{
 		FeatureLevelNames[(int32)InFeatureLevel].ToString(OutName);
 	}
@@ -613,8 +613,8 @@ RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FString&
 static FName InvalidFeatureLevelName(TEXT("InvalidFeatureLevel"));
 RHI_API void GetFeatureLevelName(ERHIFeatureLevel::Type InFeatureLevel, FName& OutName)
 {
-	check(InFeatureLevel < ARRAY_COUNT(FeatureLevelNames));
-	if (InFeatureLevel < ARRAY_COUNT(FeatureLevelNames))
+	check(InFeatureLevel < UE_ARRAY_COUNT(FeatureLevelNames));
+	if (InFeatureLevel < UE_ARRAY_COUNT(FeatureLevelNames))
 	{
 		OutName = FeatureLevelNames[(int32)InFeatureLevel];
 	}
@@ -632,11 +632,11 @@ FName ShadingPathNames[] =
 	FName(TEXT("Mobile")),
 };
 
-static_assert(ARRAY_COUNT(ShadingPathNames) == ERHIShadingPath::Num, "Missing entry from shading path names.");
+static_assert(UE_ARRAY_COUNT(ShadingPathNames) == ERHIShadingPath::Num, "Missing entry from shading path names.");
 
 RHI_API bool GetShadingPathFromName(FName Name, ERHIShadingPath::Type& OutShadingPath)
 {
-	for (int32 NameIndex = 0; NameIndex < ARRAY_COUNT(ShadingPathNames); NameIndex++)
+	for (int32 NameIndex = 0; NameIndex < UE_ARRAY_COUNT(ShadingPathNames); NameIndex++)
 	{
 		if (ShadingPathNames[NameIndex] == Name)
 		{
@@ -651,8 +651,8 @@ RHI_API bool GetShadingPathFromName(FName Name, ERHIShadingPath::Type& OutShadin
 
 RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FString& OutName)
 {
-	check(InShadingPath < ARRAY_COUNT(ShadingPathNames));
-	if (InShadingPath < ARRAY_COUNT(ShadingPathNames))
+	check(InShadingPath < UE_ARRAY_COUNT(ShadingPathNames));
+	if (InShadingPath < UE_ARRAY_COUNT(ShadingPathNames))
 	{
 		ShadingPathNames[(int32)InShadingPath].ToString(OutName);
 	}
@@ -665,8 +665,8 @@ RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FString& Ou
 static FName InvalidShadingPathName(TEXT("InvalidShadingPath"));
 RHI_API void GetShadingPathName(ERHIShadingPath::Type InShadingPath, FName& OutName)
 {
-	check(InShadingPath < ARRAY_COUNT(ShadingPathNames));
-	if (InShadingPath < ARRAY_COUNT(ShadingPathNames))
+	check(InShadingPath < UE_ARRAY_COUNT(ShadingPathNames));
+	if (InShadingPath < UE_ARRAY_COUNT(ShadingPathNames))
 	{
 		OutName = ShadingPathNames[(int32)InShadingPath];
 	}

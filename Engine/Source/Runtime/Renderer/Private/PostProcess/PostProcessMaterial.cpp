@@ -350,7 +350,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			TStaticDepthStencilState<false, CF_Always, true, CF_Never>::GetRHI(),
 			TStaticDepthStencilState<false, CF_Always, true, CF_Always>::GetRHI(),
 		};
-		static_assert(EMaterialStencilCompare::MSC_Count == ARRAY_COUNT(StencilStates), "Ensure that all EMaterialStencilCompare values are accounted for.");
+		static_assert(EMaterialStencilCompare::MSC_Count == UE_ARRAY_COUNT(StencilStates), "Ensure that all EMaterialStencilCompare values are accounted for.");
 
 		DepthStencilState = StencilStates[Material->GetStencilCompare()];
 		StencilRefValue = Material->GetStencilRefValue();
@@ -374,7 +374,7 @@ void FRCPassPostProcessMaterial::Process(FRenderingCompositePassContext& Context
 			TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI(),
 			TStaticBlendState<CW_RGBA, BO_Add, BF_Zero, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI(),
 		};
-		static_assert(EBlendMode::BLEND_MAX == ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
+		static_assert(EBlendMode::BLEND_MAX == UE_ARRAY_COUNT(BlendStates), "Ensure that all EBlendMode values are accounted for.");
 
 		BlendState = BlendStates[Material->GetBlendMode()];
 	}

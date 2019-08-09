@@ -2655,7 +2655,7 @@ GameProjectUtils::EProjectDuplicateResult GameProjectUtils::DuplicateProjectForU
 				TEXT("Saved/StagedBuilds"),
 			};
 
-			SourceDirectoriesToSkip.Reserve(ARRAY_COUNT(RelativeDirectoriesToSkip));
+			SourceDirectoriesToSkip.Reserve(UE_ARRAY_COUNT(RelativeDirectoriesToSkip));
 			for (const FString& RelativeDirectoryToSkip : RelativeDirectoriesToSkip)
 			{
 				SourceDirectoriesToSkip.Emplace(RootSourceDirectory / RelativeDirectoryToSkip);

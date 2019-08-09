@@ -4958,7 +4958,7 @@ FReply SAssetView::HandleQuickJumpKeyDown(const TCHAR InCharacter, const bool bI
 	}
 
 	// Check for invalid characters
-	for(int InvalidCharIndex = 0; InvalidCharIndex < ARRAY_COUNT(INVALID_OBJECTNAME_CHARACTERS) - 1; ++InvalidCharIndex)
+	for(int InvalidCharIndex = 0; InvalidCharIndex < UE_ARRAY_COUNT(INVALID_OBJECTNAME_CHARACTERS) - 1; ++InvalidCharIndex)
 	{
 		if(InCharacter == INVALID_OBJECTNAME_CHARACTERS[InvalidCharIndex])
 		{

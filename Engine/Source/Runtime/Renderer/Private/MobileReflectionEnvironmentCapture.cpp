@@ -253,7 +253,7 @@ namespace MobileReflectionEnvironmentCapture
 					SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
 					FLinearColor UnusedColors[1] = { FLinearColor::Black };
-					PixelShader->SetColors(RHICmdList, UnusedColors, ARRAY_COUNT(UnusedColors));
+					PixelShader->SetColors(RHICmdList, UnusedColors, UE_ARRAY_COUNT(UnusedColors));
 
 					DrawRectangle(
 						RHICmdList,

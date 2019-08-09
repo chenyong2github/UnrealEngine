@@ -35,7 +35,7 @@ void UInputDelegateBinding::BindInputDelegates(const UClass* InClass, UInputComp
 	{
 		BindInputDelegates(InClass->GetSuperClass(), InputComponent);
 
-		for (int32 Index = 0; Index < ARRAY_COUNT(InputBindingClasses); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(InputBindingClasses); ++Index)
 		{
 			UInputDelegateBinding* BindingObject = CastChecked<UInputDelegateBinding>(
 				UBlueprintGeneratedClass::GetDynamicBindingObject(InClass, InputBindingClasses[Index])

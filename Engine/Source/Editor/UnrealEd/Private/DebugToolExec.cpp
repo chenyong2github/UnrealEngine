@@ -102,7 +102,7 @@ bool FDebugToolExec::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar 
 			if( ParseObject<UClass>( Cmd, TEXT("CLASS="), Class, ANY_PACKAGE ) == false )
 			{
 				TCHAR ClassName[256];
-				if ( FParse::Token(Cmd,ClassName,ARRAY_COUNT(ClassName), 1) )
+				if ( FParse::Token(Cmd,ClassName,UE_ARRAY_COUNT(ClassName), 1) )
 				{
 					Class = FindObject<UClass>( ANY_PACKAGE, ClassName);
 				}

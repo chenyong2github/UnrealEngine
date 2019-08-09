@@ -52,12 +52,12 @@ bool FCommandLine::Set(const TCHAR* NewCommandLine)
 {
 	if (!bIsInitialized)
 	{
-		FCString::Strncpy(OriginalCmdLine, NewCommandLine, ARRAY_COUNT(OriginalCmdLine));
-		FCString::Strncpy(LoggingOriginalCmdLine, NewCommandLine, ARRAY_COUNT(LoggingOriginalCmdLine));
+		FCString::Strncpy(OriginalCmdLine, NewCommandLine, UE_ARRAY_COUNT(OriginalCmdLine));
+		FCString::Strncpy(LoggingOriginalCmdLine, NewCommandLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine));
 	}
 
-	FCString::Strncpy( CmdLine, NewCommandLine, ARRAY_COUNT(CmdLine) );
-	FCString::Strncpy(LoggingCmdLine, NewCommandLine, ARRAY_COUNT(LoggingCmdLine));
+	FCString::Strncpy( CmdLine, NewCommandLine, UE_ARRAY_COUNT(CmdLine) );
+	FCString::Strncpy(LoggingCmdLine, NewCommandLine, UE_ARRAY_COUNT(LoggingCmdLine));
 	// If configured as part of the build, strip out any unapproved args
 	WhitelistCommandLines();
 
@@ -80,7 +80,7 @@ bool FCommandLine::Set(const TCHAR* NewCommandLine)
 
 void FCommandLine::Append(const TCHAR* AppendString)
 {
-	FCString::Strncat( CmdLine, AppendString, ARRAY_COUNT(CmdLine) );
+	FCString::Strncat( CmdLine, AppendString, UE_ARRAY_COUNT(CmdLine) );
 	// If configured as part of the build, strip out any unapproved args
 	WhitelistCommandLines();
 }
@@ -139,16 +139,16 @@ void FCommandLine::WhitelistCommandLines()
 	}
 	// Process the original command line
 	TArray<FString> OriginalList = FilterCommandLine(OriginalCmdLine);
-	BuildWhitelistCommandLine(OriginalCmdLine, ARRAY_COUNT(OriginalCmdLine), OriginalList);
+	BuildWhitelistCommandLine(OriginalCmdLine, UE_ARRAY_COUNT(OriginalCmdLine), OriginalList);
 	// Process the current command line
 	TArray<FString> CmdList = FilterCommandLine(CmdLine);
-	BuildWhitelistCommandLine(CmdLine, ARRAY_COUNT(CmdLine), CmdList);
+	BuildWhitelistCommandLine(CmdLine, UE_ARRAY_COUNT(CmdLine), CmdList);
 	// Process the command line for logging purposes
 	TArray<FString> LoggingCmdList = FilterCommandLineForLogging(LoggingCmdLine);
-	BuildWhitelistCommandLine(LoggingCmdLine, ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
+	BuildWhitelistCommandLine(LoggingCmdLine, UE_ARRAY_COUNT(LoggingCmdLine), LoggingCmdList);
 	// Process the original command line for logging purposes
 	TArray<FString> LoggingOriginalCmdList = FilterCommandLineForLogging(LoggingOriginalCmdLine);
-	BuildWhitelistCommandLine(LoggingOriginalCmdLine, ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
+	BuildWhitelistCommandLine(LoggingOriginalCmdLine, UE_ARRAY_COUNT(LoggingOriginalCmdLine), LoggingOriginalCmdList);
 }
 
 TArray<FString> FCommandLine::FilterCommandLine(TCHAR* CommandLine)

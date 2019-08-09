@@ -113,7 +113,7 @@ void FVulkanVertexInputStateInfo::Generate(FVulkanVertexDeclaration* VertexDecla
 	BindingsNum = 0;
 	BindingToStream.Reset();
 	StreamToBinding.Reset();
-	for (int32 i=0; i<ARRAY_COUNT(Bindings); i++)
+	for (int32 i=0; i<UE_ARRAY_COUNT(Bindings); i++)
 	{
 		if (!((1<<i) & BindingsMask))
 		{
@@ -129,7 +129,7 @@ void FVulkanVertexInputStateInfo::Generate(FVulkanVertexDeclaration* VertexDecla
 	}
 
 	// Clean originally placed bindings
-	FMemory::Memset(Bindings + BindingsNum, 0, sizeof(Bindings[0]) * (ARRAY_COUNT(Bindings)-BindingsNum));
+	FMemory::Memset(Bindings + BindingsNum, 0, sizeof(Bindings[0]) * (UE_ARRAY_COUNT(Bindings)-BindingsNum));
 
 	// Attributes are expected to be uninitialized/empty
 	check(AttributesNum == 0);

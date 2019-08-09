@@ -448,7 +448,7 @@ public:
 		const TCHAR* Str = InStr;
 		EFilterType FilterType = EFilterType::None;
 		TCHAR Filter[128];
-		if (FParse::Token(Str, Filter, ARRAY_COUNT(Filter), 0))
+		if (FParse::Token(Str, Filter, UE_ARRAY_COUNT(Filter), 0))
 		{
 			FString const FilterStr = Filter;
 			if (FilterStr == TEXT("all"))
@@ -474,7 +474,7 @@ public:
 		if (FilterType == EFilterType::Actor || FilterType == EFilterType::Class)
 		{
 			TCHAR Specifier[128];
-			if (FParse::Token(Str, Specifier, ARRAY_COUNT(Specifier), 0))
+			if (FParse::Token(Str, Specifier, UE_ARRAY_COUNT(Specifier), 0))
 			{
 				FString const SpecifierStr = FString(Specifier).TrimStart();
 

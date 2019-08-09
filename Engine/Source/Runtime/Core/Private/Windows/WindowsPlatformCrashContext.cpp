@@ -577,7 +577,7 @@ FORCENOINLINE void ReportAssert(const TCHAR* ErrorMessage, int NumStackFramesToI
 	FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
 
 	ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
-	::RaiseException( AssertExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
+	::RaiseException( AssertExceptionCode, 0, UE_ARRAY_COUNT(Arguments), Arguments );
 }
 
 FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesToIgnore)
@@ -588,7 +588,7 @@ FORCENOINLINE void ReportGPUCrash(const TCHAR* ErrorMessage, int NumStackFramesT
 	FAssertInfo Info(ErrorMessage, NumStackFramesToIgnore + 2); // +2 for this function and RaiseException()
 
 	ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
-	::RaiseException( GPUCrashExceptionCode, 0, ARRAY_COUNT(Arguments), Arguments );
+	::RaiseException( GPUCrashExceptionCode, 0, UE_ARRAY_COUNT(Arguments), Arguments );
 }
 
 void ReportHang(const TCHAR* ErrorMessage, const uint64* StackFrames, int32 NumStackFrames, uint32 HungThreadId)
@@ -695,7 +695,7 @@ void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord)
 		ErrorString += FString::Printf(TEXT("0x%08x"), (uint32)ExceptionRecord->ExceptionCode);
 	}
 
-	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, ARRAY_COUNT(GErrorExceptionDescription));
+	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, UE_ARRAY_COUNT(GErrorExceptionDescription));
 
 #undef HANDLE_CASE
 }
@@ -893,11 +893,11 @@ private:
 			if (ExceptionInfo->ExceptionRecord->ExceptionCode != 1 && ExceptionInfo->ExceptionRecord->ExceptionCode != AssertExceptionCode)
 			{
 				CreateExceptionInfoString(ExceptionInfo->ExceptionRecord);
-				FCString::Strncat(GErrorHist, GErrorExceptionDescription, ARRAY_COUNT(GErrorHist));
-				FCString::Strncat(GErrorHist, TEXT("\r\n\r\n"), ARRAY_COUNT(GErrorHist));
+				FCString::Strncat(GErrorHist, GErrorExceptionDescription, UE_ARRAY_COUNT(GErrorHist));
+				FCString::Strncat(GErrorHist, TEXT("\r\n\r\n"), UE_ARRAY_COUNT(GErrorHist));
 			}
 
-			FCString::Strncat(GErrorHist, ANSI_TO_TCHAR(StackTrace), ARRAY_COUNT(GErrorHist));
+			FCString::Strncat(GErrorHist, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(GErrorHist));
 
 			GMalloc->Free(StackTrace);
 		}

@@ -79,7 +79,7 @@ void FWindowsMixedRealityRHIModule::StartupModule()
 			NULL,
 			D3D11_CREATE_DEVICE_SINGLETHREADED | D3D11_CREATE_DEVICE_BGRA_SUPPORT,
 			RequestedFeatureLevels,
-			ARRAY_COUNT(RequestedFeatureLevels),
+			UE_ARRAY_COUNT(RequestedFeatureLevels),
 			D3D11_SDK_VERSION,
 			&D3DDevice,
 			&OutFeatureLevel,

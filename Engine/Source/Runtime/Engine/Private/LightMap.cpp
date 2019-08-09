@@ -2756,7 +2756,7 @@ int32 FLightMap2D::EncodeShadowTexture(ULevel* LightingScenario, struct FLightMa
 							ExtrapolatedFilterableComponents[i] = 0;
 						}
 
-						for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(Neighbors); NeighborIndex++)
+						for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors); NeighborIndex++)
 						{
 							if (static_cast<int32>(DestY) + Neighbors[NeighborIndex].Y >= 0
 								&& DestY + Neighbors[NeighborIndex].Y < MipSizeY
@@ -2975,7 +2975,7 @@ void FLightMap2D::Serialize(FArchive& Ar)
 
 	if (RenderCustomVersion >= FRenderingObjectVersion::LightmapHasShadowmapData)
 	{
-		for (int Channel = 0; Channel < ARRAY_COUNT(bShadowChannelValid); Channel++)
+		for (int Channel = 0; Channel < UE_ARRAY_COUNT(bShadowChannelValid); Channel++)
 		{
 			Ar << bShadowChannelValid[Channel];
 		}
@@ -3257,7 +3257,7 @@ bool FQuantizedLightmapData::HasNonZeroData() const
 
 			if (bHasSkyShadowing)
 			{
-				for (int32 Index = 0; Index < ARRAY_COUNT(LightmapSample.SkyOcclusion); Index++)
+				for (int32 Index = 0; Index < UE_ARRAY_COUNT(LightmapSample.SkyOcclusion); Index++)
 				{
 					if (LightmapSample.SkyOcclusion[Index] != 0)
 					{

@@ -348,7 +348,7 @@ public:
 
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
-		for (int32 i = 0; i < ARRAY_COUNT(GSupportedTextureFormatNames); ++i)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(GSupportedTextureFormatNames); ++i)
 		{
 			OutFormats.Add(GSupportedTextureFormatNames[i]);
 		}

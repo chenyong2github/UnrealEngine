@@ -553,7 +553,7 @@ struct NUTUtil
 		bool bReturnVal = false;
 		TCHAR Temp[4096] = TEXT("");
 
-		if (ParseValue(Stream, Match, Temp, ARRAY_COUNT(Temp), bShouldStopOnComma))
+		if (ParseValue(Stream, Match, Temp, UE_ARRAY_COUNT(Temp), bShouldStopOnComma))
 		{
 			Value = Temp;
 			bReturnVal = true;

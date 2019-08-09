@@ -42,11 +42,11 @@ static inline const TCHAR* GetSectionName(bool bIsEditor)
 		static int32 SystemSettingsStrLen = FCString::Strlen(ReturnedOverrideName);
 		if (FCString::Strnicmp(*OverrideSubName, TEXT("SystemSettings"), SystemSettingsStrLen) == 0)
 		{
-			FCString::Strcpy(ReturnedOverrideName + SystemSettingsStrLen, ARRAY_COUNT(ReturnedOverrideName), (*OverrideSubName + SystemSettingsStrLen));
+			FCString::Strcpy(ReturnedOverrideName + SystemSettingsStrLen, UE_ARRAY_COUNT(ReturnedOverrideName), (*OverrideSubName + SystemSettingsStrLen));
 		}
 		else
 		{
-			FCString::Strcpy(ReturnedOverrideName + SystemSettingsStrLen, ARRAY_COUNT(ReturnedOverrideName), *OverrideSubName);
+			FCString::Strcpy(ReturnedOverrideName + SystemSettingsStrLen, UE_ARRAY_COUNT(ReturnedOverrideName), *OverrideSubName);
 		}
 		return ReturnedOverrideName;
 	}

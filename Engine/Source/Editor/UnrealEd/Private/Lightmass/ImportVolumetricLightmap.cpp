@@ -109,7 +109,7 @@ bool CopyFromBrickmapTexel(
 
 		*(FFloat3Packed*)&BrickData.AmbientVector.Data[LinearDestCellIndex * sizeof(FFloat3Packed)] = FilteredVolumeLookupReconverted<FFloat3Packed>(BrickTextureCoordinate, CurrentLevelData.BrickDataDimensions, (const FFloat3Packed*)BrickData.AmbientVector.Data.GetData());
 		
-		for (int32 i = 0; i < ARRAY_COUNT(BrickData.SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(BrickData.SHCoefficients); i++)
 		{
 			*(FColor*)&BrickData.SHCoefficients[i].Data[LinearDestCellIndex * sizeof(FColor)] = FilteredVolumeLookupReconverted<FColor>(BrickTextureCoordinate, CurrentLevelData.BrickDataDimensions, (const FColor*)BrickData.SHCoefficients[i].Data.GetData());
 		}
@@ -161,7 +161,7 @@ void FLightmassProcessor::ImportIrradianceTasks(bool& bGenerateSkyShadowing, TAr
 				Swarm.ReadChannel(Channel, &NewBrick.AverageClosestGeometryDistance, sizeof(NewBrick.AverageClosestGeometryDistance));
 				ReadArray(Channel, NewBrick.AmbientVector);
 
-				for (int32 i = 0; i < ARRAY_COUNT(NewBrick.SHCoefficients); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(NewBrick.SHCoefficients); i++)
 				{
 					ReadArray(Channel, NewBrick.SHCoefficients[i]);
 				}
@@ -197,7 +197,7 @@ int32 NumDilateOverEmbeddedVoxelsPasses = 2;
 struct FFilteredBrickData
 {
 	FFloat3Packed AmbientVector;
-	FColor SHCoefficients[ARRAY_COUNT(FImportedVolumetricLightmapBrick::SHCoefficients)];
+	FColor SHCoefficients[UE_ARRAY_COUNT(FImportedVolumetricLightmapBrick::SHCoefficients)];
 	uint8 DirectionalLightShadowing;
 };
 
@@ -270,10 +270,10 @@ void FilterWithNeighbors(
 					{
 						//@todo - filter SkyBentNormal from neighbors too
 						FLinearColor AmbientVector = FLinearColor(0, 0, 0, 0);
-						FLinearColor SHCoefficients[ARRAY_COUNT(Brick.SHCoefficients)];
+						FLinearColor SHCoefficients[UE_ARRAY_COUNT(Brick.SHCoefficients)];
 						FLinearColor DirectionalLightShadowing = FLinearColor(0, 0, 0, 0);
 
-						for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+						for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 						{
 							SHCoefficients[i] = FLinearColor(0, 0, 0, 0);
 						}
@@ -316,9 +316,9 @@ void FilterWithNeighbors(
 												FLinearColor NeighborAmbientVector = FilteredVolumeLookup<FFloat3Packed>(BrickTextureCoordinate, CurrentLevelData.BrickDataDimensions, (const FFloat3Packed*)CurrentLevelData.BrickData.AmbientVector.Data.GetData());
 												AmbientVector += NeighborAmbientVector * Weight;
 
-												for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+												for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 												{
-													static_assert(ARRAY_COUNT(SHCoefficients) == 6, "Assuming 2 SHCoefficient vectors per color channel");
+													static_assert(UE_ARRAY_COUNT(SHCoefficients) == 6, "Assuming 2 SHCoefficient vectors per color channel");
 
 													// Weight by ambient before filtering, normalized SH coefficients don't filter properly
 													float AmbientCoefficient = NeighborAmbientVector.Component(i / 2);
@@ -349,9 +349,9 @@ void FilterWithNeighbors(
 							const FLinearColor FilteredAmbientColor = AmbientVector * InvTotalWeight;
 							FilteredBrickData[LinearVoxelIndex].AmbientVector = ConvertFromLinearColor<FFloat3Packed>(FilteredAmbientColor);
 
-							for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+							for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 							{
-								static_assert(ARRAY_COUNT(SHCoefficients) == 6, "Assuming 2 SHCoefficient vectors per color channel");
+								static_assert(UE_ARRAY_COUNT(SHCoefficients) == 6, "Assuming 2 SHCoefficient vectors per color channel");
 
 								float AmbientCoefficient = FMath::Max(FilteredAmbientColor.Component(i / 2), KINDA_SMALL_NUMBER);
 
@@ -385,7 +385,7 @@ void FilterWithNeighbors(
 						FFloat3Packed* DestAmbientVector = (FFloat3Packed*)&CurrentLevelData.BrickData.AmbientVector.Data[LinearBrickLayoutCellIndex * sizeof(FFloat3Packed)];
 						*DestAmbientVector = FilteredBrickData[LinearVoxelIndex].AmbientVector;
 
-						for (int32 i = 0; i < ARRAY_COUNT(FilteredBrickData[LinearVoxelIndex].SHCoefficients); i++)
+						for (int32 i = 0; i < UE_ARRAY_COUNT(FilteredBrickData[LinearVoxelIndex].SHCoefficients); i++)
 						{
 							FColor* DestCoefficients = (FColor*)&CurrentLevelData.BrickData.SHCoefficients[i].Data[LinearBrickLayoutCellIndex * sizeof(FColor)];
 							*DestCoefficients = FilteredBrickData[LinearVoxelIndex].SHCoefficients[i];
@@ -981,7 +981,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 		CurrentLevelData.BrickData.SkyBentNormal.Format = PF_B8G8R8A8;
 		CurrentLevelData.BrickData.DirectionalLightShadowing.Format = PF_G8;
 
-		for (int32 i = 0; i < ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
 		{
 			CurrentLevelData.BrickData.SHCoefficients[i].Format = PF_B8G8R8A8;
 		}
@@ -1041,7 +1041,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 
 		CurrentLevelData.BrickData.DirectionalLightShadowing.Resize(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.DirectionalLightShadowing.Format].BlockBytes);
 
-		for (int32 i = 0; i < ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
 		{
 			const int32 Stride = GPixelFormats[CurrentLevelData.BrickData.SHCoefficients[i].Format].BlockBytes;
 			CurrentLevelData.BrickData.SHCoefficients[i].Resize(TotalBrickDataSize * Stride);
@@ -1076,7 +1076,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 				(const uint8*)Brick.AmbientVector.GetData(),
 				CurrentLevelData.BrickData.AmbientVector.Data.GetData());
 
-			for (int32 i = 0; i < ARRAY_COUNT(Brick.SHCoefficients); i++)
+			for (int32 i = 0; i < UE_ARRAY_COUNT(Brick.SHCoefficients); i++)
 			{
 				CopyBrickToAtlasVolumeTexture(
 					GPixelFormats[CurrentLevelData.BrickData.SHCoefficients[i].Format].BlockBytes,
@@ -1229,7 +1229,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 	int32 BrickDataSize = CurrentLevelData.BrickData.AmbientVector.Data.Num() + CurrentLevelData.BrickData.SkyBentNormal.Data.Num() + CurrentLevelData.BrickData.DirectionalLightShadowing.Data.Num()
 			+ CurrentLevelData.BrickData.LQLightColor.Data.Num() + CurrentLevelData.BrickData.LQLightColor.Data.Num();
 
-	for (int32 i = 0; i < ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
 	{
 		BrickDataSize += CurrentLevelData.BrickData.SHCoefficients[i].Data.Num();
 	}

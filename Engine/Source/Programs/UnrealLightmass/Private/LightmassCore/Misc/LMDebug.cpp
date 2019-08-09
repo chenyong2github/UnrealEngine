@@ -94,10 +94,10 @@ void appHandleCriticalError()
 				FCString::Strcpy(ChangelistVersionStr, *FString::FromInt(0));
 
 				TCHAR CmdLine[2048];
-				FCString::Strncpy(CmdLine, FCommandLine::Get(), ARRAY_COUNT(CmdLine));
-				FCString::Strncat(CmdLine, TEXT(" -unattended"), ARRAY_COUNT(CmdLine));
+				FCString::Strncpy(CmdLine, FCommandLine::Get(), UE_ARRAY_COUNT(CmdLine));
+				FCString::Strncat(CmdLine, TEXT(" -unattended"), UE_ARRAY_COUNT(CmdLine));
 				TCHAR BaseDir[260];
-				FCString::Strncpy(BaseDir, FPlatformProcess::BaseDir(), ARRAY_COUNT(BaseDir));
+				FCString::Strncpy(BaseDir, FPlatformProcess::BaseDir(), UE_ARRAY_COUNT(BaseDir));
 				TCHAR separator = 0;
 
 				TCHAR EngineMode[64];

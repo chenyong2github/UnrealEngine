@@ -296,7 +296,7 @@ struct FUnitExpressionParser
 			FStringToken UnitToken;
 			const FStringToken StartingToken = NumberToken.GetValue();
 
-			for (int32 Index = 0; Index < ARRAY_COUNT(ParseCandidates); ++Index)
+			for (int32 Index = 0; Index < UE_ARRAY_COUNT(ParseCandidates); ++Index)
 			{
 				TOptional<FStringToken> CandidateUnitToken = Stream.ParseTokenIgnoreCase(ParseCandidates[Index].String, &NumberToken.GetValue());
 				const size_t MatchedCharCount = NumberToken.GetValue().GetTokenEndPos() - StartingToken.GetTokenEndPos();
@@ -499,8 +499,8 @@ EUnitType FUnitConversion::GetUnitType(EUnit InUnit)
 /** Get the unit abbreviation the specified unit type */
 const TCHAR* FUnitConversion::GetUnitDisplayString(EUnit Unit)
 {
-	static_assert(ARRAY_COUNT(UnitTypes) == (uint8)EUnit::Unspecified, "Type array does not match size of unit enum");
-	static_assert(ARRAY_COUNT(DisplayStrings) == (uint8)EUnit::Unspecified, "Display String array does not match size of unit enum");
+	static_assert(UE_ARRAY_COUNT(UnitTypes) == (uint8)EUnit::Unspecified, "Type array does not match size of unit enum");
+	static_assert(UE_ARRAY_COUNT(DisplayStrings) == (uint8)EUnit::Unspecified, "Display String array does not match size of unit enum");
 	
 	if (Unit != EUnit::Unspecified)
 	{
@@ -517,7 +517,7 @@ TOptional<EUnit> FUnitConversion::UnitFromString(const TCHAR* UnitString)
 		return TOptional<EUnit>();
 	}
 
-	for (int32 Index = 0; Index < ARRAY_COUNT(ParseCandidates); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(ParseCandidates); ++Index)
 	{
 		if (FCString::Stricmp(UnitString, ParseCandidates[Index].String) == 0)
 		{

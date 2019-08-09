@@ -213,7 +213,7 @@ public:
 
 	void GetReferencedTextures(TArray<UTexture2D*>& OutTextures) const
 	{
-		for (int32 BasisIndex = 0; BasisIndex < ARRAY_COUNT(Textures); BasisIndex++)
+		for (int32 BasisIndex = 0; BasisIndex < UE_ARRAY_COUNT(Textures); BasisIndex++)
 		{
 			if (Textures[BasisIndex])
 			{

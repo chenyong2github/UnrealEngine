@@ -34,8 +34,8 @@ void FMacErrorOutputDevice::Serialize( const TCHAR* Msg, ELogVerbosity::Type Ver
 		{
 			UE_LOG(LogMac, Error, TEXT("appError called: %s"), Msg );
 		}
-		FCString::Strncpy( GErrorHist, Msg, ARRAY_COUNT(GErrorHist) - 5 );
-		FCString::Strncat( GErrorHist, TEXT("\r\n\r\n"), ARRAY_COUNT(GErrorHist) - 1  );
+		FCString::Strncpy( GErrorHist, Msg, UE_ARRAY_COUNT(GErrorHist) - 5 );
+		FCString::Strncat( GErrorHist, TEXT("\r\n\r\n"), UE_ARRAY_COUNT(GErrorHist) - 1  );
 		ErrorPos = FCString::Strlen(GErrorHist);
 	}
 	else
@@ -86,7 +86,7 @@ void FMacErrorOutputDevice::HandleError()
 	GIsRunning				= 0;
 	GIsCriticalError		= 1;
 	GLogConsole				= NULL;
-	GErrorHist[ARRAY_COUNT(GErrorHist)-1]=0;
+	GErrorHist[UE_ARRAY_COUNT(GErrorHist)-1]=0;
 
 	// Dump the error and flush the log.
 	UE_LOG(LogMac, Log, TEXT("=== Critical error: ===") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR, GErrorExceptionDescription);

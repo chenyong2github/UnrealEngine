@@ -1604,7 +1604,7 @@ bool FPhysicsInterface_ImmediatePhysX::LineTrace_Geom(FHitResult& OutHit, const 
 						const bool bShapeIsComplex = ShapeRef.Shape.Geometry->getType() == PxGeometryType::Enum::eTRIANGLEMESH;
 						if((bTraceComplex && bShapeIsComplex) || (!bTraceComplex && !bShapeIsComplex))
 						{
-							const int32 ArraySize = ARRAY_COUNT(PHits);
+							const int32 ArraySize = UE_ARRAY_COUNT(PHits);
 							// #PHYS2 This may not work with shared shapes (GetTransform requires getActor to return non-nullptr) verify
 							PxTransform ShapeTransform = ShapeRef.Shape.LocalTM;
 							const PxI32 NumHits = PxGeometryQuery::raycast(U2PVector(InStart), U2PVector(Delta / DeltaMag), *ShapeRef.Shape.Geometry, ShapeTransform, DeltaMag, PHitFlags, ArraySize, PHits);

@@ -59,7 +59,7 @@ void APlayerState::UpdatePing(float InPing)
 		//	(misses the latest ping update, but averages a full 4 seconds data)
 		RecalculateAvgPing();
 
-		CurPingBucket = (CurPingBucket + 1) % ARRAY_COUNT(PingBucket);
+		CurPingBucket = (CurPingBucket + 1) % UE_ARRAY_COUNT(PingBucket);
 		CurPingBucketTimestamp = CurTime;
 
 
@@ -100,7 +100,7 @@ void APlayerState::RecalculateAvgPing()
 	int32 Sum = 0;
 	int32 Count = 0;
 
-	for (uint8 i=0; i<ARRAY_COUNT(PingBucket); i++)
+	for (uint8 i=0; i<UE_ARRAY_COUNT(PingBucket); i++)
 	{
 		Sum += PingBucket[i].PingSum;
 		Count += PingBucket[i].PingCount;
@@ -120,12 +120,12 @@ void APlayerState::RecalculateAvgPing()
 	PingBucketV2[CurPingBucket].AvgPingV2 = NumValidValues > 0 ? SumV2 / NumValidValues : MAX_flt;
 
 	float AvgSumV2 = 0.0f;
-	for (int32 i = 0; i < ARRAY_COUNT(PingBucketV2); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(PingBucketV2); i++)
 	{
 		AvgSumV2 += PingBucketV2[i].AvgPingV2;
 	}
 
-	ExactPingV2 = AvgSumV2 / ARRAY_COUNT(PingBucketV2);
+	ExactPingV2 = AvgSumV2 / UE_ARRAY_COUNT(PingBucketV2);
 
 	// Calculate the average, and divide it by 4 to optimize replication
 	ExactPing = (Count > 0 ? ((float)Sum / (float)Count) : 0.f);

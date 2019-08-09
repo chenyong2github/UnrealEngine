@@ -41,7 +41,7 @@ void ConstructYGridLines(const FCurveEditorScreenSpace& ViewSpace, uint8 InMinor
 	const float Order = FMath::Pow(10.f, FMath::FloorToInt(FMath::LogX(10.f, GridPixelSpacing / ViewSpace.PixelsPerOutput())));
 
 	static const int32 DesirableBases[]  = { 2, 5 };
-	static const int32 NumDesirableBases = ARRAY_COUNT(DesirableBases);
+	static const int32 NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
 
 	const int32 Scale = FMath::RoundToInt(GridPixelSpacing / ViewSpace.PixelsPerOutput() / Order);
 	int32 Base = DesirableBases[0];

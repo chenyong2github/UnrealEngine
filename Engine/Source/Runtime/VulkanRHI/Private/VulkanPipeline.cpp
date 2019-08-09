@@ -930,12 +930,12 @@ void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::ReadFr
 			New->ReadFrom(Source[Index]);
 		}
 	};
-	CopyAttachmentRefs(ColorAttachments, RTLayout.ColorReferences, ARRAY_COUNT(RTLayout.ColorReferences));
-	CopyAttachmentRefs(ResolveAttachments, RTLayout.ResolveReferences, ARRAY_COUNT(RTLayout.ResolveReferences));
+	CopyAttachmentRefs(ColorAttachments, RTLayout.ColorReferences, UE_ARRAY_COUNT(RTLayout.ColorReferences));
+	CopyAttachmentRefs(ResolveAttachments, RTLayout.ResolveReferences, UE_ARRAY_COUNT(RTLayout.ResolveReferences));
 	DepthStencil.ReadFrom(RTLayout.DepthStencilReference);
 
-	Descriptions.AddZeroed(ARRAY_COUNT(RTLayout.Desc));
-	for (int32 Index = 0; Index < ARRAY_COUNT(RTLayout.Desc); ++Index)
+	Descriptions.AddZeroed(UE_ARRAY_COUNT(RTLayout.Desc));
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(RTLayout.Desc); ++Index)
 	{
 		Descriptions[Index].ReadFrom(RTLayout.Desc[Index]);
 	}
@@ -964,11 +964,11 @@ void FVulkanPipelineStateCacheManager::FGfxPipelineEntry::FRenderTargets::WriteI
 			Source[Index].WriteInto(*Dest);
 		}
 	};
-	CopyAttachmentRefs(ColorAttachments, Out.ColorReferences, ARRAY_COUNT(Out.ColorReferences));
-	CopyAttachmentRefs(ResolveAttachments, Out.ResolveReferences, ARRAY_COUNT(Out.ResolveReferences));
+	CopyAttachmentRefs(ColorAttachments, Out.ColorReferences, UE_ARRAY_COUNT(Out.ColorReferences));
+	CopyAttachmentRefs(ResolveAttachments, Out.ResolveReferences, UE_ARRAY_COUNT(Out.ResolveReferences));
 	DepthStencil.WriteInto(Out.DepthStencilReference);
 
-	for (int32 Index = 0; Index < ARRAY_COUNT(Out.Desc); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Out.Desc); ++Index)
 	{
 		Descriptions[Index].WriteInto(Out.Desc[Index]);
 	}
@@ -1012,7 +1012,7 @@ FArchive& operator << (FArchive& Ar, FVulkanPipelineStateCacheManager::FGfxPipel
 
 	Ar << Entry.DepthStencil;
 
-	for (int32 Index = 0; Index < ARRAY_COUNT(Entry.ShaderHashes.Stages); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(Entry.ShaderHashes.Stages); ++Index)
 	{
 		Ar << Entry.ShaderHashes.Stages[Index];
 	}

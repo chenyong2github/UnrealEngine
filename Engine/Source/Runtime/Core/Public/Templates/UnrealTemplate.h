@@ -130,14 +130,15 @@ FORCEINLINE const T& AsConst(T& Ref)
 
 #ifdef __clang__
 	template <typename T>
-	auto ArrayCountHelper(T& t) -> typename TEnableIf<__is_array(T), char(&)[sizeof(t) / sizeof(t[0]) + 1]>::Type;
+	auto UE4ArrayCountHelper(T& t) -> typename TEnableIf<__is_array(T), char(&)[sizeof(t) / sizeof(t[0]) + 1]>::Type;
 #else
 	template <typename T, uint32 N>
-	char (&ArrayCountHelper(const T (&)[N]))[N + 1];
+	char (&UE4ArrayCountHelper(const T (&)[N]))[N + 1];
 #endif
 
 // Number of elements in an array.
-#define ARRAY_COUNT( array ) (sizeof(ArrayCountHelper(array)) - 1)
+#define UE_ARRAY_COUNT( array ) (sizeof(UE4ArrayCountHelper(array)) - 1)
+#define ARRAY_COUNT( array ) DEPRECATED_MACRO(4.24, "The ARRAY_COUNT macro has been deprecated in favor of UE_ARRAY_COUNT.") UE_ARRAY_COUNT( array )
 
 // Offset of a struct member.
 #ifndef UNREAL_CODE_ANALYZER

@@ -4981,25 +4981,25 @@ void FMatinee::OnChangeSnapSize( TSharedPtr< FString > SelectedString, ESelectIn
 	bool bFound = SnapComboStrings.Find(SelectedString, NewSelection);
 	check(bFound);
 
-	if(NewSelection == ARRAY_COUNT(InterpEdSnapSizes)+ARRAY_COUNT(InterpEdFPSSnapSizes))
+	if(NewSelection == UE_ARRAY_COUNT(InterpEdSnapSizes)+UE_ARRAY_COUNT(InterpEdFPSSnapSizes))
 	{
 		bSnapToFrames = false;
 		bSnapToKeys = true;
 		SnapAmount = 1.0f / 30.0f;	// Shouldn't be used
 		CurveEd->SetInSnap(false, SnapAmount, bSnapToFrames);
 	}
-	else if(NewSelection<ARRAY_COUNT(InterpEdSnapSizes))	// see if they picked a second snap amount
+	else if(NewSelection<UE_ARRAY_COUNT(InterpEdSnapSizes))	// see if they picked a second snap amount
 	{
 		bSnapToFrames = false;
 		bSnapToKeys = false;
 		SnapAmount = InterpEdSnapSizes[NewSelection];
 		CurveEd->SetInSnap(bSnapEnabled, SnapAmount, bSnapToFrames);
 	}
-	else if(NewSelection<ARRAY_COUNT(InterpEdFPSSnapSizes)+ARRAY_COUNT(InterpEdSnapSizes))	// See if they picked a FPS snap amount.
+	else if(NewSelection<UE_ARRAY_COUNT(InterpEdFPSSnapSizes)+UE_ARRAY_COUNT(InterpEdSnapSizes))	// See if they picked a FPS snap amount.
 	{
 		bSnapToFrames = true;
 		bSnapToKeys = false;
-		SnapAmount = InterpEdFPSSnapSizes[NewSelection-ARRAY_COUNT(InterpEdSnapSizes)];
+		SnapAmount = InterpEdFPSSnapSizes[NewSelection-UE_ARRAY_COUNT(InterpEdSnapSizes)];
 		CurveEd->SetInSnap(bSnapEnabled, SnapAmount, bSnapToFrames);
 	}
 

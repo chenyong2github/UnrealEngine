@@ -999,7 +999,7 @@ void FPaths::NormalizeDirectoryName(FString& InPath)
 bool FPaths::CollapseRelativeDirectories(FString& InPath)
 {
 	const TCHAR ParentDir[] = TEXT("/..");
-	const int32 ParentDirLength = ARRAY_COUNT( ParentDir ) - 1; // To avoid hardcoded values
+	const int32 ParentDirLength = UE_ARRAY_COUNT( ParentDir ) - 1; // To avoid hardcoded values
 
 	for (;;)
 	{

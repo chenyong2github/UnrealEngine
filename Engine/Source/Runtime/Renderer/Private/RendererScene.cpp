@@ -182,7 +182,7 @@ FSceneViewState::FSceneViewState()
 
 	HeightfieldLightingAtlas = NULL;
 
-	for (int32 CascadeIndex = 0; CascadeIndex < ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
+	for (int32 CascadeIndex = 0; CascadeIndex < UE_ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
 	{
 		TranslucencyLightingCacheAllocations[CascadeIndex] = NULL;
 	}
@@ -249,7 +249,7 @@ FSceneViewState::~FSceneViewState()
 	CachedVisibilityChunk = NULL;
 	ShadowOcclusionQueryMaps.Reset();
 
-	for (int32 CascadeIndex = 0; CascadeIndex < ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
+	for (int32 CascadeIndex = 0; CascadeIndex < UE_ARRAY_COUNT(TranslucencyLightingCacheAllocations); CascadeIndex++)
 	{
 		delete TranslucencyLightingCacheAllocations[CascadeIndex];
 	}
@@ -1006,7 +1006,7 @@ void FPersistentUniformBuffers::Initialize()
 	MobileDistortionPassUniformBuffer = TUniformBufferRef<FMobileDistortionPassUniformParameters>::CreateUniformBufferImmediate(MobileDistortionPassUniformParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	
 	FMobileDirectionalLightShaderParameters MobileDirectionalLightShaderParameters = {};
-	for (int32 Index = 0; Index < ARRAY_COUNT(MobileDirectionalLightUniformBuffers); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(MobileDirectionalLightUniformBuffers); ++Index)
 	{
 		MobileDirectionalLightUniformBuffers[Index] = TUniformBufferRef<FMobileDirectionalLightShaderParameters>::CreateUniformBufferImmediate(MobileDirectionalLightShaderParameters, UniformBuffer_MultiFrame, EUniformBufferValidation::None);
 	}
@@ -2764,7 +2764,7 @@ void FScene::RemoveLightSceneInfo_RenderThread(FLightSceneInfo* LightSceneInfo)
 #endif
 
 		    // check MobileDirectionalLights
-		    for (int32 LightChannelIdx = 0; LightChannelIdx < ARRAY_COUNT(MobileDirectionalLights); LightChannelIdx++)
+		    for (int32 LightChannelIdx = 0; LightChannelIdx < UE_ARRAY_COUNT(MobileDirectionalLights); LightChannelIdx++)
 		    {
 			    if (LightSceneInfo == MobileDirectionalLights[LightChannelIdx])
 			    {

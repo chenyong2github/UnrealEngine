@@ -413,7 +413,7 @@ bool FApplePlatformSymbolication::SymbolInfoForStrippedSymbol(FApplePlatformSymb
 				ANSICHAR const* FunctionName = CSSymbolGetName(Symbol);
 				if(FunctionName)
 				{
-					FCStringAnsi::Strcpy(Info.FunctionName, ARRAY_COUNT(Info.FunctionName), FunctionName);
+					FCStringAnsi::Strcpy(Info.FunctionName, UE_ARRAY_COUNT(Info.FunctionName), FunctionName);
 				}
 				
 				CSRange Range = CSSymbolGetRange(Symbol);
@@ -429,7 +429,7 @@ bool FApplePlatformSymbolication::SymbolInfoForStrippedSymbol(FApplePlatformSymb
 					ANSICHAR const* FileName = CSSourceInfoGetPath(SymbolInfo);
 					if(FileName)
 					{
-						FCStringAnsi::Strcpy(Info.Filename, ARRAY_COUNT(Info.FunctionName), FileName);
+						FCStringAnsi::Strcpy(Info.Filename, UE_ARRAY_COUNT(Info.FunctionName), FileName);
 					}
 				}
 				
@@ -458,8 +458,8 @@ bool FApplePlatformSymbolication::SymbolInfoForAddress(uint64 ProgramCounter, FP
 			if(!CSIsNull(Symbol))
 			{
 				out_SymbolInfo.LineNumber = CSSourceInfoGetLineNumber(Symbol);
-				FCStringAnsi::Strcpy(out_SymbolInfo.Filename, ARRAY_COUNT(out_SymbolInfo.Filename), CSSourceInfoGetPath(Symbol));
-				FCStringAnsi::Strcpy(out_SymbolInfo.FunctionName, ARRAY_COUNT(out_SymbolInfo.FunctionName), CSSymbolGetName(CSSourceInfoGetSymbol(Symbol)));
+				FCStringAnsi::Strcpy(out_SymbolInfo.Filename, UE_ARRAY_COUNT(out_SymbolInfo.Filename), CSSourceInfoGetPath(Symbol));
+				FCStringAnsi::Strcpy(out_SymbolInfo.FunctionName, UE_ARRAY_COUNT(out_SymbolInfo.FunctionName), CSSymbolGetName(CSSourceInfoGetSymbol(Symbol)));
 				CSRange CodeRange = CSSourceInfoGetRange(Symbol);
 				out_SymbolInfo.SymbolDisplacement = (ProgramCounter - CodeRange.Location);
 				
@@ -467,7 +467,7 @@ bool FApplePlatformSymbolication::SymbolInfoForAddress(uint64 ProgramCounter, FP
 				if(!CSIsNull(Owner))
 				{
 					ANSICHAR const* DylibName = CSSymbolOwnerGetName(Owner);
-					FCStringAnsi::Strcpy(out_SymbolInfo.ModuleName, ARRAY_COUNT(out_SymbolInfo.ModuleName), DylibName);
+					FCStringAnsi::Strcpy(out_SymbolInfo.ModuleName, UE_ARRAY_COUNT(out_SymbolInfo.ModuleName), DylibName);
 					
 					bOK = out_SymbolInfo.LineNumber != 0;
 				}

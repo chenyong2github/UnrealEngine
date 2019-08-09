@@ -1287,7 +1287,7 @@ namespace BuildPromotionTestHelper
 				const FString SurroundChannels[] = { TEXT("_fl"), TEXT("_fr"), TEXT("_fc"), TEXT("_lf"), TEXT("_sl"), TEXT("_sr"), TEXT("_bl"), TEXT("_br") };
 
 				USoundWave* ImportedSound = NULL;
-				for (int32 ChannelID = 0; ChannelID < ARRAY_COUNT(SurroundChannels); ++ChannelID)
+				for (int32 ChannelID = 0; ChannelID < UE_ARRAY_COUNT(SurroundChannels); ++ChannelID)
 				{
 					const FString ChannelFileName = FString::Printf(TEXT("%s%s.WAV"),*BaseFileName,*SurroundChannels[ChannelID]);
 					if (FPaths::FileExists(ChannelFileName))
@@ -1476,7 +1476,7 @@ namespace BuildPromotionTestHelper
 					TEXT("Black"),	TEXT("(R=0.0f,G=0.0f,B=0.0f)"),
 					TEXT("White"),	TEXT("(R=1.0f,G=1.0f,B=1.0f)") };
 
-				const int32 ChosenIndex = FMath::RandHelper(ARRAY_COUNT(AvailableColors) / 2);
+				const int32 ChosenIndex = FMath::RandHelper(UE_ARRAY_COUNT(AvailableColors) / 2);
 				ChosenMaterialColor = AvailableColors[ChosenIndex * 2];
 				const FString ColorValue = AvailableColors[(ChosenIndex * 2)+1];
 

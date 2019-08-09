@@ -998,7 +998,7 @@ public:
 			FName(TEXT("Color15"))
 		};
 
-		for (int32 i = 0; i < ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(ColorNames) && i < LayerColors.Num(); i++)
 		{
 			if (ParameterInfo.Name == ColorNames[i])
 			{

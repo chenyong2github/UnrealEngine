@@ -112,7 +112,7 @@ void FSynthBenchmark::Run(FSynthBenchmarkResults& InOut, bool bGPUBenchmark, flo
 	InOut.CPUStats[1] = FSynthBenchmarkStat(TEXT("Fractal"), 0.0286f, TEXT("s/Run"), 1.5f);
 	InOut.CPUStats[1].SetMeasuredTime(RunBenchmark(WorkScale, FractalBenchmark));
 
-	for(uint32 i = 0; i < ARRAY_COUNT(InOut.CPUStats); ++i)
+	for(uint32 i = 0; i < UE_ARRAY_COUNT(InOut.CPUStats); ++i)
 	{
 		UE_LOG(LogSynthBenchmark, Display, TEXT("         ... %f %s '%s'"), InOut.CPUStats[i].GetNormalizedTime(), InOut.CPUStats[i].GetValueType(), InOut.CPUStats[i].GetDesc());
 	}
@@ -130,7 +130,7 @@ void FSynthBenchmark::Run(FSynthBenchmarkResults& InOut, bool bGPUBenchmark, flo
 	UE_LOG(LogSynthBenchmark, Display, TEXT("  NumberOfCores (physical): %d"), FPlatformMisc::NumberOfCores());
 	UE_LOG(LogSynthBenchmark, Display, TEXT("  NumberOfCores (logical): %d"), FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 
-	for (uint32 MethodId = 0; MethodId < ARRAY_COUNT(InOut.CPUStats); ++MethodId)
+	for (uint32 MethodId = 0; MethodId < UE_ARRAY_COUNT(InOut.CPUStats); ++MethodId)
 	{
 		UE_LOG(LogSynthBenchmark, Display, TEXT("  CPU Perf Index %d: %.1f (weight %.2f)"), MethodId, InOut.CPUStats[MethodId].ComputePerfIndex(), InOut.CPUStats[MethodId].GetWeight());
 	}
@@ -218,7 +218,7 @@ void FSynthBenchmark::Run(FSynthBenchmarkResults& InOut, bool bGPUBenchmark, flo
 				PrintGPUStats(InOut.GPUStats, TEXT(""));
 				UE_LOG(LogSynthBenchmark, Display, TEXT(""));
 
-				for (uint32 MethodId = 0; MethodId < ARRAY_COUNT(InOut.GPUStats); ++MethodId)
+				for (uint32 MethodId = 0; MethodId < UE_ARRAY_COUNT(InOut.GPUStats); ++MethodId)
 				{
 					UE_LOG(LogSynthBenchmark, Display, TEXT("  GPU Perf Index %d: %.1f (weight %.2f)"), MethodId, InOut.GPUStats[MethodId].ComputePerfIndex(), InOut.GPUStats[MethodId].GetWeight());
 				}

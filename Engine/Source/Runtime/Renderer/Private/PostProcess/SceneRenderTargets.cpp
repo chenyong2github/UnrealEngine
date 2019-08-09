@@ -307,7 +307,7 @@ inline const TCHAR* GetSceneColorTargetName(EShadingPath ShadingPath)
 		TEXT("SceneColorMobile"), 
 		TEXT("SceneColorDeferred")
 	};
-	check((uint32)ShadingPath < ARRAY_COUNT(SceneColorNames));
+	check((uint32)ShadingPath < UE_ARRAY_COUNT(SceneColorNames));
 	return SceneColorNames[(uint32)ShadingPath];
 }
 
@@ -2268,7 +2268,7 @@ const FTexture2DRHIRef& FSceneRenderTargets::GetOptionalShadowDepthColorSurface(
 {
 	// Look for matching resolution
 	int32 EmptySlot = -1;
-	for (int32 Index = 0; Index < ARRAY_COUNT(OptionalShadowDepthColor); Index++)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(OptionalShadowDepthColor); Index++)
 	{
 		if (OptionalShadowDepthColor[Index])
 		{
@@ -2665,17 +2665,17 @@ void FSceneRenderTargets::ReleaseAllTargets()
 	MobileCustomStencil.SafeRelease();
 	CustomStencilSRV.SafeRelease();
 
-	for (int32 i = 0; i < ARRAY_COUNT(OptionalShadowDepthColor); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(OptionalShadowDepthColor); i++)
 	{
 		OptionalShadowDepthColor[i].SafeRelease();
 	}
 
-	for (int32 i = 0; i < ARRAY_COUNT(ReflectionColorScratchCubemap); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(ReflectionColorScratchCubemap); i++)
 	{
 		ReflectionColorScratchCubemap[i].SafeRelease();
 	}
 
-	for (int32 i = 0; i < ARRAY_COUNT(DiffuseIrradianceScratchCubemap); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(DiffuseIrradianceScratchCubemap); i++)
 	{
 		DiffuseIrradianceScratchCubemap[i].SafeRelease();
 	}

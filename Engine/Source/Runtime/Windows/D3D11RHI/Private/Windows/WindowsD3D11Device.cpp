@@ -318,7 +318,7 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Mi
 	
 	// Trim to allowed feature levels
 	int32 FirstAllowedFeatureLevel = 0;
-	int32 NumAllowedFeatureLevels = ARRAY_COUNT(RequestedFeatureLevels);
+	int32 NumAllowedFeatureLevels = UE_ARRAY_COUNT(RequestedFeatureLevels);
 	int32 LastAllowedFeatureLevel = NumAllowedFeatureLevels - 1;
 	
 	while (FirstAllowedFeatureLevel < NumAllowedFeatureLevels)

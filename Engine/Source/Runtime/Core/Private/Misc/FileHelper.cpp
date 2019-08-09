@@ -217,7 +217,7 @@ bool FFileHelper::SaveStringToFile( const FString& String, const TCHAR* Filename
 	if( EncodingOptions == EEncodingOptions::ForceUTF8 )
 	{
 		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
-		Ar->Serialize( &UTF8BOM, ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR) );
+		Ar->Serialize( &UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR) );
 
 		FTCHARToUTF8 UTF8String(StrPtr);
 		Ar->Serialize( (UTF8CHAR*)UTF8String.Get(), UTF8String.Length() * sizeof(UTF8CHAR) );
@@ -249,7 +249,7 @@ bool FFileHelper::SaveStringArrayToFile( const TArray<FString>& Lines, const TCH
 	int32 Length = 10;
 	for(const FString& Line : Lines)
 	{
-		Length += Line.Len() + ARRAY_COUNT(LINE_TERMINATOR);
+		Length += Line.Len() + UE_ARRAY_COUNT(LINE_TERMINATOR);
 	}
 	
 	FString CombinedString;

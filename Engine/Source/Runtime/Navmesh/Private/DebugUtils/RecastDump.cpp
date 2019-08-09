@@ -35,7 +35,7 @@ static void ioprintf(duFileIO* io, const char* format, ...)
 	char line[256];
 	va_list ap;
 	va_start(ap, format);
-	const int n = FCStringAnsi::GetVarArgs(line, ARRAY_COUNT(line), format, ap);
+	const int n = FCStringAnsi::GetVarArgs(line, UE_ARRAY_COUNT(line), format, ap);
 	va_end(ap);
 	if (n > 0)
 		io->write(line, sizeof(char)*n);

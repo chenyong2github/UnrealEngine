@@ -584,7 +584,7 @@ id<MTLDevice> GMetalDevice = nil;
 -(int32) GetTouchIndex:(UITouch*)Touch
 {
 	// look for existing touch
-	for (int Index = 0; Index < ARRAY_COUNT(AllTouches); Index++)
+	for (int Index = 0; Index < UE_ARRAY_COUNT(AllTouches); Index++)
 	{
 		if (AllTouches[Index] == Touch)
 		{
@@ -593,7 +593,7 @@ id<MTLDevice> GMetalDevice = nil;
 	}
 	
 	// if we get here, it's a new touch, find a slot
-	for (int Index = 0; Index < ARRAY_COUNT(AllTouches); Index++)
+	for (int Index = 0; Index < UE_ARRAY_COUNT(AllTouches); Index++)
 	{
 		if (AllTouches[Index] == nil)
 		{

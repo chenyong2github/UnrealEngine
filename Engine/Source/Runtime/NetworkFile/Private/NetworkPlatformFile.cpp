@@ -958,7 +958,7 @@ public:
 				while (RemainingData)
 				{
 					// read next chunk from archive
-					uint32 LocalSize = FPlatformMath::Min<uint32>(ARRAY_COUNT(Buffer), RemainingData);
+					uint32 LocalSize = FPlatformMath::Min<uint32>(UE_ARRAY_COUNT(Buffer), RemainingData);
 					FileArchive->Serialize(Buffer, LocalSize);
 					// write it out
 					if (!FileHandle->Write(Buffer, LocalSize))

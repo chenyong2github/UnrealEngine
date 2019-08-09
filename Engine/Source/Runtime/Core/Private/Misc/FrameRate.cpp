@@ -194,7 +194,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 
 		// Showing hours, minutes or seconds
 		static const int32 DesirableBases[]  = { 1, 2, 5, 10, 30, 60 };
-		static const int32 NumDesirableBases = ARRAY_COUNT(DesirableBases);
+		static const int32 NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
 
 		const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
 		const int32 BaseIndex = FMath::Min(Algo::LowerBound(DesirableBases, Scale), NumDesirableBases-1);

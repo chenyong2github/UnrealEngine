@@ -375,7 +375,7 @@ void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord)
 	}
 
 #if WITH_EDITORONLY_DATA
-	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, ARRAY_COUNT(GErrorExceptionDescription));
+	FCString::Strncpy(GErrorExceptionDescription, *ErrorString, UE_ARRAY_COUNT(GErrorExceptionDescription));
 #endif
 #undef HANDLE_CASE
 }
@@ -406,11 +406,11 @@ int32 ReportCrash( LPEXCEPTION_POINTERS ExceptionInfo )
 	if( ExceptionInfo->ExceptionRecord->ExceptionCode != 1 )
 	{
 		CreateExceptionInfoString( ExceptionInfo->ExceptionRecord );
-		FCString::Strncat( GErrorHist, GErrorExceptionDescription, ARRAY_COUNT( GErrorHist ) );
-		FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), ARRAY_COUNT( GErrorHist ) );
+		FCString::Strncat( GErrorHist, GErrorExceptionDescription, UE_ARRAY_COUNT( GErrorHist ) );
+		FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), UE_ARRAY_COUNT( GErrorHist ) );
 	}
 
-	FCString::Strncat( GErrorHist, ANSI_TO_TCHAR(StackTrace), ARRAY_COUNT(GErrorHist) );
+	FCString::Strncat( GErrorHist, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(GErrorHist) );
 
 	GMalloc->Free( StackTrace );
 

@@ -80,7 +80,7 @@ void FEulerTransformPropertyTrackEditor::GenerateKeysFromPropertyChanged( const 
 
 	if (LeafPath.Len() > 0)
 	{
-		for (int32 ChannelIndex = 0; ChannelIndex < ARRAY_COUNT(ChannelNames); ++ChannelIndex)
+		for (int32 ChannelIndex = 0; ChannelIndex < UE_ARRAY_COUNT(ChannelNames); ++ChannelIndex)
 		{
 			// If it doesn't match the fully qualified path, and doesn't start with the leaf path, don't add a key
 			bool bMatchesQualifiedPath = FPlatformString::Stricmp(*QualifiedLeafPath, ChannelNames[ChannelIndex]) == 0;

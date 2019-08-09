@@ -938,7 +938,7 @@ float FQuadricSkeletalMeshReduction::SimplifyMesh( const FSkeletalMeshOptimizati
 		2.8f,	// High
 		8.0f,	// Highest
 	};
-	static_assert(ARRAY_COUNT(ImportanceTable) == SMOI_MAX, "Bad importance table size.");
+	static_assert(UE_ARRAY_COUNT(ImportanceTable) == SMOI_MAX, "Bad importance table size.");
 
 	NormalWeight    *= ImportanceTable[Settings.ShadingImportance];
 	TangentWeight   *= ImportanceTable[Settings.ShadingImportance];

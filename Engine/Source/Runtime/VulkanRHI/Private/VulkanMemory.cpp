@@ -1434,7 +1434,7 @@ namespace VulkanRHI
 		uint64 AllocBinnedTotal = 0;
 		uint64 UsedLargeTotal = 0;
 		uint64 AllocLargeTotal = 0;
-		for (int32 PoolSizeIndex = 0; PoolSizeIndex < ARRAY_COUNT(UsedBufferAllocations); PoolSizeIndex++)
+		for (int32 PoolSizeIndex = 0; PoolSizeIndex < UE_ARRAY_COUNT(UsedBufferAllocations); PoolSizeIndex++)
 		{
 			TArray<FBufferAllocation*>& UsedAllocations = UsedBufferAllocations[PoolSizeIndex];
 			TArray<FBufferAllocation*>& FreeAllocations = FreeBufferAllocations[PoolSizeIndex];

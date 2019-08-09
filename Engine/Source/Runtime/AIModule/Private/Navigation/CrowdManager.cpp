@@ -1088,7 +1088,7 @@ void UCrowdManager::DrawDebugSharedBoundary() const
 	const dtSharedBoundary* sharedBounds = DetourCrowd->getSharedBoundary();
 	for (int32 Idx = 0; Idx < sharedBounds->Data.Num(); Idx++)
 	{
-		FColor Color = Colors[Idx % ARRAY_COUNT(Colors)];
+		FColor Color = Colors[Idx % UE_ARRAY_COUNT(Colors)];
 		const FVector Center = Recast2UnrealPoint(sharedBounds->Data[Idx].Center);
 		DrawDebugCylinder(World, Center - FCrowdDebug::Offset, Center, sharedBounds->Data[Idx].Radius, 32, Color);
 

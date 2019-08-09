@@ -476,7 +476,7 @@ bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 		else if (FParse::Command(&Cmd, TEXT("JOIN")))
 		{
 			TCHAR SearchIdxStr[256];
-			if (FParse::Token(Cmd, SearchIdxStr, ARRAY_COUNT(SearchIdxStr), true))
+			if (FParse::Token(Cmd, SearchIdxStr, UE_ARRAY_COUNT(SearchIdxStr), true))
 			{
 				int32 SearchIdx = FCString::Atoi(SearchIdxStr);
 				if (SearchIdx >= 0 && SearchIdx < SearchSettings->SearchResults.Num())
@@ -491,7 +491,7 @@ bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 			if (FParse::Command(&Cmd, TEXT("LOBBY")))
 			{
 				TCHAR FriendNameStr[256];
-				if (FParse::Token(Cmd, FriendNameStr, ARRAY_COUNT(FriendNameStr), true))
+				if (FParse::Token(Cmd, FriendNameStr, UE_ARRAY_COUNT(FriendNameStr), true))
 				{
 					for (int32 FriendIdx=0; FriendIdx<FriendsCache.Num(); FriendIdx++)
 					{
@@ -508,7 +508,7 @@ bool FTestSessionInterface::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevic
 			else
 			{
 				TCHAR FriendIdStr[256];
-				if (FParse::Token(Cmd, FriendIdStr, ARRAY_COUNT(FriendIdStr), true))
+				if (FParse::Token(Cmd, FriendIdStr, UE_ARRAY_COUNT(FriendIdStr), true))
 				{
 					TSharedPtr<const FUniqueNetId> FriendId = Identity->CreateUniquePlayerId((uint8*)FriendIdStr, FCString::Strlen(FriendIdStr));
 					if (!FriendId.IsValid())

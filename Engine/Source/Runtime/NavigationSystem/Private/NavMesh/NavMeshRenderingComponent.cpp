@@ -279,7 +279,7 @@ void FNavMeshSceneProxyData::Serialize(FArchive& Ar)
 	}
 
 	TArray<FDebugRenderSceneProxy::FDebugLine>* LineArraysToSerialize[] = { &ThickLineItems, &TileEdgeLines, &NavMeshEdgeLines, &NavLinkLines, &ClusterLinkLines };
-	for (int32 ArrIdx = 0; ArrIdx < ARRAY_COUNT(LineArraysToSerialize); ArrIdx++)
+	for (int32 ArrIdx = 0; ArrIdx < UE_ARRAY_COUNT(LineArraysToSerialize); ArrIdx++)
 	{
 		int32 NumItems = LineArraysToSerialize[ArrIdx]->Num();
 		Ar << NumItems;

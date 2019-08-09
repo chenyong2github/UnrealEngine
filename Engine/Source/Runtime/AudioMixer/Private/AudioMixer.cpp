@@ -606,7 +606,7 @@ namespace Audio
 		bInitialized = true;
 
 		// Create a hard-coded default channel order
-		check(ARRAY_COUNT(DefaultChannelOrder) == AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
+		check(UE_ARRAY_COUNT(DefaultChannelOrder) == AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 		DefaultChannelOrder[0] = EAudioMixerChannel::FrontLeft;
 		DefaultChannelOrder[1] = EAudioMixerChannel::FrontRight;
 		DefaultChannelOrder[2] = EAudioMixerChannel::FrontCenter;

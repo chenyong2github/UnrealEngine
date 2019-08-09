@@ -572,7 +572,7 @@ public:
 		const TCHAR* Paths[] = { GetTCharPtr(Forward<PathTypes>(InPaths))... };
 		FString Out;
 		
-		CombineInternal(Out, Paths, ARRAY_COUNT(Paths));
+		CombineInternal(Out, Paths, UE_ARRAY_COUNT(Paths));
 		return Out;
 	}
 

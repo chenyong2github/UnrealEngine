@@ -105,7 +105,7 @@ FVulkanResourceMultiBuffer::FVulkanResourceMultiBuffer(FVulkanDevice* InDevice, 
 			}
 
 			NumBuffers = bDynamic ? NUM_BUFFERS : 1;
-			check(NumBuffers <= ARRAY_COUNT(Buffers));
+			check(NumBuffers <= UE_ARRAY_COUNT(Buffers));
 
 			for (uint32 Index = 0; Index < NumBuffers; ++Index)
 			{

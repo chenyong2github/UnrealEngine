@@ -252,7 +252,7 @@ static uint32 GetTypeComponents(const FString& Type)
 	static const FString TypePrefix[] = { "f", "i", "u" };
 	uint32 Components = 0;
 	int32 PrefixLength = 0;
-	for (uint32 i = 0; i<ARRAY_COUNT(TypePrefix); i++)
+	for (uint32 i = 0; i<UE_ARRAY_COUNT(TypePrefix); i++)
 	{
 		const FString& Prefix = TypePrefix[i];
 		const int32 CmpLength = Type.Contains(Prefix, ESearchCase::CaseSensitive, ESearchDir::FromStart);

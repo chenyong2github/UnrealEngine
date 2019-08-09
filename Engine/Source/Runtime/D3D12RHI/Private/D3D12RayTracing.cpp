@@ -3011,11 +3011,11 @@ static void SetRayTracingShaderResources(
 	ResourceBinderType& Binder)
 {
 	SetRayTracingShaderResources(CommandContext, Shader,
-		ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
-		ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
-		ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
-		ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
-		ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
+		UE_ARRAY_COUNT(ResourceBindings.Textures), ResourceBindings.Textures,
+		UE_ARRAY_COUNT(ResourceBindings.SRVs), ResourceBindings.SRVs,
+		UE_ARRAY_COUNT(ResourceBindings.UniformBuffers), ResourceBindings.UniformBuffers,
+		UE_ARRAY_COUNT(ResourceBindings.Samplers), ResourceBindings.Samplers,
+		UE_ARRAY_COUNT(ResourceBindings.UAVs), ResourceBindings.UAVs,
 		0, nullptr, // loose parameters
 		DescriptorCache, Binder);
 }

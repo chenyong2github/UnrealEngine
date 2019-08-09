@@ -945,7 +945,7 @@ int32 FString::ParseIntoArrayWS( TArray<FString>& OutArray, const TCHAR* pchExtr
 	};
 
 	// start with just the standard whitespaces
-	int32 NumWhiteSpaces = ARRAY_COUNT(WhiteSpace) - 1;
+	int32 NumWhiteSpaces = UE_ARRAY_COUNT(WhiteSpace) - 1;
 	// if we got one passed in, use that in addition
 	if (pchExtraDelim && *pchExtraDelim)
 	{
@@ -966,7 +966,7 @@ int32 FString::ParseIntoArrayLines(TArray<FString>& OutArray, bool InCullEmpty) 
 	};
 
 	// start with just the standard line endings
-	int32 NumLineEndings = ARRAY_COUNT(LineEndings);	
+	int32 NumLineEndings = UE_ARRAY_COUNT(LineEndings);	
 	return ParseIntoArray(OutArray, LineEndings, NumLineEndings, InCullEmpty);
 }
 
@@ -1192,7 +1192,7 @@ static const TCHAR* CharToEscapeSeqMap[][2] =
 	{ TEXT("\""), TEXT("\\\"") }
 };
 
-static const uint32 MaxSupportedEscapeChars = ARRAY_COUNT(CharToEscapeSeqMap);
+static const uint32 MaxSupportedEscapeChars = UE_ARRAY_COUNT(CharToEscapeSeqMap);
 
 /**
  * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1509,7 +1509,7 @@ FString SlugStringForValidName(const FString& DisplayString, const TCHAR* Replac
 	// Convert the display label, which may consist of just about any possible character, into a
 	// suitable name for a UObject (remove whitespace, certain symbols, etc.)
 	{
-		for ( int32 BadCharacterIndex = 0; BadCharacterIndex < ARRAY_COUNT(INVALID_OBJECTNAME_CHARACTERS) - 1; ++BadCharacterIndex )
+		for ( int32 BadCharacterIndex = 0; BadCharacterIndex < UE_ARRAY_COUNT(INVALID_OBJECTNAME_CHARACTERS) - 1; ++BadCharacterIndex )
 		{
 			const TCHAR TestChar[2] = { INVALID_OBJECTNAME_CHARACTERS[BadCharacterIndex], 0 };
 			const int32 NumReplacedChars = GeneratedName.ReplaceInline(TestChar, ReplaceWith);

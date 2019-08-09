@@ -143,11 +143,11 @@ public:
 		OutUAVs[1] = GShadowCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GShadowCulledObjectBuffers.Buffers.Data.UAV;
 		OutUAVs[3] = GShadowCulledObjectBuffers.Buffers.BoxBounds.UAV;		
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 
 		CulledObjectParameters.Set(RHICmdList, ShaderRHI, GShadowCulledObjectBuffers.Buffers);
 
-		SetShaderValue(RHICmdList, ShaderRHI, ObjectBoundingGeometryIndexCount, ARRAY_COUNT(GCubeIndices));
+		SetShaderValue(RHICmdList, ShaderRHI, ObjectBoundingGeometryIndexCount, UE_ARRAY_COUNT(GCubeIndices));
 		SetShaderValue(RHICmdList, ShaderRHI, WorldToShadow, WorldToShadowValue);
 		SetShaderValue(RHICmdList, ShaderRHI, ShadowBoundingSphere, ShadowBoundingSphereValue);
 
@@ -172,7 +172,7 @@ public:
 		OutUAVs[1] = GShadowCulledObjectBuffers.Buffers.Bounds.UAV;
 		OutUAVs[2] = GShadowCulledObjectBuffers.Buffers.Data.UAV;
 		OutUAVs[3] = GShadowCulledObjectBuffers.Buffers.BoxBounds.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, ARRAY_COUNT(OutUAVs));
+		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
 	}
 
 	virtual bool Serialize(FArchive& Ar) override

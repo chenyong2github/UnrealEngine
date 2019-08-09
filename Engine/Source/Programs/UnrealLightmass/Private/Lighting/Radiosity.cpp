@@ -585,7 +585,7 @@ void FStaticLightingSystem::RadiosityIterationTextureMapping(FStaticLightingText
 			NumAdaptiveRefinementLevels++;
 		}
 
-		const int32 RadiositySampleSet = FMath::Min<int32>(PassIndex, ARRAY_COUNT(CachedHemisphereSamplesForRadiosity) - 1);
+		const int32 RadiositySampleSet = FMath::Min<int32>(PassIndex, UE_ARRAY_COUNT(CachedHemisphereSamplesForRadiosity) - 1);
 
 		TLightingCache<FFinalGatherSample> RadiosityCache(TextureMapping->Mesh->BoundingBox, *this, 1);
 	

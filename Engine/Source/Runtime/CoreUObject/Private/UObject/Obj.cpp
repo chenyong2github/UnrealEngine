@@ -3031,7 +3031,7 @@ static void PerformSetCommand( const TCHAR* Str, FOutputDevice& Ar, bool bNotify
 {
 	// Set a class default variable.
 	TCHAR ObjectName[256], PropertyName[256];
-	if (FParse::Token(Str, ObjectName, ARRAY_COUNT(ObjectName), true) && FParse::Token(Str, PropertyName, ARRAY_COUNT(PropertyName), true))
+	if (FParse::Token(Str, ObjectName, UE_ARRAY_COUNT(ObjectName), true) && FParse::Token(Str, PropertyName, UE_ARRAY_COUNT(PropertyName), true))
 	{
 		UClass* Class = FindObject<UClass>(ANY_PACKAGE, ObjectName);
 		if (Class != NULL)
@@ -3240,11 +3240,11 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		UClass* Class;
 		UProperty* Property;
 		if
-		(	FParse::Token( Str, ClassName, ARRAY_COUNT(ClassName), 1 )
+		(	FParse::Token( Str, ClassName, UE_ARRAY_COUNT(ClassName), 1 )
 		&&	(Class=FindObject<UClass>( ANY_PACKAGE, ClassName))!=NULL )
 		{
 			if
-			(	FParse::Token( Str, PropertyName, ARRAY_COUNT(PropertyName), 1 )
+			(	FParse::Token( Str, PropertyName, UE_ARRAY_COUNT(PropertyName), 1 )
 			&&	(Property=FindField<UProperty>( Class, PropertyName))!=NULL )
 			{
 				FString	Temp;
@@ -3272,7 +3272,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		UClass* Class;
 		FString PropWildcard;
 
-		if ( FParse::Token(Str, ClassName, ARRAY_COUNT(ClassName), 1) &&
+		if ( FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
 			(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL &&
 			FParse::Token(Str, PropWildcard, true) )
 		{
@@ -3401,10 +3401,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		UClass* Class;
 		UProperty* Property;
 
-		if ( FParse::Token(Str,ClassName,ARRAY_COUNT(ClassName), 1) &&
+		if ( FParse::Token(Str,ClassName,UE_ARRAY_COUNT(ClassName), 1) &&
 			(Class=FindObject<UClass>( ANY_PACKAGE, ClassName)) != NULL )
 		{
-			FParse::Token(Str,PropertyName,ARRAY_COUNT(PropertyName),1);
+			FParse::Token(Str,PropertyName,UE_ARRAY_COUNT(PropertyName),1);
 			{
 				Property=FindField<UProperty>(Class,PropertyName);
 				{
@@ -3417,7 +3417,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					// Check for a specific object name
 					TCHAR ObjNameStr[256];
 					FName ObjName(NAME_None);
-					if (FParse::Value(Str,TEXT("NAME="),ObjNameStr,ARRAY_COUNT(ObjNameStr)))
+					if (FParse::Value(Str,TEXT("NAME="),ObjNameStr,UE_ARRAY_COUNT(ObjNameStr)))
 					{
 						ObjName = FName(ObjNameStr);
 					}
@@ -3545,7 +3545,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		// LISTFUNCS <classname>
 		TCHAR ClassName[256];
 
-		if (FParse::Token(Str, ClassName, ARRAY_COUNT(ClassName), true))
+		if (FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), true))
 		{
 			//if ( (Property=FindField<UProperty>(Class,PropertyName)) != NULL )
 			UClass* Class = FindObject<UClass>(ANY_PACKAGE, ClassName);
@@ -3572,7 +3572,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 		// LISTFUNC <classname> <functionname>
 		TCHAR ClassName[256];
 		TCHAR FunctionName[256];
-		if (FParse::Token(Str, ClassName, ARRAY_COUNT(ClassName), true) && FParse::Token(Str, FunctionName, ARRAY_COUNT(FunctionName), true))
+		if (FParse::Token(Str, ClassName, UE_ARRAY_COUNT(ClassName), true) && FParse::Token(Str, FunctionName, UE_ARRAY_COUNT(FunctionName), true))
 		{
 			UClass* Class = FindObject<UClass>(ANY_PACKAGE, ClassName);
 
@@ -3925,7 +3925,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 				ReferencerClass = NULL;
 			}
 			TCHAR TempStr[1024];
-			if (FParse::Value(Str, TEXT("REFNAME="), TempStr, ARRAY_COUNT(TempStr)))
+			if (FParse::Value(Str, TEXT("REFNAME="), TempStr, UE_ARRAY_COUNT(TempStr)))
 			{
 				ReferencerName = TempStr;
 			}
@@ -4187,7 +4187,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 			// Dump all object flags for objects rooted at the named object.
 			TCHAR ObjectName[NAME_SIZE];
 			UObject* Obj = NULL;
-			if ( FParse::Token(Str,ObjectName,ARRAY_COUNT(ObjectName), 1) )
+			if ( FParse::Token(Str,ObjectName,UE_ARRAY_COUNT(ObjectName), 1) )
 			{
 				Obj = FindObject<UObject>(ANY_PACKAGE,ObjectName);
 			}
@@ -4239,7 +4239,7 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		TCHAR ClassName[256];
 		// Determine the object/class name
-		if (FParse::Token(Str,ClassName,ARRAY_COUNT(ClassName),1))
+		if (FParse::Token(Str,ClassName,UE_ARRAY_COUNT(ClassName),1))
 		{
 			// Try to find a corresponding class
 			UClass* ClassToReload = FindObject<UClass>(ANY_PACKAGE,ClassName);

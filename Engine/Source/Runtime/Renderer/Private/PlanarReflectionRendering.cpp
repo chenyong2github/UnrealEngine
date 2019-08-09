@@ -91,7 +91,7 @@ void SetupPlanarReflectionUniformParameters(const class FSceneView& View, const 
 		// Instanced stereo needs both view's values available at once
 		if (ReflectionSceneProxy->bIsStereo || View.Family->Views.Num() == 1)
 		{
-			static_assert(ARRAY_COUNT(ReflectionSceneProxy->ProjectionWithExtraFOV) == 2 
+			static_assert(UE_ARRAY_COUNT(ReflectionSceneProxy->ProjectionWithExtraFOV) == 2 
 				&& GPlanarReflectionUniformMaxReflectionViews == 2, "Code assumes max 2 planar reflection views.");
 
 			OutParameters.ProjectionWithExtraFOV[0] = ReflectionSceneProxy->ProjectionWithExtraFOV[0];

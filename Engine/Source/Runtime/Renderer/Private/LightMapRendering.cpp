@@ -190,7 +190,7 @@ void InterpolateVolumetricLightmap(
 	
 	auto ReadSHCoefficient = [&BrickTextureCoordinate, &VolumetricLightmapData, &AmbientVector](uint32 CoefficientIndex)
 	{
-		check(CoefficientIndex < ARRAY_COUNT(VolumetricLightmapData.BrickData.SHCoefficients));
+		check(CoefficientIndex < UE_ARRAY_COUNT(VolumetricLightmapData.BrickData.SHCoefficients));
 
 		// Undo normalization done in FIrradianceBrickData::SetFromVolumeLightingSample
 		const FLinearColor SHDenormalizationScales0(

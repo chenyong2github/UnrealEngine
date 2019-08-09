@@ -191,13 +191,13 @@ void FTestVoice::SetStaticVoiceData(TArray<uint8>& VoiceData, uint32& TotalVoice
 
 	if (bTimeToQueue)
 	{
-		TotalVoiceBytes = ARRAY_COUNT(RawVoiceTestData);
+		TotalVoiceBytes = UE_ARRAY_COUNT(RawVoiceTestData);
 
 		VoiceData.Empty(TotalVoiceBytes);
 		VoiceData.AddUninitialized(TotalVoiceBytes);
 
-		VOICE_BUFFER_CHECK(VoiceData, ARRAY_COUNT(RawVoiceTestData));
-		FMemory::Memcpy(VoiceData.GetData(), RawVoiceTestData, ARRAY_COUNT(RawVoiceTestData));
+		VOICE_BUFFER_CHECK(VoiceData, UE_ARRAY_COUNT(RawVoiceTestData));
+		FMemory::Memcpy(VoiceData.GetData(), RawVoiceTestData, UE_ARRAY_COUNT(RawVoiceTestData));
 
 		LastQueueTime = CurrentTime;
 		bTimeToQueue = false;

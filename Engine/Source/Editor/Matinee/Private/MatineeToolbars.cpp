@@ -21,14 +21,14 @@ FString FMatinee::GetToolbarSnapText()
 {
 	FString Text;
 	int32 StringIndex = 0;
-	if (SnapSelectionIndex < ARRAY_COUNT(InterpEdSnapSizes))
+	if (SnapSelectionIndex < UE_ARRAY_COUNT(InterpEdSnapSizes))
 	{
 		StringIndex = SnapSelectionIndex;
 		Text = FString::Printf(TEXT("%.2f"),FMatinee::InterpEdSnapSizes[StringIndex]);
 	}
-	else if (SnapSelectionIndex < (ARRAY_COUNT(InterpEdSnapSizes)+ARRAY_COUNT(InterpEdFPSSnapSizes)))
+	else if (SnapSelectionIndex < (UE_ARRAY_COUNT(InterpEdSnapSizes)+UE_ARRAY_COUNT(InterpEdFPSSnapSizes)))
 	{
-		StringIndex = SnapSelectionIndex - ARRAY_COUNT(InterpEdSnapSizes);
+		StringIndex = SnapSelectionIndex - UE_ARRAY_COUNT(InterpEdSnapSizes);
 		Text = GetInterpEdFPSSnapSizeLocName( StringIndex );
 	}
 	else
@@ -211,13 +211,13 @@ void FMatinee::ExtendToolbar()
 
 	// Append Second Snap Times
 	SnapComboStrings.Empty();
-	for(int32 i=0; i<ARRAY_COUNT(InterpEdSnapSizes); i++)
+	for(int32 i=0; i<UE_ARRAY_COUNT(InterpEdSnapSizes); i++)
 	{
 		FString SnapCaption = FString::Printf( TEXT("%1.2f"), InterpEdSnapSizes[i] );
 		SnapComboStrings.Add( MakeShareable( new FString(SnapCaption) ) );
 	}
 	// Append FPS Snap Times
-	for(int32 i=0; i<ARRAY_COUNT(InterpEdFPSSnapSizes); i++)
+	for(int32 i=0; i<UE_ARRAY_COUNT(InterpEdFPSSnapSizes); i++)
 	{
 		FString SnapCaption = GetInterpEdFPSSnapSizeLocName( i );
 		SnapComboStrings.Add( MakeShareable( new FString(SnapCaption) ) );

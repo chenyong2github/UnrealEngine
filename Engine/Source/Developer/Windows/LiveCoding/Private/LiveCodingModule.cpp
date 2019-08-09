@@ -341,7 +341,7 @@ void FLiveCodingModule::UpdateModules()
 	{
 #if IS_MONOLITHIC
 		wchar_t FullFilePath[WINDOWS_MAX_PATH];
-		verify(GetModuleFileName(hInstance, FullFilePath, ARRAY_COUNT(FullFilePath)));
+		verify(GetModuleFileName(hInstance, FullFilePath, UE_ARRAY_COUNT(FullFilePath)));
 		LppEnableModule(FullFilePath);
 #else
 		TArray<FModuleStatus> ModuleStatuses;

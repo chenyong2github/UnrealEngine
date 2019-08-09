@@ -233,7 +233,7 @@ public:
 
 		static const TCHAR* PassLabels[] =
 		{ NULL, TEXT("BloomDownsample1"), TEXT("BloomDownsample2"), TEXT("BloomDownsample3"), TEXT("BloomDownsample4"), TEXT("BloomDownsample5") };
-		static_assert(ARRAY_COUNT(PassLabels) == DownSampleStages, "PassLabel count must be equal to DownSampleStages.");
+		static_assert(UE_ARRAY_COUNT(PassLabels) == DownSampleStages, "PassLabel count must be equal to DownSampleStages.");
 
 		// The first down sample is the input
 		PostProcessDownsamples[0] = SourceDownsample;
@@ -587,7 +587,7 @@ static FRenderingCompositeOutputRef AddBloom(FBloomDownSampleArray& BloomDownSam
 	{
 		// console variable override
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BloomQuality"));
-		BloomQuality = FMath::Clamp(CVar->GetValueOnRenderThread(), 0, (int32)ARRAY_COUNT(BloomQualityStages));
+		BloomQuality = FMath::Clamp(CVar->GetValueOnRenderThread(), 0, (int32)UE_ARRAY_COUNT(BloomQualityStages));
 	}
 
 	// Extract the Context
@@ -659,7 +659,7 @@ static FRenderingCompositeOutputRef AddBloom(FBloomDownSampleArray& BloomDownSam
 			{ Settings.Bloom2Size, &Settings.Bloom2Tint },
 			{ Settings.Bloom1Size, &Settings.Bloom1Tint },
 		};
-		static const uint32 NumBloomStages = ARRAY_COUNT(BloomStages);
+		static const uint32 NumBloomStages = UE_ARRAY_COUNT(BloomStages);
 
 		const uint32 BloomStageCount = BloomQualityStages[BloomQuality - 1];
 		check(BloomStageCount <= NumBloomStages);

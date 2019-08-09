@@ -273,7 +273,7 @@ FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBa
 {
 	if( InFilename )
 	{
-		FCString::Strncpy( Filename, InFilename, ARRAY_COUNT(Filename) );
+		FCString::Strncpy( Filename, InFilename, UE_ARRAY_COUNT(Filename) );
 	}
 	else
 	{
@@ -295,7 +295,7 @@ void FOutputDeviceFile::SetFilename(const TCHAR* InFilename)
 	// Close any existing file.
 	TearDown();
 
-	FCString::Strncpy( Filename, InFilename, ARRAY_COUNT(Filename) );
+	FCString::Strncpy( Filename, InFilename, UE_ARRAY_COUNT(Filename) );
 }
 
 /**
@@ -397,7 +397,7 @@ bool FOutputDeviceFile::CreateWriter(uint32 MaxAttempts)
 			{
 				CreateBackupCopy(*FinalFilename);
 			}
-			FCString::Strcpy(Filename, ARRAY_COUNT(Filename), *FinalFilename);
+			FCString::Strcpy(Filename, UE_ARRAY_COUNT(Filename), *FinalFilename);
 			Ar = IFileManager::Get().CreateFileWriter(*FinalFilename, WriteFlags);
 		} while (!Ar && FileIndex < MaxAttempts);
 	}

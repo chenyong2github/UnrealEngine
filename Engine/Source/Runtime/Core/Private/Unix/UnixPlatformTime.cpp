@@ -201,7 +201,7 @@ int FUnixTime::CalibrateAndSelectClock()
 		int ChosenClock = 0;	
 		// Skip measuring CLOCK_REALTIME, so it's never picked up if any other is available.
 		// CLOCK_REALTIME should be always supported - as a last resort.
-		for (int Idx = 1; Idx < ARRAY_COUNT(Clocks); ++Idx)
+		for (int Idx = 1; Idx < UE_ARRAY_COUNT(Clocks); ++Idx)
 		{
 			Clocks[Idx].Rate = CallsPerSecondBenchmark(Clocks[Idx].Id, Clocks[Idx].Desc);
 			if (Clocks[Idx].Rate > Clocks[ChosenClock].Rate)

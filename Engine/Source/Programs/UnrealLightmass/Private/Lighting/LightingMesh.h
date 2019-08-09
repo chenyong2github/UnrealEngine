@@ -25,7 +25,7 @@ struct FStaticLightingVertex: public FStaticLightingVertexData
 		WorldPosition = InVertex.WorldPosition;
 		WorldTangentZ = InVertex.WorldTangentZ;
 
-		for (int32 i = 0; i < ARRAY_COUNT(TextureCoordinates); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(TextureCoordinates); i++)
 		{
 			TextureCoordinates[i] = InVertex.TextureCoordinates[i];
 		}

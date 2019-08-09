@@ -4218,7 +4218,7 @@ public:
 		if (bIsLayerThumbnail || bDisableTessellation)
 		{
 			FSHA1 Hash;
-			Hash.Update(OutId.BasePropertyOverridesHash.Hash, ARRAY_COUNT(OutId.BasePropertyOverridesHash.Hash));
+			Hash.Update(OutId.BasePropertyOverridesHash.Hash, UE_ARRAY_COUNT(OutId.BasePropertyOverridesHash.Hash));
 
 			const FString HashString = TEXT("bOverride_TessellationMode");
 			Hash.UpdateWithString(*HashString, HashString.Len());

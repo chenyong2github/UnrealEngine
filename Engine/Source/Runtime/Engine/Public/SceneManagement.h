@@ -606,7 +606,7 @@ public:
 		InvUniformPenumbraSize(FVector4(0, 0, 0, 0)),
 		Type(SMIT_None)
 	{
-		for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+		for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 		{
 			bChannelValid[Channel] = false;
 		}

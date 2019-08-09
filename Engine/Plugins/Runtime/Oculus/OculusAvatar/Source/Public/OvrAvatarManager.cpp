@@ -201,7 +201,7 @@ void UOvrAvatarManager::InitializeSDK()
 	if (!IsInitialized)
 	{
 #if WITH_EDITORONLY_DATA
-		for (int32 AssetIndex = 0; AssetIndex < ARRAY_COUNT(AssetList); ++AssetIndex)
+		for (int32 AssetIndex = 0; AssetIndex < UE_ARRAY_COUNT(AssetList); ++AssetIndex)
 		{
 			UObject* AssetObj = AssetList[AssetIndex].TryLoad();
 			if (AssetObj != nullptr)

@@ -240,7 +240,7 @@ namespace
 			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x20), Init, ElementType(0), };
 
 			// operator &=
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(AndValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(AndValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 
@@ -253,7 +253,7 @@ namespace
 			}
 
 			// AndExchange
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(AndValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(AndValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 
@@ -276,7 +276,7 @@ namespace
 			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x76), GetByteFilledElement<ElementType>(0xFF), Init, };
 
 			// operator |=
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(OrValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(OrValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 
@@ -289,7 +289,7 @@ namespace
 			}
 
 			// OrExchange
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(OrValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(OrValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 
@@ -312,7 +312,7 @@ namespace
 			constexpr ElementType ExpectedValues[] = {GetByteFilledElement<ElementType>(0x56), GetByteFilledElement<ElementType>(~0x30), Init, };
 
 			// operator ^=
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(XorValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(XorValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 
@@ -325,7 +325,7 @@ namespace
 			}
 
 			// XorExchange
-			for (SIZE_T TestIt = 0; TestIt < ARRAY_COUNT(XorValues); ++TestIt)
+			for (SIZE_T TestIt = 0; TestIt < UE_ARRAY_COUNT(XorValues); ++TestIt)
 			{
 				TAtomicTestWrapper<ElementType> Data(Init);
 

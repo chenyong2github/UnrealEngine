@@ -3442,8 +3442,8 @@ bool UGameViewportClient::HandleDisplayCommand( const TCHAR* Cmd, FOutputDevice&
 {
 	TCHAR ObjectName[256];
 	TCHAR PropStr[256];
-	if ( FParse::Token(Cmd, ObjectName, ARRAY_COUNT(ObjectName), true) &&
-		FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true) )
+	if ( FParse::Token(Cmd, ObjectName, UE_ARRAY_COUNT(ObjectName), true) &&
+		FParse::Token(Cmd, PropStr, UE_ARRAY_COUNT(PropStr), true) )
 	{
 		UObject* Obj = FindObject<UObject>(ANY_PACKAGE, ObjectName);
 		if (Obj != NULL)
@@ -3473,7 +3473,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 {
 	TCHAR ClassName[256];
 	TCHAR PropStr[256];
-	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
+	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), true))
 	{
 		bool bValidClassToken = true;
 		UClass* WithinClass = NULL;
@@ -3498,7 +3498,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 		}
 		if (bValidClassToken)
 		{
-			FParse::Token(Cmd, PropStr, ARRAY_COUNT(PropStr), true);
+			FParse::Token(Cmd, PropStr, UE_ARRAY_COUNT(PropStr), true);
 			UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
 			if (Cls != NULL)
 			{
@@ -3547,7 +3547,7 @@ bool UGameViewportClient::HandleDisplayAllCommand( const TCHAR* Cmd, FOutputDevi
 bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	TCHAR ClassName[256];
-	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
+	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
 		if (Cls != NULL)
@@ -3585,7 +3585,7 @@ bool UGameViewportClient::HandleDisplayAllLocationCommand( const TCHAR* Cmd, FOu
 bool UGameViewportClient::HandleDisplayAllRotationCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
 	TCHAR ClassName[256];
-	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), true))
+	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), true))
 	{
 		UClass* Cls = FindObject<UClass>(ANY_PACKAGE, ClassName);
 		if (Cls != NULL)
@@ -3633,7 +3633,7 @@ bool UGameViewportClient::HandleGetAllLocationCommand(const TCHAR* Cmd, FOutputD
 	TCHAR ClassName[256];
 	UClass* Class;
 
-	if (FParse::Token(Cmd, ClassName, ARRAY_COUNT(ClassName), 1) &&
+	if (FParse::Token(Cmd, ClassName, UE_ARRAY_COUNT(ClassName), 1) &&
 		(Class = FindObject<UClass>(ANY_PACKAGE, ClassName)) != NULL)
 	{
 		bool bShowPendingKills = FParse::Command(&Cmd, TEXT("SHOWPENDINGKILLS"));

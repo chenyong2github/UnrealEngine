@@ -109,7 +109,7 @@ bool FShaderCompileXGEThreadRunnable_XmlInterface::IsSupported()
 	{
 		IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
 
-		for (int PathIndex = 0; PathIndex < ARRAY_COUNT(Paths); PathIndex++)
+		for (int PathIndex = 0; PathIndex < UE_ARRAY_COUNT(Paths); PathIndex++)
 		{
 			if (PlatformFile.FileExists(Paths[PathIndex]))
 			{
@@ -349,7 +349,7 @@ static void WriteScriptFileFooter(FArchive* ScriptFile)
 		"\t</Project>\r\n"
 		"</BuildSet>\r\n";
 
-	ScriptFile->Serialize((void*)HeaderFooter, sizeof(ANSICHAR) * (ARRAY_COUNT(HeaderFooter) - 1));
+	ScriptFile->Serialize((void*)HeaderFooter, sizeof(ANSICHAR) * (UE_ARRAY_COUNT(HeaderFooter) - 1));
 }
 
 void FShaderCompileXGEThreadRunnable_XmlInterface::GatherResultsFromXGE()

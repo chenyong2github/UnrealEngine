@@ -96,7 +96,7 @@ void FMallocLeakDetection::PushContext(const TCHAR* Context)
 	bRecursive = true;
 
 	FContextString Str;
-	FCString::Strncpy(Str.Buffer, Context, ARRAY_COUNT(Str.Buffer));
+	FCString::Strncpy(Str.Buffer, Context, UE_ARRAY_COUNT(Str.Buffer));
 	TLContexts->Push(Str);
 	bRecursive = false;
 }

@@ -70,7 +70,7 @@ FCollisionFilterData CreateTraceQueryFilterData(const uint8 MyChannel, const boo
 	}
 
 	// word1 encodes 'what i block', word2 encodes 'what i touch'
-	for (int32 i = 0; i<ARRAY_COUNT(InCollisionResponseContainer.EnumArray); i++)
+	for (int32 i = 0; i<UE_ARRAY_COUNT(InCollisionResponseContainer.EnumArray); i++)
 	{
 		if (InCollisionResponseContainer.EnumArray[i] == ECR_Block)
 		{

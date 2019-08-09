@@ -55,7 +55,7 @@ public:
 void FOculusAssetDirectory::LoadForCook()
 {
 	FOculusAssetRepo& AssetRepro = FOculusAssetRepo::Get();
-	for (int32 AssetIndex = 0; AssetIndex < ARRAY_COUNT(FOculusAssetDirectory::AssetListing); ++AssetIndex)
+	for (int32 AssetIndex = 0; AssetIndex < UE_ARRAY_COUNT(FOculusAssetDirectory::AssetListing); ++AssetIndex)
 	{
 		AssetRepro.LoadAndAdd(FOculusAssetDirectory::AssetListing[AssetIndex]);
 	}

@@ -355,7 +355,7 @@ void FJsonArchiveInputFormatter::Serialize(FName& Value)
 	const TCHAR Prefix[] = TEXT("Name:");
 	if (ensure(StringValue.StartsWith(Prefix)))
 	{
-		Value = FName(*StringValue + ARRAY_COUNT(Prefix) - 1);
+		Value = FName(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
 	}
 	else
 	{
@@ -369,7 +369,7 @@ void FJsonArchiveInputFormatter::Serialize(UObject*& Value)
 	const TCHAR Prefix[] = TEXT("Object:");
 	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
 	{
-		Value = ResolveObjectName(*StringValue + ARRAY_COUNT(Prefix) - 1);
+		Value = ResolveObjectName(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
 	}
 	else
 	{
@@ -404,7 +404,7 @@ void FJsonArchiveInputFormatter::Serialize(FSoftObjectPath& Value)
 	const TCHAR Prefix[] = TEXT("Object:");
 	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
 	{
-		Value.SetPath(*StringValue + ARRAY_COUNT(Prefix) - 1);
+		Value.SetPath(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
 	}
 	else
 	{
@@ -419,7 +419,7 @@ void FJsonArchiveInputFormatter::Serialize(FLazyObjectPtr& Value)
 	if (ValueStack.Top()->TryGetString(StringValue) && StringValue.StartsWith(Prefix))
 	{
 		FUniqueObjectGuid Guid;
-		Guid.FromString(*StringValue + ARRAY_COUNT(Prefix) - 1);
+		Guid.FromString(*StringValue + UE_ARRAY_COUNT(Prefix) - 1);
 		Value = Guid;
 	}
 	else

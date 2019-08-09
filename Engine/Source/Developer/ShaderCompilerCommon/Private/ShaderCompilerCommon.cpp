@@ -1201,7 +1201,7 @@ namespace CrossCompiler
 	};
 
 	/** Compile time check to verify that the GL mapping tables are up-to-date. */
-	static_assert(SF_NumFrequencies == ARRAY_COUNT(FrequencyStringTable), "NumFrequencies changed. Please update tables.");
+	static_assert(SF_NumFrequencies == UE_ARRAY_COUNT(FrequencyStringTable), "NumFrequencies changed. Please update tables.");
 
 	const TCHAR* GetFrequencyName(EShaderFrequency Frequency)
 	{

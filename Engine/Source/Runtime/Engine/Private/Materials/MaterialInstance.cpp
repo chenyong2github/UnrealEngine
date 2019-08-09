@@ -943,7 +943,7 @@ void UMaterialInstance::GetTextureExpressionValues(const FMaterialResource* Mate
 		OutIndices->Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num());
 	}
 
-	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
+	for(int32 TypeIndex = 0;TypeIndex < UE_ARRAY_COUNT(ExpressionsByType);TypeIndex++)
 	{
 		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& Expressions = *ExpressionsByType[TypeIndex];
 
@@ -981,7 +981,7 @@ void UMaterialInstance::GetAtlasTextureValues(const FMaterialResource* MaterialR
 	{
 		&MaterialResource->GetUniformScalarParameterExpressions()
 	};
-	for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(AtlasExpressions); TypeIndex++)
+	for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(AtlasExpressions); TypeIndex++)
 	{
 		// Iterate over each of the material's scalar expressions.
 		for (FMaterialUniformExpression* Expression : *AtlasExpressions[TypeIndex])
@@ -1221,7 +1221,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
 	}
 		
-	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
+	for(int32 TypeIndex = 0;TypeIndex < UE_ARRAY_COUNT(ExpressionsByType);TypeIndex++)
 	{
 		const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& Expressions = *ExpressionsByType[TypeIndex];
 
@@ -4484,7 +4484,7 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 						&MaterialResource->GetUniformVirtualTextureExpressions()
 					};
 
-					for (int32 TypeIndex = 0; TypeIndex < ARRAY_COUNT(TextureExpressions); TypeIndex++)
+					for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(TextureExpressions); TypeIndex++)
 					{
 						for (FMaterialUniformExpressionTexture* TextureExpression : *TextureExpressions[TypeIndex])
 						{

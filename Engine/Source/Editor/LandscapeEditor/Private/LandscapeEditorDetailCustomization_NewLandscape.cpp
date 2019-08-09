@@ -585,7 +585,7 @@ TSharedRef<SWidget> FLandscapeEditorDetailCustomization_NewLandscape::GetSection
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int32 i = 0; i < ARRAY_COUNT(FNewLandscapeUtils::SectionSizes); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(FNewLandscapeUtils::SectionSizes); i++)
 	{
 		MenuBuilder.AddMenuEntry(FText::Format(LOCTEXT("NxNQuads", "{0}\u00D7{0} Quads"), FText::AsNumber(FNewLandscapeUtils::SectionSizes[i])), FText::GetEmpty(),
 			FSlateIcon(), FExecuteAction::CreateStatic(&OnChangeSectionSize, PropertyHandle, FNewLandscapeUtils::SectionSizes[i]));
@@ -617,7 +617,7 @@ TSharedRef<SWidget> FLandscapeEditorDetailCustomization_NewLandscape::GetSection
 {
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	for (int32 i = 0; i < ARRAY_COUNT(FNewLandscapeUtils::NumSections); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(FNewLandscapeUtils::NumSections); i++)
 	{
 		FFormatNamedArguments Args;
 		Args.Add(TEXT("Width"), FNewLandscapeUtils::NumSections[i]);

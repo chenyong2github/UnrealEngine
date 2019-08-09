@@ -1176,7 +1176,7 @@ private:
 	{
 		if (FOpenGL::NeedsVertexAttribRemapTable())
 		{
-			check(VertexAttributeIndex < ARRAY_COUNT(PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap));
+			check(VertexAttributeIndex < UE_ARRAY_COUNT(PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap));
 			VertexAttributeIndex = PendingState.BoundShaderState->GetVertexShader()->Bindings.VertexAttributeRemap[VertexAttributeIndex];
 		}
 		check(VertexAttributeIndex < NUM_OPENGL_VERTEX_STREAMS); // check that this attribute has remaped correctly.
@@ -1187,7 +1187,7 @@ private:
 	{
 		if (FOpenGL::NeedsVertexAttribRemapTable())
 		{
-			check(VertexAttributeIndex < ARRAY_COUNT(Bindings.VertexAttributeRemap));
+			check(VertexAttributeIndex < UE_ARRAY_COUNT(Bindings.VertexAttributeRemap));
 			VertexAttributeIndex = Bindings.VertexAttributeRemap[VertexAttributeIndex];
 		}
 		check(VertexAttributeIndex < NUM_OPENGL_VERTEX_STREAMS); // check that this attribute has remaped correctly.

@@ -478,7 +478,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 				// Yes, this is lame.
 				int CpyIdx = 0;
-				while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+				while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 				{
 					if (LIKELY(*Percent != '*'))
 					{
@@ -488,7 +488,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 					else
 					{
 						snprintf(&FmtBuf[CpyIdx], sizeof(FmtBuf) - CpyIdx, "%d", FieldLen);
-						while (CpyIdx < ARRAY_COUNT(FmtBuf) && FmtBuf[CpyIdx] != 0)
+						while (CpyIdx < UE_ARRAY_COUNT(FmtBuf) && FmtBuf[CpyIdx] != 0)
 						{
 							++CpyIdx;
 						}
@@ -527,7 +527,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 				// Yes, this is lame.
 				int CpyIdx = 0;
-				while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+				while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 				{
 					if (LIKELY(*Percent != '*'))
 					{
@@ -537,7 +537,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 					else
 					{
 						snprintf(&FmtBuf[CpyIdx], sizeof(FmtBuf) - CpyIdx, "%d", FieldLen);
-						while (CpyIdx < ARRAY_COUNT(FmtBuf) && FmtBuf[CpyIdx] != 0)
+						while (CpyIdx < UE_ARRAY_COUNT(FmtBuf) && FmtBuf[CpyIdx] != 0)
 						{
 							++CpyIdx;
 						}
@@ -563,7 +563,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 				// Yes, this is lame.
 				int CpyIdx = 0;
-				while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+				while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 				{
 					FmtBuf[CpyIdx] = (ANSICHAR)*Percent;
 					Percent++;
@@ -602,7 +602,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 					// Yes, this is lame.
 					int CpyIdx = 0;
-					while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+					while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 					{
 						FmtBuf[CpyIdx] = (ANSICHAR)*Percent;
 						Percent++;
@@ -627,7 +627,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 					// Yes, this is lame.
 					int CpyIdx = 0;
-					while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+					while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 					{
 						FmtBuf[CpyIdx] = (ANSICHAR) *Percent;
 						Percent++;
@@ -704,7 +704,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 					CpyIdx = 0;
 				}
 
-				while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+				while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 				{
 					FmtBuf[CpyIdx] = (ANSICHAR) *Percent;
 					Percent++;
@@ -731,7 +731,7 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 				// Yes, this is lame.
 				int CpyIdx = 0;
-				while (Percent < Src && CpyIdx < ARRAY_COUNT(FmtBuf))
+				while (Percent < Src && CpyIdx < UE_ARRAY_COUNT(FmtBuf))
 				{
 					FmtBuf[CpyIdx] = (ANSICHAR) *Percent;
 					Percent++;
@@ -740,11 +740,11 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 				FmtBuf[CpyIdx] = 0;
 
 				int RetCnt = snprintf(AnsiNum, sizeof (AnsiNum), FmtBuf, Val);
-				if (RetCnt >= ARRAY_COUNT(AnsiNum))
+				if (RetCnt >= UE_ARRAY_COUNT(AnsiNum))
 				{
 					// We should print what we have written into AnsiNum but ensure we null terminate before printing
-					AnsiNum[ARRAY_COUNT(AnsiNum) - 1] = '\0';
-					checkf(0, TEXT("Attempting to read past the size our buffer. Buffer Size: %d Size to read: %d. Current contents: '%s'\n"), ARRAY_COUNT(AnsiNum), RetCnt, UTF8_TO_TCHAR(AnsiNum));
+					AnsiNum[UE_ARRAY_COUNT(AnsiNum) - 1] = '\0';
+					checkf(0, TEXT("Attempting to read past the size our buffer. Buffer Size: %d Size to read: %d. Current contents: '%s'\n"), UE_ARRAY_COUNT(AnsiNum), RetCnt, UTF8_TO_TCHAR(AnsiNum));
 				}
 				if (!DestIter.Write(AnsiNum, RetCnt))
 				{

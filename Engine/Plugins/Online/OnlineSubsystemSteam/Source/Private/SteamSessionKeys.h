@@ -86,7 +86,7 @@ inline bool SteamKeyToSessionSetting(const TCHAR* SteamKey, const ANSICHAR* Stea
 
 	TCHAR SteamKeyCopy[1024];
 
-	FCString::Strncpy(SteamKeyCopy, SteamKey, ARRAY_COUNT(SteamKeyCopy));
+	FCString::Strncpy(SteamKeyCopy, SteamKey, UE_ARRAY_COUNT(SteamKeyCopy));
 
 	TCHAR* DataType = FCString::Strrchr(SteamKeyCopy, '_');
 	if (DataType)

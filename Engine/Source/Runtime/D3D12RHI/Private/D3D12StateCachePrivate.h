@@ -126,7 +126,7 @@ struct FD3D12ResourceCache
 	// Mark a specific shader stage as dirty.
 	inline void Dirty(EShaderFrequency ShaderFrequency, const ResourceSlotMask& SlotMask = -1)
 	{
-		checkSlow(ShaderFrequency < ARRAY_COUNT(DirtySlotMask));
+		checkSlow(ShaderFrequency < UE_ARRAY_COUNT(DirtySlotMask));
 		DirtySlotMask[ShaderFrequency] |= SlotMask;
 	}
 

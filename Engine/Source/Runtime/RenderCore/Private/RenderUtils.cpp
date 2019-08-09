@@ -153,7 +153,7 @@ static struct FValidatePixelFormats
 {
 	FValidatePixelFormats()
 	{
-		for (int32 X = 0; X < ARRAY_COUNT(GPixelFormats); ++X)
+		for (int32 X = 0; X < UE_ARRAY_COUNT(GPixelFormats); ++X)
 		{
 			// Make sure GPixelFormats has an entry for every unreal format
 			check(X == GPixelFormats[X].UnrealFormat);
@@ -1112,7 +1112,7 @@ public:
 	{
 		TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> Indices;
 		
-		int32 NumIndices = ARRAY_COUNT(GCubeIndices);
+		int32 NumIndices = UE_ARRAY_COUNT(GCubeIndices);
 		Indices.AddUninitialized(NumIndices);
 		FMemory::Memcpy(Indices.GetData(), GCubeIndices, NumIndices * sizeof(uint16));
 

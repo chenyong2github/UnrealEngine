@@ -20,6 +20,7 @@
 #undef ONLINE_LOG_PREFIX
 #define ONLINE_LOG_PREFIX TEXT("STEAM: ")
 
+// These can be removed when the deprecated ARRAY_COUNT is removed.
 #pragma push_macro("ARRAY_COUNT")
 #undef ARRAY_COUNT
 

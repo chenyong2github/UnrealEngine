@@ -935,7 +935,7 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, WeightedBlendables(Settings.WeightedBlendables)
 	//, Blendables_DEPRECATED(Settings.Blendables_DEPRECATED)
 {
-	for (int32 i = 0; i < ARRAY_COUNT(LensFlareTints); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(LensFlareTints); i++)
 		LensFlareTints[i] = Settings.LensFlareTints[i];
 }
 	

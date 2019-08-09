@@ -52,7 +52,7 @@ FOverlapInterval GetInterval(const FBox& Box, const FVector& Vector)
 	FOverlapInterval Result;
 	Result.Min = Result.Max = FVector::DotProduct(Vector, BoxVertices[0]);
 
-	for (int32 i = 1; i < ARRAY_COUNT(BoxVertices); ++i) 
+	for (int32 i = 1; i < UE_ARRAY_COUNT(BoxVertices); ++i) 
 	{
 		float Projection = FVector::DotProduct(Vector, BoxVertices[i]);
 		Result.Min = FMath::Min(Result.Min, Projection);
@@ -99,7 +99,7 @@ bool IntersectTriangleAndAABB(const FTriangle& Triangle, const FBox& Box)
 		FVector::CrossProduct(BoxNormal2, TriangleEdge2)
 	};
 
-	for (int i = 0; i < ARRAY_COUNT(TestDirections); ++i) 
+	for (int i = 0; i < UE_ARRAY_COUNT(TestDirections); ++i) 
 	{
 		if (!OverlapOnAxis(Box, Triangle, TestDirections[i])) 
 		{
@@ -155,7 +155,7 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 					Triangle.Vertices[1] = Vertices[1].WorldPosition;
 					Triangle.Vertices[2] = Vertices[2].WorldPosition;
 
-					FBox TriangleAABB(Triangle.Vertices, ARRAY_COUNT(Triangle.Vertices));
+					FBox TriangleAABB(Triangle.Vertices, UE_ARRAY_COUNT(Triangle.Vertices));
 
 					if (ExpandedCellBounds.Intersect(TriangleAABB))
 					{
@@ -516,7 +516,7 @@ void FStaticLightingSystem::ProcessVolumetricLightmapBrickTask(FVolumetricLightm
 	BrickData.DirectionalLightShadowing.Empty(TotalBrickSize);
 	BrickData.DirectionalLightShadowing.AddDefaulted(TotalBrickSize);
 
-	for (int32 i = 0; i < ARRAY_COUNT(BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BrickData.SHCoefficients); i++)
 	{
 		BrickData.SHCoefficients[i].Empty(TotalBrickSize);
 		BrickData.SHCoefficients[i].AddDefaulted(TotalBrickSize);
@@ -804,7 +804,7 @@ void FStaticLightingSystem::CalculateAdaptiveVolumetricLightmap(int32 TaskIndex)
 
 void FIrradianceBrickData::SetFromVolumeLightingSample(int32 Index, const FVolumeLightingSample& Sample, bool bInsideGeometry, float MinDistanceToSurface, bool bBorderVoxel)
 {
-	static_assert(ARRAY_COUNT(Sample.HighQualityCoefficients) >= ARRAY_COUNT(SHCoefficients) + 1, "Coefficient mismatch");
+	static_assert(UE_ARRAY_COUNT(Sample.HighQualityCoefficients) >= UE_ARRAY_COUNT(SHCoefficients) + 1, "Coefficient mismatch");
 
 	AmbientVector[Index] = FFloat3Packed(FLinearColor(Sample.HighQualityCoefficients[0][0], Sample.HighQualityCoefficients[0][1], Sample.HighQualityCoefficients[0][2], 0.0f));
 

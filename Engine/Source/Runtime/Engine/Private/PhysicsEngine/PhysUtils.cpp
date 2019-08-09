@@ -194,7 +194,7 @@ void FRigidBodyContactInfo::SwapOrder()
 /** Set the status of a particular channel in the structure. */
 bool FCollisionResponseContainer::SetResponse(ECollisionChannel Channel, ECollisionResponse NewResponse)
 {
-	if (Channel < ARRAY_COUNT(EnumArray))
+	if (Channel < UE_ARRAY_COUNT(EnumArray))
 	{
 		uint8& CurrentResponse = EnumArray[Channel];
 		if (CurrentResponse != NewResponse)
@@ -210,7 +210,7 @@ bool FCollisionResponseContainer::SetResponse(ECollisionChannel Channel, ECollis
 bool FCollisionResponseContainer::SetAllChannels(ECollisionResponse NewResponse)
 {
 	bool bHasChanged = false;
-	for(int32 i=0; i<ARRAY_COUNT(EnumArray); i++)
+	for(int32 i=0; i<UE_ARRAY_COUNT(EnumArray); i++)
 	{
 		uint8& CurrentResponse = EnumArray[i];
 		if (CurrentResponse != NewResponse)
@@ -225,7 +225,7 @@ bool FCollisionResponseContainer::SetAllChannels(ECollisionResponse NewResponse)
 bool FCollisionResponseContainer::ReplaceChannels(ECollisionResponse OldResponse, ECollisionResponse NewResponse)
 {
 	bool bHasChanged = false;
-	for (int32 i = 0; i < ARRAY_COUNT(EnumArray); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(EnumArray); i++)
 	{
 		uint8& CurrentResponse = EnumArray[i];
 		if(CurrentResponse == OldResponse)
@@ -240,7 +240,7 @@ bool FCollisionResponseContainer::ReplaceChannels(ECollisionResponse OldResponse
 FCollisionResponseContainer FCollisionResponseContainer::CreateMinContainer(const FCollisionResponseContainer& A, const FCollisionResponseContainer& B)
 {
 	FCollisionResponseContainer Result;
-	for(int32 i=0; i<ARRAY_COUNT(Result.EnumArray); i++)
+	for(int32 i=0; i<UE_ARRAY_COUNT(Result.EnumArray); i++)
 	{
 		Result.EnumArray[i] = FMath::Min(A.EnumArray[i], B.EnumArray[i]);
 	}
@@ -302,7 +302,7 @@ bool FPhysScene::ExecPxVis(const TCHAR* Cmd, FOutputDevice* Ar)
 	if ( FParse::Command(&Cmd,TEXT("PHYSX_CLEAR_ALL")) )
 	{
 		Ar->Logf(TEXT("Clearing all PhysX Debug Flags."));
-		for (int32 i = 0; i < ARRAY_COUNT(Flags); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(Flags); i++)
 		{
 			PScene->setVisualizationParameter(Flags[i].Flag, 0.0f);
 			bFoundFlag = true;
@@ -310,7 +310,7 @@ bool FPhysScene::ExecPxVis(const TCHAR* Cmd, FOutputDevice* Ar)
 	}
 	else
 	{
-		for (int32 i = 0; i < ARRAY_COUNT(Flags); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(Flags); i++)
 		{
 			// Parse out the command sent in and set only those flags
 			if (FParse::Command(&Cmd, Flags[i].Name))

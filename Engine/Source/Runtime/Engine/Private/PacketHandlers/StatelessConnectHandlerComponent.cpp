@@ -292,8 +292,8 @@ void StatelessConnectHandlerComponent::NotifyHandshakeBegin()
 			InitialPacket.WriteBit(bRestartHandshake);
 			InitialPacket.WriteBit(SecretIdPad);
 
-			FMemory::Memzero(PacketSizeFiller, ARRAY_COUNT(PacketSizeFiller));
-			InitialPacket.Serialize(PacketSizeFiller, ARRAY_COUNT(PacketSizeFiller));
+			FMemory::Memzero(PacketSizeFiller, UE_ARRAY_COUNT(PacketSizeFiller));
+			InitialPacket.Serialize(PacketSizeFiller, UE_ARRAY_COUNT(PacketSizeFiller));
 
 
 
@@ -355,13 +355,13 @@ void StatelessConnectHandlerComponent::SendConnectChallenge(TSharedPtr<const FIn
 		ChallengePacket.WriteBit(ActiveSecret);
 
 		ChallengePacket << Timestamp;
-		ChallengePacket.Serialize(Cookie, ARRAY_COUNT(Cookie));
+		ChallengePacket.Serialize(Cookie, UE_ARRAY_COUNT(Cookie));
 
 #if !UE_BUILD_SHIPPING
 		FDDoSDetection* DDoS = Handler->GetDDoS();
 
 		UE_CLOG((DDoS == nullptr || !DDoS->CheckLogRestrictions()), LogHandshake, Log,
-				TEXT("SendConnectChallenge. Timestamp: %f, Cookie: %s" ), Timestamp, *FString::FromBlob(Cookie, ARRAY_COUNT(Cookie)));
+				TEXT("SendConnectChallenge. Timestamp: %f, Cookie: %s" ), Timestamp, *FString::FromBlob(Cookie, UE_ARRAY_COUNT(Cookie)));
 #endif
 
 		CapHandshakePacket(ChallengePacket);
@@ -475,7 +475,7 @@ void StatelessConnectHandlerComponent::SendChallengeResponse(uint8 InSecretId, f
 		LastServerSequence = *CurSequence & (MAX_PACKETID - 1);
 		LastClientSequence = *(CurSequence + 1) & (MAX_PACKETID - 1);
 
-		FMemory::Memcpy(LastCookie, InCookie, ARRAY_COUNT(LastCookie));
+		FMemory::Memcpy(LastCookie, InCookie, UE_ARRAY_COUNT(LastCookie));
 	}
 	else
 	{
@@ -666,7 +666,7 @@ void StatelessConnectHandlerComponent::InitFromConnectionless(StatelessConnectHa
 	// Store the cookie/address used for the handshake, to enable server ack-retries
 	LastChallengeSuccessAddress = InConnectionlessHandler->LastChallengeSuccessAddress;
 
-	FMemory::Memcpy(AuthorisedCookie, InConnectionlessHandler->AuthorisedCookie, ARRAY_COUNT(AuthorisedCookie));
+	FMemory::Memcpy(AuthorisedCookie, InConnectionlessHandler->AuthorisedCookie, UE_ARRAY_COUNT(AuthorisedCookie));
 }
 
 void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
@@ -731,7 +731,7 @@ void StatelessConnectHandlerComponent::Incoming(FBitReader& Packet)
 							}
 
 							// Save the final authorized cookie
-							FMemory::Memcpy(AuthorisedCookie, Cookie, ARRAY_COUNT(AuthorisedCookie));
+							FMemory::Memcpy(AuthorisedCookie, Cookie, UE_ARRAY_COUNT(AuthorisedCookie));
 						}
 
 						// Now finish initializing the handler - flushing the queued packet buffer in the process.
@@ -896,7 +896,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 						{
 							if (bRestartHandshake)
 							{
-								FMemory::Memcpy(AuthorisedCookie, OrigCookie, ARRAY_COUNT(AuthorisedCookie));
+								FMemory::Memcpy(AuthorisedCookie, OrigCookie, UE_ARRAY_COUNT(AuthorisedCookie));
 							}
 							else
 							{
@@ -905,7 +905,7 @@ void StatelessConnectHandlerComponent::IncomingConnectionless(const TSharedPtr<c
 								LastServerSequence = *CurSequence & (MAX_PACKETID - 1);
 								LastClientSequence = *(CurSequence + 1) & (MAX_PACKETID - 1);
 
-								FMemory::Memcpy(AuthorisedCookie, Cookie, ARRAY_COUNT(AuthorisedCookie));
+								FMemory::Memcpy(AuthorisedCookie, Cookie, UE_ARRAY_COUNT(AuthorisedCookie));
 							}
 
 							bRestartedHandshake = bRestartHandshake;

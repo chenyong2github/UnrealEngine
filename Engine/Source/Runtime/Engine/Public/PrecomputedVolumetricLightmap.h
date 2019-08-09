@@ -81,7 +81,7 @@ public:
 		SIZE_T NumBytes = AmbientVector.DataSize + SkyBentNormal.DataSize + DirectionalLightShadowing.DataSize;
 		NumBytes += LQLightColor.Data.Num() + LQLightDirection.Data.Num();
 
-		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 		{
 			NumBytes += SHCoefficients[i].DataSize;
 		}

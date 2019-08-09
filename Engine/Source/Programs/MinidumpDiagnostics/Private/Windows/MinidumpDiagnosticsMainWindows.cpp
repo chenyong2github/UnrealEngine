@@ -19,8 +19,8 @@ int32 SimpleCrashHandler( LPEXCEPTION_POINTERS ExceptionInfo )
 	StackTrace[0] = 0;
 	FPlatformStackWalk::StackWalkAndDump( StackTrace, StackTraceSize, 0, ExceptionInfo->ContextRecord );
 
-	FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), ARRAY_COUNT( GErrorHist ) );
-	FCString::Strncat( GErrorHist, ANSI_TO_TCHAR( StackTrace ), ARRAY_COUNT( GErrorHist ) );
+	FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), UE_ARRAY_COUNT( GErrorHist ) );
+	FCString::Strncat( GErrorHist, ANSI_TO_TCHAR( StackTrace ), UE_ARRAY_COUNT( GErrorHist ) );
 
 	GMalloc->Free( StackTrace );
 

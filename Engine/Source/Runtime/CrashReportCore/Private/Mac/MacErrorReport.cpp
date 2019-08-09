@@ -52,7 +52,7 @@ FString FMacErrorReport::FindCrashedAppPath() const
 		CFRelease(CFString);
 		
 		static const TCHAR AppPathLineStart[] = TEXT("AppPath=");
-		static const int AppPathIdLength = ARRAY_COUNT(AppPathLineStart) - 1;
+		static const int AppPathIdLength = UE_ARRAY_COUNT(AppPathLineStart) - 1;
 		int32 AppPathStart = FileData.Find(AppPathLineStart);
 		if(AppPathStart >= 0)
 		{

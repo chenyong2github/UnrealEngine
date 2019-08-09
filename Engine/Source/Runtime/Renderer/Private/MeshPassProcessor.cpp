@@ -108,7 +108,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
 	{
 		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
-		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(ShaderBindingState.UniformBuffers));
+		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.UniformBuffers));
 		FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
 
 		if (UniformBuffer != ShaderBindingState.UniformBuffers[Parameter.BaseIndex])
@@ -126,7 +126,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	for (int32 SamplerIndex = 0; SamplerIndex < NumTextureSamplers; SamplerIndex++)
 	{
 		FShaderParameterInfo Parameter = TextureSamplerParameters[SamplerIndex];
-		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(ShaderBindingState.Samplers));
+		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.Samplers));
 		FRHISamplerState* Sampler = (FRHISamplerState*)SamplerBindings[SamplerIndex];
 
 		if (Sampler != ShaderBindingState.Samplers[Parameter.BaseIndex])
@@ -145,7 +145,7 @@ void FMeshDrawShaderBindings::SetShaderBindings(
 	for (uint32 SRVIndex = 0; SRVIndex < NumSRVs; SRVIndex++)
 	{
 		FShaderParameterInfo Parameter = SRVParameters[SRVIndex];
-		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(ShaderBindingState.SRVs));
+		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(ShaderBindingState.SRVs));
 
 		uint32 TypeByteIndex = SRVIndex / 8;
 		uint32 TypeBitIndex = SRVIndex - TypeByteIndex;
@@ -290,9 +290,9 @@ void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForHitGroup(
 	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBuffers; UniformBufferIndex++)
 	{
 		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
-		checkSlow(Parameter.BaseIndex < ARRAY_COUNT(LocalUniformBuffers));
+		checkSlow(Parameter.BaseIndex < UE_ARRAY_COUNT(LocalUniformBuffers));
 		const FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
-		if (Parameter.BaseIndex < ARRAY_COUNT(LocalUniformBuffers))
+		if (Parameter.BaseIndex < UE_ARRAY_COUNT(LocalUniformBuffers))
 		{
 			LocalUniformBuffers[Parameter.BaseIndex] = UniformBuffer;
 			MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
@@ -439,13 +439,13 @@ public:
 		StencilRef = -1;
 
 		// Vertex streams must be reset if PSO changes.
-		for (int32 VertexStreamIndex = 0; VertexStreamIndex < ARRAY_COUNT(VertexStreams); ++VertexStreamIndex)
+		for (int32 VertexStreamIndex = 0; VertexStreamIndex < UE_ARRAY_COUNT(VertexStreams); ++VertexStreamIndex)
 		{
 			VertexStreams[VertexStreamIndex].VertexBuffer = nullptr;
 		}
 
 		// Shader bindings must be reset if PSO changes
-		for (int32 FrequencyIndex = 0; FrequencyIndex < ARRAY_COUNT(ShaderBindings); FrequencyIndex++)
+		for (int32 FrequencyIndex = 0; FrequencyIndex < UE_ARRAY_COUNT(ShaderBindings); FrequencyIndex++)
 		{
 			FShaderBindingState& RESTRICT ShaderBinding = ShaderBindings[FrequencyIndex];
 
@@ -706,7 +706,7 @@ void FMeshDrawShaderBindings::Release()
 	}
 #endif
 
-	if (Size > ARRAY_COUNT(InlineStorage))
+	if (Size > UE_ARRAY_COUNT(InlineStorage))
 	{
 		delete[] HeapData;
 	}

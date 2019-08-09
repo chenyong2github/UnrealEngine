@@ -202,7 +202,7 @@ struct FMacApplicationInfo
 		TempSysCtlBufferSize = PATH_MAX+1;
 		sysctlbyname("machdep.cpu.brand_string", MachineCPUString, &TempSysCtlBufferSize, NULL, 0);
 		
-		gethostname(MachineName, ARRAY_COUNT(MachineName));
+		gethostname(MachineName, UE_ARRAY_COUNT(MachineName));
 		
 		FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
 

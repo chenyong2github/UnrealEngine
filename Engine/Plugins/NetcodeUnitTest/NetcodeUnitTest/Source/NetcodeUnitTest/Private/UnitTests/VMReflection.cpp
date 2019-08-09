@@ -869,7 +869,7 @@ bool UVMReflection::ExecuteUnitTest()
 		Results[2] = (uint8*)((FVMReflection(TestObj)->*"BytePropArray")["uint8"][2], &bError[2]);
 		Results[3] = (uint8*)((FVMReflection(TestObj)->*"BytePropArray")["uint8"][3], &bError[3]);
 
-		for (int32 i=0; i<ARRAY_COUNT(Results); i++)
+		for (int32 i=0; i< UE_ARRAY_COUNT(Results); i++)
 		{
 			if (!bError[i] && Results[i] != NULL)
 			{
@@ -983,7 +983,7 @@ bool UVMReflection::ExecuteUnitTest()
 		Results[2] = (uint8*)((FVMReflection(TestObj)->*"DynBytePropArray")["uint8"][2], &bError[2]);
 		Results[3] = (uint8*)((FVMReflection(TestObj)->*"DynBytePropArray")["uint8"][3], &bError[3]);
 
-		for (int32 i=0; i<ARRAY_COUNT(Results); i++)
+		for (int32 i=0; i< UE_ARRAY_COUNT(Results); i++)
 		{
 			if (!bError[i] && Results[i] != NULL)
 			{

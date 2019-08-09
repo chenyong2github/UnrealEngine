@@ -503,7 +503,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 
 					float BackfaceDetectionDistance = TexelToVertex.TexelRadius * 2.5f;
 
-					for (int32 CornerIndex = 0; CornerIndex < ARRAY_COUNT(CornerSigns); CornerIndex++)
+					for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(CornerSigns); CornerIndex++)
 					{
 						TraceToTexelCorner(
 							TexelCenterOffset,
@@ -524,7 +524,7 @@ void FStaticLightingSystem::AdjustRepresentativeSurfelForTexelsTextureMapping(
 					// Limit the distance that we will search for an intersecting backface in order to move the shading position to the texel radius
 					float ClosestBackfacingIntersectionDistanceSq = BackfaceDetectionDistance * BackfaceDetectionDistance;
 
-					for (int32 CornerIndex = 0; CornerIndex < ARRAY_COUNT(CornerSigns); CornerIndex++)
+					for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(CornerSigns); CornerIndex++)
 					{
 						if (Intersections[CornerIndex].bIntersects)
 						{
@@ -2094,7 +2094,7 @@ void FStaticLightingSystem::CalculateDirectSignedDistanceFieldLightingTextureMap
 
 					// Search for a neighbor with different visibility
 					bool bNeighborsDifferent = false;
-					for (int32 i = 0 ; i < ARRAY_COUNT(Neighbors); i++)
+					for (int32 i = 0 ; i < UE_ARRAY_COUNT(Neighbors); i++)
 					{
 						if (X + Neighbors[i].X > 0
 							&& X + Neighbors[i].X < TextureMapping->CachedSizeX
@@ -2177,7 +2177,7 @@ void FStaticLightingSystem::CalculateDirectSignedDistanceFieldLightingTextureMap
 					if (!bAnyHighResSamplesMapped)
 					{
 						const FTexelToCorners& TexelToCorners = TexelToCornersMap(X, Y);
-						for (int32 CornerIndex = 0; CornerIndex < ARRAY_COUNT(Corners); CornerIndex++)
+						for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(Corners); CornerIndex++)
 						{						
 							if (TexelToCorners.bValid[CornerIndex])
 							{
@@ -2296,7 +2296,7 @@ void FStaticLightingSystem::CalculateDirectSignedDistanceFieldLightingTextureMap
 							{
 								// Detect texels next to the shadow transition
 								bool bNeighborsDifferent = false;
-								for (int32 i = 0 ; i < ARRAY_COUNT(Neighbors); i++)
+								for (int32 i = 0 ; i < UE_ARRAY_COUNT(Neighbors); i++)
 								{
 									// Calculate the high resolution indices, which may go into neighboring low resolution samples
 									const int32 HighResNeighborX = LowResX * UpsampleFactor + HighResX + Neighbors[i].X;
@@ -2336,7 +2336,7 @@ void FStaticLightingSystem::CalculateDirectSignedDistanceFieldLightingTextureMap
 									float WorldSpacePerHighResTexelX = FLT_MAX;
 									float WorldSpacePerHighResTexelY = FLT_MAX;
 									// Determine how far to scatter transition distance by measuring the world space distance between this texel and its neighbors
-									for (int32 i = 0 ; i < ARRAY_COUNT(Neighbors); i++)
+									for (int32 i = 0 ; i < UE_ARRAY_COUNT(Neighbors); i++)
 									{
 										if (HighResX + Neighbors[i].X > 0
 											&& HighResX + Neighbors[i].X < UpsampleFactor

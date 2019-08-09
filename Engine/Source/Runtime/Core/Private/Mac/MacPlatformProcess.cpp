@@ -897,8 +897,8 @@ const TCHAR* FMacPlatformProcess::ComputerName()
 
 	if( !Result[0] )
 	{
-		ANSICHAR AnsiResult[ARRAY_COUNT(Result)];
-		gethostname(AnsiResult, ARRAY_COUNT(Result));
+		ANSICHAR AnsiResult[UE_ARRAY_COUNT(Result)];
+		gethostname(AnsiResult, UE_ARRAY_COUNT(Result));
 		FCString::Strcpy(Result, ANSI_TO_TCHAR(AnsiResult));
 	}
 	return Result;

@@ -790,13 +790,13 @@ class FDefaultGameModuleImpl
 		{ \
 			const uint8 Exponent[] = { ExponentValue }; \
 			const uint8 Modulus[] = { ModulusValue }; \
-			OutExponent.SetNum(ARRAY_COUNT(Exponent)); \
-			OutModulus.SetNum(ARRAY_COUNT(Modulus)); \
-			for(int ByteIdx = 0; ByteIdx < ARRAY_COUNT(Exponent); ByteIdx++) \
+			OutExponent.SetNum(UE_ARRAY_COUNT(Exponent)); \
+			OutModulus.SetNum(UE_ARRAY_COUNT(Modulus)); \
+			for(int ByteIdx = 0; ByteIdx < UE_ARRAY_COUNT(Exponent); ByteIdx++) \
 			{ \
 				OutExponent[ByteIdx] = Exponent[ByteIdx]; \
 			} \
-			for(int ByteIdx = 0; ByteIdx < ARRAY_COUNT(Modulus); ByteIdx++) \
+			for(int ByteIdx = 0; ByteIdx < UE_ARRAY_COUNT(Modulus); ByteIdx++) \
 			{ \
 				OutModulus[ByteIdx] = Modulus[ByteIdx]; \
 			} \
@@ -847,7 +847,7 @@ class FDefaultGameModuleImpl
 			{ \
 				FAutoSet##ModuleName() \
 				{ \
-					FCString::Strncpy(GInternalProjectName, TEXT( GameName ), ARRAY_COUNT(GInternalProjectName)); \
+					FCString::Strncpy(GInternalProjectName, TEXT( GameName ), UE_ARRAY_COUNT(GInternalProjectName)); \
 				} \
 			} AutoSet##ModuleName; \
 			IMPLEMENT_LIVE_CODING_ENGINE_DIR() \

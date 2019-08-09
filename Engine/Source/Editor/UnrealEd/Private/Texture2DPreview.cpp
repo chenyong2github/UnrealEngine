@@ -87,7 +87,7 @@ public:
 			AllocatedVT->GetPackedPageTableUniform(PageTableUniform, false);
 			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
 
-			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, ARRAY_COUNT(PageTableUniform));
+			SetShaderValueArray(RHICmdList, GetPixelShader(), VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));
 			SetShaderValue(RHICmdList, GetPixelShader(), VTPackedUniform, Uniform);
 		}
 		else

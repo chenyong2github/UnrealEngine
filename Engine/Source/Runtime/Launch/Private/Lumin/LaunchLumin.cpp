@@ -55,7 +55,7 @@ static void InitCommandLine()
 	{
 		char CommandLine[CMD_LINE_MAX];
 		FMemory::Memzero(CommandLine, CMD_LINE_MAX * sizeof(char));
-		fgets(CommandLine, ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
+		fgets(CommandLine, UE_ARRAY_COUNT(CommandLine) - 1, CommandLineFile);
 		
 		fclose(CommandLineFile);
 		

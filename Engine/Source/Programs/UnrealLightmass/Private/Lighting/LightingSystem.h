@@ -753,7 +753,7 @@ public:
 		VolumetricLightmapDirectLightingTime(0),
 		VolumetricLightmapFinalGatherTime(0)
 	{
-		for (int32 i = 0; i < ARRAY_COUNT(NumRefiningFinalGatherSamples); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(NumRefiningFinalGatherSamples); i++)
 		{
 			NumRefiningFinalGatherSamples[i] = 0;
 		}
@@ -825,7 +825,7 @@ public:
 		BaseFinalGatherSampleTime += B.BaseFinalGatherSampleTime;
 		RefiningFinalGatherSampleTime += B.RefiningFinalGatherSampleTime;
 
-		for (int32 i = 0; i < ARRAY_COUNT(NumRefiningFinalGatherSamples); i++)
+		for (int32 i = 0; i < UE_ARRAY_COUNT(NumRefiningFinalGatherSamples); i++)
 		{
 			NumRefiningFinalGatherSamples[i] += B.NumRefiningFinalGatherSamples[i];
 		}
@@ -1215,7 +1215,7 @@ private:
 
 	void ReturnToFreeListRecursive(FSimpleQuadTreeNode<ElementType>* Node, TArray<FSimpleQuadTreeNode<ElementType>*>& OutNodes) const
 	{
-		for (int32 ChildIndex = 0; ChildIndex < ARRAY_COUNT(Node->Children); ChildIndex++)
+		for (int32 ChildIndex = 0; ChildIndex < UE_ARRAY_COUNT(Node->Children); ChildIndex++)
 		{
 			if (Node->Children[ChildIndex])
 			{

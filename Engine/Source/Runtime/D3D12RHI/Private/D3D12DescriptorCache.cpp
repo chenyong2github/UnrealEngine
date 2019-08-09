@@ -254,7 +254,7 @@ bool FD3D12DescriptorCache::SetDescriptorHeaps()
 	if (bHeapChanged)
 	{
 		ID3D12DescriptorHeap* /*const*/ ppHeaps[] = { pCurrentViewHeap, pCurrentSamplerHeap };
-		CmdContext->CommandListHandle->SetDescriptorHeaps(ARRAY_COUNT(ppHeaps), ppHeaps);
+		CmdContext->CommandListHandle->SetDescriptorHeaps(UE_ARRAY_COUNT(ppHeaps), ppHeaps);
 
 		pPreviousViewHeap = pCurrentViewHeap;
 		pPreviousSamplerHeap = pCurrentSamplerHeap;
@@ -478,7 +478,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 
 	// Check to see if the sampler configuration is already in the sampler heap
 	FD3D12SamplerArrayDesc Desc = {};
-	if (SlotsNeeded <= ARRAY_COUNT(Desc.SamplerID))
+	if (SlotsNeeded <= UE_ARRAY_COUNT(Desc.SamplerID))
 	{
 		Desc.Count = SlotsNeeded;
 
@@ -491,7 +491,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 		}
 
 		// The hash uses all of the bits
-		for (uint32 SlotIndex = SlotsNeeded; SlotIndex < ARRAY_COUNT(Desc.SamplerID); SlotIndex++)
+		for (uint32 SlotIndex = SlotsNeeded; SlotIndex < UE_ARRAY_COUNT(Desc.SamplerID); SlotIndex++)
 		{
 			Desc.SamplerID[SlotIndex] = 0;
 		}
@@ -538,7 +538,7 @@ void FD3D12DescriptorCache::SetSamplers(const FD3D12RootSignature* RootSignature
 			FD3D12_DESCRIPTOR_HEAP_TYPE_SAMPLER);
 
 		// Remember the locations of the samplers in the sampler map
-		if (SlotsNeeded <= ARRAY_COUNT(Desc.SamplerID))
+		if (SlotsNeeded <= UE_ARRAY_COUNT(Desc.SamplerID))
 		{
 			UniqueTables.Add(FD3D12UniqueSamplerTable(Desc, SrcDescriptors));
 

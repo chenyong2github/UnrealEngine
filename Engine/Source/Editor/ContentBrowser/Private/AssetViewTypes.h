@@ -80,11 +80,11 @@ struct FAssetViewAsset : public FAssetViewItem
 		TextFilterUtils::FNameBufferWithNumber NameBuffer(Data.AssetName);
 		if (NameBuffer.IsWide())
 		{
-			FCStringWide::Strncpy(FirstFewAssetNameCharacters, NameBuffer.GetWideNamePtr(), ARRAY_COUNT(FirstFewAssetNameCharacters));
+			FCStringWide::Strncpy(FirstFewAssetNameCharacters, NameBuffer.GetWideNamePtr(), UE_ARRAY_COUNT(FirstFewAssetNameCharacters));
 		}
 		else
 		{
-			int32 NumChars = FMath::Min<int32>(FCStringAnsi::Strlen(NameBuffer.GetAnsiNamePtr()), ARRAY_COUNT(FirstFewAssetNameCharacters) - 1);
+			int32 NumChars = FMath::Min<int32>(FCStringAnsi::Strlen(NameBuffer.GetAnsiNamePtr()), UE_ARRAY_COUNT(FirstFewAssetNameCharacters) - 1);
 			FPlatformString::Convert(FirstFewAssetNameCharacters, NumChars, NameBuffer.GetAnsiNamePtr(), NumChars);
 			FirstFewAssetNameCharacters[NumChars] = 0;
 		}

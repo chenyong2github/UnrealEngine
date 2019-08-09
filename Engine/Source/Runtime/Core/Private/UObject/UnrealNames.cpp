@@ -1330,7 +1330,7 @@ FString FName::NameToDisplayString( const FString& InDisplayName, const bool bIs
 
 			// Search for a word that needs case repaired
 			bool bIsArticle = false;
-			for( int32 CurArticleIndex = 0; CurArticleIndex < ARRAY_COUNT( Articles ); ++CurArticleIndex )
+			for( int32 CurArticleIndex = 0; CurArticleIndex < UE_ARRAY_COUNT( Articles ); ++CurArticleIndex )
 			{
 				// Make sure the character following the string we're testing is not lowercase (we don't want to match "in" with "instance")
 				const int32 ArticleLength = FCString::Strlen( Articles[ CurArticleIndex ] );

@@ -9,7 +9,7 @@
 void VARARGS FError::ThrowfImpl(const TCHAR* Fmt, ...)
 {
 	static TCHAR TempStr[4096];
-	GET_VARARGS( TempStr, ARRAY_COUNT(TempStr), ARRAY_COUNT(TempStr)-1, Fmt, Fmt );
+	GET_VARARGS( TempStr, UE_ARRAY_COUNT(TempStr), UE_ARRAY_COUNT(TempStr)-1, Fmt, Fmt );
 #if !PLATFORM_EXCEPTIONS_DISABLED
 	throw( TempStr );
 #else

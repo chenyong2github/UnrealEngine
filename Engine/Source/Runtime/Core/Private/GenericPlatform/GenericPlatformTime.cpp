@@ -112,9 +112,9 @@ const TCHAR* FGenericPlatformTime::StrTimestamp()
 {
 	static TCHAR Result[1024];
 	*Result = 0;
-	StrDate( Result, ARRAY_COUNT(Result) );
+	StrDate( Result, UE_ARRAY_COUNT(Result) );
 	FCString::Strcat( Result, TEXT(" ") );
-	StrTime( Result + FCString::Strlen(Result), ARRAY_COUNT(Result) - FCString::Strlen(Result) );
+	StrTime( Result + FCString::Strlen(Result), UE_ARRAY_COUNT(Result) - FCString::Strlen(Result) );
 	return Result;
 }
 

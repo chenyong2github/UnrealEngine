@@ -477,7 +477,7 @@ GLenum GLFrequencyTable[] =
 	GLenum(0), // SF_RayCallable
 };
 
-static_assert(ARRAY_COUNT(GLFrequencyTable) == SF_NumFrequencies, "Frequency table size mismatch.");
+static_assert(UE_ARRAY_COUNT(GLFrequencyTable) == SF_NumFrequencies, "Frequency table size mismatch.");
 
 static inline bool IsDigit(TCHAR Char)
 {

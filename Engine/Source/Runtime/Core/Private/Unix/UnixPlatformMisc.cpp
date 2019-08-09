@@ -598,7 +598,7 @@ FString FUnixPlatformMisc::GetCPUVendor()
 
 		VendorResult.Buffer[12] = 0;
 
-		FCString::Strncpy(Result, UTF8_TO_TCHAR(VendorResult.Buffer), ARRAY_COUNT(Result));
+		FCString::Strncpy(Result, UTF8_TO_TCHAR(VendorResult.Buffer), UE_ARRAY_COUNT(Result));
 #else
 		// use /proc?
 #endif // PLATFORM_HAS_CPUID
@@ -654,7 +654,7 @@ FString FUnixPlatformMisc::GetCPUBrand()
 			}
 		}
 
-		FCString::Strncpy(Result, UTF8_TO_TCHAR(BrandString), ARRAY_COUNT(Result));
+		FCString::Strncpy(Result, UTF8_TO_TCHAR(BrandString), UE_ARRAY_COUNT(Result));
 #else
 		// use /proc?
 #endif // PLATFORM_HAS_CPUID

@@ -518,7 +518,7 @@ void FConcertLogger::InternalStartLogging()
 	if (CSVArchive)
 	{
 		UTF8CHAR UTF8BOM[] = { 0xEF, 0xBB, 0xBF };
-		CSVArchive->Serialize(&UTF8BOM, ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR));
+		CSVArchive->Serialize(&UTF8BOM, UE_ARRAY_COUNT(UTF8BOM) * sizeof(UTF8CHAR));
 	}
 	LogHeader();
 	bIsLogging = CSVArchive.IsValid();

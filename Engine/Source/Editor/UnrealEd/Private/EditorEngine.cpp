@@ -982,7 +982,7 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			TEXT("TimeManagementEditor")
 		};
 
-		FScopedSlowTask ModuleSlowTask(ARRAY_COUNT(ModuleNames));
+		FScopedSlowTask ModuleSlowTask(UE_ARRAY_COUNT(ModuleNames));
 		for (const TCHAR* ModuleName : ModuleNames)
 		{
 			ModuleSlowTask.EnterProgressFrame(1);

@@ -70,7 +70,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedVolumetricLightmapData& Volume)
 
 	Ar << Volume.BrickData.AmbientVector;
 
-	for (int32 i = 0; i < ARRAY_COUNT(Volume.BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(Volume.BrickData.SHCoefficients); i++)
 	{
 		Ar << Volume.BrickData.SHCoefficients[i];
 	}
@@ -133,7 +133,7 @@ int32 FVolumetricLightmapBrickData::GetMinimumVoxelSize() const
 	check(AmbientVector.Format != PF_Unknown);
 	int32 VoxelSize = GPixelFormats[AmbientVector.Format].BlockBytes;
 
-	for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
 	{
 		VoxelSize += GPixelFormats[SHCoefficients[i].Format].BlockBytes;
 	}
@@ -172,7 +172,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::InitRHI()
 	IndirectionTexture.CreateTexture(IndirectionTextureDimensions);
 	BrickData.AmbientVector.CreateTexture(BrickDataDimensions);
 
-	for (int32 i = 0; i < ARRAY_COUNT(BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BrickData.SHCoefficients); i++)
 	{
 		BrickData.SHCoefficients[i].CreateTexture(BrickDataDimensions);
 	}
@@ -190,7 +190,7 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::ReleaseRHI()
 	IndirectionTexture.Texture.SafeRelease();
 	BrickData.AmbientVector.Texture.SafeRelease();
 
-	for (int32 i = 0; i < ARRAY_COUNT(BrickData.SHCoefficients); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(BrickData.SHCoefficients); i++)
 	{
 		BrickData.SHCoefficients[i].Texture.SafeRelease();
 	}

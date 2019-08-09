@@ -475,7 +475,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 
 					RHICmdList.SetViewport(0, 0, 0.0f, LightingAtlasSize.X, LightingAtlasSize.Y, 1.0f);
 
-					FRHIRenderPassInfo RPInfo(ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Clear_Store);
+					FRHIRenderPassInfo RPInfo(UE_ARRAY_COUNT(RenderTargets), RenderTargets, ERenderTargetActions::Clear_Store);
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("SetupHeightfields"));
 					{
 						FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -513,7 +513,7 @@ void FHeightfieldLightingViewInfo::SetupVisibleHeightfields(const FViewInfo& Vie
 					}
 					RHICmdList.EndRenderPass();
 
-					RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, RenderTargets, ARRAY_COUNT(RenderTargets));
+					RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, RenderTargets, UE_ARRAY_COUNT(RenderTargets));
 				}
 			}
 		}

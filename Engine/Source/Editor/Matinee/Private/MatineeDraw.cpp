@@ -676,7 +676,7 @@ void FMatineeViewportClient::DrawTimeline(FViewport* InViewport, FCanvas* Canvas
 	int32 SelIndex = InterpEd->SnapSelectionIndex;
 
 	// Determine if time should be drawn including frames or keys
-	if(SelIndex == ARRAY_COUNT(FMatinee::InterpEdSnapSizes)+ARRAY_COUNT(FMatinee::InterpEdFPSSnapSizes))
+	if(SelIndex == UE_ARRAY_COUNT(FMatinee::InterpEdSnapSizes)+UE_ARRAY_COUNT(FMatinee::InterpEdFPSSnapSizes))
 	{
 		UInterpTrack* Track = NULL;
 		int32 SelKeyIndex = 0;
@@ -704,7 +704,7 @@ void FMatineeViewportClient::DrawTimeline(FViewport* InViewport, FCanvas* Canvas
 
 		StringSize( Font, XL, YL, *SnapPosString );
 	}
-	else if(SelIndex < ARRAY_COUNT(FMatinee::InterpEdFPSSnapSizes)+ARRAY_COUNT(FMatinee::InterpEdSnapSizes) && SelIndex >= ARRAY_COUNT(FMatinee::InterpEdSnapSizes))
+	else if(SelIndex < UE_ARRAY_COUNT(FMatinee::InterpEdFPSSnapSizes)+UE_ARRAY_COUNT(FMatinee::InterpEdSnapSizes) && SelIndex >= UE_ARRAY_COUNT(FMatinee::InterpEdSnapSizes))
 	{
 		// frames
 
@@ -719,7 +719,7 @@ void FMatineeViewportClient::DrawTimeline(FViewport* InViewport, FCanvas* Canvas
 		SnapPosString = FString::Printf( TEXT("%3.1f / %3.1f %s"), (1.0 / InterpEd->SnapAmount) * InterpEd->MatineeActor->InterpPosition, (1.0 / InterpEd->SnapAmount) * InterpEd->IData->InterpLength, *NSLOCTEXT("UnrealEd", "InterpEd_TimelineInfo_Frames", "frames").ToString() );
 		StringSize( Font, XL, YL, *SnapPosString );
 	}
-	else if(SelIndex < ARRAY_COUNT(FMatinee::InterpEdSnapSizes))
+	else if(SelIndex < UE_ARRAY_COUNT(FMatinee::InterpEdSnapSizes))
 	{
 		// seconds
 		SnapPosString = "";

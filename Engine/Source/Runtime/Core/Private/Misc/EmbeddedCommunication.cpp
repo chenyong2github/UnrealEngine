@@ -272,7 +272,7 @@ bool FEmbeddedCommunication::IsAwakeForRendering()
 void FEmbeddedCommunication::RunOnGameThread(int Priority, TFunction<void()> Lambda)
 {
 #if BUILD_EMBEDDED_APP
-	check(Priority < ARRAY_COUNT(GEmbeddedQueues));
+	check(Priority < UE_ARRAY_COUNT(GEmbeddedQueues));
 
 	{
 		FScopeLock Lock(&GEmbeddedLock);
@@ -321,7 +321,7 @@ bool FEmbeddedCommunication::TickGameThread(float DeltaTime)
 		{
 			FScopeLock Lock(&GEmbeddedLock);
 
-			for (int Queue = 0; Queue < ARRAY_COUNT(GEmbeddedQueues); Queue++)
+			for (int Queue = 0; Queue < UE_ARRAY_COUNT(GEmbeddedQueues); Queue++)
 			{
 				if (GEmbeddedQueues[Queue].Dequeue(LambdaToCall))
 				{

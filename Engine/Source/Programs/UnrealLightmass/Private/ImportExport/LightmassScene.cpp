@@ -1860,7 +1860,7 @@ void FSkyLight::Import( FLightmassImporter& Importer )
 			FIntPoint(1, 1)
 		};
 
-		const float SubCellWeight = 1.0f / (float)ARRAY_COUNT(SubCellOffsets);
+		const float SubCellWeight = 1.0f / (float)UE_ARRAY_COUNT(SubCellOffsets);
 
 		for (int32 MipIndex = 1; MipIndex < NumMips; MipIndex++)
 		{
@@ -1879,7 +1879,7 @@ void FSkyLight::Import( FLightmassImporter& Importer )
 					{
 						FLinearColor FilteredValue(0, 0, 0, 0);
 
-						for (int32 OffsetIndex = 0; OffsetIndex < ARRAY_COUNT(SubCellOffsets); OffsetIndex++)
+						for (int32 OffsetIndex = 0; OffsetIndex < UE_ARRAY_COUNT(SubCellOffsets); OffsetIndex++)
 						{
 							FIntPoint ParentOffset = FIntPoint(X, Y) * 2 + SubCellOffsets[OffsetIndex];
 							int32 ParentTexelIndex = FaceIndex * ParentMipSize * ParentMipSize + ParentOffset.Y * ParentMipSize + ParentOffset.X;
@@ -2439,7 +2439,7 @@ void FMeshAreaLight::SampleDirection(FLMRandomStream& RandomStream, FLightRay& S
 			bool bAllCornersInOppositeHemisphere = true;
 			// Determine whether the cell is completely in the same hemisphere as the sample direction, completely on the other side or spanning the terminator
 			// This is done by checking each cell's corners
-			for (int32 CornerIndex = 0; CornerIndex < ARRAY_COUNT(Corners); CornerIndex++)
+			for (int32 CornerIndex = 0; CornerIndex < UE_ARRAY_COUNT(Corners); CornerIndex++)
 			{
 				const float Theta = (ThetaStep + Corners[CornerIndex].X) / (float)MeshAreaLightGridSize * (float)PI;
 				const float Phi = (PhiStep + Corners[CornerIndex].Y) / (float)MeshAreaLightGridSize * 2 * (float)PI - (float)PI;

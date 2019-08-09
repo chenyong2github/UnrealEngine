@@ -386,7 +386,7 @@ private:
 
 		Size = InSize;
 
-		if (InSize > ARRAY_COUNT(InlineStorage))
+		if (InSize > UE_ARRAY_COUNT(InlineStorage))
 		{
 			HeapData = new uint8[InSize];
 		}
@@ -404,12 +404,12 @@ private:
 
 	uint8* GetData()
 	{
-		return Size <= ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
+		return Size <= UE_ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
 	}
 
 	const uint8* GetData() const
 	{
-		return Size <= ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
+		return Size <= UE_ARRAY_COUNT(InlineStorage) ? &InlineStorage[0] : HeapData;
 	}
 
 	RENDERER_API void CopyFrom(const FMeshDrawShaderBindings& Other);

@@ -236,7 +236,7 @@ private:
 
 				// cut out the middle and replace with a substitute
 				const TCHAR Dash[] = TEXT("-");
-				const int32 DashLen = ARRAY_COUNT(Dash) - 1;
+				const int32 DashLen = UE_ARRAY_COUNT(Dash) - 1;
 				int NumToLeave = (EConstants::UnixThreadNameLimit - DashLen) / 2;
 
 				SizeLimitedThreadName = Temp.Left(EConstants::UnixThreadNameLimit - (NumToLeave + DashLen));

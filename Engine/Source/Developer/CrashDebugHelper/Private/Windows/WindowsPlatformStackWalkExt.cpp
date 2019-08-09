@@ -256,7 +256,7 @@ void FWindowsPlatformStackWalkExt::SetSymbolPathsFromModules()
 
 	TCHAR SymbolPath[16384] = { 0 };
 
-	Symbol->GetSymbolPathWide( SymbolPath, ARRAY_COUNT(SymbolPath), NULL );
+	Symbol->GetSymbolPathWide( SymbolPath, UE_ARRAY_COUNT(SymbolPath), NULL );
 	TArray<FString> SymbolPaths;
 	FString( SymbolPath ).ParseIntoArray(SymbolPaths, TEXT(";"), true );
 
@@ -266,7 +266,7 @@ void FWindowsPlatformStackWalkExt::SetSymbolPathsFromModules()
 		UE_LOG( LogCrashDebugHelper, Log, TEXT( "    %s" ), *It );
 	}
 
-	Symbol->GetImagePathWide( SymbolPath, ARRAY_COUNT( SymbolPath ), NULL );
+	Symbol->GetImagePathWide( SymbolPath, UE_ARRAY_COUNT( SymbolPath ), NULL );
 	TArray<FString> ImagePaths;
 	FString( SymbolPath ).ParseIntoArray( ImagePaths, TEXT( ";" ), true );
 	
@@ -415,7 +415,7 @@ void FWindowsPlatformStackWalkExt::GetExceptionInfo()
 	ULONG ProcessID = 0;
 	ULONG ThreadId = 0;
 	TCHAR Description[MAX_PATH] = { 0 };
-	Control->GetLastEventInformationWide( &ExceptionType, &ProcessID, &ThreadId, NULL, 0, NULL, Description, ARRAY_COUNT( Description ), NULL );
+	Control->GetLastEventInformationWide( &ExceptionType, &ProcessID, &ThreadId, NULL, 0, NULL, Description, UE_ARRAY_COUNT( Description ), NULL );
 
 	Exception.Code = ExceptionType;
 	Exception.ProcessId = ProcessID;

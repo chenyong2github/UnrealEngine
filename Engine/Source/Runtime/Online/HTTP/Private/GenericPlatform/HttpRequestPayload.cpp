@@ -13,10 +13,10 @@ bool FGenericPlatformHttp::IsURLEncoded(const TArray<uint8>& Payload)
 
 	if (!bTableFilled)
 	{
-		for (int32 Idx = 0; Idx < ARRAY_COUNT(AllowedChars) - 1; ++Idx)	// -1 to avoid trailing 0
+		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(AllowedChars) - 1; ++Idx)	// -1 to avoid trailing 0
 		{
 			uint8 AllowedCharIdx = static_cast<uint8>(AllowedChars[Idx]);
-			check(AllowedCharIdx < ARRAY_COUNT(AllowedTable));
+			check(AllowedCharIdx < UE_ARRAY_COUNT(AllowedTable));
 			AllowedTable[AllowedCharIdx] = true;
 		}
 

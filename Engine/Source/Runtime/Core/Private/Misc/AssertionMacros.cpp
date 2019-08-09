@@ -94,7 +94,7 @@ static void AssertFailedImplV(const ANSICHAR* Expr, const ANSICHAR* File, int32 
 	bHasAsserted = true;
 
 	TCHAR DescriptionString[4096];
-	FCString::GetVarArgs(DescriptionString, ARRAY_COUNT(DescriptionString), Format, Args);
+	FCString::GetVarArgs(DescriptionString, UE_ARRAY_COUNT(DescriptionString), Format, Args);
 
 	TCHAR ErrorString[MAX_SPRINTF];
 	FCString::Sprintf(ErrorString, TEXT("%s"), ANSI_TO_TCHAR(Expr));
@@ -113,7 +113,7 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, in
 
 	TCHAR DescriptionAndTrace[4096];
 
-	FCString::Strncpy(DescriptionAndTrace, Description, ARRAY_COUNT(DescriptionAndTrace) - 1);
+	FCString::Strncpy(DescriptionAndTrace, Description, UE_ARRAY_COUNT(DescriptionAndTrace) - 1);
 
 	// some platforms (Windows, Mac, Linux) generate this themselves by throwing an exception and capturing
 	// the backtrace later on
@@ -123,10 +123,10 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, in
 		if (StackTrace != NULL)
 		{
 			StackTrace[0] = 0;
-			FPlatformStackWalk::StackWalkAndDump(StackTrace, ARRAY_COUNT(StackTrace), NumStackFramesToIgnore + 1);
+			FPlatformStackWalk::StackWalkAndDump(StackTrace, UE_ARRAY_COUNT(StackTrace), NumStackFramesToIgnore + 1);
 
-			FCString::Strncat(DescriptionAndTrace, TEXT("\n"), ARRAY_COUNT(DescriptionAndTrace) - 1);
-			FCString::Strncat(DescriptionAndTrace, ANSI_TO_TCHAR(StackTrace), ARRAY_COUNT(DescriptionAndTrace) - 1);
+			FCString::Strncat(DescriptionAndTrace, TEXT("\n"), UE_ARRAY_COUNT(DescriptionAndTrace) - 1);
+			FCString::Strncat(DescriptionAndTrace, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(DescriptionAndTrace) - 1);
 		}
 	}
 
@@ -135,15 +135,15 @@ FORCENOINLINE void StaticFailDebug( const TCHAR* Error, const ANSICHAR* File, in
 
 	// Copy the detailed error into the error message.
 	TCHAR ErrorMessage[4096];
-	if (FCString::Snprintf( ErrorMessage, ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n" ), Error, ANSI_TO_TCHAR( File ), Line, DescriptionAndTrace) < 0)
+	if (FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n" ), Error, ANSI_TO_TCHAR( File ), Line, DescriptionAndTrace) < 0)
 	{
 		// Description and callstack was too long to fit in GErrorMessage. Use only description
-		FCString::Snprintf( ErrorMessage, ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n<< callstack too long >>" ), Error, ANSI_TO_TCHAR( File ), Line, Description);
+		FCString::Snprintf( ErrorMessage, UE_ARRAY_COUNT( ErrorMessage ), TEXT( "%s" ) FILE_LINE_DESC TEXT( "\n%s\n<< callstack too long >>" ), Error, ANSI_TO_TCHAR( File ), Line, Description);
 	}
 
 	// Copy the error message to the error history.
-	FCString::Strncpy( GErrorHist, ErrorMessage, ARRAY_COUNT( GErrorHist ) );
-	FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), ARRAY_COUNT( GErrorHist ) );
+	FCString::Strncpy( GErrorHist, ErrorMessage, UE_ARRAY_COUNT( GErrorHist ) );
+	FCString::Strncat( GErrorHist, TEXT( "\r\n\r\n" ), UE_ARRAY_COUNT( GErrorHist ) );
 }
 
 
@@ -186,7 +186,7 @@ void FDebug::LogFormattedMessageWithCallstack(const FName& LogName, const ANSICH
 		// Find the end of the current line
 		const TCHAR* LineEnd = LineStart;
 		TCHAR* SingleLineWritePos = SingleLine;
-		int32 SpaceRemaining = ARRAY_COUNT(SingleLine) - 1;
+		int32 SpaceRemaining = UE_ARRAY_COUNT(SingleLine) - 1;
 
 		while (SpaceRemaining > 0 && *LineEnd != 0 && *LineEnd != '\r' && *LineEnd != '\n')
 		{
@@ -246,7 +246,7 @@ void FDebug::LogAssertFailedMessageImplV(const ANSICHAR* Expr, const ANSICHAR* F
 	if( !GIsCriticalError )
 	{
 		TCHAR DescriptionString[4096];
-		FCString::GetVarArgs( DescriptionString, ARRAY_COUNT(DescriptionString), Fmt, Args );
+		FCString::GetVarArgs( DescriptionString, UE_ARRAY_COUNT(DescriptionString), Fmt, Args );
 
 		TCHAR ErrorString[MAX_SPRINTF];
 		FCString::Sprintf( ErrorString, TEXT( "Assertion failed: %s" ), ANSI_TO_TCHAR( Expr ) );
@@ -310,7 +310,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 
 		// Create a final string that we'll output to the log (and error history buffer)
 		TCHAR ErrorMsg[16384];
-		FCString::Snprintf(ErrorMsg, ARRAY_COUNT(ErrorMsg), TEXT("Ensure condition failed: %s [File:%s] [Line: %i]") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR TEXT("Stack: ") LINE_TERMINATOR, ANSI_TO_TCHAR(Expr), ANSI_TO_TCHAR(File), Line, Msg);
+		FCString::Snprintf(ErrorMsg, UE_ARRAY_COUNT(ErrorMsg), TEXT("Ensure condition failed: %s [File:%s] [Line: %i]") LINE_TERMINATOR TEXT("%s") LINE_TERMINATOR TEXT("Stack: ") LINE_TERMINATOR, ANSI_TO_TCHAR(Expr), ANSI_TO_TCHAR(File), Line, Msg);
 
 		// No debugger attached, so generate a call stack and submit a crash report
 		// Walk the stack and dump it to the allocated memory.
@@ -334,7 +334,7 @@ FORCENOINLINE void FDebug::EnsureFailed(const ANSICHAR* Expr, const ANSICHAR* Fi
 			}
 
 			// Also append the stack trace
-			FCString::Strncat(ErrorMsg, ANSI_TO_TCHAR(StackTrace), ARRAY_COUNT(ErrorMsg) - 1);
+			FCString::Strncat(ErrorMsg, ANSI_TO_TCHAR(StackTrace), UE_ARRAY_COUNT(ErrorMsg) - 1);
 			FMemory::SystemFree(StackTrace);
 
 			// Dump the error and flush the log.
@@ -474,7 +474,7 @@ FORCENOINLINE bool VARARGS FDebug::OptionallyLogFormattedEnsureMessageReturningF
 FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32 Line, const TCHAR* Format, ...)
 {
 	TCHAR DescriptionString[4096];
-	GET_VARARGS( DescriptionString, ARRAY_COUNT(DescriptionString), ARRAY_COUNT(DescriptionString)-1, Format, Format );
+	GET_VARARGS( DescriptionString, UE_ARRAY_COUNT(DescriptionString), UE_ARRAY_COUNT(DescriptionString)-1, Format, Format );
 
 	const int32 NumStackFramesToIgnore = 1; // Just ignore this frame
 	StaticFailDebug(TEXT("LowLevelFatalError"), File, Line, DescriptionString, false, NumStackFramesToIgnore);

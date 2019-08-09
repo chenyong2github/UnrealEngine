@@ -469,7 +469,7 @@ void FScopeCycleCounterUObject::TrackObjectForMallocProfiling(const FName InPack
 	{
 		// "Package:/Path/To/Package"
 		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(PackageTagCategory, ARRAY_COUNT(PackageTagCategory) - 1);
+		ScratchSpaceBuffer.Append(PackageTagCategory, UE_ARRAY_COUNT(PackageTagCategory) - 1);
 		AppendNameToBuffer(InPackageName);
 		ScratchSpaceBuffer.Add(0);
 		PackageTag = FName(ScratchSpaceBuffer.GetData());
@@ -477,7 +477,7 @@ void FScopeCycleCounterUObject::TrackObjectForMallocProfiling(const FName InPack
 
 		// "Object:/Path/To/Package/ObjectName"
 		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(ObjectTagCategory, ARRAY_COUNT(ObjectTagCategory) - 1);
+		ScratchSpaceBuffer.Append(ObjectTagCategory, UE_ARRAY_COUNT(ObjectTagCategory) - 1);
 		AppendNameToBuffer(InPackageName);
 		ScratchSpaceBuffer.Add(TEXT('/'));
 		AppendNameToBuffer(InObjectName);
@@ -490,7 +490,7 @@ void FScopeCycleCounterUObject::TrackObjectForMallocProfiling(const FName InPack
 	{
 		// "Class:ClassName"
 		ScratchSpaceBuffer.Reset();
-		ScratchSpaceBuffer.Append(ClassTagCategory, ARRAY_COUNT(ClassTagCategory) - 1);
+		ScratchSpaceBuffer.Append(ClassTagCategory, UE_ARRAY_COUNT(ClassTagCategory) - 1);
 		AppendNameToBuffer(InClassName);
 		ScratchSpaceBuffer.Add(0);
 		ClassTag = FName(ScratchSpaceBuffer.GetData());

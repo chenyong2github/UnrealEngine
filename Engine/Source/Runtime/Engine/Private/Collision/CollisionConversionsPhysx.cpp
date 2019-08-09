@@ -445,8 +445,8 @@ static bool FindOverlappedTriangleNormal_Internal(const UWorld* World, const PxG
 			bool bOverflow = false;
 
 			const int32 NumTrisHit = bIsTriMesh ?
-				PxMeshQuery::findOverlapTriangleMesh(Geom, QueryTM, PTriMeshGeom, PShapeWorldPose, HitTris, ARRAY_COUNT(HitTris), 0, bOverflow) :
-				PxMeshQuery::findOverlapHeightField(Geom, QueryTM, PHeightfieldGeom, PShapeWorldPose, HitTris, ARRAY_COUNT(HitTris), 0, bOverflow);
+				PxMeshQuery::findOverlapTriangleMesh(Geom, QueryTM, PTriMeshGeom, PShapeWorldPose, HitTris, UE_ARRAY_COUNT(HitTris), 0, bOverflow) :
+				PxMeshQuery::findOverlapHeightField(Geom, QueryTM, PHeightfieldGeom, PShapeWorldPose, HitTris, UE_ARRAY_COUNT(HitTris), 0, bOverflow);
 
 			if (NumTrisHit > 0)
 			{

@@ -35,7 +35,7 @@ static const uint64 Pow10Table[] = {
 	1000000000000000000,	// 10^18
 };
 
-static_assert(ARRAY_COUNT(Pow10Table) - 1 >= MaxFractionalPrintPrecision, "Pow10Table must at big enough to index any value up-to MaxFractionalPrintPrecision");
+static_assert(UE_ARRAY_COUNT(Pow10Table) - 1 >= MaxFractionalPrintPrecision, "Pow10Table must at big enough to index any value up-to MaxFractionalPrintPrecision");
 
 enum class EDecimalNumberSigningStringsFlags : uint8
 {
@@ -377,7 +377,7 @@ void IntegralToString(const bool bIsNegative, const uint64 InVal, const FDecimal
 
 	// Deal with the integral part (produces a string of the integral part, inserting group separators if requested and required, and padding as needed)
 	TCHAR IntegralPartBuffer[MinRequiredIntegralBufferSize];
-	const int32 IntegralPartLen = IntegralToString_Common(InVal, InFormattingRules, InFormattingOptions, IntegralPartBuffer, ARRAY_COUNT(IntegralPartBuffer));
+	const int32 IntegralPartLen = IntegralToString_Common(InVal, InFormattingRules, InFormattingOptions, IntegralPartBuffer, UE_ARRAY_COUNT(IntegralPartBuffer));
 
 	// Deal with any forced fractional part (produces a string zeros up to the required minimum length)
 	TCHAR FractionalPartBuffer[MinRequiredIntegralBufferSize];
@@ -419,14 +419,14 @@ void FractionalToString(const double InVal, const FDecimalNumberFormattingRules&
 
 	// Deal with the integral part (produces a string of the integral part, inserting group separators if requested and required, and padding as needed)
 	TCHAR IntegralPartBuffer[MinRequiredIntegralBufferSize];
-	const int32 IntegralPartLen = IntegralToString_Common(static_cast<uint64>(IntegralPart), InFormattingRules, InFormattingOptions, IntegralPartBuffer, ARRAY_COUNT(IntegralPartBuffer));
+	const int32 IntegralPartLen = IntegralToString_Common(static_cast<uint64>(IntegralPart), InFormattingRules, InFormattingOptions, IntegralPartBuffer, UE_ARRAY_COUNT(IntegralPartBuffer));
 
 	// Deal with the fractional part (produces a string of the fractional part, potentially padding with zeros up to InFormattingOptions.MaximumFractionalDigits)
 	TCHAR FractionalPartBuffer[MinRequiredIntegralBufferSize];
 	int32 FractionalPartLen = 0;
 	if (FractionalPart != 0.0)
 	{
-		FractionalPartLen = IntegralToString_UInt64ToString(static_cast<uint64>(FractionalPart), false, 0, 0, ' ', InFormattingRules.DigitCharacters, 0, InFormattingOptions.MaximumFractionalDigits, FractionalPartBuffer, ARRAY_COUNT(FractionalPartBuffer));
+		FractionalPartLen = IntegralToString_UInt64ToString(static_cast<uint64>(FractionalPart), false, 0, 0, ' ', InFormattingRules.DigitCharacters, 0, InFormattingOptions.MaximumFractionalDigits, FractionalPartBuffer, UE_ARRAY_COUNT(FractionalPartBuffer));
 	
 		{
 			// Pad the fractional part with any leading zeros that may have been lost when the number was split
@@ -564,7 +564,7 @@ bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBuff
 
 		// Process numeric characters (also test European numerals in case they were used by a language that doesn't normally use them)
 		bool bValidChar = false;
-		for (int32 CharIndex = 0; CharIndex < ARRAY_COUNT(InFormattingRules.DigitCharacters); ++CharIndex)
+		for (int32 CharIndex = 0; CharIndex < UE_ARRAY_COUNT(InFormattingRules.DigitCharacters); ++CharIndex)
 		{
 			if ((*InBuffer == InFormattingRules.DigitCharacters[CharIndex]) || (*InBuffer == EuropeanNumerals[CharIndex]))
 			{

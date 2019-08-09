@@ -670,7 +670,7 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 		TEXT("ToPositiveInfinity"),
 	};
 
-	static_assert(ERoundingMode::ToPositiveInfinity == ARRAY_COUNT(RoundingModeNames) - 1, "RoundingModeNames array needs updating");
+	static_assert(ERoundingMode::ToPositiveInfinity == UE_ARRAY_COUNT(RoundingModeNames) - 1, "RoundingModeNames array needs updating");
 
 	static const double InputValues[] = {
 		1000.1224,
@@ -702,7 +702,7 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 		-1000.1256,
 	};
 
-	static const TCHAR* OutputValues[][ARRAY_COUNT(RoundingModeNames)] = 
+	static const TCHAR* OutputValues[][UE_ARRAY_COUNT(RoundingModeNames)] = 
 	{
 		// HalfToEven        | HalfFromZero      | HalfToZero        | FromZero          | ToZero            | ToNegativeInfinity | ToPositiveInfinity
 		{  TEXT("1000.122"),   TEXT("1000.122"),   TEXT("1000.122"),   TEXT("1000.123"),   TEXT("1000.122"),   TEXT("1000.122"),    TEXT("1000.123") },
@@ -734,7 +734,7 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 		{ TEXT("-1000.126"),  TEXT("-1000.126"),  TEXT("-1000.126"),  TEXT("-1000.126"),  TEXT("-1000.125"),  TEXT("-1000.126"),   TEXT("-1000.125") },
 	};
 
-	static_assert(ARRAY_COUNT(InputValues) == ARRAY_COUNT(OutputValues), "The size of InputValues does not match OutputValues");
+	static_assert(UE_ARRAY_COUNT(InputValues) == UE_ARRAY_COUNT(OutputValues), "The size of InputValues does not match OutputValues");
 
 	FInternationalization& I18N = FInternationalization::Get();
 
@@ -762,7 +762,7 @@ bool FTextRoundingTest::RunTest (const FString& Parameters)
 	{
 		FormattingOptions.SetRoundingMode(InRoundingMode);
 
-		for (int32 TestValueIndex = 0; TestValueIndex < ARRAY_COUNT(InputValues); ++TestValueIndex)
+		for (int32 TestValueIndex = 0; TestValueIndex < UE_ARRAY_COUNT(InputValues); ++TestValueIndex)
 		{
 			DoSingleTest(InputValues[TestValueIndex], OutputValues[TestValueIndex][InRoundingMode], RoundingModeNames[InRoundingMode]);
 		}

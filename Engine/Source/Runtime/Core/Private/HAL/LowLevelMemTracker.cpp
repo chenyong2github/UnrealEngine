@@ -128,7 +128,7 @@ extern const TCHAR* LLMGetTagName(ELLMTag Tag)
 #undef LLM_TAG_NAME_ARRAY
 
 	int32 Index = (int32)Tag;
-	if (Index >= 0 && Index < ARRAY_COUNT(Names))
+	if (Index >= 0 && Index < UE_ARRAY_COUNT(Names))
 	{
 		return Names[Index];
 	}
@@ -145,7 +145,7 @@ extern const ANSICHAR* LLMGetTagNameANSI(ELLMTag Tag)
 #undef LLM_TAG_NAME_ARRAY
 
 	int32 Index = (int32)Tag;
-	if (Index >= 0 && Index < ARRAY_COUNT(Names))
+	if (Index >= 0 && Index < UE_ARRAY_COUNT(Names))
 	{
 		return Names[Index];
 	}
@@ -162,7 +162,7 @@ extern FName LLMGetTagStat(ELLMTag Tag)
 #undef LLM_TAG_STAT_ARRAY
 
 	int32 Index = (int32)Tag;
-	if (Index >= 0 && Index < ARRAY_COUNT(Names))
+	if (Index >= 0 && Index < UE_ARRAY_COUNT(Names))
 	{
 		return Names[Index];
 	}
@@ -179,7 +179,7 @@ extern FName LLMGetTagStatGroup(ELLMTag Tag)
 #undef LLM_TAG_STAT_ARRAY
 
 	int32 Index = (int32)Tag;
-	if (Index >= 0 && Index < ARRAY_COUNT(Names))
+	if (Index >= 0 && Index < UE_ARRAY_COUNT(Names))
 	{
 		return Names[Index];
 	}
@@ -196,7 +196,7 @@ extern int32 LLMGetTagParent(ELLMTag Tag)
 #undef LLM_TAG_NAME_ARRAY
 
 	int32 Index = (int32)Tag;
-	if( Index >= 0 && Index < ARRAY_COUNT(ParentTags))
+	if( Index >= 0 && Index < UE_ARRAY_COUNT(ParentTags))
 	{
 		return ParentTags[Index];
 	}

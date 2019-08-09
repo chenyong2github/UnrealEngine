@@ -87,8 +87,8 @@ struct FD3D12SamplerArrayDesc
 	uint16 SamplerID[16];
 	inline bool operator==(const FD3D12SamplerArrayDesc& rhs) const
 	{
-		check(Count <= ARRAY_COUNT(SamplerID));
-		check(rhs.Count <= ARRAY_COUNT(rhs.SamplerID));
+		check(Count <= UE_ARRAY_COUNT(SamplerID));
+		check(rhs.Count <= UE_ARRAY_COUNT(rhs.SamplerID));
 
 		if (Count != rhs.Count)
 		{

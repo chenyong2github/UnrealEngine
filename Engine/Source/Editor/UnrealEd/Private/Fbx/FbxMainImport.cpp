@@ -1629,7 +1629,7 @@ ANSICHAR* FFbxImporter::MakeName(const ANSICHAR* Name)
 	
 	FCStringAnsi::Strcpy(TmpName, len + 1, Name);
 
-	for ( int32 i = 0; i < ARRAY_COUNT(SpecialChars); i++ )
+	for ( int32 i = 0; i < UE_ARRAY_COUNT(SpecialChars); i++ )
 	{
 		ANSICHAR* CharPtr = TmpName;
 		while ( (CharPtr = FCStringAnsi::Strchr(CharPtr,SpecialChars[i])) != NULL )

@@ -22,8 +22,8 @@ FString GetSslErrorString()
 	if (Error != SSL_ERROR_NONE)
 	{
 		char AnsiErrorBuffer[256];
-		ERR_error_string_n(Error, AnsiErrorBuffer, ARRAY_COUNT(AnsiErrorBuffer) - 1);
-		AnsiErrorBuffer[ARRAY_COUNT(AnsiErrorBuffer) - 1] = '\0';
+		ERR_error_string_n(Error, AnsiErrorBuffer, UE_ARRAY_COUNT(AnsiErrorBuffer) - 1);
+		AnsiErrorBuffer[UE_ARRAY_COUNT(AnsiErrorBuffer) - 1] = '\0';
 
 		SslErrorString = ANSI_TO_TCHAR(AnsiErrorBuffer);
 	}

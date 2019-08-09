@@ -71,7 +71,7 @@ void FGameplayDebuggerCategory_Navmesh::CollectData(APlayerController* OwnerPC, 
 		int32 TargetTileX = 0;
 		int32 TargetTileY = 0;
 		NavData->GetNavMeshTileXY(TargetLocation, TargetTileX, TargetTileY);
-		for (int32 Idx = 0; Idx < ARRAY_COUNT(DeltaX); Idx++)
+		for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(DeltaX); Idx++)
 		{
 			const int32 NeiX = TargetTileX + DeltaX[Idx];
 			const int32 NeiY = TargetTileY + DeltaY[Idx];

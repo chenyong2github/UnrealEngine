@@ -157,7 +157,7 @@ public:
 
 	FSHAHash* FindHash(EShaderPlatform ShaderPlatform, const FString& VirtualFilePath)
 	{
-		check(ShaderPlatform < ARRAY_COUNT(Platforms));
+		check(ShaderPlatform < UE_ARRAY_COUNT(Platforms));
 		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::FindHash."));
 
 		return Platforms[ShaderPlatform].ShaderHashCache.Find(VirtualFilePath);
@@ -165,7 +165,7 @@ public:
 
 	FSHAHash& AddHash(EShaderPlatform ShaderPlatform, const FString& VirtualFilePath)
 	{
-		check(ShaderPlatform < ARRAY_COUNT(Platforms));
+		check(ShaderPlatform < UE_ARRAY_COUNT(Platforms));
 		checkf(bInitialized, TEXT("GShaderHashCache::Initialize needs to be called before GShaderHashCache::AddHash."));
 
 		return Platforms[ShaderPlatform].ShaderHashCache.Add(VirtualFilePath, FSHAHash());

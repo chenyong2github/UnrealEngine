@@ -1299,9 +1299,9 @@ void FStaticLightingSystem::CacheSamples()
 		CachedSamplesMaxUnoccludedLength = (CombinedVector / CachedHemisphereSamples.Num()).Size3();
 	}
 	
-	for (int32 SampleSet = 0; SampleSet < ARRAY_COUNT(CachedHemisphereSamplesForRadiosity); SampleSet++)
+	for (int32 SampleSet = 0; SampleSet < UE_ARRAY_COUNT(CachedHemisphereSamplesForRadiosity); SampleSet++)
 	{
-		float SampleSetScale = FMath::Lerp(.5f, .125f, SampleSet / ((float)ARRAY_COUNT(CachedHemisphereSamplesForRadiosity) - 1));
+		float SampleSetScale = FMath::Lerp(.5f, .125f, SampleSet / ((float)UE_ARRAY_COUNT(CachedHemisphereSamplesForRadiosity) - 1));
 		int32 TargetNumApproximateSkyLightingSamples = FMath::Max(FMath::TruncToInt(ImportanceTracingSettings.NumHemisphereSamples * SampleSetScale * GeneralSettings.IndirectLightingQuality), 12);
 		CachedHemisphereSamplesForRadiosity[SampleSet].Empty(TargetNumApproximateSkyLightingSamples);
 		CachedHemisphereSamplesForRadiosityUniforms[SampleSet].Empty(TargetNumApproximateSkyLightingSamples);

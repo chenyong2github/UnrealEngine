@@ -2243,7 +2243,7 @@ void UNavigationSystemV1::DescribeFilterFlags(const TArray<FString>& FlagsDesc) 
 	UStruct* Structs[] = { StructProp1->Struct, StructProp2->Struct };
 	const FString CustomNameMeta = TEXT("DisplayName");
 
-	for (int32 StructIndex = 0; StructIndex < ARRAY_COUNT(Structs); StructIndex++)
+	for (int32 StructIndex = 0; StructIndex < UE_ARRAY_COUNT(Structs); StructIndex++)
 	{
 		for (int32 FlagIndex = 0; FlagIndex < MaxFlags; FlagIndex++)
 		{

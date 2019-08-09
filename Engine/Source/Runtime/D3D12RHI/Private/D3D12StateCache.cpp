@@ -286,7 +286,7 @@ void FD3D12StateCacheBase::SetViewport(const D3D12_VIEWPORT& Viewport)
 
 void FD3D12StateCacheBase::SetViewports(uint32 Count, const D3D12_VIEWPORT* const Viewports)
 {
-	check(Count < ARRAY_COUNT(PipelineState.Graphics.CurrentViewport));
+	check(Count < UE_ARRAY_COUNT(PipelineState.Graphics.CurrentViewport));
 	if ((PipelineState.Graphics.CurrentNumberOfViewports != Count || FMemory::Memcmp(&PipelineState.Graphics.CurrentViewport[0], Viewports, sizeof(D3D12_VIEWPORT) * Count)) || GD3D12SkipStateCaching)
 	{
 		FMemory::Memcpy(&PipelineState.Graphics.CurrentViewport[0], Viewports, sizeof(D3D12_VIEWPORT) * Count);
@@ -318,7 +318,7 @@ void FD3D12StateCacheBase::SetScissorRect(const D3D12_RECT& ScissorRect)
 
 void FD3D12StateCacheBase::SetScissorRects(uint32 Count, const D3D12_RECT* const ScissorRects)
 {
-	check(Count < ARRAY_COUNT(PipelineState.Graphics.CurrentScissorRects));
+	check(Count < UE_ARRAY_COUNT(PipelineState.Graphics.CurrentScissorRects));
 
 	for (uint32 Rect = 0; Rect < Count; ++Rect)
 	{
@@ -956,7 +956,7 @@ bool FD3D12StateCacheBase::AssertResourceStates(ED3D12PipelineType PipelineType)
 
 		// RTV
 		{
-			const uint32 numRTVs = ARRAY_COUNT(PipelineState.Graphics.RenderTargetArray);
+			const uint32 numRTVs = UE_ARRAY_COUNT(PipelineState.Graphics.RenderTargetArray);
 			for (uint32 i = 0; i < numRTVs; i++)
 			{
 				FD3D12RenderTargetView* pCurrentView = PipelineState.Graphics.RenderTargetArray[i];

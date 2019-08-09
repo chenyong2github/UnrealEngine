@@ -543,7 +543,7 @@ static FString OutputMetaDataCodeForObject(FOutputDevice& OutDeclaration, FOutpu
 		Out.Logf(TEXT("%s};\r\n"), Spaces);
 		Out.Log (TEXT("#endif\r\n"));
 
-		Result = FString::Printf(TEXT("METADATA_PARAMS(%s, ARRAY_COUNT(%s))"), MetaDataBlockName, MetaDataBlockName);
+		Result = FString::Printf(TEXT("METADATA_PARAMS(%s, UE_ARRAY_COUNT(%s))"), MetaDataBlockName, MetaDataBlockName);
 	}
 	else
 	{
@@ -1612,14 +1612,14 @@ TTuple<FString, FString> FNativeClassHeaderGenerator::OutputProperties(FOutputDe
 	{
 		return TTuple<FString, FString>(
 			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(%sPropPointers, nullptr)"), Scope),
-			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(ARRAY_COUNT(%sPropPointers), 0)"), Scope)
+			FString::Printf(TEXT("IF_WITH_EDITORONLY_DATA(UE_ARRAY_COUNT(%sPropPointers), 0)"), Scope)
 		);
 	}
 	else
 	{
 		return TTuple<FString, FString>(
 			FString::Printf(TEXT("%sPropPointers"), Scope),
-			FString::Printf(TEXT("ARRAY_COUNT(%sPropPointers)"), Scope)
+			FString::Printf(TEXT("UE_ARRAY_COUNT(%sPropPointers)"), Scope)
 		);
 	}
 }
@@ -1875,7 +1875,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 		Out.Logf(TEXT("\t\t\t};\r\n"));
 
 		SingletonArray = TEXT("SingletonFuncArray");
-		SingletonCount = TEXT("ARRAY_COUNT(SingletonFuncArray)");
+		SingletonCount = TEXT("UE_ARRAY_COUNT(SingletonFuncArray)");
 	}
 	else
 	{
@@ -1991,7 +1991,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Logf(TEXT("\t};\r\n"));
 
 			SingletonsArray = TEXT("DependentSingletons");
-			SingletonsCount = TEXT("ARRAY_COUNT(DependentSingletons)");
+			SingletonsCount = TEXT("UE_ARRAY_COUNT(DependentSingletons)");
 		}
 		else
 		{
@@ -2041,12 +2041,12 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			if (bAllEditorOnlyFunctions)
 			{
 				FunctionsArray = TEXT("IF_WITH_EDITOR(FuncInfo, nullptr)");
-				FunctionsCount = TEXT("IF_WITH_EDITOR(ARRAY_COUNT(FuncInfo), 0)");
+				FunctionsCount = TEXT("IF_WITH_EDITOR(UE_ARRAY_COUNT(FuncInfo), 0)");
 			}
 			else
 			{
 				FunctionsArray = TEXT("FuncInfo");
-				FunctionsCount = TEXT("ARRAY_COUNT(FuncInfo)");
+				FunctionsCount = TEXT("UE_ARRAY_COUNT(FuncInfo)");
 			}
 		}
 		else
@@ -2101,7 +2101,7 @@ void FNativeClassHeaderGenerator::ExportNativeGeneratedInitCode(FOutputDevice& O
 			StaticDefinitions.Log(TEXT("\t\t};\r\n"));
 
 			InterfaceArray = TEXT("InterfaceParams");
-			InterfaceCount = TEXT("ARRAY_COUNT(InterfaceParams)");
+			InterfaceCount = TEXT("UE_ARRAY_COUNT(InterfaceParams)");
 		}
 		else
 		{
@@ -2424,7 +2424,7 @@ void FNativeClassHeaderGenerator::ExportNatives(FOutputDevice& Out, FClass* Clas
 			EditorOnly(bAllEditorOnly);
 
 			Out.Log(TEXT("\t\t};\r\n"));
-			Out.Logf(TEXT("\t\tFNativeFunctionRegistrar::RegisterFunctions(Class, Funcs, ARRAY_COUNT(Funcs));\r\n"));
+			Out.Logf(TEXT("\t\tFNativeFunctionRegistrar::RegisterFunctions(Class, Funcs, UE_ARRAY_COUNT(Funcs));\r\n"));
 		}
 	}
 
@@ -3644,7 +3644,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(OverriddenEnumNameCpp));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), *CreateUTF8LiteralString(Enum->CppType));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tEnumerators,\r\n"));
-	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tARRAY_COUNT(Enumerators),\r\n"));
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE_ARRAY_COUNT(Enumerators),\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), UEnumObjectFlags);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(uint8)%s,\r\n"), *EnumFormStr);
@@ -3768,7 +3768,7 @@ void FNativeClassHeaderGenerator::ExportDelegateDeclaration(FOutputDevice& Out, 
 
 	// Add class name to beginning of function, to avoid collisions with other classes with the same delegate name in this scope
 	check(FunctionData.MarshallAndCallName.StartsWith(DelegateStr));
-	FString ShortName = *FunctionData.MarshallAndCallName + ARRAY_COUNT(DelegateStr) - 1;
+	FString ShortName = *FunctionData.MarshallAndCallName + UE_ARRAY_COUNT(DelegateStr) - 1;
 	FunctionData.MarshallAndCallName = FString::Printf( TEXT( "F%s_DelegateWrapper" ), *ShortName );
 
 	// Setup delegate parameter
@@ -3814,7 +3814,7 @@ void FNativeClassHeaderGenerator::ExportDelegateDefinition(FOutputDevice& Out, c
 
 	// Add class name to beginning of function, to avoid collisions with other classes with the same delegate name in this scope
 	check(FunctionData.MarshallAndCallName.StartsWith(DelegateStr));
-	FString ShortName = *FunctionData.MarshallAndCallName + ARRAY_COUNT(DelegateStr) - 1;
+	FString ShortName = *FunctionData.MarshallAndCallName + UE_ARRAY_COUNT(DelegateStr) - 1;
 	FunctionData.MarshallAndCallName = FString::Printf( TEXT( "F%s_DelegateWrapper" ), *ShortName );
 
 	// Setup delegate parameter
@@ -5806,17 +5806,17 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						static const TCHAR PublicFolderName[]  = TEXT("Public/");
 						static const TCHAR PrivateFolderName[] = TEXT("Private/");
 						static const TCHAR ClassesFolderName[] = TEXT("Classes/");
-						if (FCString::Strnicmp(IncludePath, PublicFolderName, ARRAY_COUNT(PublicFolderName) - 1) == 0)
+						if (FCString::Strnicmp(IncludePath, PublicFolderName, UE_ARRAY_COUNT(PublicFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(PublicFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(PublicFolderName) - 1);
 						}
-						else if (FCString::Strnicmp(IncludePath, PrivateFolderName, ARRAY_COUNT(PrivateFolderName) - 1) == 0)
+						else if (FCString::Strnicmp(IncludePath, PrivateFolderName, UE_ARRAY_COUNT(PrivateFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(PrivateFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(PrivateFolderName) - 1);
 						}
-						else if (FCString::Strnicmp(IncludePath, ClassesFolderName, ARRAY_COUNT(ClassesFolderName) - 1) == 0)
+						else if (FCString::Strnicmp(IncludePath, ClassesFolderName, UE_ARRAY_COUNT(ClassesFolderName) - 1) == 0)
 						{
-							IncludePath += (ARRAY_COUNT(ClassesFolderName) - 1);
+							IncludePath += (UE_ARRAY_COUNT(ClassesFolderName) - 1);
 						}
 
 						// Add the include path

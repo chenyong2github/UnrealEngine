@@ -61,7 +61,7 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 void FAnimInstanceProxy::AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector)
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
-	for (int32 Index = 0; Index < ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(UngroupedActivePlayerArrays); ++Index)
 	{
 		TArray<FAnimTickRecord>& UngroupedPlayers = UngroupedActivePlayerArrays[Index];
 		for (FAnimTickRecord& TickRecord : UngroupedPlayers)

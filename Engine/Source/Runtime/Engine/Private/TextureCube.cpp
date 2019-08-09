@@ -139,7 +139,7 @@ public:
 		//Initialize the MipData array
 		for ( int32 FaceIndex=0;FaceIndex<6; FaceIndex++)
 		{
-			for( int32 MipIndex=0; MipIndex<ARRAY_COUNT(MipData[FaceIndex]); MipIndex++ )
+			for( int32 MipIndex=0; MipIndex<UE_ARRAY_COUNT(MipData[FaceIndex]); MipIndex++ )
 			{
 				MipData[FaceIndex][MipIndex] = NULL;
 			}
@@ -183,7 +183,7 @@ public:
 		// Make sure we're not leaking memory if InitRHI has never been called.
 		for (int32 i=0; i<6; i++)
 		{
-			for( int32 MipIndex=0; MipIndex<ARRAY_COUNT(MipData[i]); MipIndex++ )
+			for( int32 MipIndex=0; MipIndex<UE_ARRAY_COUNT(MipData[i]); MipIndex++ )
 			{
 				// free any mip data that was copied 
 				if( MipData[i][MipIndex] )

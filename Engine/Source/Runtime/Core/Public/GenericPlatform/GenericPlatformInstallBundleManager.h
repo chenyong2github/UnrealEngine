@@ -45,7 +45,7 @@ inline const TCHAR* LexToString(EInstallBundleModuleInitResult Result)
 		TEXT("NoInternetConnectionError"),
 		TEXT("ConfigurationError"),
 	};
-	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == ARRAY_COUNT(Strings), "");
+	static_assert(static_cast<UnderType>(EInstallBundleModuleInitResult::Count) == UE_ARRAY_COUNT(Strings), "");
 
 	return Strings[static_cast<UnderType>(Result)];
 }
@@ -75,7 +75,7 @@ inline const TCHAR* LexToString(EInstallBundleResult Result)
 		TEXT("UserCancelledError"),
 		TEXT("InitializationError"),
 	};
-	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == ARRAY_COUNT(Strings), "");
+	static_assert(static_cast<UnderType>(EInstallBundleResult::Count) == UE_ARRAY_COUNT(Strings), "");
 
 	return Strings[static_cast<UnderType>(Result)];
 }
@@ -144,7 +144,7 @@ inline const TCHAR* LexToString(EInstallBundleStatus Status)
 		TEXT("Installed"),
 	};
 
-	static_assert(static_cast<UnderType>(EInstallBundleStatus::Count) == ARRAY_COUNT(Strings), "");
+	static_assert(static_cast<UnderType>(EInstallBundleStatus::Count) == UE_ARRAY_COUNT(Strings), "");
 
 	return Strings[static_cast<UnderType>(Status)];
 }
@@ -222,7 +222,7 @@ inline const TCHAR* LexToString(EInstallBundleContentState State)
 		TEXT("NeedsUpdate"),
 		TEXT("UpToDate"),
 	};
-	static_assert(static_cast<UnderType>(EInstallBundleContentState::Count) == ARRAY_COUNT(Strings), "");
+	static_assert(static_cast<UnderType>(EInstallBundleContentState::Count) == UE_ARRAY_COUNT(Strings), "");
 
 	return Strings[static_cast<UnderType>(State)];
 }

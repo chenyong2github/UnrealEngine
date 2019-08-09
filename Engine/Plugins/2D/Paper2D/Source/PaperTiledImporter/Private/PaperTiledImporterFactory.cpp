@@ -421,13 +421,13 @@ void UPaperTiledImporterFactory::ParseGlobalInfoFromJSON(TSharedPtr<FJsonObject>
 		FRequiredIntField( OutParsedInfo.TileWidth, TEXT("tilewidth") ),
 		FRequiredIntField( OutParsedInfo.TileHeight, TEXT("tileheight") )
 	};
-	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
+	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, UE_ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
 
 	// Parse hexsidelength if present
 	FRequiredIntField OptionalIntFields[] = {
 		FRequiredIntField(OutParsedInfo.HexSideLength, TEXT("hexsidelength"), 0)
 	};
-	ParseIntegerFields(OptionalIntFields, ARRAY_COUNT(OptionalIntFields), Tree, NameForErrors, /*bSilent=*/ true);
+	ParseIntegerFields(OptionalIntFields, UE_ARRAY_COUNT(OptionalIntFields), Tree, NameForErrors, /*bSilent=*/ true);
 
 	// Parse StaggerAxis if present
 	const FString StaggerAxisStr = FPaperJSONHelpers::ReadString(Tree, TEXT("staggeraxis"), FString());
@@ -619,7 +619,7 @@ void FTileSetFromTiled::ParseTileSetFromJSON(TSharedPtr<FJsonObject> Tree, const
 		FRequiredIntField( TileHeight, TEXT("tileheight"), 1 )
 	};
 
-	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
+	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, UE_ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
 
 	// Parse the tile offset
 	if (bSuccessfullyParsed)
@@ -752,7 +752,7 @@ bool FTileLayerFromTiled::ParseFromJSON(TSharedPtr<FJsonObject> Tree, const FStr
 		FRequiredIntField( OffsetY, TEXT("y"), 0 )
 	};
 
-	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
+	bSuccessfullyParsed = bSuccessfullyParsed && ParseIntegerFields(IntFields, UE_ARRAY_COUNT(IntFields), Tree, NameForErrors, bSilent);
 
 	if (!Tree->TryGetBoolField(TEXT("visible"), /*out*/ bVisible))
 	{
@@ -1018,7 +1018,7 @@ bool FTiledObject::ParseFromJSON(TSharedPtr<FJsonObject> Tree, const FString& Na
 		FRequiredDoubleField(RotationDegrees, TEXT("rotation"), -MAX_FLT)
 	};
 
-	bSuccessfullyParsed = bSuccessfullyParsed && ParseScalarFields(FloatFields, ARRAY_COUNT(FloatFields), Tree, NameForErrors, bSilent);
+	bSuccessfullyParsed = bSuccessfullyParsed && ParseScalarFields(FloatFields, UE_ARRAY_COUNT(FloatFields), Tree, NameForErrors, bSilent);
 
 	if (!Tree->TryGetBoolField(TEXT("visible"), /*out*/ bVisible))
 	{
@@ -1096,7 +1096,7 @@ bool FTiledObject::ParsePointArray(TArray<FVector2D>& OutPoints, const TArray<TS
 			FRequiredDoubleField(Y, TEXT("y"), -MAX_FLT)
 		};
 
-		bSuccessfullyParsed = bSuccessfullyParsed && ParseScalarFields(FloatFields, ARRAY_COUNT(FloatFields), ArrayElement->AsObject(), NameForErrors, bSilent);
+		bSuccessfullyParsed = bSuccessfullyParsed && ParseScalarFields(FloatFields, UE_ARRAY_COUNT(FloatFields), ArrayElement->AsObject(), NameForErrors, bSilent);
 
 		OutPoints.Add(FVector2D(X, Y));
 	}

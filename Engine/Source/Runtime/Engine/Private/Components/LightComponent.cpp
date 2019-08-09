@@ -1443,7 +1443,7 @@ void ULightComponent::ReassignStationaryLightChannels(UWorld* TargetWorld, bool 
 		}
 
 		// Use the lowest free channel
-		for (int32 ChannelIndex = 0; ChannelIndex < ARRAY_COUNT(bChannelUsed); ChannelIndex++)
+		for (int32 ChannelIndex = 0; ChannelIndex < UE_ARRAY_COUNT(bChannelUsed); ChannelIndex++)
 		{
 			if (!bChannelUsed[ChannelIndex])
 			{

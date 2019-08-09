@@ -56,7 +56,7 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 {
 	if (!CachedAbsoluteFilename[0])
 	{
-		FCString::Strcpy(CachedAbsoluteFilename, ARRAY_COUNT(CachedAbsoluteFilename), *FPaths::ProjectLogDir());
+		FCString::Strcpy(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename), *FPaths::ProjectLogDir());
 		FString LogFilename;
 		const bool bShouldStopOnSeparator = false;
 		if (!FParse::Value(FCommandLine::Get(), TEXT("LOG="), LogFilename, bShouldStopOnSeparator))
@@ -88,7 +88,7 @@ FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 			LogFilename += TEXT(".log");
 		}
 
-		FCString::Strcat(CachedAbsoluteFilename, ARRAY_COUNT(CachedAbsoluteFilename) - FCString::Strlen(CachedAbsoluteFilename), *LogFilename);
+		FCString::Strcat(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename) - FCString::Strlen(CachedAbsoluteFilename), *LogFilename);
 	}
 
 	return CachedAbsoluteFilename;

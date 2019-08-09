@@ -503,7 +503,7 @@ FShadowMap2D::FShadowMap2D() :
 	CoordinateScale(FVector2D(0, 0)),
 	CoordinateBias(FVector2D(0, 0))
 {
-	for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
 		bChannelValid[Channel] = false;
 	}
@@ -514,7 +514,7 @@ FShadowMap2D::FShadowMap2D(const TMap<ULightComponent*,FShadowMapData2D*>& Shado
 	CoordinateScale(FVector2D(0, 0)),
 	CoordinateBias(FVector2D(0, 0))
 {
-	for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
 		bChannelValid[Channel] = false;
 	}
@@ -531,7 +531,7 @@ FShadowMap2D::FShadowMap2D(TArray<FGuid> LightGuids)
 	, CoordinateScale(FVector2D(0, 0))
 	, CoordinateBias(FVector2D(0, 0))
 {
-	for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
 		bChannelValid[Channel] = false;
 	}
@@ -561,7 +561,7 @@ void FShadowMap2D::Serialize(FArchive& Ar)
 
 	Ar << CoordinateScale << CoordinateBias;
 
-	for (int Channel = 0; Channel < ARRAY_COUNT(bChannelValid); Channel++)
+	for (int Channel = 0; Channel < UE_ARRAY_COUNT(bChannelValid); Channel++)
 	{
 		Ar << bChannelValid[Channel];
 	}
@@ -1108,7 +1108,7 @@ int32 FShadowMap2D::EncodeSingleTexture(ULevel* LightingScenario, FShadowMapPend
 							ExtrapolatedFilterableComponents[i] = 0;
 						}
 
-						for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(Neighbors); NeighborIndex++)
+						for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors); NeighborIndex++)
 						{
 							if (static_cast<int32>(DestY) + Neighbors[NeighborIndex].Y >= 0 
 								&& DestY + Neighbors[NeighborIndex].Y < MipSizeY

@@ -245,7 +245,7 @@ FString FCurlHttpRequest::CombineHeaderKeyValue(const FString& HeaderKey, const 
 {
 	FString Combined;
 	const TCHAR Separator[] = TEXT(": ");
-	constexpr const int32 SeparatorLength = ARRAY_COUNT(Separator) - 1;
+	constexpr const int32 SeparatorLength = UE_ARRAY_COUNT(Separator) - 1;
 	Combined.Reserve(HeaderKey.Len() + SeparatorLength + HeaderValue.Len());
 	Combined.Append(HeaderKey);
 	Combined.AppendChars(Separator, SeparatorLength);

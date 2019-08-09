@@ -203,7 +203,7 @@ MovieScene::TMultiChannelValue<float, 9> FMovieSceneComponentTransformSectionTem
 		Components[4] = Rotation.Y;
 		Components[5] = Rotation.Z;
 
-		for (int32 Index = 0; Index < ARRAY_COUNT(Components); ++Index)
+		for (int32 Index = 0; Index < UE_ARRAY_COUNT(Components); ++Index)
 		{
 			if (TransformValue.IsSet(Index))
 			{

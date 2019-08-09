@@ -858,7 +858,7 @@ struct FMemoryAllocatingThread : public FRunnable
 			int32 NumAllocs = 0;
 			uint64 MemAllocatedThisRun = 0;
 
-			while(MemAllocatedThisRun < GMallocTestMemoryPerThreadKB * 1024 && NumAllocs < ARRAY_COUNT(Ptrs))
+			while(MemAllocatedThisRun < GMallocTestMemoryPerThreadKB * 1024 && NumAllocs < UE_ARRAY_COUNT(Ptrs))
 			{
 				// increase the probability of the smallest chunks, but allow fairly large (up to 16 MB)
 				double Uniform = FMath::FRand();
@@ -1336,7 +1336,7 @@ int32 ThreadPriorityTest(const TCHAR* CommandLine)
 	for (int32 Idx = 0, NumThreads = RunnableArray.Num(); Idx < NumThreads; ++Idx)
 	{
 		uint32 PrioIndex = static_cast<uint32>(RunnableArray[Idx]->Prio);
-		if (PrioIndex >= ARRAY_COUNT(AllThreadsCounters))
+		if (PrioIndex >= UE_ARRAY_COUNT(AllThreadsCounters))
 		{
 			UE_LOG(LogTestPAL, Fatal, TEXT("EThreadPriority enum changed and has values larger than 7 now. Revisit this code."));
 		}
@@ -1365,10 +1365,10 @@ int32 ThreadPriorityTest(const TCHAR* CommandLine)
 		static_cast<uint32>(TPri_TimeCritical)
 	};
 
-	for (uint32 IdxPrio = 0; IdxPrio < ARRAY_COUNT(OrderToPrint); ++IdxPrio)
+	for (uint32 IdxPrio = 0; IdxPrio < UE_ARRAY_COUNT(OrderToPrint); ++IdxPrio)
 	{
 		uint32 Prio = OrderToPrint[IdxPrio];
-		checkf(Prio < ARRAY_COUNT(AllThreadsCounters), TEXT("Number of thread priority enums changed, revisit this code."));
+		checkf(Prio < UE_ARRAY_COUNT(AllThreadsCounters), TEXT("Number of thread priority enums changed, revisit this code."));
 		UE_LOG(LogTestPAL, Display, TEXT("Threads with prio %24s incremented counters %14llu times (%.1f x speed of TPri_Normal) during %1.f sec total"),
 			ThreadPrioToString(static_cast<EThreadPriority>(Prio)), AllThreadsCounters[Prio],
 			static_cast<double>(AllThreadsCounters[Prio]) / BaseCountDbl,
@@ -1527,7 +1527,7 @@ struct FThreadStackTest : public FRunnable
 		for (int i = 0; i < BackTraceCount; i++)
 		{
 			ANSICHAR TempString[1024] = {0};
-			FPlatformStackWalk::ProgramCounterToHumanReadableString(i, BackTrace[i], TempString, ARRAY_COUNT(TempString));
+			FPlatformStackWalk::ProgramCounterToHumanReadableString(i, BackTrace[i], TempString, UE_ARRAY_COUNT(TempString));
 
 			UE_LOG(LogTestPAL, Warning, TEXT("%s"), ANSI_TO_TCHAR(TempString));
 		}

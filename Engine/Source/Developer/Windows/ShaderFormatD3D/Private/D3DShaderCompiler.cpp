@@ -541,7 +541,7 @@ static void D3DCreateDXCArguments(TArray<const WCHAR*>& OutArgs, const WCHAR* Ex
 		L"0", L"1", L"2", L"3", L"4", L"5", L"6", L"7", L"8", L"9"
 	};
 
-	if (AutoBindingSpace < ARRAY_COUNT(DigitStrings))
+	if (AutoBindingSpace < UE_ARRAY_COUNT(DigitStrings))
 	{
 		OutArgs.Add(L"/auto-binding-space");
 		OutArgs.Add(DigitStrings[AutoBindingSpace]);

@@ -666,7 +666,7 @@ FPlatformMemoryStats FUnixPlatformMemory::GetStats()
 		do
 		{
 			char LineBuffer[256] = {0};
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), FileGlobalMemStats);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), FileGlobalMemStats);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error
@@ -712,7 +712,7 @@ FPlatformMemoryStats FUnixPlatformMemory::GetStats()
 		do
 		{
 			char LineBuffer[256] = {0};
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), ProcMemStats);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), ProcMemStats);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error
@@ -767,7 +767,7 @@ FExtendedPlatformMemoryStats FUnixPlatformMemory::GetExtendedStats()
 		do
 		{
 			char LineBuffer[256] = { 0 };
-			char *Line = fgets(LineBuffer, ARRAY_COUNT(LineBuffer), ProcSMaps);
+			char *Line = fgets(LineBuffer, UE_ARRAY_COUNT(LineBuffer), ProcSMaps);
 			if (Line == nullptr)
 			{
 				break;	// eof or an error

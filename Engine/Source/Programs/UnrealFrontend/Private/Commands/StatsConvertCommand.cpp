@@ -118,7 +118,7 @@ void FCSVStatsProfiler::WriteString( const ANSICHAR* Format, ... )
 	va_list ArgPtr;
 	va_start( ArgPtr, Format );
 	// Build the string.
-	int32 Result = FCStringAnsi::GetVarArgs( Array, ARRAY_COUNT( Array ), Format, ArgPtr );
+	int32 Result = FCStringAnsi::GetVarArgs( Array, UE_ARRAY_COUNT( Array ), Format, ArgPtr );
 	va_end(ArgPtr);
 
 	// Now write that to the file.

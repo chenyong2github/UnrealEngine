@@ -46,7 +46,7 @@ FContentBrowserSingleton::FContentBrowserSingleton()
 		ContentBrowserIcon,
 		true);
 
-	for ( int32 BrowserIdx = 0; BrowserIdx < ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
+	for ( int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
 	{
 		const FName TabID = FName(*FString::Printf(TEXT("ContentBrowserTab%d"), BrowserIdx + 1));
 		ContentBrowserTabIDs[BrowserIdx] = TabID;
@@ -76,7 +76,7 @@ FContentBrowserSingleton::~FContentBrowserSingleton()
 
 	if ( FSlateApplication::IsInitialized() )
 	{
-		for ( int32 BrowserIdx = 0; BrowserIdx < ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
+		for ( int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
 		{
 			FGlobalTabmanager::Get()->UnregisterNomadTabSpawner( ContentBrowserTabIDs[BrowserIdx] );
 		}
@@ -542,7 +542,7 @@ FName FContentBrowserSingleton::SummonNewBrowser(bool bAllowLockedBrowsers)
 	}
 	
 	FName NewTabName;
-	for ( int32 BrowserIdx = 0; BrowserIdx < ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
+	for ( int32 BrowserIdx = 0; BrowserIdx < UE_ARRAY_COUNT(ContentBrowserTabIDs); BrowserIdx++ )
 	{
 		FName TestTabID = ContentBrowserTabIDs[BrowserIdx];
 		if ( !OpenBrowserIDs.Contains(TestTabID) && (bAllowLockedBrowsers || !IsLocked(TestTabID)) )

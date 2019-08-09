@@ -83,7 +83,7 @@ namespace
 
 		TCHAR RailKeyCopy[kRailCommonMaxKeyLength];
 
-		FCString::Strncpy(RailKeyCopy, ANSI_TO_TCHAR(RailKey), ARRAY_COUNT(RailKeyCopy));
+		FCString::Strncpy(RailKeyCopy, ANSI_TO_TCHAR(RailKey), UE_ARRAY_COUNT(RailKeyCopy));
 
 		TCHAR* DataType = FCString::Strrchr(RailKeyCopy, '_');
 		if (DataType)

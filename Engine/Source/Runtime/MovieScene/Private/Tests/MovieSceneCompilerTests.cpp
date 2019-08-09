@@ -260,7 +260,7 @@ bool FMovieSceneCompilerEmptySpaceOnTheFlyTest::RunTest(const FString& Parameter
 	{
 		Tests.Emplace();
 		Tests.Last().CompileRanges   = { TRange<FFrameNumber>(0, 70) };
-		Tests.Last().ExpectedResults = TArray<FResult>(&ExpectedResults[0], ARRAY_COUNT(ExpectedResults));
+		Tests.Last().ExpectedResults = TArray<FResult>(&ExpectedResults[0], UE_ARRAY_COUNT(ExpectedResults));
 	}
 
 	UTestMovieSceneSequence* Sequence = NewObject<UTestMovieSceneSequence>(GetTransientPackage());

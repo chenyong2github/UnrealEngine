@@ -68,10 +68,10 @@ void UGameplayDebuggerLocalController::Initialize(AGameplayDebuggerCategoryRepli
 		SettingsCDO->CategorySlot5, SettingsCDO->CategorySlot6, SettingsCDO->CategorySlot7, SettingsCDO->CategorySlot8, SettingsCDO->CategorySlot9 };
 
 	bool bIsNumpadOnly = true;
-	for (int32 Idx = 0; Idx < ARRAY_COUNT(CategorySlots); Idx++)
+	for (int32 Idx = 0; Idx < UE_ARRAY_COUNT(CategorySlots); Idx++)
 	{
 		bool bHasPattern = false;
-		for (int32 PatternIdx = 0; PatternIdx < ARRAY_COUNT(NumpadKeys); PatternIdx++)
+		for (int32 PatternIdx = 0; PatternIdx < UE_ARRAY_COUNT(NumpadKeys); PatternIdx++)
 		{
 			if (CategorySlots[Idx] == NumpadKeys[PatternIdx])
 			{

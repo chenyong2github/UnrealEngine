@@ -78,7 +78,7 @@ void FGoogleARCorePassthroughCameraRenderer::InitializeRenderer_RenderThread(FTe
 	const uint16 Indices[] = { 0, 1, 2, 2, 1, 3};
 
 	TResourceArray<uint16, INDEXBUFFER_ALIGNMENT> IndexBuffer;
-	uint32 NumIndices = ARRAY_COUNT(Indices);
+	uint32 NumIndices = UE_ARRAY_COUNT(Indices);
 	IndexBuffer.AddUninitialized(NumIndices);
 	FMemory::Memcpy(IndexBuffer.GetData(), Indices, NumIndices * sizeof(uint16));
 

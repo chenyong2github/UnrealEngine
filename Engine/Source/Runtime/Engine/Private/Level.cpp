@@ -595,7 +595,7 @@ void ULevel::PostLoad()
 	}
 
 	// Fixup deprecated stuff in levels simplification settings
-	for (int32 Index = 0; Index < ARRAY_COUNT(LevelSimplification); ++Index)
+	for (int32 Index = 0; Index < UE_ARRAY_COUNT(LevelSimplification); ++Index)
 	{
 		LevelSimplification[Index].PostLoadDeprecated();
 	}

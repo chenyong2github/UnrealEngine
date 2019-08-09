@@ -496,7 +496,7 @@ namespace Lightmass
 				Swarm->Write(&TaskData.BrickData[BrickIndex].AverageClosestGeometryDistance, sizeof(TaskData.BrickData[BrickIndex].AverageClosestGeometryDistance));
 				WriteArray(TaskData.BrickData[BrickIndex].AmbientVector);
 
-				for (int32 i = 0; i < ARRAY_COUNT(TaskData.BrickData[BrickIndex].SHCoefficients); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(TaskData.BrickData[BrickIndex].SHCoefficients); i++)
 				{
 					WriteArray(TaskData.BrickData[BrickIndex].SHCoefficients[i]);
 				}

@@ -11,7 +11,7 @@ FPhysicsFilterBuilder::FPhysicsFilterBuilder(TEnumAsByte<enum ECollisionChannel>
 	, TouchingBits(0)
 	, Word3(0)
 {
-	for (int32 i = 0; i < ARRAY_COUNT(ResponseToChannels.EnumArray); i++)
+	for (int32 i = 0; i < UE_ARRAY_COUNT(ResponseToChannels.EnumArray); i++)
 	{
 		if (ResponseToChannels.EnumArray[i] == ECR_Block)
 		{

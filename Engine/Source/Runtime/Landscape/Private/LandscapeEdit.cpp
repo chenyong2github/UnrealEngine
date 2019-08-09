@@ -3065,15 +3065,15 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 
 		//We need to not duplicate the vertex position, so we use the FIndexAndZ to achieve fast result
 		TArray<FIndexAndZ> VertIndexAndZ;
-		VertIndexAndZ.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*ARRAY_COUNT(QuadPattern));
+		VertIndexAndZ.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*UE_ARRAY_COUNT(QuadPattern));
 		int32 CurrentIndex = 0;
 		TMap<int32, FVector> IndexToPosition;
-		IndexToPosition.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*ARRAY_COUNT(QuadPattern));
+		IndexToPosition.Reserve(ComponentSizeQuadsLOD*ComponentSizeQuadsLOD*UE_ARRAY_COUNT(QuadPattern));
 		for (int32 y = 0; y < ComponentSizeQuadsLOD; y++)
 		{
 			for (int32 x = 0; x < ComponentSizeQuadsLOD; x++)
 			{
-				for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
@@ -3122,11 +3122,11 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 		{
 			for (int32 x = 0; x < ComponentSizeQuadsLOD; x++)
 			{
-				FVector Positions[ARRAY_COUNT(QuadPattern)];
+				FVector Positions[UE_ARRAY_COUNT(QuadPattern)];
 				bool bProcess = bIgnoreBounds;
 
 				// Fill positions
-				for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+				for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 				{
 					int32 VertexX = x + QuadPattern[i].X;
 					int32 VertexY = y + QuadPattern[i].Y;
@@ -3143,11 +3143,11 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 				{
 					//Fill the vertexID we need
 					TArray<FVertexID> VertexIDs;
-					VertexIDs.Reserve(ARRAY_COUNT(QuadPattern));
+					VertexIDs.Reserve(UE_ARRAY_COUNT(QuadPattern));
 					TArray<FVertexInstanceID> VertexInstanceIDs;
-					VertexInstanceIDs.Reserve(ARRAY_COUNT(QuadPattern));
+					VertexInstanceIDs.Reserve(UE_ARRAY_COUNT(QuadPattern));
 					// Fill positions
-					for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+					for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 					{
 						int32 DuplicateLowestIndex = FindPreviousIndex(CurrentIndex);
 						FVertexID VertexID;
@@ -3187,7 +3187,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 							VertexInstanceIDs.Add(OutRawMesh.CreateVertexInstance(VertexIDs[5]));
 
 							// Fill other vertex data
-							for (int32 i = 0; i < ARRAY_COUNT(QuadPattern); i++)
+							for (int32 i = 0; i < UE_ARRAY_COUNT(QuadPattern); i++)
 							{
 								int32 VertexX = x + QuadPattern[i].X;
 								int32 VertexY = y + QuadPattern[i].Y;
@@ -3232,7 +3232,7 @@ bool ALandscapeProxy::ExportToRawMesh(int32 InExportLOD, FMeshDescription& OutRa
 				}
 				else
 				{
-					CurrentIndex += ARRAY_COUNT(QuadPattern);
+					CurrentIndex += UE_ARRAY_COUNT(QuadPattern);
 				}
 			}
 		}

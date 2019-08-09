@@ -15,7 +15,7 @@ FRDGEventName::FRDGEventName(const TCHAR* EventFormat, ...)
 		va_start(VAList, EventFormat);
 		TCHAR TempStr[256];
 		// Build the string in the temp buffer
-		FCString::GetVarArgs(TempStr, ARRAY_COUNT(TempStr), EventFormat, VAList);
+		FCString::GetVarArgs(TempStr, UE_ARRAY_COUNT(TempStr), EventFormat, VAList);
 		va_end(VAList);
 
 		EventNameStorage = TempStr;

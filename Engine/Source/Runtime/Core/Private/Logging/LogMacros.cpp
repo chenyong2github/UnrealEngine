@@ -55,10 +55,10 @@ void FMsg::LogfImpl(const ANSICHAR* File, int32 Line, const FName& Category, ELo
 			// We're using one big shared static buffer here, so guard against re-entry
 			FScopeLock MsgLock(&MsgLogfStaticBufferGuard);
 			// Print to a large static buffer so we can keep the stack allocation below 16K
-			GET_VARARGS(MsgLogfStaticBuffer, ARRAY_COUNT(MsgLogfStaticBuffer), ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
+			GET_VARARGS(MsgLogfStaticBuffer, UE_ARRAY_COUNT(MsgLogfStaticBuffer), UE_ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
 			// Copy the message to the stack-allocated buffer)
-			FCString::Strncpy(Message, MsgLogfStaticBuffer, ARRAY_COUNT(Message) - 1);
-			Message[ARRAY_COUNT(Message) - 1] = '\0';
+			FCString::Strncpy(Message, MsgLogfStaticBuffer, UE_ARRAY_COUNT(Message) - 1);
+			Message[UE_ARRAY_COUNT(Message) - 1] = '\0';
 		}
 
 		const int32 NumStackFramesToIgnore = 1;
@@ -108,10 +108,10 @@ void FMsg::Logf_InternalImpl(const ANSICHAR* File, int32 Line, const FName& Cate
 			// We're using one big shared static buffer here, so guard against re-entry
 			FScopeLock MsgLock(&MsgLogfStaticBufferGuard);
 			// Print to a large static buffer so we can keep the stack allocation below 16K
-			GET_VARARGS(MsgLogfStaticBuffer, ARRAY_COUNT(MsgLogfStaticBuffer), ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
+			GET_VARARGS(MsgLogfStaticBuffer, UE_ARRAY_COUNT(MsgLogfStaticBuffer), UE_ARRAY_COUNT(MsgLogfStaticBuffer) - 1, Fmt, Fmt);
 			// Copy the message to the stack-allocated buffer)
-			FCString::Strncpy(Message, MsgLogfStaticBuffer, ARRAY_COUNT(Message) - 1);
-			Message[ARRAY_COUNT(Message) - 1] = '\0';
+			FCString::Strncpy(Message, MsgLogfStaticBuffer, UE_ARRAY_COUNT(Message) - 1);
+			Message[UE_ARRAY_COUNT(Message) - 1] = '\0';
 		}
 
 		const int32 NumStackFramesToIgnore = 1;

@@ -127,7 +127,7 @@ const FName& UAbilitySystemGlobals::GetGameplayModEvaluationChannelAlias(EGamepl
 
 const FName& UAbilitySystemGlobals::GetGameplayModEvaluationChannelAlias(int32 Index) const
 {
-	check(Index >= 0 && Index < ARRAY_COUNT(GameplayModEvaluationChannelAliases));
+	check(Index >= 0 && Index < UE_ARRAY_COUNT(GameplayModEvaluationChannelAliases));
 	return GameplayModEvaluationChannelAliases[Index];
 }
 

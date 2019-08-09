@@ -172,7 +172,7 @@ static AudioTestInfo AudioTestInfoList[] =
 	{ "system", "voice_manager",	"SourcePath or Directory",	1, TestAudioSystemVoiceManager		}, // AUDIO_TEST_SYSTEM_VOICE_MANAGER
 	{ "system", "soundfile_manager", "None",					1, TestAudioSystemSoundFileManager  }, // AUDIO_TEST_SYSTEM_SOUND_MANAGER
 };
-static_assert(ARRAY_COUNT(AudioTestInfoList) == AUDIO_TESTS, "Mismatched info list and test enumeration");
+static_assert(UE_ARRAY_COUNT(AudioTestInfoList) == AUDIO_TESTS, "Mismatched info list and test enumeration");
 
 void UAudioTestCommandlet::PrintUsage()
 {

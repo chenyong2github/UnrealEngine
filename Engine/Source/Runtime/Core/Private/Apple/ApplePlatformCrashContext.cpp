@@ -31,15 +31,15 @@ void FApplePlatformCrashContext::InitFromSignal(int32 InSignal, siginfo_t* InInf
 	Info = InInfo;
 	Context = reinterpret_cast< ucontext_t* >( InContext );
 	
-#define HANDLE_CASE(a,b) case a: FCStringAnsi::Strncpy(SignalDescription, #a ": " b, ARRAY_COUNT( SignalDescription ) - 1); break;
+#define HANDLE_CASE(a,b) case a: FCStringAnsi::Strncpy(SignalDescription, #a ": " b, UE_ARRAY_COUNT( SignalDescription ) - 1); break;
 	switch (Signal)
 	{
 		case SIGSEGV:
-			FCStringAnsi::Strncpy(SignalDescription, "SIGSEGV: invalid attempt to access memory at address 0x", ARRAY_COUNT( SignalDescription ) - 1);
+			FCStringAnsi::Strncpy(SignalDescription, "SIGSEGV: invalid attempt to access memory at address 0x", UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCStringAnsi::Strcat(SignalDescription, ItoANSI((uintptr_t)Info->si_addr, 16));
 			break;
 		case SIGBUS:
-			FCStringAnsi::Strncpy(SignalDescription, "SIGBUS: invalid attempt to access memory at address 0x", ARRAY_COUNT( SignalDescription ) - 1);
+			FCStringAnsi::Strncpy(SignalDescription, "SIGBUS: invalid attempt to access memory at address 0x", UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCStringAnsi::Strcat(SignalDescription, ItoANSI((uintptr_t)Info->si_addr, 16));
 			break;
 			HANDLE_CASE(SIGINT, "program interrupted")
@@ -55,7 +55,7 @@ void FApplePlatformCrashContext::InitFromSignal(int32 InSignal, siginfo_t* InInf
 			HANDLE_CASE(SIGSTOP, "stop")
 			
 		default:
-			FCStringAnsi::Strncpy(SignalDescription, "Signal ", ARRAY_COUNT( SignalDescription ) - 1);
+			FCStringAnsi::Strncpy(SignalDescription, "Signal ", UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCStringAnsi::Strcat(SignalDescription, ItoANSI(Signal, 10));
 			FCStringAnsi::Strcat(SignalDescription, " (unknown)");
 			break;
@@ -78,9 +78,9 @@ int32 FApplePlatformCrashContext::ReportCrash() const
 		// Generate the portable callstack for the crash xml
 		const_cast<FApplePlatformCrashContext*>(this)->CapturePortableCallStack(IgnoreDepth, Context);		
 		// Walk the stack and dump it to the allocated memory (ignore first 2 callstack lines as those are in stack walking code)
-		FPlatformStackWalk::StackWalkAndDump( StackBuffer, ARRAY_COUNT(MinidumpCallstackInfo) - 1, IgnoreDepth, Context );
+		FPlatformStackWalk::StackWalkAndDump( StackBuffer, UE_ARRAY_COUNT(MinidumpCallstackInfo) - 1, IgnoreDepth, Context );
 		
-		FUTF8ToTCHAR_Convert::Convert(GErrorHist, ARRAY_COUNT(GErrorHist) - 1, MinidumpCallstackInfo, FCStringAnsi::Strlen(MinidumpCallstackInfo));
+		FUTF8ToTCHAR_Convert::Convert(GErrorHist, UE_ARRAY_COUNT(GErrorHist) - 1, MinidumpCallstackInfo, FCStringAnsi::Strlen(MinidumpCallstackInfo));
 		CreateExceptionInfoString(Signal, Info);
 	}
 	
@@ -89,15 +89,15 @@ int32 FApplePlatformCrashContext::ReportCrash() const
 
 void FApplePlatformCrashContext::CreateExceptionInfoString(int32 Signal, siginfo_t* Info)
 {
-#define HANDLE_CASE(a,b) case a: FCString::Strncpy(GErrorExceptionDescription, TEXT(#a ": " b), ARRAY_COUNT( SignalDescription ) - 1); break;
+#define HANDLE_CASE(a,b) case a: FCString::Strncpy(GErrorExceptionDescription, TEXT(#a ": " b), UE_ARRAY_COUNT( SignalDescription ) - 1); break;
 	switch (Signal)
 	{
 		case SIGSEGV:
-			FCString::Strncpy(GErrorExceptionDescription, TEXT("SIGSEGV: invalid attempt to access memory at address 0x"), ARRAY_COUNT( SignalDescription ) - 1);
+			FCString::Strncpy(GErrorExceptionDescription, TEXT("SIGSEGV: invalid attempt to access memory at address 0x"), UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCString::Strcat(GErrorExceptionDescription, ItoTCHAR((uintptr_t)Info->si_addr, 16));
 			break;
 		case SIGBUS:
-			FCString::Strncpy(GErrorExceptionDescription, TEXT("SIGBUS: invalid attempt to access memory at address 0x"), ARRAY_COUNT( SignalDescription ) - 1);
+			FCString::Strncpy(GErrorExceptionDescription, TEXT("SIGBUS: invalid attempt to access memory at address 0x"), UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCString::Strcat(GErrorExceptionDescription, ItoTCHAR((uintptr_t)Info->si_addr, 16));
 			break;
 			HANDLE_CASE(SIGINT, "program interrupted")
@@ -113,7 +113,7 @@ void FApplePlatformCrashContext::CreateExceptionInfoString(int32 Signal, siginfo
 			HANDLE_CASE(SIGSTOP, "stop")
 			
 		default:
-			FCString::Strncpy(GErrorExceptionDescription, TEXT("Signal "), ARRAY_COUNT( SignalDescription ) - 1);
+			FCString::Strncpy(GErrorExceptionDescription, TEXT("Signal "), UE_ARRAY_COUNT( SignalDescription ) - 1);
 			FCString::Strcat(GErrorExceptionDescription, ItoTCHAR(Signal, 10));
 			FCString::Strcat(GErrorExceptionDescription, TEXT(" (unknown)"));
 			break;

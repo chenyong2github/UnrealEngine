@@ -14,7 +14,7 @@
 
 FJsonArchiveOutputFormatter::FJsonArchiveOutputFormatter(FArchive& InInner) 
 	: Inner(InInner)
-	, Newline(LINE_TERMINATOR_ANSI, ARRAY_COUNT(LINE_TERMINATOR_ANSI) - 1)
+	, Newline(LINE_TERMINATOR_ANSI, UE_ARRAY_COUNT(LINE_TERMINATOR_ANSI) - 1)
 {
 	Inner.SetIsTextFormat(true);
 }
@@ -413,13 +413,13 @@ void FJsonArchiveOutputFormatter::Serialize(void* Data, uint64 DataSize)
 
 		// Convert the hash to a string
 		ANSICHAR DigestString[(FSHA1::DigestSize * 2) + 1];
-		for(int32 Idx = 0; Idx < ARRAY_COUNT(Digest); Idx++)
+		for(int32 Idx = 0; Idx < UE_ARRAY_COUNT(Digest); Idx++)
 		{
 			static const ANSICHAR HexDigits[] = "0123456789abcdef";
 			DigestString[(Idx * 2) + 0] = HexDigits[Digest[Idx] >> 4];
 			DigestString[(Idx * 2) + 1] = HexDigits[Digest[Idx] & 15];
 		}
-		DigestString[ARRAY_COUNT(DigestString) - 1] = 0;
+		DigestString[UE_ARRAY_COUNT(DigestString) - 1] = 0;
 
 		// Write the digest
 		Write("\"Digest\": \"");

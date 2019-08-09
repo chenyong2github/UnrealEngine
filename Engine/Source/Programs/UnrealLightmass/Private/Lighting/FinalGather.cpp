@@ -755,7 +755,7 @@ public:
 							const FLinearColor Radiance = RootElementLighting.Lighting + RootElementLighting.StationarySkyLighting;
 							const float RelativeBrightness = Radiance.ComputeLuminance() / AverageBrightness;
 
-							for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(Neighbors); NeighborIndex++)
+							for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors); NeighborIndex++)
 							{
 								int32 NeighborTheta = ThetaIndex + Neighbors[NeighborIndex].X;
 								// Wrap phi around, since it is the angle around the hemisphere axis
@@ -894,7 +894,7 @@ public:
 								const float RelativeBrightness = Radiance.ComputeLuminance() / AverageBrightness;
 
 								// Only search the axis neighbors past the first depth
-								for (int32 NeighborIndex = 0; NeighborIndex < ARRAY_COUNT(Neighbors) / 2; NeighborIndex++)
+								for (int32 NeighborIndex = 0; NeighborIndex < UE_ARRAY_COUNT(Neighbors) / 2; NeighborIndex++)
 								{
 									const float NeighborU = NodeContext.Min.X + (SubThetaIndex + Neighbors[NeighborIndex].X) * NodeContext.Size.X / 2;
 									const float NeighborV = NodeContext.Min.Y + (SubPhiIndex + Neighbors[NeighborIndex].Y) * NodeContext.Size.Y / 2;
@@ -1093,7 +1093,7 @@ private:
 		{
 			FLightingAndOcclusion FilteredValue;
 
-			for (int32 ChildIndex = 0; ChildIndex < ARRAY_COUNT(Parent->Children); ChildIndex++)
+			for (int32 ChildIndex = 0; ChildIndex < UE_ARRAY_COUNT(Parent->Children); ChildIndex++)
 			{
 				FilteredValue = FilteredValue + GetFilteredValueRecursive(Parent->Children[ChildIndex]) / 4.0f;
 			}
@@ -1115,7 +1115,7 @@ private:
 				FinalGatherHitPoints[Parent->Element.HitPointIndex].Weight = 0.0f;
 			}
 
-			for (int32 ChildIndex = 0; ChildIndex < ARRAY_COUNT(Parent->Children); ChildIndex++)
+			for (int32 ChildIndex = 0; ChildIndex < UE_ARRAY_COUNT(Parent->Children); ChildIndex++)
 			{
 				UpdateHitPointWeightsRecursive(FinalGatherHitPoints, Parent->Children[ChildIndex], ParentWeight / 4.0f);
 			}

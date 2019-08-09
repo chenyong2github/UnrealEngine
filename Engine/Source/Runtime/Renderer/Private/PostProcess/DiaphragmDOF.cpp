@@ -332,7 +332,7 @@ const TCHAR* GetEventName(EDiaphragmDOFLayerProcessing e)
 		TEXT("FocusOnly"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -343,7 +343,7 @@ const TCHAR* GetEventName(EDiaphragmDOFPostfilterMethod e)
 		TEXT("Max3x3"),
 	};
 	int32 i = int32(e) - 1;
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -355,7 +355,7 @@ const TCHAR* GetEventName(EDiaphragmDOFBokehSimulation e)
 		TEXT("Generic"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -367,7 +367,7 @@ const TCHAR* GetEventName(EDiaphragmDOFBokehLUTFormat e)
 		TEXT("Gather"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -380,7 +380,7 @@ const TCHAR* GetEventName(EDiaphragmDOFGatherQuality e)
 		TEXT("Cinematic"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -392,7 +392,7 @@ const TCHAR* GetEventName(EDiaphragmDOFDilateCocMode e)
 		TEXT("MinAbs"),
 	};
 	int32 i = int32(e);
-	check(i < ARRAY_COUNT(kArray));
+	check(i < UE_ARRAY_COUNT(kArray));
 	return kArray[i];
 }
 
@@ -1702,7 +1702,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 			SampleRadiusCount[0] = CurrentConvolutionRadius;
 
 			// If the theoric radius is too big, setup more dilate passes.
-			for (int32 i = 1; i < ARRAY_COUNT(SampleDistanceMultiplier); i++)
+			for (int32 i = 1; i < UE_ARRAY_COUNT(SampleDistanceMultiplier); i++)
 			{
 				if (MaximumTileDilation <= CurrentConvolutionRadius)
 				{

@@ -3115,13 +3115,13 @@ bool FLightmassProcessor::BeginRun()
 	{
 		JobSpecification32 = NSwarm::FJobSpecification( *LightmassExecutable32, *CommandLineParameters, ( NSwarm::TJobTaskFlags )JobFlags );
 		JobSpecification32.AddDependencies( RequiredDependencyPaths32.GetArray(), RequiredDependencyPaths32.Num(), OptionalDependencyPaths32.GetArray(), OptionalDependencyPaths32.Num() );
-		JobSpecification32.AddDescription( DescriptionKeys, DescriptionValues, ARRAY_COUNT(DescriptionKeys) );
+		JobSpecification32.AddDescription( DescriptionKeys, DescriptionValues, UE_ARRAY_COUNT(DescriptionKeys) );
 	}
 	else
 	{
 		JobSpecification64 = NSwarm::FJobSpecification( *LightmassExecutable64, *CommandLineParameters, ( NSwarm::TJobTaskFlags )JobFlags );
 		JobSpecification64.AddDependencies( RequiredDependencyPaths64.GetArray(), RequiredDependencyPaths64.Num(), OptionalDependencyPaths64.GetArray(), OptionalDependencyPaths64.Num() );
-		JobSpecification64.AddDescription( DescriptionKeys, DescriptionValues, ARRAY_COUNT(DescriptionKeys) );
+		JobSpecification64.AddDescription( DescriptionKeys, DescriptionValues, UE_ARRAY_COUNT(DescriptionKeys) );
 	}
 	int32 ErrorCode = Swarm.BeginJobSpecification( JobSpecification32, JobSpecification64 );
 	if( ErrorCode < 0 )

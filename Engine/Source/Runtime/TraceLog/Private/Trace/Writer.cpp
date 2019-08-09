@@ -653,7 +653,7 @@ static void Writer_ControlRecv()
 					continue;
 				}
 
-				if (ArgC < ARRAY_COUNT(ArgV))
+				if (ArgC < UE_ARRAY_COUNT(ArgV))
 				{
 					ArgV[ArgC] = Cursor;
 					++ArgC;

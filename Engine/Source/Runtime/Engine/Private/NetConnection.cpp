@@ -1382,7 +1382,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		}
 #endif
 		// Update stuff.
-		const int32 Index = OutPacketId & (ARRAY_COUNT(OutLagPacketId)-1);
+		const int32 Index = OutPacketId & (UE_ARRAY_COUNT(OutLagPacketId)-1);
 
 		// Remember the actual time this packet was sent out, so we can compute ping when the ack comes back
 		OutLagPacketId[Index]			= OutPacketId;
@@ -1679,7 +1679,7 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader)
 
 	// Update ping
 	// At this time we have updated OutAckPacketId to the latest received ack.
-	const int32 Index = OutAckPacketId & (ARRAY_COUNT(OutLagPacketId)-1);
+	const int32 Index = OutAckPacketId & (UE_ARRAY_COUNT(OutLagPacketId)-1);
 
 	if ( OutLagPacketId[Index] == OutAckPacketId )
 	{

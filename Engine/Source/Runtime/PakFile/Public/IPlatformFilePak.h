@@ -2470,7 +2470,7 @@ struct FPakSignatureFile
 	{
 		ChunkHashes = InChunkHashes;
 		DecryptedHash = ComputeCurrentMasterHash();
-		FRSA::EncryptPrivate(TArrayView<const uint8>(DecryptedHash.Hash, ARRAY_COUNT(FSHAHash::Hash)), EncryptedHash, InKey);
+		FRSA::EncryptPrivate(TArrayView<const uint8>(DecryptedHash.Hash, UE_ARRAY_COUNT(FSHAHash::Hash)), EncryptedHash, InKey);
 	}
 
 	/**
@@ -2507,7 +2507,7 @@ struct FPakSignatureFile
 		{
 			TArray<uint8> Decrypted;
 			int32 BytesDecrypted = FRSA::DecryptPublic(EncryptedHash, Decrypted, InKey);
-			if (BytesDecrypted == ARRAY_COUNT(FSHAHash::Hash))
+			if (BytesDecrypted == UE_ARRAY_COUNT(FSHAHash::Hash))
 			{
 				FSHAHash CurrentHash = ComputeCurrentMasterHash();
 				if (FMemory::Memcmp(Decrypted.GetData(), CurrentHash.Hash, Decrypted.Num()) == 0)

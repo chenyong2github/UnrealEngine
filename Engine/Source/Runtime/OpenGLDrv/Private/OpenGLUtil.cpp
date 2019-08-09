@@ -25,7 +25,7 @@ void VerifyOpenGLResult(GLenum ErrorCode, const TCHAR* Msg1, const TCHAR* Msg2, 
 			TEXT("UNKNOWN ERROR")
 		};
 
-		uint32 ErrorIndex = FMath::Min<uint32>(ErrorCode - GL_INVALID_ENUM, ARRAY_COUNT(ErrorStrings) - 1);
+		uint32 ErrorIndex = FMath::Min<uint32>(ErrorCode - GL_INVALID_ENUM, UE_ARRAY_COUNT(ErrorStrings) - 1);
 		UE_LOG(LogRHI,Fatal,TEXT("%s(%u): %s%s failed with error %s (0x%x)"),
 			Filename,Line,Msg1,Msg2,ErrorStrings[ErrorIndex],ErrorCode);
 	}
