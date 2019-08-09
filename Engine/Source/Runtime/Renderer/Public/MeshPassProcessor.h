@@ -1204,6 +1204,12 @@ extern void SubmitMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList);
 
+extern void ApplyViewOverridesToMeshDrawCommands(
+	const FSceneView& View,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet);
+
 RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	const FSceneView& View,
 	FRHICommandList& RHICmdList,
