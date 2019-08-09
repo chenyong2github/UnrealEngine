@@ -46,7 +46,7 @@ int32 FXXXTargetDevice::GetProcessSnapshot( TArray<FTargetDeviceProcessInfo>& Ou
 }
 
 
-bool FXXXTargetDevice::Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId )
+bool FXXXTargetDevice::Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId )
 {
 	checkNoEntry();
 	return false;

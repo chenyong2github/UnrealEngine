@@ -76,10 +76,10 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	}
 
 	FString PlatformTypeName;
-	PlatformInfo::EPlatformType PlatformType = PlatformInfo::EPlatformType::Game;
+	EBuildTargetType PlatformType = EBuildTargetType::Game;
 	if (FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName))
 	{
-		PlatformType = PlatformInfo::EPlatformTypeFromString(PlatformTypeName);
+		PlatformType = LexFromString(*PlatformTypeName);
 	}
 
 	FString Architecture;
@@ -162,12 +162,12 @@ bool FInstalledPlatformInfo::CanDisplayPlatform(const FString& PlatformName, EPr
 	);
 }
 
-bool FInstalledPlatformInfo::IsValidPlatformType(PlatformInfo::EPlatformType PlatformType) const
+bool FInstalledPlatformInfo::IsValidTargetType(EBuildTargetType TargetType) const
 {
 	return ContainsValidConfiguration(
-		[PlatformType](const FInstalledPlatformConfiguration& CurConfig)
+		[TargetType](const FInstalledPlatformConfiguration& CurConfig)
 		{
-			return CurConfig.PlatformType == PlatformType;
+			return CurConfig.PlatformType == TargetType;
 		}
 	);
 }

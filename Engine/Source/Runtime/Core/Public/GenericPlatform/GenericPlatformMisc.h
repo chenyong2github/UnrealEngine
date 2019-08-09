@@ -82,44 +82,69 @@ FORCEINLINE const TCHAR* LexToString(EBuildConfigurations::Type Configuration)
 	return EBuildConfigurations::ToString(Configuration);
 }
 
+/**
+ * Enumerates build target types.
+ */
+enum class EBuildTargetType
+{
+	/** Unknown build target. */
+	Unknown,
+
+	/** Game target. */
+	Game,
+
+	/** Server target. */
+	Server,
+
+	/** Client target. */
+	Client,
+
+	/** Editor target. */
+	Editor,
+
+	/** Program target. */
+	Program,
+};
+
+/**
+ * Returns the string representation of the specified EBuildTarget value.
+ *
+ * @param Target The value to get the string for.
+ * @return The string representation.
+ */
+CORE_API EBuildTargetType LexFromString(const TCHAR* Type);
+
+/**
+ * Returns the string representation of the specified EBuildTargetType value.
+ *
+ * @param Target The string to get the EBuildTargetType for.
+ * @return An EBuildTarget::Type value.
+ */
+CORE_API const TCHAR* LexToString(EBuildTargetType Type);
 
 namespace EBuildTargets
 {
-	/**
-	 * Enumerates build targets.
-	 */
-	enum Type
-	{
-		/** Unknown build target. */
-		Unknown,
+	UE_DEPRECATED(4.24, "EBuildTargets::Type is deprecated. Use EBuildTargetType instead.")
+	typedef EBuildTargetType Type;
 
-		/** Editor target. */
-		Editor,
+	UE_DEPRECATED(4.24, "EBuildTargets::Unknown is deprecated. Use EBuildTargetType::Unknown instead.")
+	static const EBuildTargetType Unknown = EBuildTargetType::Unknown;
 
-		/** Game target. */
-		Game,
+	UE_DEPRECATED(4.24, "EBuildTargets::Editor is deprecated. Use EBuildTargetType::Unknown instead.")
+	static const EBuildTargetType Editor = EBuildTargetType::Editor;
 
-		/** Server target. */
-		Server
-	};
+	UE_DEPRECATED(4.24, "EBuildTargets::Game is deprecated. Use EBuildTargetType::Unknown instead.")
+	static const EBuildTargetType Game = EBuildTargetType::Game;
 
-	/**
-	 * Returns the string representation of the specified EBuildTarget value.
-	 *
-	 * @param Target The string to get the EBuildTarget::Type for.
-	 * @return An EBuildTarget::Type value.
-	 */
-	CORE_API EBuildTargets::Type FromString( const FString& Target );
+	UE_DEPRECATED(4.24, "EBuildTargets::Server is deprecated. Use EBuildTargetType::Unknown instead.")
+	static const EBuildTargetType Server = EBuildTargetType::Server;
 
-	/**
-	 * Returns the string representation of the specified EBuildTarget value.
-	 *
-	 * @param Target The value to get the string for.
-	 * @return The string representation.
-	 */
-	CORE_API const TCHAR* ToString( EBuildTargets::Type Target );
+	UE_DEPRECATED(4.24, "EBuildTargets::FromString is deprecated. Use LexFromString() instead.")
+	CORE_API EBuildTargetType FromString( const FString& Target );
+	
+	UE_DEPRECATED(4.24, "EBuildTargets::FromString is deprecated. Use LexFromString() instead.")
+	CORE_API const TCHAR* ToString(EBuildTargetType Target);
 }
-
 
 /**
  * Enumerates the modes a convertible laptop can be in.

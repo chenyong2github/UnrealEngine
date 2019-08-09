@@ -143,22 +143,22 @@ public:
 		return false;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId ) override
+	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
 	{
 #if PLATFORM_LINUX	// if running natively, support launching in place
 		// build executable path
 		FString PlatformName = TEXT("Linux");
 		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName;
 
-		if (BuildTarget == EBuildTargets::Game)
+		if (BuildTarget == EBuildTargetType::Game)
 		{
 			ExecutablePath /= TEXT("UE4Game");
 		}
-		else if (BuildTarget == EBuildTargets::Server)
+		else if (BuildTarget == EBuildTargetType::Server)
 		{
 			ExecutablePath /= TEXT("UE4Server");
 		}
-		else if (BuildTarget == EBuildTargets::Editor)
+		else if (BuildTarget == EBuildTargetType::Editor)
 		{
 			ExecutablePath /= TEXT("UE4Editor");
 		}

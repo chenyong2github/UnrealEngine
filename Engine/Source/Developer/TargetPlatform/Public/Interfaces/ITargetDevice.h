@@ -307,12 +307,12 @@ public:
 	 *
 	 * @param AppId The identifier of the application to launch (as returned by the Deploy() method).
 	 * @param BuildConfiguration The build configuration to launch.
-	 * @param BuildTarget The build target type to launch
+	 * @param TargetType The target type to launch
 	 * @param Params The command line parameters to launch with.
 	 * @param OutProcessId Will hold the identifier of the created process (can be NULL).
 	 * @return true on success, false otherwise.
 	 */
-	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId ) = 0;
+	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) = 0;
 
 	/**
 	 * Powers off the device.

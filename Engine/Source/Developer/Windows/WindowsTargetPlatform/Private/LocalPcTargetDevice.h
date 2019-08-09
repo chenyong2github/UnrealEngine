@@ -237,21 +237,21 @@ public:
 		return true;
 	}
 
-	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargets::Type BuildTarget, const FString& Params, uint32* OutProcessId ) override
+	virtual bool Launch( const FString& AppId, EBuildConfigurations::Type BuildConfiguration, EBuildTargetType TargetType, const FString& Params, uint32* OutProcessId ) override
 	{
 		// build executable path
 		FString PlatformName = WIN64 ? TEXT("Win64") : TEXT("Win32");
 		FString ExecutablePath = FPaths::EngineIntermediateDir() / TEXT("Devices") / PlatformName / TEXT("Engine") / TEXT("Binaries") / PlatformName;
 		
-		if (BuildTarget == EBuildTargets::Game)
+		if (TargetType == EBuildTargetType::Game)
 		{
 			ExecutablePath /= TEXT("UE4Game");
 		}
-		else if (BuildTarget == EBuildTargets::Server)
+		else if (TargetType == EBuildTargetType::Server)
 		{
 			ExecutablePath /= TEXT("UE4Game");
 		}
-		else if (BuildTarget == EBuildTargets::Editor)
+		else if (TargetType == EBuildTargetType::Editor)
 		{
 			ExecutablePath /= TEXT("UE4Editor");
 		}

@@ -131,46 +131,62 @@ namespace EBuildConfigurations
 }
 
 
-/* EBuildConfigurations interface
+/* EBuildTargetType functions
  *****************************************************************************/
 
-namespace EBuildTargets
+EBuildTargetType LexFromString(const TCHAR* Type)
 {
-	EBuildTargets::Type FromString( const FString& Target )
+	if (FCString::Strcmp(Type, TEXT("Editor")) == 0)
 	{
-		if (FCString::Strcmp(*Target, TEXT("Editor")) == 0)
-		{
-			return Editor;
-		}
-		else if (FCString::Strcmp(*Target, TEXT("Game")) == 0)
-		{
-			return Game;
-		}
-		else if (FCString::Strcmp(*Target, TEXT("Server")) == 0)
-		{
-			return Server;
-		}
-
-		return Unknown;
+		return EBuildTargetType::Editor;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Game")) == 0)
+	{
+		return EBuildTargetType::Game;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Server")) == 0)
+	{
+		return EBuildTargetType::Server;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Client")) == 0)
+	{
+		return EBuildTargetType::Client;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Program")) == 0)
+	{
+		return EBuildTargetType::Program;
 	}
 
-	const TCHAR* ToString( EBuildTargets::Type Target )
+	return EBuildTargetType::Unknown;
+}
+
+const TCHAR* LexToString(EBuildTargetType Type)
+{
+	switch (Type)
 	{
-		switch (Target)
-		{
-			case Editor:
-				return TEXT("Editor");
-
-			case Game:
-				return TEXT("Game");
-
-			case Server:
-				return TEXT("Server");
-
-			default:
-				return TEXT("Unknown");
-		}
+	case EBuildTargetType::Editor:
+		return TEXT("Editor");
+	case EBuildTargetType::Game:
+		return TEXT("Game");
+	case EBuildTargetType::Server:
+		return TEXT("Server");
+	case EBuildTargetType::Client:
+		return TEXT("Client");
+	case EBuildTargetType::Program:
+		return TEXT("Program");
+	default:
+		return TEXT("Unknown");
 	}
+}
+
+EBuildTargetType EBuildTargets::FromString(const FString& Target)
+{
+	return LexFromString(*Target);
+}
+
+const TCHAR* EBuildTargets::ToString(EBuildTargetType Target)
+{
+	return LexToString(Target);
 }
 
 FString FSHA256Signature::ToString() const

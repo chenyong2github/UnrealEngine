@@ -208,9 +208,9 @@ public:
 		return TPlatformProperties::RequiresUserCredentials();
 	}
 
-	virtual bool SupportsBuildTarget( EBuildTargets::Type BuildTarget ) const override
+	virtual bool SupportsBuildTarget( EBuildTargetType TargetType ) const override
 	{
-		return TPlatformProperties::SupportsBuildTarget(BuildTarget);
+		return TPlatformProperties::SupportsBuildTarget(TargetType);
 	}
 
 	virtual bool SupportsAutoSDK() const override

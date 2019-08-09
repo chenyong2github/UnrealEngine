@@ -55,7 +55,7 @@ public:
 			check(VanillaPlatform.PlatformInfo->IsVanilla());
 
 			// Only care about game targets
-			if (VanillaPlatform.PlatformInfo->PlatformType != PlatformInfo::EPlatformType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
+			if (VanillaPlatform.PlatformInfo->PlatformType != EBuildTargetType::Game || !VanillaPlatform.PlatformInfo->bEnabledForUse || !FInstalledPlatformInfo::Get().CanDisplayPlatform(VanillaPlatform.PlatformInfo->BinaryFolderName, ProjectType))
 			{
 				continue;
 			}
@@ -153,7 +153,7 @@ protected:
 	{
 		for (const PlatformInfo::FPlatformInfo* SubPlatformInfo : SubPlatformInfos)
 		{
-			if (SubPlatformInfo->PlatformType != PlatformInfo::EPlatformType::Game)
+			if (SubPlatformInfo->PlatformType != EBuildTargetType::Game)
 			{
 				continue;
 			}
@@ -190,7 +190,7 @@ protected:
 
 		// Add the Client configurations if there is a {ProjectName}Client.Target.cs file.
 		TArray<FString> ClientTargetFileNames;
-		if (FInstalledPlatformInfo::Get().IsValidPlatformType(PlatformInfo::EPlatformType::Client))
+		if (FInstalledPlatformInfo::Get().IsValidTargetType(EBuildTargetType::Client))
 		{
 			IFileManager::Get().FindFiles(ClientTargetFileNames, *(FPaths::GameSourceDir() / TEXT("*client.target.cs")), true, false);
 		}

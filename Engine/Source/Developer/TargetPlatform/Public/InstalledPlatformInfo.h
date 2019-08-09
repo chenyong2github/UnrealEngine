@@ -5,11 +5,6 @@
 #include "CoreMinimal.h"
 
 // Forward declaration
-namespace PlatformInfo
-{
-	enum class EPlatformType : uint8;
-}
-
 enum class EProjectType : uint8
 {
 	Unknown,
@@ -32,7 +27,7 @@ struct FInstalledPlatformConfiguration
 	FString PlatformName;
 
 	/** Type of Platform for this combination */
-	PlatformInfo::EPlatformType PlatformType;
+	EBuildTargetType PlatformType;
 
 	/** Name of the Architecture for this combination */
 	FString Architecture;
@@ -83,9 +78,9 @@ public:
 	bool CanDisplayPlatform(const FString& PlatformName, EProjectType ProjectType) const;
 
 	/**
-	 * Queries whether a platform type is valid for any configuration
+	 * Queries whether a target type is valid for any configuration
 	 */
-	bool IsValidPlatformType(PlatformInfo::EPlatformType PlatformType) const;
+	bool IsValidTargetType(EBuildTargetType TargetType) const;
 
 	/**
 	 * Queries whether a platform architecture is valid for any configuration

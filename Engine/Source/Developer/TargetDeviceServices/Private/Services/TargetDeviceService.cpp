@@ -463,7 +463,7 @@ void FTargetDeviceService::HandleLaunchAppMessage(const FTargetDeviceServiceLaun
 	if (TargetDevice.IsValid())
 	{
 		uint32 ProcessId;
-		bool Succeeded = TargetDevice->Launch(Message.AppID, (EBuildConfigurations::Type)Message.BuildConfiguration, EBuildTargets::Game, Message.Params, &ProcessId);
+		bool Succeeded = TargetDevice->Launch(Message.AppID, (EBuildConfigurations::Type)Message.BuildConfiguration, EBuildTargetType::Game, Message.Params, &ProcessId);
 
 		if (MessageEndpoint.IsValid())
 		{
