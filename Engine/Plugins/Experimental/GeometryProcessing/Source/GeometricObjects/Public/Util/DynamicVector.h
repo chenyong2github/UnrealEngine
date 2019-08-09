@@ -148,6 +148,65 @@ public:
 	{
 		return FIterator(this, (int)GetLength());
 	}
+
+
+
+
+
+	/*
+	 * FConstIterator class iterates over values of vector
+	 */
+	class FConstIterator
+	{
+	public:
+		inline const Type& operator*() const
+		{
+			return (*DVector)[Idx];
+		}
+		inline FConstIterator& operator++()   // prefix
+		{
+			Idx++;
+			return *this;
+		}
+		inline FConstIterator operator++(int) // postfix
+		{
+			FConstIterator Copy(*this);
+			Idx++;
+			return Copy;
+		}
+		inline bool operator==(const FConstIterator& Itr2)
+		{
+			return DVector == Itr2.DVector && Idx == Itr2.Idx;
+		}
+		inline bool operator!=(const FConstIterator& Itr2)
+		{
+			return DVector != Itr2.DVector || Idx != Itr2.Idx;
+		}
+
+	protected:
+		const TDynamicVector<Type>* DVector;
+		int Idx;
+		inline FConstIterator(const TDynamicVector<Type>* Parent, int ICur)
+		{
+			DVector = Parent;
+			Idx = ICur;
+		}
+		friend class TDynamicVector<Type>;
+	};
+
+	/** @return iterator at beginning of vector */
+	FConstIterator begin() const
+	{
+		return IsEmpty() ? end() : FConstIterator(this, 0);
+	}
+	/** @return iterator at end of vector */
+	FConstIterator end() const
+	{
+		return FConstIterator(this, (int)GetLength());
+	}
+
+
+
 };
 
 

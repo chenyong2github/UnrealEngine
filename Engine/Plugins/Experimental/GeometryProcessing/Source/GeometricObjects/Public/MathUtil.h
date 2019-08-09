@@ -61,6 +61,8 @@ public:
 	static inline RealType Sin(const RealType Value);
 	static inline RealType Cos(const RealType Value);
 	static inline RealType ACos(const RealType Value);
+	static inline RealType Floor(const RealType Value);
+	static inline RealType Ceil(const RealType Value);
 
 
 
@@ -168,6 +170,18 @@ template<typename RealType>
 RealType TMathUtil<RealType>::ACos(const RealType Value)
 {
 	return acos(Value);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Floor(const RealType Value)
+{
+	return floor(Value);
+}
+
+template<typename RealType>
+RealType TMathUtil<RealType>::Ceil(const RealType Value)
+{
+	return ceil(Value);
 }
 
 
