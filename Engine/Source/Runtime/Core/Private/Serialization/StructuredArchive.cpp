@@ -415,6 +415,150 @@ TOptional<FStructuredArchive::FSlot> FStructuredArchive::FSlot::TryEnterAttribut
 	}
 }
 
+void FStructuredArchive::FSlot::operator<< (char& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+
+	int8 AsInt = Value;
+	Ar.Formatter.Serialize(AsInt);
+	Value = AsInt;
+
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (uint8& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (uint16& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (uint32& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (uint64& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (int8& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (int16& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (int32& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (int64& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (float& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (double& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (bool& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FString& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FName& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (UObject*& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FText& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FWeakObjectPtr& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FLazyObjectPtr& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FSoftObjectPtr& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
+void FStructuredArchive::FSlot::operator<< (FSoftObjectPath& Value)
+{
+	Ar.EnterSlot(Depth, ElementId);
+	Ar.Formatter.Serialize(Value);
+	Ar.LeaveSlot();
+}
+
 void FStructuredArchive::FSlot::Serialize(TArray<uint8>& Data)
 {
 	Ar.EnterSlot(Depth, ElementId);
