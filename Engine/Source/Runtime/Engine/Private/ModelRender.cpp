@@ -500,17 +500,17 @@ public:
 
 	virtual void DrawStaticElements(FStaticPrimitiveDrawInterface* PDI) override
 	{
-		if(!HasViewDependentDPG())
+		if (!HasViewDependentDPG())
 		{
 			// Determine the DPG the primitive should be drawn in.
 			uint8 PrimitiveDPG = GetStaticDepthPriorityGroup();
 
 			PDI->ReserveMemoryForMeshes(Elements.Num());
 
-			for(int32 ElementIndex = 0;ElementIndex < Elements.Num();ElementIndex++)
+			for (int32 ElementIndex = 0;ElementIndex < Elements.Num();ElementIndex++)
 			{
 				const FModelElement& ModelElement = Component->GetElements()[ElementIndex];
-				if(ModelElement.NumTriangles > 0)
+				if (ModelElement.NumTriangles > 0)
 				{
 					FMeshBatch MeshElement;
 					FMeshBatchElement& BatchElement = MeshElement.Elements[0];
@@ -526,7 +526,12 @@ public:
 					MeshElement.Type = PT_TriangleList;
 					MeshElement.DepthPriorityGroup = PrimitiveDPG;
 					MeshElement.LODIndex = 0;
-					PDI->DrawMesh(MeshElement, FLT_MAX);
+					const bool bValidIndexBuffer = !BatchElement.IndexBuffer || (BatchElement.IndexBuffer && BatchElement.IndexBuffer->IsInitialized() && BatchElement.IndexBuffer->IndexBufferRHI);
+					ensure(bValidIndexBuffer);
+					if (bValidIndexBuffer)
+					{
+						PDI->DrawMesh(MeshElement, FLT_MAX);
+					}
 				}
 			}
 		}
