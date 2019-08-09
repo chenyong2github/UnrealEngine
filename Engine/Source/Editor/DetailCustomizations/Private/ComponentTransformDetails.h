@@ -282,6 +282,8 @@ private:
 	FOptionalVector CachedScale;
 	/** Notify hook to use */
 	FNotifyHook* NotifyHook;
+	/** Mapping from object to relative rotation values which are not affected by Quat->Rotator conversions during transform calculations */
+	TMap< UObject*, FRotator > ObjectToRelativeRotationMap;
 	/** Whether or not we are in absolute translation mode */
 	bool bAbsoluteLocation;
 	/** Whether or not we are in absolute rotation mode */
@@ -290,10 +292,10 @@ private:
 	bool bAbsoluteScale;
 	/** Whether or not to preserve scale ratios */
 	bool bPreserveScaleRatio;
-	/** Mapping from object to relative rotation values which are not affected by Quat->Rotator conversions during transform calculations */
-	TMap< UObject*, FRotator > ObjectToRelativeRotationMap;
 	/** Flag to indicate we are currently editing the rotation in the UI, so we should rely on the cached value in objectToRelativeRotationMap, not the value from the object */
 	bool bEditingRotationInUI;
+	/** Flag to indicate we are currently performing a slider transaction */
+	bool bIsSliderTransaction;
 	/** Bitmask to indicate which fields should be hidden (if any) */
 	uint8 HiddenFieldMask;
 };
