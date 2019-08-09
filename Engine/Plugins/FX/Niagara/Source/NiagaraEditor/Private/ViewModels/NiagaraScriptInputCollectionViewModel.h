@@ -51,7 +51,7 @@ private:
 	void OnGraphChanged(const struct FEdGraphEditAction& InAction);
 
 	/** Handles when the name on a parameter changes. */
-	void OnParameterNameChanged(FName OldName, FName NewName, FNiagaraVariable* ParameterVariable);
+	void OnParameterNameChanged(FName OldName, FName NewName, TWeakObjectPtr<UNiagaraNodeInput> InputNodeWeak);
 
 	/** Handles when the type on a parameter changes. */
 	void OnParameterTypeChanged(FNiagaraVariable* ParameterVariable);
