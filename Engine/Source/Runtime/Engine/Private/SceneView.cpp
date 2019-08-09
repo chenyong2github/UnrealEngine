@@ -765,6 +765,17 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 #if DO_CHECK
 bool FSceneView::VerifyMembersChecks() const
 {
+	if (PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
+	{
+		checkf(GetFeatureLevel() >= ERHIFeatureLevel::SM5, TEXT("Temporal upsample is SM5 only."));
+		checkf(AntiAliasingMethod == AAM_TemporalAA, TEXT("ScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale requires AntiAliasingMethod == AAM_TemporalAA"));
+	}
+
+	if (AntiAliasingMethod == AAM_TemporalAA)
+	{
+		checkf(State, TEXT("TemporalAA requires the view to have a valid state."));
+	}
+
 	return true;
 }
 #endif
@@ -827,6 +838,12 @@ void FSceneView::SetupAntiAliasingMethod()
 				AntiAliasingMethod = AAM_FXAA;
 			}
 		}
+	}
+
+    // TemporalAA requires view state for history.
+	if (AntiAliasingMethod == AAM_TemporalAA && !State)
+	{
+		AntiAliasingMethod = AAM_None;
 	}
 }
 
