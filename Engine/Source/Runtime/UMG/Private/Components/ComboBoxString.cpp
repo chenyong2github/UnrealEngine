@@ -290,6 +290,11 @@ int32 UComboBoxString::GetOptionCount() const
 	return Options.Num();
 }
 
+bool UComboBoxString::IsOpen() const
+{
+	return MyComboBox.IsValid() && MyComboBox->IsOpen();
+}
+
 void UComboBoxString::UpdateOrGenerateWidget(TSharedPtr<FString> Item)
 {
 	// If no custom widget was supplied and the default STextBlock already exists,
