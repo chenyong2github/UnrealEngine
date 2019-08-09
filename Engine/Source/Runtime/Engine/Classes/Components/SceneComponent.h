@@ -262,8 +262,7 @@ public:
 	static int32 SkipUpdateOverlapsOptimEnabled;
 
 #if WITH_EDITORONLY_DATA
-	/** This component is explicitly for visualization in the editor */
-	UPROPERTY()
+	/** This component should create a sprite component for visualization in the editor */
 	uint8 bVisualizeComponent : 1;
 #endif
 
