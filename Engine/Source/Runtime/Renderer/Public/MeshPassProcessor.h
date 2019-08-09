@@ -1227,6 +1227,7 @@ public:
 
 	bool bCastRayTracedShadows = true;
 	bool bOpaque = true;
+	bool bDecal = false;
 
 	/** Sets ray hit group shaders on the mesh command and allocates room for the shader bindings. */
 	RENDERER_API void SetShaders(const FMeshProcessorShaders& Shaders);

@@ -123,6 +123,14 @@ static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
 	TEXT(" 1: All ray tracing effects enabled"),
 	ECVF_RenderThreadSafe);
 
+static int32 GRayTracingExcludeDecals = 0;
+static FAutoConsoleVariableRef CRayTracingExcludeDecals(
+	TEXT("r.RayTracing.ExcludeDecals"),
+	GRayTracingExcludeDecals,
+	TEXT("A toggle that modifies the inclusion of decals in the ray tracing BVH.\n")
+	TEXT(" 0: Decals included in the ray tracing BVH (default)\n")
+	TEXT(" 1: Decals excluded from the ray tracing BVH"),
+	ECVF_RenderThreadSafe);
 
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
@@ -662,6 +670,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 						uint8 NewInstanceMask = 0;
 						bool bAllSegmentsOpaque = true;
 						bool bAnySegmentsCastShadow = false;
+						bool bAnySegmentsDecal = false;
 
 						uint32 LODIndex = LODToRender.GetRayTracedLOD();
 						// Sometimes LODIndex is out of range because it is clamped by ClampToFirstLOD, like the requested LOD is being streamed in and hasn't been available
@@ -684,12 +693,18 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 									NewInstanceMask |= NewVisibleMeshCommand.RayTracingMeshCommand->InstanceMask;
 									bAllSegmentsOpaque &= NewVisibleMeshCommand.RayTracingMeshCommand->bOpaque;
 									bAnySegmentsCastShadow |= NewVisibleMeshCommand.RayTracingMeshCommand->bCastRayTracedShadows;
+									bAnySegmentsDecal |= NewVisibleMeshCommand.RayTracingMeshCommand->bDecal;
 								}
 								else
 								{
 									// CommandIndex == -1 indicates that the mesh batch has been filtered by FRayTracingMeshProcessor (like the shadow depth pass batch)
 									// Do nothing in this case
 								}
+							}
+
+							if (GRayTracingExcludeDecals && bAnySegmentsDecal)
+							{
+								continue;
 							}
 
 							NewInstanceMask |= bAnySegmentsCastShadow ? RAY_TRACING_MASK_SHADOW : 0;
