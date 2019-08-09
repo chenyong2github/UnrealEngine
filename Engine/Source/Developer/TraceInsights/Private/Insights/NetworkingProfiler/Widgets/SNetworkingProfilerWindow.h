@@ -18,6 +18,8 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 class FActiveTimerHandle;
+class FMenuBuilder;
+
 class SDataStreamBreakdownView;
 class SPacketBreakdownView;
 class SPacketSizesView;

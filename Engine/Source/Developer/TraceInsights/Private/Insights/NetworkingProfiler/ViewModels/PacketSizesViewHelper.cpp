@@ -1,6 +1,6 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "FrameTrackHelper.h"
+#include "PacketSizesViewHelper.h"
 
 #include "Brushes/SlateBorderBrush.h"
 #include "Brushes/SlateColorBrush.h"
@@ -13,81 +13,86 @@
 
 // Insights
 #include "Insights/Common/PaintUtils.h"
-#include "Insights/ViewModels/FrameTrackViewport.h"
+#include "Insights/NetworkingProfiler/ViewModels/PacketSizesViewport.h"
 
 #include <limits>
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FFrameTrackSeriesBuilder
+// FNetworkPacketSeriesBuilder
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FFrameTrackSeriesBuilder::FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, const FFrameTrackViewport& InViewport)
+FNetworkPacketSeriesBuilder::FNetworkPacketSeriesBuilder(FNetworkPacketSeries& InSeries, const FPacketSizesViewport& InViewport)
 	: Series(InSeries)
 	, Viewport(InViewport)
-	, NumAddedFrames(0)
+	, NumAddedPackets(0)
 {
 	SampleW = Viewport.GetSampleWidth();
-	FramesPerSample = Viewport.GetNumFramesPerSample();
+	PacketsPerSample = Viewport.GetNumPacketsPerSample();
 	NumSamples = FMath::Max(0, FMath::CeilToInt(Viewport.GetWidth() / SampleW));
 	FirstFrameIndex = Viewport.GetFirstFrameIndex();
 
-	Series.NumAggregatedFrames = 0;
+	Series.NumAggregatedPackets = 0;
 	Series.Samples.Reset();
 	Series.Samples.AddDefaulted(NumSamples);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackSeriesBuilder::AddFrame(const Trace::FFrame& Frame)
+void FNetworkPacketSeriesBuilder::AddPacket(int32 FrameIndex, int64 Size, double TimeSent, double TimeAck, ENetworkPacketStatus Status)
 {
-	NumAddedFrames++;
+	NumAddedPackets++;
 
-	const int32 FrameIndex = Frame.Index;
-
-	int32 SampleIndex = (FrameIndex - FirstFrameIndex) / FramesPerSample;
+	int32 SampleIndex = (FrameIndex - FirstFrameIndex) / PacketsPerSample;
 	if (SampleIndex >= 0 && SampleIndex < NumSamples)
 	{
-		FFrameTrackSample& Sample = Series.Samples[SampleIndex];
-		Sample.NumFrames++;
+		FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
+		Sample.NumPackets++;
 
-		double Duration = Frame.EndTime - Frame.StartTime;
-		Sample.TotalDuration += Duration;
-		if (Frame.StartTime < Sample.StartTime)
+		if (TimeSent < Sample.StartTime)
 		{
-			Sample.StartTime = Frame.StartTime;
+			Sample.StartTime = TimeSent;
 		}
-		if (Frame.EndTime > Sample.EndTime)
+		if (TimeSent > Sample.EndTime)
 		{
-			Sample.EndTime = Frame.EndTime;
-		}
-		if (Duration > Sample.LargestFrameDuration)
-		{
-			Sample.LargestFrameIndex = FrameIndex;
-			Sample.LargestFrameStartTime = Frame.StartTime;
-			Sample.LargestFrameDuration = Duration;
+			Sample.EndTime = TimeSent;
 		}
 
-		Series.NumAggregatedFrames++;
+		if (Size > Sample.LargestPacket.Size)
+		{
+			Sample.LargestPacket.FrameIndex = FrameIndex;
+			Sample.LargestPacket.Size = Size;
+			Sample.LargestPacket.TimeSent = TimeSent;
+			Sample.LargestPacket.TimeAck = TimeAck;
+			Sample.LargestPacket.Status = Status;
+		}
+
+		ensure(Status != ENetworkPacketStatus::Unknown);
+		if (static_cast<int32>(Status) > static_cast<int32>(Sample.AggregatedStatus))
+		{
+			Sample.AggregatedStatus = Status;
+		}
+
+		Series.NumAggregatedPackets++;
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-// FFrameTrackDrawHelper
+// FPacketSizesViewDrawHelper
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FFrameTrackDrawHelper::FFrameTrackDrawHelper(const FDrawContext& InDrawContext, const FFrameTrackViewport& InViewport)
+FPacketSizesViewDrawHelper::FPacketSizesViewDrawHelper(const FDrawContext& InDrawContext, const FPacketSizesViewport& InViewport)
 	: DrawContext(InDrawContext)
 	, Viewport(InViewport)
 	, WhiteBrush(FCoreStyle::Get().GetBrush("WhiteBrush"))
 	, BorderBrush(FEditorStyle::GetBrush("PlainBorder"))
-	, NumFrames(0)
+	, NumPackets(0)
 	, NumDrawSamples(0)
 {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawBackground() const
+void FPacketSizesViewDrawHelper::DrawBackground() const
 {
 	const FSlateBrush* AreaBrush = WhiteBrush;
 	const FLinearColor ValidAreaColor(0.07f, 0.07f, 0.07f, 1.0f);
@@ -135,37 +140,38 @@ void FFrameTrackDrawHelper::DrawBackground() const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FLinearColor FFrameTrackDrawHelper::GetColorByFrameType(int32 FrameType)
+FLinearColor FPacketSizesViewDrawHelper::GetColorByStatus(ENetworkPacketStatus Status)
 {
-	const float Alpha = 0.9f;
-	switch (FrameType)
+	const float Alpha = 1.0f;
+	switch (Status)
 	{
-	case TraceFrameType_Game:
-		return FLinearColor(0.75, 1.0, 1.0, Alpha);
+	case ENetworkPacketStatus::Unknown:
+		return FLinearColor(0.25f, 0.25f, 0.25f, Alpha);
 
-	case TraceFrameType_Rendering:
-		return FLinearColor(1.0, 0.75, 0.75, Alpha);
+	case ENetworkPacketStatus::Sent:
+		return FLinearColor(0.75f, 0.75f, 0.75f, Alpha);
 
-	//case 2:
-	//	return FLinearColor(0.75, 0.75, 1.0, Alpha);
+	case ENetworkPacketStatus::ConfirmedReceived:
+		return FLinearColor(0.5f, 1.0f, 0.5f, Alpha);
+
+	case ENetworkPacketStatus::ConfirmedLost:
+		return FLinearColor(1.0f, 0.5f, 0.5f, Alpha);
 
 	default:
-		return FLinearColor(1.0, 1.0, 1.0, Alpha);
+		return FLinearColor(1.0f, 0.0f, 0.0f, Alpha);
 	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
+void FPacketSizesViewDrawHelper::DrawCached(const FNetworkPacketSeries& Series) const
 {
-	if (Series.NumAggregatedFrames == 0)
+	if (Series.NumAggregatedPackets == 0)
 	{
 		return;
 	}
 
-	NumFrames += Series.NumAggregatedFrames;
-
-	FLinearColor SeriesColor = GetColorByFrameType(Series.FrameType);
+	NumPackets += Series.NumAggregatedPackets;
 
 	const float SampleW = Viewport.GetSampleWidth();
 	const int32 NumSamples = Series.Samples.Num();
@@ -177,8 +183,8 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 
 	for (int32 SampleIndex = 0; SampleIndex < NumSamples; SampleIndex++)
 	{
-		const FFrameTrackSample& Sample = Series.Samples[SampleIndex];
-		if (Sample.NumFrames == 0)
+		const FNetworkPacketAggregatedSample& Sample = Series.Samples[SampleIndex];
+		if (Sample.NumPackets == 0)
 		{
 			continue;
 		}
@@ -186,34 +192,13 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 		NumDrawSamples++;
 
 		const float X = SampleIndex * SampleW;
-		float ValueY;
 
-		FLinearColor ColorFill = SeriesColor;
-
-		if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
-		{
-			ValueY = ViewHeight;
-			ColorFill.R = 0.0f;
-			ColorFill.G = 0.0f;
-			ColorFill.B = 0.0f;
-		}
-		else
-		{
-			ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
-			if (Sample.LargestFrameDuration > 1.0 / 30.0)
-			{
-				ColorFill.G *= 0.5f;
-				ColorFill.B *= 0.5f;
-			}
-			else if (Sample.LargestFrameDuration > 1.0 / 60.0)
-			{
-				ColorFill.B *= 0.5f;
-			}
-		}
+		const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.Size)));
 
 		const float H = ValueY - BaselineY;
 		const float Y = ViewHeight - H;
 
+		const FLinearColor ColorFill = GetColorByStatus(Sample.AggregatedStatus);
 		const FLinearColor ColorBorder(ColorFill.R * 0.75f, ColorFill.G * 0.75f, ColorFill.B * 0.75f, 1.0);
 
 		if (SampleW > 2.0f)
@@ -237,96 +222,49 @@ void FFrameTrackDrawHelper::DrawCached(const FFrameTrackSeries& Series) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawHoveredSample(const FFrameTrackSample& Sample) const
+void FPacketSizesViewDrawHelper::DrawSampleHighlight(const FNetworkPacketAggregatedSample& Sample, EHighlightMode Mode) const
 {
 	const float SampleW = Viewport.GetSampleWidth();
-	const int32 FramesPerSample = Viewport.GetNumFramesPerSample();
+	const int32 PacketsPerSample = Viewport.GetNumPacketsPerSample();
 	const int32 FirstFrameIndex = Viewport.GetFirstFrameIndex();
-	const int32 SampleIndex = (Sample.LargestFrameIndex - FirstFrameIndex) / FramesPerSample;
+	const int32 SampleIndex = (Sample.LargestPacket.FrameIndex - FirstFrameIndex) / PacketsPerSample;
 	const float X = SampleIndex * SampleW;
 
 	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
 
 	const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
 	const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
+	const float ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(static_cast<double>(Sample.LargestPacket.Size)));
 
-	float ValueY;
-	if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
-	{
-		ValueY = ViewHeight;
-	}
-	else
-	{
-		ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
-	}
 	const float H = ValueY - BaselineY;
 	const float Y = ViewHeight - H;
 
-	const FLinearColor ColorBorder(1.0f, 1.0f, 0.0f, 1.0);
-	DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, BorderBrush, ColorBorder);
+	if (Mode == EHighlightMode::Hovered)
+	{
+		const FSlateBrush* HighlightBrush = BorderBrush;
+
+		const FLinearColor Color(1.0f, 1.0f, 0.0f, 1.0f); // yellow
+
+		// Draw border around the timing event box.
+		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, HighlightBrush, Color);
+	}
+	else // EHighlightMode::Selected or EHighlightMode::SelectedAndHovered
+	{
+		const FSlateBrush* SelectedBrush = BorderBrush;
+
+		// Animate color from white (if selected and hovered) or yellow (if only selected) to black, using a squared sine function.
+		const double Time = static_cast<double>(FPlatformTime::Cycles64()) * FPlatformTime::GetSecondsPerCycle64();
+		float S = FMath::Sin(2.0 * Time);
+		S = S * S; // squared, to ensure only positive [0 - 1] values
+		const float Blue = (Mode == EHighlightMode::SelectedAndHovered) ? 0.0f : S;
+		const FLinearColor Color(S, S, Blue, 1.0f);
+
+		// Draw border around the timing event box.
+		DrawContext.DrawBox(X - 1.0f, Y - 1.0f, SampleW + 2.0f, H + 2.0f, SelectedBrush, Color);
+	}
 	DrawContext.LayerId++;
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFrameTrackDrawHelper::DrawHighlightedInterval(const FFrameTrackSeries& Series, const double StartTime, const double EndTime) const
-{
-	const int32 NumSamples = Series.Samples.Num();
-
-	//TODO: binary search
-	int32 Index1 = 0;
-	int32 Index2 = NumSamples - 1;
-	while (Index1 < NumSamples && Series.Samples[Index1].EndTime < StartTime)
-	{
-		Index1++;
-	}
-	while (Index2 >= Index1 && Series.Samples[Index2].StartTime > EndTime)
-	{
-		Index2--;
-	}
-
-	if (Index1 <= Index2)
-	{
-		const float SampleW = Viewport.GetSampleWidth();
-		float X1 = Index1 * SampleW;
-		float X2 = Index2 * SampleW;
-
-		constexpr float Y1 = 0.0f; // allows 12px for the horizontal scrollbar (one displayed on top of the track)
-		const float Y2 = Viewport.GetHeight();
-		constexpr float D = 2.0f; // line thickness (for both horizontal and vertical lines)
-		constexpr float H = 10.0f; // height of corner lines
-
-		const FLinearColor Color(1.0f, 1.0f, 1.0f, 1.0f);
-
-		if (X1 >= 0.0f && X1 < Viewport.GetWidth() - 2.0f)
-		{
-			// Draw left side vertical lines.
-			DrawContext.DrawBox(X1 - D, Y1, D, H, WhiteBrush, Color);
-			DrawContext.DrawBox(X1 - D, Y2 - H, D, H, WhiteBrush, Color);
-		}
-
-		if (X2 >= -2.0f && X2 < Viewport.GetWidth())
-		{
-			// Draw right side vertical lines.
-			DrawContext.DrawBox(X2, Y1, D, H, WhiteBrush, Color);
-			DrawContext.DrawBox(X2, Y2 - H, D, H, WhiteBrush, Color);
-		}
-
-		if (X1 < 0)
-		{
-			X1 = 0.0f;
-		}
-		if (X2 > Viewport.GetWidth())
-		{
-			X2 = Viewport.GetWidth();
-		}
-		if (X1 < X2)
-		{
-			// Draw horizontal lines.
-			DrawContext.DrawBox(X1, Y1, X2 - X1, D, WhiteBrush, Color);
-			DrawContext.DrawBox(X1, Y2 - D, X2 - X1, D, WhiteBrush, Color);
-		}
-	}
-}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

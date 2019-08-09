@@ -8,6 +8,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Fonts/SlateFontInfo.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "HAL/PlatformTime.h"
 #include "Rendering/DrawElements.h"
 #include "TraceServices/AnalysisService.h"
@@ -34,7 +35,6 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 SFrameTrack::SFrameTrack()
-	: HoveredSample(nullptr, nullptr)
 {
 	Reset();
 }
@@ -52,10 +52,10 @@ void SFrameTrack::Reset()
 	Viewport.Reset();
 	bIsViewportDirty = true;
 
-	CachedTimelines.Reset();
-	TimelinesOrder.Reset();
-	TimelinesOrder.Add(TraceFrameType_Game);
-	TimelinesOrder.Add(TraceFrameType_Rendering);
+	SeriesMap.Reset();
+	SeriesOrder.Reset();
+	SeriesOrder.Add(TraceFrameType_Game);
+	SeriesOrder.Add(TraceFrameType_Rendering);
 
 	bIsStateDirty = true;
 
@@ -81,12 +81,13 @@ void SFrameTrack::Reset()
 	SelectionStartFrameIndex = 0;
 	SelectionEndFrameIndex = 0;
 
-	HoveredSample.Timeline = nullptr;
-	HoveredSample.Sample = nullptr;
+	HoveredSample.Reset();
+	TooltipDesiredOpacity = 0.9f;
+	TooltipOpacity = 0.0f;
 
 	//ThisGeometry
 
-	CursorType = EFrameTrackCursor::Default;
+	CursorType = ECursorType::Default;
 
 	NumUpdatedFrames = 0;
 	UpdateDurationHistory.Reset();
@@ -138,43 +139,13 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 	ThisGeometry = AllottedGeometry;
 
+	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+
 	if (!bIsScrolling)
 	{
-		// Elastic snap to horizontal limits (+15%).
-
-		float MinX, MaxX;
-		if (Viewport.MaxX - Viewport.MinX < Viewport.Width)
+		// Elastic snap to horizontal limits.
+		if (ViewportX.UpdatePosWithinLimits())
 		{
-			MinX = Viewport.MaxX - Viewport.Width;
-			MaxX = Viewport.MinX;
-		}
-		else
-		{
-			MinX = Viewport.MinX - 0.15f * Viewport.Width;
-			MaxX = Viewport.MaxX - 0.85f * Viewport.Width;
-		}
-		const float U = 0.5f;
-
-		float PosX = Viewport.PosX;
-		if (PosX < MinX)
-		{
-			PosX = PosX * U + (1.0f - U) * MinX;
-			if (FMath::IsNearlyEqual(PosX, MinX, 1.0f))
-				PosX = MinX;
-		}
-		else if (PosX > MaxX)
-		{
-			PosX = PosX * U + (1.0f - U) * MaxX;
-			if (FMath::IsNearlyEqual(PosX, MaxX, 1.0f))
-				PosX = MaxX;
-			if (PosX < MinX)
-				PosX = MinX;
-		}
-
-		if (Viewport.PosX != PosX)
-		{
-			//Viewport.ScrollAtPosX(PosX);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
 			bIsStateDirty = true;
 		}
 	}
@@ -194,23 +165,22 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 			for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 			{
-				FFrameTrackTimeline& CachedTimeline = CachedTimelines.FindOrAdd(FrameType);
-				CachedTimeline.Id = static_cast<uint64>(FrameType);
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
 				int32 NumFrames = FramesProvider.GetFrameCount(static_cast<ETraceFrameType>(FrameType));
-				if (NumFrames > Viewport.MaxIndex)
+				if (NumFrames > ViewportX.GetMaxIndex())
 				{
-					Viewport.SetMinMaxIndexInterval(0, NumFrames);
+					ViewportX.SetMinMaxIndexInterval(0, NumFrames);
 
 					if (bIsAutoZoomEnabled)
 					{
-						if (Viewport.PosX == 0.0f) // only if the view is unchanged
+						if (ViewportX.GetPos() == 0.0f) // only if the view is unchanged
 						{
 							// Auto zoom out (until entire session time range fits into view).
-							while (Viewport.MaxX > Viewport.Width)
+							while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
 							{
 								ZoomHorizontally(-0.1f, 0.0f);
-								Viewport.ScrollAtPosX(0.0f);
+								ViewportX.ScrollAtPos(0.0f);
 							}
 						}
 						else
@@ -235,16 +205,50 @@ void SFrameTrack::Tick(const FGeometry& AllottedGeometry, const double InCurrent
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindOrAddSeries(int32 FrameType)
+{
+	TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
+	if (SeriesPtrPtr)
+	{
+		ensure((**SeriesPtrPtr).FrameType == FrameType);
+		return *SeriesPtrPtr;
+	}
+	else
+	{
+		TSharedPtr<FFrameTrackSeries> SeriesPtr = MakeShareable(new FFrameTrackSeries(FrameType));
+		SeriesMap.Add(FrameType, SeriesPtr);
+		return SeriesPtr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedPtr<FFrameTrackSeries> SFrameTrack::FindSeries(int32 FrameType) const
+{
+	const TSharedPtr<FFrameTrackSeries>* SeriesPtrPtr = SeriesMap.Find(FrameType);
+	if (SeriesPtrPtr)
+	{
+		ensure((**SeriesPtrPtr).FrameType == FrameType);
+		return *SeriesPtrPtr;
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void SFrameTrack::UpdateState()
 {
 	FStopwatch Stopwatch;
 	Stopwatch.Start();
 
 	// Reset stats.
-	for (TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+	for (TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
 	{
-		FFrameTrackTimeline& Timeline = KeyValuePair.Value;
-		Timeline.NumAggregatedFrames = 0;
+		TSharedPtr<FFrameTrackSeries>& SeriesPtr = KeyValuePair.Value;
+		SeriesPtr->NumAggregatedFrames = 0;
 	}
 	NumUpdatedFrames = 0;
 
@@ -255,15 +259,16 @@ void SFrameTrack::UpdateState()
 
 		const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(*Session.Get());
 
+		const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+		const uint64 StartIndex = static_cast<uint64>(FMath::Max(0, ViewportX.GetIndexAtOffset(0.0f)));
+		const uint64 EndIndex = static_cast<uint64>(ViewportX.GetIndexAtOffset(ViewportX.GetSize()));
+
 		for (int32 FrameType = 0; FrameType < TraceFrameType_Count; ++FrameType)
 		{
-			FFrameTrackTimeline& Timeline = CachedTimelines.FindOrAdd(FrameType);
-			Timeline.Id = static_cast<uint64>(FrameType);
+			TSharedPtr<FFrameTrackSeries> SeriesPtr = FindOrAddSeries(FrameType);
 
-			FFrameTrackTimelineBuilder Builder(Timeline, Viewport);
-
-			uint64 StartIndex = static_cast<uint64>(FMath::Max(0, Viewport.GetIndexAtViewportX(0.0f)));
-			uint64 EndIndex = static_cast<uint64>(Viewport.GetIndexAtViewportX(Viewport.Width));
+			FFrameTrackSeriesBuilder Builder(*SeriesPtr, Viewport);
 
 			FramesProvider.EnumerateFrames(static_cast<ETraceFrameType>(FrameType), StartIndex, EndIndex, [&Builder](const Trace::FFrame& Frame)
 			{
@@ -280,63 +285,72 @@ void SFrameTrack::UpdateState()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
+FFrameTrackSampleRef SFrameTrack::GetSampleAtMousePosition(float X, float Y)
 {
-	float SampleW = Viewport.GetSampleWidth();
-	int32 SampleIndex = FMath::FloorToInt(X / SampleW);
-	if (SampleIndex >= 0)
+	if (!bIsStateDirty)
 	{
-		const float ViewportHeight = FMath::RoundToFloat(Viewport.Height);
-		const float SampleY2 = ViewportHeight - FMath::RoundToFloat(Viewport.GetViewportYForValue(0.0));
-
-		// Search in reverse paint order.
-		for (int32 TimelineIndex = TimelinesOrder.Num() - 1; TimelineIndex >= 0; --TimelineIndex)
+		float SampleW = Viewport.GetSampleWidth();
+		int32 SampleIndex = FMath::FloorToInt(X / SampleW);
+		if (SampleIndex >= 0)
 		{
-			uint64 TimelineId = TimelinesOrder[TimelineIndex];
-
-			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
-				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
+			// Search in reverse paint order.
+			for (int32 SeriesIndex = SeriesOrder.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
 			{
-				continue;
-			}
+				int32 FrameType = SeriesOrder[SeriesIndex];
 
-			if (CachedTimelines.Contains(TimelineId))
-			{
-				const FFrameTrackTimeline& Timeline = CachedTimelines[TimelineId];
-				ensure(Timeline.Id == TimelineId);
-
-				if (Timeline.NumAggregatedFrames > 0 &&
-					SampleIndex < Timeline.Samples.Num())
+				if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+					(FrameType == TraceFrameType_Game && !bShowGameFrames))
 				{
-					const FFrameTrackSample& Sample = Timeline.Samples[SampleIndex];
-					if (Sample.NumFrames > 0)
+					continue;
+				}
+
+				const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
+				if (SeriesPtr.IsValid())
+				{
+					if (SeriesPtr->NumAggregatedFrames > 0 &&
+						SampleIndex < SeriesPtr->Samples.Num())
 					{
-						float SampleY1;
-						if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
+						const FFrameTrackSample& Sample = SeriesPtr->Samples[SampleIndex];
+						if (Sample.NumFrames > 0)
 						{
-							SampleY1 = 0.0;
-						}
-						else
-						{
-							SampleY1 = ViewportHeight - FMath::RoundToFloat(Viewport.GetViewportYForValue(Sample.LargestFrameDuration));
-						}
-						if (Y >= SampleY1 && Y <= SampleY2)
-						{
-							return FSampleRef(&Timeline, &Sample);
+							const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+
+							const float ViewHeight = FMath::RoundToFloat(Viewport.GetHeight());
+							const float BaselineY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(0.0));
+
+							float ValueY;
+							if (Sample.LargestFrameDuration == std::numeric_limits<double>::infinity())
+							{
+								ValueY = ViewHeight;
+							}
+							else
+							{
+								ValueY = FMath::RoundToFloat(ViewportY.GetOffsetForValue(Sample.LargestFrameDuration));
+							}
+
+							constexpr float ToleranceY = 3.0f; // [pixels]
+
+							const float BottomY = FMath::Min(ViewHeight, ViewHeight - BaselineY + ToleranceY);
+							const float TopY = FMath::Max(0.0f, ViewHeight - ValueY - ToleranceY);
+
+							if (Y >= TopY && Y < BottomY)
+							{
+								return FFrameTrackSampleRef(SeriesPtr, MakeShareable(new FFrameTrackSample(Sample)));
+							}
 						}
 					}
 				}
 			}
 		}
 	}
-	return FSampleRef(nullptr, nullptr);
+	return FFrameTrackSampleRef(nullptr, nullptr);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 {
-	FSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
+	FFrameTrackSampleRef SampleRef = GetSampleAtMousePosition(X, Y);
 	if (!SampleRef.IsValid())
 	{
 		SampleRef = GetSampleAtMousePosition(X - 1.0f, Y);
@@ -366,6 +380,18 @@ void SFrameTrack::SelectFrameAtMousePosition(float X, float Y)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+const TCHAR* FrameTypeToString(int32 FrameType)
+{
+	switch (FrameType)
+	{
+		case TraceFrameType_Game:      return TEXT("Game");
+		case TraceFrameType_Rendering: return TEXT("Rendering");
+		default:                       return TEXT("Misc");
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const
 {
 	const bool bEnabled = ShouldBeEnabled(bParentEnabled);
@@ -373,6 +399,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	FDrawContext DrawContext(AllottedGeometry, MyCullingRect, InWidgetStyle, DrawEffects, OutDrawElements, LayerId);
 
 	const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+	FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 
 	const FSlateBrush* WhiteBrush = FCoreStyle::Get().GetBrush("WhiteBrush");
 
@@ -389,52 +416,63 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 		Helper.DrawBackground();
 
-		// Draw frames, for each visible timeline.
-		for (int32 TimelineIndex = 0; TimelineIndex < TimelinesOrder.Num(); ++TimelineIndex)
-		{
-			uint64 TimelineId = TimelinesOrder[TimelineIndex];
+		DrawHorizontalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
 
-			if ((TimelineId == TraceFrameType_Rendering && !bShowRenderingFrames) ||
-				(TimelineId == TraceFrameType_Game && !bShowGameFrames))
+		// Draw frames, for each visible Series.
+		for (int32 SeriesIndex = 0; SeriesIndex < SeriesOrder.Num(); ++SeriesIndex)
+		{
+			int32 FrameType = SeriesOrder[SeriesIndex];
+
+			if ((FrameType == TraceFrameType_Rendering && !bShowRenderingFrames) ||
+				(FrameType == TraceFrameType_Game && !bShowGameFrames))
 			{
 				continue;
 			}
 
-			if (CachedTimelines.Contains(TimelineId))
+			const TSharedPtr<FFrameTrackSeries> SeriesPtr = FindSeries(FrameType);
+			if (SeriesPtr.IsValid())
 			{
-				const FFrameTrackTimeline& Timeline = CachedTimelines[TimelineId];
-				ensure(Timeline.Id == TimelineId);
-
-				Helper.DrawCached(Timeline);
+				Helper.DrawCached(*SeriesPtr);
 			}
 		}
 
 		NumDrawSamples = Helper.GetNumDrawSamples();
 
-		// Highlight the mouse hovered sample.
+		DrawVerticalAxisGrid(DrawContext, WhiteBrush, SummaryFont);
+
+		// Highlight the mouse hovered sample + tooltip.
 		if (HoveredSample.IsValid())
 		{
 			Helper.DrawHoveredSample(*HoveredSample.Sample);
 
-			FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
+			if (TooltipOpacity < TooltipDesiredOpacity)
+			{
+				TooltipOpacity = TooltipOpacity * 0.9f + TooltipDesiredOpacity * 0.1f;
+			}
+			else
+			{
+				TooltipOpacity = TooltipDesiredOpacity;
+			}
+
+			const FString Text = FString::Format(TEXT("{0} frame {1} ({2})"),
 				{
-					(HoveredSample.Timeline->Id == TraceFrameType_Game) ? TEXT("Game") :
-					(HoveredSample.Timeline->Id == TraceFrameType_Rendering) ? TEXT("Rendering") : TEXT("Misc"),
+					::FrameTypeToString(HoveredSample.Series->FrameType),
 					FText::AsNumber(HoveredSample.Sample->LargestFrameIndex).ToString(),
 					TimeUtils::FormatTimeAuto(HoveredSample.Sample->LargestFrameDuration)
 				});
 
-			FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 			FVector2D TextSize = FontMeasureService->Measure(Text, SummaryFont);
 
 			const float DX = 2.0f;
 			const float W2 = TextSize.X / 2 + DX;
 
-			float X1 = Viewport.GetViewportXForIndex(HoveredSample.Sample->LargestFrameIndex);
+			const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+			float X1 = ViewportX.GetOffsetForIndex(HoveredSample.Sample->LargestFrameIndex);
 			float CX = X1 + FMath::RoundToFloat(Viewport.GetSampleWidth() / 2);
-			if (CX + W2 > Viewport.Width)
+			if (CX + W2 > ViewportX.GetSize())
 			{
-				CX = FMath::RoundToFloat(Viewport.Width - W2);
+				CX = FMath::RoundToFloat(ViewportX.GetSize() - W2);
 			}
 			if (CX - W2 < 0)
 			{
@@ -443,8 +481,10 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 			const float Y = 10.0f;
 			const float H = 14.0f;
-			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, 0.9));
-			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, 0.9));
+			DrawContext.DrawBox(CX - W2, Y, 2 * W2, H, WhiteBrush, FLinearColor(0.7, 0.7, 0.7, TooltipOpacity));
+			DrawContext.LayerId++;
+			DrawContext.DrawText(CX - W2 + DX, Y + 1.0f, Text, SummaryFont, FLinearColor(0.0, 0.0, 0.0, TooltipOpacity));
+			DrawContext.LayerId++;
 		}
 
 		TSharedPtr<STimingProfilerWindow> Window = FTimingProfilerManager::Get()->GetProfilerWindow();
@@ -453,18 +493,18 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			TSharedPtr<STimingView> TimingView = Window->GetTimingView();
 			if (TimingView)
 			{
-				const FFrameTrackTimeline* TimelinePtr = nullptr;
-				for (const TPair<uint64, FFrameTrackTimeline>& KeyValuePair : CachedTimelines)
+				TSharedPtr<FFrameTrackSeries> SeriesPtr = nullptr;
+				for (const TPair<int32, TSharedPtr<FFrameTrackSeries>>& KeyValuePair : SeriesMap)
 				{
-					TimelinePtr = &KeyValuePair.Value;
-					break; // stop at first enumerated timeline
+					SeriesPtr = KeyValuePair.Value;
+					break; // stop at first enumerated Series
 				}
-				if (TimelinePtr)
+				if (SeriesPtr.IsValid())
 				{
 					// Highlight the area corresponding to viewport of Timing View.
 					const double StartTime = TimingView->GetViewport().StartTime;
 					const double EndTime = TimingView->GetViewport().EndTime;
-					Helper.DrawHighlightedInterval(*TimelinePtr, StartTime, EndTime);
+					Helper.DrawHighlightedInterval(*SeriesPtr, StartTime, EndTime);
 				}
 			}
 		}
@@ -478,11 +518,10 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 	const bool bShouldDisplayDebugInfo = FInsightsManager::Get()->IsDebugInfoEnabled();
 	if (bShouldDisplayDebugInfo)
 	{
-		FSlateFontInfo SummaryFont = FCoreStyle::GetDefaultFontStyle("Regular", 8);
 		const float MaxFontCharHeight = FontMeasureService->Measure(TEXT("!"), SummaryFont).Y;
 		const float DbgDY = MaxFontCharHeight;
 
-		const float DbgW = 240.0f;
+		const float DbgW = 280.0f;
 		const float DbgH = DbgDY * 4 + 3.0f;
 		const float DbgX = ViewWidth - DbgW - 20.0f;
 		float DbgY = 7.0f;
@@ -553,11 +592,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			OutDrawElements,
 			LayerId,
 			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Printf(TEXT("SX: %.3f (%d %s), X: %.2f"),
-				Viewport.ScaleX,
-				(Viewport.ScaleX >= 1.0f) ? FMath::RoundToInt(Viewport.ScaleX) : FMath::RoundToInt(1.0f / Viewport.ScaleX),
-				(Viewport.ScaleX >= 1.0f) ? TEXT("px/frame") : TEXT("frames/px"),
-				Viewport.PosX),
+			Viewport.GetHorizontalAxisViewport().ToDebugString(TEXT("VX: "), TEXT("frame")),
 			SummaryFont,
 			DrawEffects,
 			DbgTextColor
@@ -570,7 +605,7 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 			OutDrawElements,
 			LayerId,
 			MAKE_PAINT_GEOMETRY_PT(AllottedGeometry, DbgX, DbgY),
-			FString::Printf(TEXT("SY: %g, Y: %.2f"), Viewport.ScaleY, Viewport.PosY),
+			Viewport.GetVerticalAxisViewport().ToDebugString(TEXT("VY: ")),
 			SummaryFont,
 			DrawEffects,
 			DbgTextColor
@@ -583,18 +618,177 @@ int32 SFrameTrack::OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeom
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+
+	const float RoundedViewHeight = FMath::RoundToFloat(ViewportY.GetSize());
+
+	constexpr float MinDY = 24.0f; // min vertical distance between horizontal grid lines
+
+	const double TopValue = ViewportY.GetValueForOffset(RoundedViewHeight);
+	const double GridValue = ViewportY.GetValueForOffset(MinDY);
+	const double BottomValue = ViewportY.GetValueForOffset(0.0f);
+	const double Delta = GridValue - BottomValue;
+
+	if (Delta > 0.0)
+	{
+		constexpr double TimeUnits = TimeUtils::Milisecond;
+		const int64 DeltaTicks = static_cast<int64>(Delta / TimeUnits);
+
+		// Compute rounding based on magnitude of visible range of values (Delta).
+		int64 Power10 = 1;
+		int64 Delta10 = DeltaTicks;
+		while (Delta10 > 0)
+		{
+			Delta10 /= 10;
+			Power10 *= 10;
+		}
+		if (Power10 >= 100)
+		{
+			Power10 /= 100;
+		}
+		else
+		{
+			Power10 = 1;
+		}
+
+		const double GridTicks = static_cast<double>(((DeltaTicks + Power10) / Power10) * Power10); // next value divisible with a multiple of 10
+		const double Grid = GridTicks * TimeUnits;
+
+		const double StartValue = FMath::GridSnap(BottomValue, Grid);
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+
+		const float ViewWidth = Viewport.GetWidth();
+
+		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		for (double Value = StartValue; Value < TopValue; Value += Grid)
+		{
+			FLinearColor TextColor;
+			constexpr double Time60fps = 1.0 / 60.0;
+			constexpr double Time30fps = 1.0 / 30.0;
+			if (Value <= Time60fps)
+			{
+				TextColor = FLinearColor(0.5f, 1.0f, 0.5f, 1.0f);
+			}
+			else if (Value <= Time30fps)
+			{
+				//TextColor = FLinearColor(1.0f, 1.0f, 0.5f, 1.0f);
+				const float U = (Value - Time60fps) * 0.5 / (Time30fps - Time60fps);
+				TextColor = FLinearColor(0.5 + U, 1.0f - U, 0.5f, 1.0f);
+			}
+			else
+			{
+				TextColor = FLinearColor(1.0f, 0.5f, 0.5f, 1.0f);
+			}
+
+			const float Y = RoundedViewHeight - FMath::RoundToFloat(ViewportY.GetOffsetForValue(Value));
+
+			// Draw horizontal grid line.
+			DrawContext.DrawBox(0, Y, ViewWidth, 1, Brush, GridColor);
+
+			const FString Text = (Value == 0.0) ? TEXT("0") : FString::Printf(TEXT("%s (%.1f fps)"), *TimeUtils::FormatTimeAuto(Value), FMath::RoundToDouble(1.0 / Value));
+			const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			constexpr float TextH = 14.0f;
+
+			// Draw background for value text.
+			DrawContext.DrawBox(ViewWidth - TextSize.X - 4.0f, Y - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw value text.
+			DrawContext.DrawText(ViewWidth - TextSize.X - 2.0f, Y - TextH + 1.0f, Text, Font, TextColor);
+		}
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void SFrameTrack::DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const
+{
+	const FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	const float RoundedViewWidth = FMath::RoundToFloat(ViewportX.GetSize());
+
+	constexpr float MinDX = 100.0f; // min horizontal distance between vertical grid lines
+
+	int32 LeftIndex = ViewportX.GetIndexAtOffset(0.0f);
+	int32 GridIndex = ViewportX.GetIndexAtOffset(MinDX);
+	int32 RightIndex = ViewportX.GetIndexAtOffset(RoundedViewWidth);
+	int32 Delta = GridIndex - LeftIndex;
+
+	if (Delta > 0)
+	{
+		// Compute rounding based on magnitude of visible range of samples (Delta).
+		int32 Power10 = 1;
+		int32 Delta10 = Delta;
+		while (Delta10 > 0)
+		{
+			Delta10 /= 10;
+			Power10 *= 10;
+		}
+		if (Power10 >= 100)
+		{
+			Power10 /= 100;
+		}
+		else
+		{
+			Power10 = 1;
+		}
+
+		const int32 Grid = ((Delta + Power10) / Power10) * Power10; // next value divisible with a multiple of 10
+
+		const FLinearColor GridColor(0.0f, 0.0f, 0.0f, 0.1f);
+		//const FLinearColor TextBgColor(0.05f, 0.05f, 0.05f, 1.0f);
+		//const FLinearColor TextColor(1.0f, 1.0f, 1.0f, 1.0f);
+		const FLinearColor TopTextColor(1.0f, 1.0f, 1.0f, 0.7f);
+
+		// Skip grid lines for negative indices.
+		double StartIndex = ((LeftIndex + Grid - 1) / Grid) * Grid;
+		while (StartIndex < 0)
+		{
+			StartIndex += Grid;
+		}
+
+		const float ViewHeight = Viewport.GetHeight();
+
+		//const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
+
+		for (int32 Index = StartIndex; Index < RightIndex; Index += Grid)
+		{
+			const float X = FMath::RoundToFloat(ViewportX.GetOffsetForIndex(Index));
+
+			// Draw vertical grid line.
+			DrawContext.DrawBox(X, 0, 1, ViewHeight, Brush, GridColor);
+
+			const FString Text = FText::AsNumber(Index).ToString();
+			//const FVector2D TextSize = FontMeasureService->Measure(Text, Font);
+			//constexpr float TextH = 14.0f;
+
+			// Draw background for index text.
+			//DrawContext.DrawBox(X, ViewHeight - TextH, TextSize.X + 4.0f, TextH, Brush, TextBgColor);
+
+			// Draw index text.
+			//DrawContext.DrawText(X + 2.0f, ViewHeight - TextH + 1.0f, Text, Font, TextColor);
+
+			DrawContext.DrawText(X + 2.0f, 10.0f, Text, Font, TopTextColor);
+		}
+		DrawContext.LayerId++;
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 FReply SFrameTrack::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePositionOnButtonDown = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
-	ViewportPosXOnButtonDown = Viewport.PosX;
-	ViewportPosYOnButtonDown = Viewport.PosY;
+	ViewportPosXOnButtonDown = Viewport.GetHorizontalAxisViewport().GetPos();
+	ViewportPosYOnButtonDown = Viewport.GetVerticalAxisViewport().GetPos();
 
 	if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
@@ -620,11 +814,6 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePositionOnButtonUp = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
 	const bool bIsValidForMouseClick = MousePositionOnButtonUp.Equals(MousePositionOnButtonDown, MOUSE_SNAP_DISTANCE);
@@ -636,7 +825,7 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
-				CursorType = EFrameTrackCursor::Default;
+				CursorType = ECursorType::Default;
 			}
 			else if (bIsValidForMouseClick)
 			{
@@ -656,7 +845,7 @@ FReply SFrameTrack::OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerE
 			if (bIsScrolling)
 			{
 				bIsScrolling = false;
-				CursorType = EFrameTrackCursor::Default;
+				CursorType = ECursorType::Default;
 			}
 			else if (bIsValidForMouseClick)
 			{
@@ -679,11 +868,6 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 {
 	FReply Reply = FReply::Unhandled();
 
-	if (!IsReady())
-	{
-		return Reply;
-	}
-
 	MousePosition = MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
 
 	if (MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton))
@@ -693,13 +877,14 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			if (!bIsScrolling)
 			{
 				bIsScrolling = true;
-				CursorType = EFrameTrackCursor::Hand;
+				CursorType = ECursorType::Hand;
 
 				HoveredSample.Reset();
 			}
 
-			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
+			FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+			const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+			ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(PosX)); // align pos with at index
 			UpdateHorizontalScrollBar();
 			bIsStateDirty = true;
 
@@ -713,13 +898,14 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 			if (!bIsScrolling)
 			{
 				bIsScrolling = true;
-				CursorType = EFrameTrackCursor::Hand;
+				CursorType = ECursorType::Hand;
 
 				HoveredSample.Reset();
 			}
 
-			float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
-			Viewport.ScrollAtIndex(Viewport.GetIndexAtPosX(PosX));
+			FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+			const float PosX = ViewportPosXOnButtonDown + (MousePositionOnButtonDown.X - MousePosition.X);
+			ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(PosX)); // align pos with at index
 			UpdateHorizontalScrollBar();
 			bIsStateDirty = true;
 
@@ -728,6 +914,10 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 	}
 	else
 	{
+		if (!HoveredSample.IsValid())
+		{
+			TooltipOpacity = 0.0f;
+		}
 		HoveredSample = GetSampleAtMousePosition(MousePosition.X, MousePosition.Y);
 		if (!HoveredSample.IsValid())
 		{
@@ -746,7 +936,6 @@ FReply SFrameTrack::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent
 
 void SFrameTrack::OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -760,7 +949,7 @@ void SFrameTrack::OnMouseLeave(const FPointerEvent& MouseEvent)
 
 		HoveredSample.Reset();
 
-		CursorType = EFrameTrackCursor::Default;
+		CursorType = ECursorType::Default;
 	}
 }
 
@@ -772,6 +961,8 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 	if (MouseEvent.GetModifierKeys().IsShiftDown())
 	{
+		FValueAxisViewport& ViewportY = Viewport.GetVerticalAxisViewport();
+
 		// Zoom in/out vertically.
 		const float Delta = MouseEvent.GetWheelDelta();
 		constexpr float ZoomStep = 0.25f; // as percent
@@ -779,14 +970,14 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 		if (Delta > 0)
 		{
-			ScaleY = Viewport.ScaleY * FMath::Pow(1.0f + ZoomStep, Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f + ZoomStep, Delta);
 		}
 		else
 		{
-			ScaleY = Viewport.ScaleY * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
+			ScaleY = ViewportY.GetScale() * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
 		}
 
-		Viewport.SetScaleY(ScaleY);
+		ViewportY.SetScale(ScaleY);
 		//UpdateVerticalScrollBar();
 	}
 	else //if (MouseEvent.GetModifierKeys().IsControlDown())
@@ -803,46 +994,9 @@ FReply SFrameTrack::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEven
 
 void SFrameTrack::ZoomHorizontally(const float Delta, const float X)
 {
-	constexpr float ZoomStep = 0.25f; // as percent
-	float ScaleX;
-
-	if (Delta > 0)
-	{
-		ScaleX = Viewport.ScaleX * FMath::Pow(1.0f + ZoomStep, Delta);
-	}
-	else
-	{
-		ScaleX = Viewport.ScaleX * FMath::Pow(1.0f / (1.0f + ZoomStep), -Delta);
-	}
-
-	// Snap to integer value of either: "number of frames per pixel (Slate unit)" or "number of pixels per frame".
-	if (ScaleX < 1.0f)
-	{
-		// frames per Slate unit
-		if (Delta > 0)
-		{
-			ScaleX = 1.0f / FMath::FloorToFloat(1.0f / ScaleX);
-		}
-		else
-		{
-			ScaleX = 1.0f / FMath::CeilToFloat(1.0f / ScaleX);
-		}
-	}
-	else
-	{
-		// Slate units per frame
-		if (Delta > 0)
-		{
-			ScaleX = FMath::CeilToFloat(ScaleX);
-		}
-		else
-		{
-			ScaleX = FMath::FloorToFloat(ScaleX);
-		}
-	}
-
-	//UE_LOG(TimingProfiler, Log, TEXT("%.2f, %.2f, %.2f"), Delta, Viewport.ScaleX, ScaleX);
-	Viewport.ZoomWithFixedViewportX(ScaleX, MousePosition.X);
+	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+	ViewportX.RelativeZoomWithFixedOffset(Delta, X);
+	ViewportX.ScrollAtIndex(ViewportX.GetIndexAtPos(ViewportX.GetPos())); // align pos with at index
 	UpdateHorizontalScrollBar();
 	bIsStateDirty = true;
 }
@@ -860,11 +1014,11 @@ FCursorReply SFrameTrack::OnCursorQuery(const FGeometry& MyGeometry, const FPoin
 {
 	FCursorReply CursorReply = FCursorReply::Unhandled();
 
-	if (CursorType == EFrameTrackCursor::Arrow)
+	if (CursorType == ECursorType::Arrow)
 	{
 		CursorReply = FCursorReply::Cursor(EMouseCursor::ResizeLeftRight);
 	}
-	else if (CursorType == EFrameTrackCursor::Hand)
+	else if (CursorType == ECursorType::Hand)
 	{
 		CursorReply = FCursorReply::Cursor(EMouseCursor::GrabHand);
 	}
@@ -996,23 +1150,25 @@ bool SFrameTrack::ContextMenu_ShowRenderingFrames_IsChecked()
 
 void SFrameTrack::ContextMenu_AutoZoom_Execute()
 {
-	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && Viewport.PosX == 0.0f);
+	FIndexAxisViewport& ViewportX = Viewport.GetHorizontalAxisViewport();
+
+	bIsAutoZoomEnabled = !(bIsAutoZoomEnabled && ViewportX.GetPos() == 0.0f);
 	if (bIsAutoZoomEnabled)
 	{
-		Viewport.ScrollAtPosX(0.0f);
+		ViewportX.ScrollAtPos(0.0f);
 
 		// Auto zoom in.
-		while (Viewport.MaxX < Viewport.Width)
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() < ViewportX.GetSize())
 		{
 			ZoomHorizontally(+0.1f, 0.0f);
-			Viewport.ScrollAtPosX(0.0f);
+			ViewportX.ScrollAtPos(0.0f);
 		}
 
 		// Auto zoom out (until entire session time range fits into view).
-		while (Viewport.MaxX > Viewport.Width)
+		while (ViewportX.GetMaxPos() - ViewportX.GetMinPos() > ViewportX.GetSize())
 		{
 			ZoomHorizontally(-0.1f, 0.0f);
-			Viewport.ScrollAtPosX(0.0f);
+			ViewportX.ScrollAtPos(0.0f);
 		}
 
 		UpdateHorizontalScrollBar();
@@ -1031,7 +1187,7 @@ bool SFrameTrack::ContextMenu_AutoZoom_CanExecute()
 
 bool SFrameTrack::ContextMenu_AutoZoom_IsChecked()
 {
-	return bIsAutoZoomEnabled && Viewport.PosX == 0.0f;
+	return bIsAutoZoomEnabled && Viewport.GetHorizontalAxisViewport().GetPos() == 0.0f;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1044,27 +1200,15 @@ void SFrameTrack::BindCommands()
 
 void SFrameTrack::HorizontalScrollBar_OnUserScrolled(float ScrollOffset)
 {
-	const float SX = 1.0 / (Viewport.MaxX - Viewport.MinX);
-	const float ThumbSizeFraction = FMath::Clamp<float>(Viewport.Width * SX, 0.0f, 1.0f);
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	const float PosX = Viewport.MinX + OffsetFraction * (Viewport.MaxX - Viewport.MinX);
-	Viewport.ScrollAtPosX(PosX);
+	Viewport.GetHorizontalAxisViewport().OnUserScrolled(HorizontalScrollBar, ScrollOffset);
 	bIsStateDirty = true;
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SFrameTrack::UpdateHorizontalScrollBar()
 {
-	const float SX = 1.0 / (Viewport.MaxX - Viewport.MinX);
-	const float ThumbSizeFraction = FMath::Clamp<float>(Viewport.Width * SX, 0.0f, 1.0f);
-	const float ScrollOffset = (Viewport.PosX - Viewport.MinX) * SX;
-	const float OffsetFraction = FMath::Clamp<float>(ScrollOffset, 0.0f, 1.0f - ThumbSizeFraction);
-
-	HorizontalScrollBar->SetState(OffsetFraction, ThumbSizeFraction);
+	Viewport.GetHorizontalAxisViewport().UpdateScrollBar(HorizontalScrollBar);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

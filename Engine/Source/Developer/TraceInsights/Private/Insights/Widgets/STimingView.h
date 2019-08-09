@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Input/CursorReply.h"
 #include "Input/Reply.h"
 #include "Layout/Geometry.h"
@@ -25,6 +24,7 @@
 
 class FFileActivitySharedState;
 class FLoadingSharedState;
+class FMenuBuilder;
 class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SScrollBar;

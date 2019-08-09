@@ -21,23 +21,13 @@ namespace Trace
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-enum class EFrameType
-{
-	Unknown = -1,
-
-	Game,
-	Render
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 struct FFrameTrackSample
 {
 	int32 NumFrames;
 	double TotalDuration; // sum of durations of all frames in this sample
 	double StartTime; // min start time of all frames in this sample
 	double EndTime; // max end time of all frames in this sample
-	double LargestFrameIndex; // index of the largest frame
+	int32 LargestFrameIndex; // index of the largest frame
 	double LargestFrameStartTime; // start time of the largest frame
 	double LargestFrameDuration; // duration of the largest frame
 
@@ -50,46 +40,73 @@ struct FFrameTrackSample
 		, LargestFrameStartTime(0.0)
 		, LargestFrameDuration(0.0)
 	{}
+
+	FFrameTrackSample(const FFrameTrackSample&) = default;
+	FFrameTrackSample& operator=(const FFrameTrackSample&) = default;
+
+	FFrameTrackSample(FFrameTrackSample&&) = default;
+	FFrameTrackSample& operator=(FFrameTrackSample&&) = default;
+
+	bool Equals(const FFrameTrackSample& Other) const
+	{
+		return NumFrames == Other.NumFrames
+			&& TotalDuration == Other.TotalDuration
+			&& StartTime == Other.StartTime
+			&& EndTime == Other.EndTime
+			&& LargestFrameIndex == Other.LargestFrameIndex
+			&& LargestFrameStartTime == Other.LargestFrameStartTime
+			&& LargestFrameDuration == Other.LargestFrameDuration;
+	}
+
+	static bool AreEquals(const FFrameTrackSample& A, const FFrameTrackSample& B)
+	{
+		return A.Equals(B);
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FFrameTrackTimeline
+struct FFrameTrackSeries
 {
-	uint64 Id;
-	//TODO: EFrameType Type;
-
-	//TODO: double MinValue; // min value
-	//TODO: double MaxValue; // max value
-
-	//TODO: float SampleW; // width of a sample, in Slate units
-	//TODO: int32 FramesPerSample; // number of frames in a sample
-	//TODO: int32 FirstFrameIndex; // index of first frame in first sample; can be negative
-	//TODO: int32 NumSamples; // total number of samples
+	int32 FrameType;
+	bool bIsVisible;
 	int32 NumAggregatedFrames; // total number of frames aggregated in samples; ie. sum of all Sample.NumFrames
-
 	TArray<FFrameTrackSample> Samples;
+
+	FFrameTrackSeries(int32 InFrameType)
+		: FrameType(InFrameType)
+		, bIsVisible(true)
+		, NumAggregatedFrames(0)
+		, Samples()
+	{
+	}
+
+	void Reset()
+	{
+		NumAggregatedFrames = 0;
+		Samples.Reset();
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FFrameTrackTimelineBuilder
+class FFrameTrackSeriesBuilder
 {
 public:
-	FFrameTrackTimelineBuilder(FFrameTrackTimeline& InTimeline, const FFrameTrackViewport& InViewport);
+	FFrameTrackSeriesBuilder(FFrameTrackSeries& InSeries, const FFrameTrackViewport& InViewport);
 
 	/**
 	 * Non-copyable
 	 */
-	FFrameTrackTimelineBuilder(const FFrameTrackTimelineBuilder&) = delete;
-	FFrameTrackTimelineBuilder& operator=(const FFrameTrackTimelineBuilder&) = delete;
+	FFrameTrackSeriesBuilder(const FFrameTrackSeriesBuilder&) = delete;
+	FFrameTrackSeriesBuilder& operator=(const FFrameTrackSeriesBuilder&) = delete;
 
 	void AddFrame(const Trace::FFrame& Frame);
 
 	int32 GetNumAddedFrames() const { return NumAddedFrames; }
 
 private:
-	FFrameTrackTimeline& Timeline;
+	FFrameTrackSeries& Series; // series to update
 	const FFrameTrackViewport& Viewport;
 
 	float SampleW; // width of a sample, in Slate units
@@ -115,11 +132,11 @@ public:
 	FFrameTrackDrawHelper& operator=(const FFrameTrackDrawHelper&) = delete;
 
 	void DrawBackground() const;
-	void DrawCached(const FFrameTrackTimeline& Timeline) const;
+	void DrawCached(const FFrameTrackSeries& Series) const;
 	void DrawHoveredSample(const FFrameTrackSample& Sample) const;
-	void DrawHighlightedInterval(const FFrameTrackTimeline& Timeline, const double StartTime, const double EndTime) const;
+	void DrawHighlightedInterval(const FFrameTrackSeries& Series, const double StartTime, const double EndTime) const;
 
-	FLinearColor GetColorById(int32 Id) const;
+	static FLinearColor GetColorByFrameType(int32 FrameType);
 
 	int32 GetNumFrames() const { return NumFrames; }
 	int32 GetNumDrawSamples() const { return NumDrawSamples; }

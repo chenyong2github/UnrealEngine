@@ -17,6 +17,8 @@
 #include "Insights/ViewModels/LogFilter.h"
 #include "Insights/ViewModels/LogMessage.h"
 
+class FMenuBuilder;
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace LogViewColumns

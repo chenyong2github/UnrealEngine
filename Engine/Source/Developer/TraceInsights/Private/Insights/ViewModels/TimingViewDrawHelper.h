@@ -75,11 +75,11 @@ struct FTimingViewTooltip
 class FTimingViewDrawHelper
 {
 public:
-	enum class EHighlightMode
+	enum class EHighlightMode : uint32
 	{
-		Hovered,
-		Selected,
-		SelectedAndHovered
+		Hovered = 1,
+		Selected = 2,
+		SelectedAndHovered = 3
 	};
 
 private:

@@ -19,18 +19,54 @@ class SScrollBar;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-struct FSampleRef
+struct FFrameTrackSampleRef
 {
-	const FFrameTrackTimeline* Timeline;
-	const FFrameTrackSample* Sample;
+	TSharedPtr<FFrameTrackSeries> Series;
+	TSharedPtr<FFrameTrackSample> Sample;
 
-	FSampleRef(const FFrameTrackTimeline* InTimeline, const FFrameTrackSample* InSample)
-		: Timeline(InTimeline), Sample(InSample)
+	FFrameTrackSampleRef()
+		: Series(), Sample()
 	{
 	}
 
-	void Reset() { Timeline = nullptr; Sample = nullptr; }
-	bool IsValid() const { return Timeline != nullptr && Sample != nullptr; }
+	FFrameTrackSampleRef(TSharedPtr<FFrameTrackSeries> InSeries, TSharedPtr<FFrameTrackSample> InSample)
+		: Series(InSeries), Sample(InSample)
+	{
+	}
+
+	FFrameTrackSampleRef(const FFrameTrackSampleRef& Other)
+		: Series(Other.Series), Sample(Other.Sample)
+	{
+	}
+
+	FFrameTrackSampleRef& operator=(const FFrameTrackSampleRef& Other)
+	{
+		Series = Other.Series;
+		Sample = Other.Sample;
+		return *this;
+	}
+
+	void Reset()
+	{
+		Series.Reset();
+		Sample.Reset();
+	}
+
+	bool IsValid() const
+	{
+		return Series.IsValid() && Sample.IsValid();
+	}
+
+	bool Equals(const FFrameTrackSampleRef& Other) const
+	{
+		return Series == Other.Series
+			&& ((Sample == Other.Sample) || (Sample.IsValid() && Other.Sample.IsValid() && Sample->Equals(*Other.Sample)));
+	}
+
+	static bool AreEquals(const FFrameTrackSampleRef& A, const FFrameTrackSampleRef& B)
+	{
+		return A.Equals(B);
+	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,7 +79,7 @@ public:
 	/** Number of pixels. */
 	static constexpr float MOUSE_SNAP_DISTANCE = 2.0f;
 
-	enum class EFrameTrackCursor
+	enum class ECursorType
 	{
 		Default,
 		Arrow,
@@ -93,11 +129,14 @@ public:
 	virtual FCursorReply OnCursorQuery(const FGeometry& MyGeometry, const FPointerEvent& CursorEvent) const override;
 
 protected:
-	bool IsReady() { return true; }
-
+	TSharedPtr<FFrameTrackSeries> FindOrAddSeries(int32 FrameType);
+	TSharedPtr<FFrameTrackSeries> FindSeries(int32 FrameType) const;
 	void UpdateState();
 
-	FSampleRef GetSampleAtMousePosition(float X, float Y);
+	void DrawHorizontalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
+	void DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBrush* Brush, const FSlateFontInfo& Font) const;
+
+	FFrameTrackSampleRef GetSampleAtMousePosition(float X, float Y);
 	void SelectFrameAtMousePosition(float X, float Y);
 
 	void ShowContextMenu(const FPointerEvent& MouseEvent);
@@ -144,9 +183,9 @@ protected:
 	FFrameTrackViewport Viewport;
 	bool bIsViewportDirty;
 
-	/** Cached info for timelines. */
-	TMap<uint64, FFrameTrackTimeline> CachedTimelines;
-	TArray<uint64> TimelinesOrder;
+	/** Cached info for all frame series. */
+	TMap<int32, TSharedPtr<FFrameTrackSeries>> SeriesMap;
+	TArray<int32> SeriesOrder;
 
 	bool bIsStateDirty;
 
@@ -186,7 +225,10 @@ protected:
 	int32 SelectionStartFrameIndex;
 	int32 SelectionEndFrameIndex;
 
-	FSampleRef HoveredSample;
+	FFrameTrackSampleRef HoveredSample;
+
+	float TooltipDesiredOpacity;
+	mutable float TooltipOpacity;
 
 	//////////////////////////////////////////////////
 	// Misc
@@ -194,7 +236,7 @@ protected:
 	FGeometry ThisGeometry;
 
 	/** Cursor type. */
-	EFrameTrackCursor CursorType;
+	ECursorType CursorType;
 
 	// Debug stats
 	int32 NumUpdatedFrames;
