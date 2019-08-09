@@ -1242,6 +1242,21 @@ IMPLEMENT_GLOBAL_SHADER(FDiaphragmDOFRecombineCS,        "/Engine/Private/Diaphr
 
 } // namespace
 
+bool DiaphragmDOF::IsEnabled(const FViewInfo& View)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DepthOfFieldQuality"));
+	check(CVar);
+
+	const bool bDepthOfFieldRequestedByCVar = CVar->GetValueOnRenderThread() > 0;
+
+	return
+		DiaphragmDOF::IsSupported(View.GetShaderPlatform()) &&
+		View.Family->EngineShowFlags.DepthOfField &&
+		bDepthOfFieldRequestedByCVar &&
+		View.FinalPostProcessSettings.DepthOfFieldFstop > 0 &&
+		View.FinalPostProcessSettings.DepthOfFieldFocalDistance > 0;
+}
+
 FRDGTextureRef DiaphragmDOF::AddPasses(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,

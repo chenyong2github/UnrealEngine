@@ -14,15 +14,15 @@
 #include "PostProcess/SceneFilterRendering.h"
 #include "CompositionLighting/PostProcessAmbientOcclusion.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessMitchellNetravali.h"
 #include "ClearQuad.h"
 #include "PipelineStateCache.h"
 #include "PostProcessing.h"
-
-
 #include "RenderGraph.h"
 #include "SceneTextureParameters.h"
 #include "PixelShaderUtils.h"
 
+extern int32 GetPostProcessAAQuality();
 
 const int32 GTemporalAATileSizeX = 8;
 const int32 GTemporalAATileSizeY = 8;
@@ -72,7 +72,7 @@ static float CatmullRom( float x )
 		return ( 1.5f * ax - 2.5f ) * ax*ax + 1.0f;
 }
 
-float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
+static float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View)
 {
 	// We only support history upscale on PC with feature level SM5+
 	if (!IsPCPlatform(View.GetShaderPlatform()) || !IsFeatureLevelSupported(View.GetShaderPlatform(), ERHIFeatureLevel::SM5))
@@ -677,6 +677,98 @@ FTAAOutputs AddTemporalAAPass(
 	}
 
 	return Outputs;
+}
+
+void AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FScreenPassViewInfo& ScreenPassView,
+	const bool bAllowDownsampleSceneColor,
+	const EPixelFormat DownsampleOverrideFormat,
+	FRDGTextureRef InSceneColorTexture,
+	FRDGTextureRef* OutSceneColorTexture,
+	FRDGTextureRef* OutSceneColorHalfResTexture,
+	FIntRect* OutSecondaryViewRect)
+{
+	const FViewInfo& View = ScreenPassView.View;
+
+	check(View.AntiAliasingMethod == AAM_TemporalAA && View.ViewState);
+
+	FTAAPassParameters TAAParameters(View);
+
+	TAAParameters.Pass = View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale
+		? ETAAPassConfig::MainUpsampling
+		: ETAAPassConfig::Main;
+
+	TAAParameters.SetupViewRect(View);
+
+	const int32 LowQualityTemporalAA = 3;
+
+	TAAParameters.bUseFast = GetPostProcessAAQuality() == LowQualityTemporalAA;
+
+	const FIntRect SecondaryViewRect = TAAParameters.OutputViewRect;
+
+	const float HistoryUpscaleFactor = GetTemporalAAHistoryUpscaleFactor(View);
+
+	// Configures TAA to upscale the history buffer; this is in addition to the secondary screen percentage upscale.
+	// We end up with a scene color that is larger than the secondary screen percentage. We immediately downscale
+	// afterwards using a Mitchel-Netravali filter.
+	if (HistoryUpscaleFactor > 1.0f)
+	{
+		const FIntPoint HistoryViewSize(
+			TAAParameters.OutputViewRect.Width() * HistoryUpscaleFactor,
+			TAAParameters.OutputViewRect.Height() * HistoryUpscaleFactor);
+
+		FIntPoint QuantizedMinHistorySize;
+		QuantizeSceneBufferSize(HistoryViewSize, QuantizedMinHistorySize);
+
+		TAAParameters.Pass = ETAAPassConfig::MainSuperSampling;
+		TAAParameters.bUseFast = false;
+
+		TAAParameters.OutputViewRect.Min.X = 0;
+		TAAParameters.OutputViewRect.Min.Y = 0;
+		TAAParameters.OutputViewRect.Max = HistoryViewSize;
+	}
+
+	TAAParameters.DownsampleOverrideFormat = DownsampleOverrideFormat;
+
+	TAAParameters.bDownsample = bAllowDownsampleSceneColor && TAAParameters.bUseFast;
+
+	TAAParameters.SceneColorInput = InSceneColorTexture;
+
+	const FTemporalAAHistory& InputHistory = View.PrevViewInfo.TemporalAAHistory;
+
+	FTemporalAAHistory& OutputHistory = View.ViewState->PrevFrameViewInfo.TemporalAAHistory;
+
+	const FTAAOutputs TAAOutputs = AddTemporalAAPass(
+		GraphBuilder,
+		SceneTextures,
+		View,
+		TAAParameters,
+		InputHistory,
+		&OutputHistory);
+
+	FRDGTextureRef SceneColorTexture = TAAOutputs.SceneColor;
+
+	// If we upscaled the history buffer, downsize back to the secondary screen percentage size.
+	if (HistoryUpscaleFactor > 1.0f)
+	{
+		const FIntRect InputViewport = TAAParameters.OutputViewRect;
+
+		FIntPoint QuantizedOutputSize;
+		QuantizeSceneBufferSize(SecondaryViewRect.Size(), QuantizedOutputSize);
+
+		FScreenPassTextureViewport OutputViewport;
+		OutputViewport.Rect = SecondaryViewRect;
+		OutputViewport.Extent.X = FMath::Max(InSceneColorTexture->Desc.Extent.X, QuantizedOutputSize.X);
+		OutputViewport.Extent.Y = FMath::Max(InSceneColorTexture->Desc.Extent.Y, QuantizedOutputSize.Y);
+
+		SceneColorTexture = ComputeMitchellNetravaliDownsample(GraphBuilder, ScreenPassView, SceneColorTexture, InputViewport, OutputViewport);
+	}
+
+	*OutSceneColorTexture = SceneColorTexture;
+	*OutSceneColorHalfResTexture = TAAOutputs.DownsampledSceneColor;
+	*OutSecondaryViewRect = SecondaryViewRect;
 }
 
 //////////////////////////////////////////////////////////////////////////

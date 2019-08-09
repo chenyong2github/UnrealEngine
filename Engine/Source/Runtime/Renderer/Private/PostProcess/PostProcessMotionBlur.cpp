@@ -734,7 +734,7 @@ FRDGTextureRef AddMotionBlurFilterPass(
 	return ColorTextureOutput;
 }
 
-FRDGTextureRef VisualizeMotionBlur(
+FRDGTextureRef AddVisualizeMotionBlurPass(
 	FRDGBuilder& GraphBuilder,
 	const FScreenPassViewInfo& ScreenPassView,
 	FIntRect ColorViewportRect,
@@ -842,22 +842,6 @@ FRDGTextureRef AddMotionBlurPass(
 	check(ColorTexture);
 	check(DepthTexture);
 	check(VelocityTexture);
-
-	if (IsVisualizeMotionBlurEnabled(ScreenPassView.View))
-	{
-		return VisualizeMotionBlur(
-			GraphBuilder,
-			ScreenPassView,
-			ColorViewportRect,
-			VelocityViewportRect,
-			ColorTexture,
-			DepthTexture,
-			VelocityTexture);
-	}
-	else if (!IsMotionBlurEnabled(ScreenPassView.View))
-	{
-		return ColorTexture;
-	}
 
 	const FMotionBlurViewports Viewports(
 		FScreenPassTextureViewport(ColorViewportRect, ColorTexture),

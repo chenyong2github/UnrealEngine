@@ -35,3 +35,12 @@ FRDGTextureRef AddMotionBlurPass(
 	FRDGTextureRef ColorTexture,
 	FRDGTextureRef DepthTexture,
 	FRDGTextureRef VelocityTexture);
+
+FRDGTextureRef AddVisualizeMotionBlurPass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	FIntRect ColorViewportRect,
+	FIntRect VelocityViewportRect,
+	FRDGTextureRef ColorTexture,
+	FRDGTextureRef DepthTexture,
+	FRDGTextureRef VelocityTexture);

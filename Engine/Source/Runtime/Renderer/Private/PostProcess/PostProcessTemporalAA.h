@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include "SceneRendering.h"
-#include "RenderGraph.h"
+#include "ScreenPass.h"
 
 class FSceneTextureParameters;
 struct FTemporalAAHistory;
@@ -48,8 +47,6 @@ static FORCEINLINE bool IsDOFTAAConfig(ETAAPassConfig Pass)
 {
 	return Pass == ETAAPassConfig::DiaphragmDOF || Pass == ETAAPassConfig::DiaphragmDOFUpsampling;
 }
-
-float GetTemporalAAHistoryUpscaleFactor(const FViewInfo& View);
 
 /** GPU Output of the TAA pass. */
 struct FTAAOutputs
@@ -103,7 +100,7 @@ struct FTAAPassParameters
 	{ }
 
 
-	// Customises the view rectangles for input and output.
+	// Customizes the view rectangles for input and output.
 	FORCEINLINE void SetupViewRect(const FViewInfo& View, int32 InResolutionDivisor = 1)
 	{
 		ResolutionDivisor = InResolutionDivisor;
@@ -131,13 +128,14 @@ struct FTAAPassParameters
 		OutputViewRect.Min = FIntPoint::ZeroValue;
 	}
 	
-	/** Returns the texture resolution that will be outputed. */
+	/** Returns the texture resolution that will be output. */
 	FIntPoint GetOutputExtent() const;
 
 	/** Validate the settings of TAA, to make sure there is no issue. */
 	bool Validate() const;
 };
 
+/** Temporal AA pass which emits a filtered scene color and new history. */
 FTAAOutputs AddTemporalAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FSceneTextureParameters& SceneTextures,
@@ -145,3 +143,18 @@ FTAAOutputs AddTemporalAAPass(
 	const FTAAPassParameters& Inputs,
 	const FTemporalAAHistory& InputHistory,
 	FTemporalAAHistory* OutputHistory);
+
+/** Temporal AA helper method which performs filtering on the main pass scene color. Supports upsampled history and,
+ *  if requested, will attempt to perform the scene color downsample. Returns the filtered scene color, the downsampled
+ *  scene color (or null if it was not performed), and the secondary view rect.
+ */
+void AddTemporalAAPass(
+	FRDGBuilder& GraphBuilder,
+	const FSceneTextureParameters& SceneTextures,
+	const FScreenPassViewInfo& ScreenPassView,
+	const bool bAllowDownsampleSceneColor,
+	const EPixelFormat DownsampleOverrideFormat,
+	FRDGTextureRef InSceneColorTexture,
+	FRDGTextureRef* OutSceneColorTexture,
+	FRDGTextureRef* OutSceneColorHalfResTexture,
+	FIntRect* OutSecondaryViewRect);
