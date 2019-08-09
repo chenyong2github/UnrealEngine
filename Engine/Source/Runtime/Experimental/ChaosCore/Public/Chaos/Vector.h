@@ -791,6 +791,12 @@ namespace Chaos
 
 } // namespace Chaos
 
+template<class T, int d>
+struct TIsContiguousContainer<Chaos::TVector<T, d>>
+{
+	static constexpr bool Value = TIsContiguousContainer<TArray<T>>::Value;
+};
+
 //template<>
 //uint32 GetTypeHash(const Chaos::TVector<int32, 2>& V)
 //{
