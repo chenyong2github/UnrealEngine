@@ -5,6 +5,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Framework/SlateDelegates.h"
 
 class SEditableTextBox;
 
