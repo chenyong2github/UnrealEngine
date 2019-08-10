@@ -41,7 +41,7 @@ ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn()
 		//  3. Tick this actor (ANetworkPredictionExtrasFlyingPawn::Tick). This wants the latest movement state (computed in step #2).
 		//
 		// The ::SetLocallyControlledPreTick isn't strictly necessary. A player controller or some other object could tick first, submit the input, then let the sim tick and this actor tick.
-		// But for this simple example, its clearer to contain everything here. The lambda is just a helper to save you from dealing with tick graph prereq headaches.
+		// But for this simple example, its clearer to contain everything here. The delegate is just a helper to save you from dealing with tick graph prereq headaches.
 
 		FlyingMovementComponent->SetLocallyControlledPreTick(UNetworkPredictionComponent::FPreSimTickDelegate::CreateUObject(this, &ThisClass::GenerateLocalInput));
 
