@@ -95,10 +95,13 @@
 
 
 	/** Buffer layout input for denoising multi polychromatic penumbra. */
-	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT 0x1000
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_INPUT 0x1000
 
 	/** Internal buffer layout for denoising multi polychromatic penumbra. */
-	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY 0x1001
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_RECONSTRUCTION 0x1001
+
+	/** Internal buffer layout for denoising multi polychromatic penumbra. */
+	#define SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY 0x1002
 
 
 	/** Buffer layout for the reflection given by the ray generation shader. */
@@ -240,7 +243,7 @@
 
 	#define BILATERAL_PRESET_MONOCHROMATIC_PENUMBRA 0x0011
 
-	#define BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA 0x0021
+	#define BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA 0x0022
 
 	#define BILATERAL_PRESET_REFLECTIONS 0x1001
 	#define BILATERAL_PRESET_REFLECTIONS_1SPP 0x1002

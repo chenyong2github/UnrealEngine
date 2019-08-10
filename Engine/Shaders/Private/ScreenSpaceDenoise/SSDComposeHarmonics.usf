@@ -9,25 +9,27 @@
 #define TILE_PIXEL_SIZE 8
 
 #define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
-#define CONFIG_SIGNAL_BATCH_SIZE 1
 
 #if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
 	#define COMPILE_SIGNAL_COLOR 1
+	#define COMPILE_SIGNAL_COLOR_ARRAY 2
 
 	//#define CONFIG_VIEW_POSITION_BASED_BILATERAL 2
 	#define CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN 1
 
 	// Input and output layout.
-	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT
-	#define CONFIG_SIGNAL_RECONSTRUCTED_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY
+	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_INPUT
+	#define CONFIG_SIGNAL_RECONSTRUCTED_LAYOUT  SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_RECONSTRUCTION
 	#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY
-	#define CONFIG_INPUT_TEXTURE_COUNT 3
-	#define CONFIG_OUTPUT_TEXTURE_COUNT 3
+	#define CONFIG_INPUT_TEXTURE_COUNT 4
+	#define CONFIG_OUTPUT_TEXTURE_COUNT 2
 
 	#define CONFIG_HARMONIC_COUNT DENOISER_HARMONICS_COUNT
 
 	// Denoise diffuse and specular harmonics at the same time.
 	#define MAX_SIGNAL_BATCH_SIZE 2
+
+	#define CONFIG_SIGNAL_BATCH_SIZE 2
 
 #else
 	#error Unknown signal processing.
@@ -113,6 +115,8 @@ FSSDRWTexture2D	SignalOutput_UAVs_3;
 #define SignalOutput_UAVs_3 SignalOutput_UAVs_0
 #endif
 
+FSSDRWTexture2D DebugOutput;
+
 
 //------------------------------------------------------- ENTRY POINT
 
@@ -191,7 +195,7 @@ void MainCS(
 	UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 	for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 	{
-		const uint LowestFrequencyHarmonicId = CONFIG_HARMONIC_COUNT - 1;
+		const uint LowestFrequencyHarmonicId = DENOISER_HARMONICS_COUNT - 1;
 		float LowestFrequencyWeight;
 		{
 			FSSDSignalSample Sample = MultiplexedHarmonics[LowestFrequencyHarmonicId].Array[MultiplexId];
@@ -199,17 +203,52 @@ void MainCS(
 			LowestFrequencyWeight = Sample.SampleCount;
 		}
 
-		UNROLL_N(CONFIG_HARMONIC_COUNT - 1)
-		for (uint HarmonicId = 0; HarmonicId < LowestFrequencyHarmonicId; HarmonicId++)
+		float3 Color = 0;
+		float3 ColorMask = 1.0;
+
+		UNROLL_N(DENOISER_HARMONICS_COUNT)
+		for (uint HarmonicId = 0; HarmonicId < DENOISER_HARMONICS_COUNT; HarmonicId++)
 		{
 			FSSDSignalSample Sample = MultiplexedHarmonics[HarmonicId].Array[MultiplexId];
+			FSSDSignalSample NormalizedSample = NormalizeToOneSample(Sample);
 
-			float SampleWeight = -min(-LowestFrequencyWeight / Sample.SampleCount, 0.0);
+			float3 Incoming = NormalizedSample.ColorArray[0].rgb;
+			float3 Outgoing = NormalizedSample.ColorArray[1].rgb;
+			float3 Stoped = Incoming - Outgoing;
 
-			OutputSamples.Array[MultiplexId] = AddSignal(
-				OutputSamples.Array[MultiplexId],
-				MulSignal(Sample, SampleWeight));
+			// TODO.
+			float3 HarmonicMask;
+			HarmonicMask.r = Incoming.r > 0 ? saturate(Outgoing.r / Incoming.r) : 1.0;
+			HarmonicMask.g = Incoming.g > 0 ? saturate(Outgoing.g / Incoming.g) : 1.0;
+			HarmonicMask.b = Incoming.b > 0 ? saturate(Outgoing.b / Incoming.b) : 1.0;
+
+			ColorMask *= HarmonicMask;
+			
+			//if (HarmonicId == View.GeneralPurposeTweak)
+			//{
+			//	DebugOutput[DispatchThreadId] = float4(HarmonicMask, 0);
+			//}
 		}
+
+		float3 TotalLighting = MultiplexedHarmonics[DENOISER_HARMONICS_COUNT - 1].Array[MultiplexId].ColorArray[1];
+		float3 FinalLighting = ColorMask; //TotalLighting * ColorMask;
+		
+		//DebugOutput[DispatchThreadId] = float4(ColorMask, 0);
+
+		OutputSamples.Array[MultiplexId].SampleCount = LowestFrequencyWeight;
+		OutputSamples.Array[MultiplexId].SceneColor.rgb = FinalLighting * LowestFrequencyWeight;
+		
+		//OutputSamples.Array[MultiplexId].SampleCount = LowestFrequencyWeight;
+		//OutputSamples.Array[MultiplexId].SceneColor.rgb = MultiplexedHarmonics[2].Array[MultiplexId].ColorArray[0] * LowestFrequencyWeight;
+	}
+
+	// Clamp.
+	UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+	for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
+	{
+		#if COMPILE_SIGNAL_COLOR
+			OutputSamples.Array[MultiplexId].SceneColor = max(OutputSamples.Array[MultiplexId].SceneColor, 0);
+		#endif
 	}
 
 	OutputMultiplexedSignal(

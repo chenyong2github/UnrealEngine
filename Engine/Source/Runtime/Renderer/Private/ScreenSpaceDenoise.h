@@ -116,10 +116,26 @@ public:
 	// Number of harmonics to be feed when denoising multiple lights.
 	static constexpr int32 kMultiPolychromaticPenumbraHarmonics = 4;
 
-	/** All the inputs to denoise polychromatic penumbra of multiple light. */
+	// Number of border between harmonics are used to denoise harmonical signal.
+	static constexpr int32 kHarmonicBordersCount = kMultiPolychromaticPenumbraHarmonics + 1;
+
+	/** High level for one harmonic of a signal to denoise. */
+	BEGIN_SHADER_PARAMETER_STRUCT(FHarmonicTextures, )
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Harmonics, [kHarmonicBordersCount])
+	END_SHADER_PARAMETER_STRUCT()
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FHarmonicUAVs, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV_ARRAY(Texture2D, Harmonics, [kHarmonicBordersCount])
+	END_SHADER_PARAMETER_STRUCT()
+
+	static FHarmonicTextures CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName);
+	static FHarmonicUAVs CreateUAVs(FRDGBuilder& GraphBuilder, const FHarmonicTextures& Textures);
+
+
+	/** All the inputs to denoise polychromatic penumbra of multiple lights. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FPolychromaticPenumbraHarmonics, )
-		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Diffuse, [kMultiPolychromaticPenumbraHarmonics])
-		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D, Specular, [kMultiPolychromaticPenumbraHarmonics])
+		SHADER_PARAMETER_STRUCT(FHarmonicTextures, Diffuse)
+		SHADER_PARAMETER_STRUCT(FHarmonicTextures, Specular)
 	END_SHADER_PARAMETER_STRUCT()
 
 	/** All the outputs when denoising polychromatic penumbra. */

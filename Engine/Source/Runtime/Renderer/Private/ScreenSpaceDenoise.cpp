@@ -372,7 +372,7 @@ const TCHAR* const kReconstructionResourceNames[] = {
 	TEXT("PolychromaticPenumbraHarmonicReconstruction0"),
 	TEXT("PolychromaticPenumbraHarmonicReconstruction1"),
 	TEXT("PolychromaticPenumbraHarmonicReconstruction2"),
-	nullptr,
+	TEXT("PolychromaticPenumbraHarmonicReconstruction3"),
 
 	// Reflections
 	TEXT("ReflectionsReconstruction0"),
@@ -485,7 +485,7 @@ const TCHAR* const kTemporalAccumulationResourceNames[] = {
 	// PolychromaticPenumbraHarmonic
 	TEXT("PolychromaticPenumbraHistory0"),
 	TEXT("PolychromaticPenumbraHistory1"),
-	TEXT("PolychromaticPenumbraHistory2"),
+	nullptr,
 	nullptr,
 
 	// Reflections
@@ -987,6 +987,8 @@ class FSSDComposeHarmonicsCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_ARRAY(FSSDSignalTextures, SignalHarmonics, [IScreenSpaceDenoiser::kMultiPolychromaticPenumbraHarmonics])
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
+
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1117,13 +1119,15 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::PolychromaticPenumbraHarmonic)
 		{
-			ReconstructionTextureCount = 3;
+			ReconstructionTextureCount = 4;
 			ReconstructionDescs[0].Format = PF_FloatRGBA;
 			ReconstructionDescs[1].Format = PF_FloatRGBA;
 			ReconstructionDescs[2].Format = PF_FloatRGBA;
+			ReconstructionDescs[3].Format = PF_FloatRGBA;
 
-			HistoryTextureCountPerSignal = ReconstructionTextureCount;
-			HistoryDescs = ReconstructionDescs;
+			HistoryTextureCountPerSignal = 2;
+			HistoryDescs[0].Format = PF_FloatRGBA;
+			HistoryDescs[1].Format = PF_FloatRGBA;
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::Reflections)
 		{
@@ -1663,6 +1667,36 @@ static void DenoiseSignalAtConstantPixelDensity(
 	}
 } // DenoiseSignalAtConstantPixelDensity()
 
+// static
+IScreenSpaceDenoiser::FHarmonicTextures IScreenSpaceDenoiser::CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName)
+{
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+		Extent,
+		PF_FloatRGBA,
+		FClearValueBinding::None,
+		TexCreate_None,
+		TexCreate_ShaderResource | TexCreate_UAV,
+		/* bInForceSeparateTargetAndShaderResource = */ false);
+
+	FHarmonicTextures HarmonicTextures;
+	for (int32 HarmonicBorderId = 0; HarmonicBorderId < kHarmonicBordersCount; HarmonicBorderId++)
+	{
+		HarmonicTextures.Harmonics[HarmonicBorderId] = GraphBuilder.CreateTexture(Desc, DebugName);
+	}
+	return HarmonicTextures;
+}
+
+// static
+IScreenSpaceDenoiser::FHarmonicUAVs IScreenSpaceDenoiser::CreateUAVs(FRDGBuilder& GraphBuilder, const FHarmonicTextures& Textures)
+{
+	FHarmonicUAVs UAVs;
+	for (int32 HarmonicBorderId = 0; HarmonicBorderId < kHarmonicBordersCount; HarmonicBorderId++)
+	{
+		UAVs.Harmonics[HarmonicBorderId] = GraphBuilder.CreateUAV(Textures.Harmonics[HarmonicBorderId]);
+	}
+	return UAVs;
+}
+
 /** The implementation of the default denoiser of the renderer. */
 class FDefaultScreenSpaceDenoiser : public IScreenSpaceDenoiser
 {
@@ -1770,8 +1804,10 @@ public:
 		// Harmonic 0 doesn't need any reconstruction given it's the highest frequency details.
 		{
 			const int32 HarmonicId = 0;
-			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[0] = Inputs.Diffuse[HarmonicId];
-			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[1] = Inputs.Specular[HarmonicId];
+			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[0] = Inputs.Diffuse.Harmonics[0];
+			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[1] = Inputs.Diffuse.Harmonics[1];
+			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[2] = Inputs.Specular.Harmonics[0];
+			ComposePassParameters->SignalHarmonics[HarmonicId].Textures[3] = Inputs.Specular.Harmonics[1];
 		}
 
 		// Reconstruct each harmonic independently
@@ -1791,8 +1827,10 @@ public:
 			NewHistories[0] = nullptr;
 
 			FSSDSignalTextures InputSignal;
-			InputSignal.Textures[0] = Inputs.Diffuse[HarmonicId];
-			InputSignal.Textures[1] = Inputs.Specular[HarmonicId];
+			InputSignal.Textures[0] = Inputs.Diffuse.Harmonics[HarmonicId + 0];
+			InputSignal.Textures[1] = Inputs.Diffuse.Harmonics[HarmonicId + 1];
+			InputSignal.Textures[2] = Inputs.Specular.Harmonics[HarmonicId + 0];
+			InputSignal.Textures[3] = Inputs.Specular.Harmonics[HarmonicId + 1];
 
 			FSSDSignalTextures SignalOutput;
 			DenoiseSignalAtConstantPixelDensity(
@@ -1816,15 +1854,27 @@ public:
 					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 					/* bInForceSeparateTargetAndShaderResource = */ false);
 
-				ComposedHarmonics.Textures[0] = GraphBuilder.CreateTexture(Desc, TEXT("MultiPolychromaticComposition0"));
-				ComposedHarmonics.Textures[1] = GraphBuilder.CreateTexture(Desc, TEXT("MultiPolychromaticComposition1"));
-				ComposedHarmonics.Textures[2] = GraphBuilder.CreateTexture(Desc, TEXT("MultiPolychromaticComposition2"));
+				ComposedHarmonics.Textures[0] = GraphBuilder.CreateTexture(Desc, TEXT("PolychromaticPenumbraComposition0"));
+				ComposedHarmonics.Textures[1] = GraphBuilder.CreateTexture(Desc, TEXT("PolychromaticPenumbraComposition1"));
 			}
 
 			ComposePassParameters->CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 			ComposePassParameters->CommonParameters.SceneTextures = SceneTextures;
 
 			ComposePassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, ComposedHarmonics);
+
+			{
+				FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
+					SceneTextures.SceneDepthBuffer->Desc.Extent,
+					PF_FloatRGBA,
+					FClearValueBinding::Black,
+					/* InFlags = */ TexCreate_None,
+					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
+					/* bInForceSeparateTargetAndShaderResource = */ false);
+
+				FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugHarmonicComposition"));
+				ComposePassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugTexture);
+			}
 
 			TShaderMapRef<FSSDComposeHarmonicsCS> ComputeShader(View.ShaderMap);
 			FComputeShaderUtils::AddPass(

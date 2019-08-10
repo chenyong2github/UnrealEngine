@@ -55,7 +55,12 @@ void DecodeMultiplexedSignals(
 {
 	OutSamples = CreateSignalArrayFromScalarValue(0.0);
 
-	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_UNINITIALIZED)
+	if (0)
+	{
+	
+	}
+	#if 1
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_UNINITIALIZED)
 	{
 		// trash out the output sample to identify quickly a miss configured buffer layout.
 		OutSamples = CreateSignalArrayFromScalarValue(-INFINITE_FLOAT);
@@ -159,55 +164,87 @@ void DecodeMultiplexedSignals(
 			OutSamples.Array[MultiplexId + 1].MissCount = Channels.g * SampleCount;
 		}
 	}
-	#if COMPILE_SIGNAL_COLOR
-	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_INPUT)
+	#endif
+	#if COMPILE_SIGNAL_COLOR_ARRAY >= 2
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_INPUT)
 	{
-		// Decode diffuse harmonic
-		{
-			float Weight = RawSample[0].a < 0.0 ? 0 : 1;
+		// The RGS output same weigth for diffuse and specular given it depends only on shading model id.
+		float Weight = RawSample[0].a;
 
-			OutSamples.Array[0].SampleCount = Weight;
-			OutSamples.Array[0].MissCount = RawSample[0].a * Weight;
-			OutSamples.Array[0].SceneColor.rgb = RawSample[0].rgb * Weight;
+		// Decode diffuse
+		{
+			const uint MultiplexId = 0;
+
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[0].rgb * Weight;
+			OutSamples.Array[MultiplexId].ColorArray[1] = RawSample[1].rgb * Weight;
 		}
 		
-		// Decode specular harmonic
+		// Decode specular
 		{
-			float Weight = RawSample[1].a < 0.0 ? 0 : 1;
+			const uint MultiplexId = 1;
 
-			OutSamples.Array[1].SampleCount = Weight;
-			OutSamples.Array[1].MissCount = RawSample[1].a * Weight;
-			OutSamples.Array[1].SceneColor.rgb = RawSample[1].rgb * Weight;
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[2].rgb * Weight;
+			OutSamples.Array[MultiplexId].ColorArray[1] = RawSample[3].rgb * Weight;
 		}
 	}
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_RECONSTRUCTION)
+	{
+		// Decode diffuse
+		{
+			const uint MultiplexId = 0;
+
+			float Weight = RawSample[0].a;
+
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[0].rgb * Weight;
+			OutSamples.Array[MultiplexId].ColorArray[1] = RawSample[1].rgb * Weight;
+		}
+		
+		// Decode specular
+		{
+			const uint MultiplexId = 1;
+
+			float Weight = RawSample[2].a;
+
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[2].rgb * Weight;
+			OutSamples.Array[MultiplexId].ColorArray[1] = RawSample[3].rgb * Weight;
+		}
+	}
+	#endif
+	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY)
 	{
 		// Decode diffuse harmonic
 		{
-			float Weight = RawSample[2].r;
+			const uint MultiplexId = 0;
+
+			float Weight = RawSample[0].a;
 
 			if (bNormalizeSample)
 			{
 				Weight = Weight > 0 ? 1 : 0;
 			}
 
-			OutSamples.Array[0].SampleCount = Weight;
-			OutSamples.Array[0].MissCount = RawSample[0].a * Weight;
-			OutSamples.Array[0].SceneColor.rgb = RawSample[0].rgb * Weight;
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].SceneColor.rgb = RawSample[0].rgb * Weight;
 		}
 		
 		// Decode specular harmonic
 		{
-			float Weight = RawSample[2].g;
-			
+			const uint MultiplexId = 1;
+
+			float Weight = RawSample[1].a;
+
 			if (bNormalizeSample)
 			{
 				Weight = Weight > 0 ? 1 : 0;
 			}
 
-			OutSamples.Array[1].SampleCount = Weight;
-			OutSamples.Array[1].MissCount = RawSample[1].a * Weight;
-			OutSamples.Array[1].SceneColor.rgb = RawSample[1].rgb * Weight;
+			OutSamples.Array[MultiplexId].SampleCount = Weight;
+			OutSamples.Array[MultiplexId].SceneColor.rgb = RawSample[1].rgb * Weight;
 		}
 	}
 	#endif
@@ -263,6 +300,7 @@ void DecodeMultiplexedSignals(
 		#endif
 	}
 	#endif
+	#if 1
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_INPUT)
 	{
 		OutSamples.Array[0].SampleCount = RawSample[1].r < 0 ? 0 : 1;
@@ -301,6 +339,7 @@ void DecodeMultiplexedSignals(
 			OutSamples.Array[0].MissCount = RawSample[0].g * RawSample[0].r;
 		}
 	}
+	#endif
 	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_INPUT_NSPP)
 	{
@@ -388,7 +427,12 @@ void EncodeMultiplexedSignals(
 	// Number of buffer the signal get encoded onto <= MAX_MULTIPLEXED_TEXTURES.
 	OutBufferCount = 1;
 
-	if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP)
+	if (0)
+	{
+		// NOP
+	}
+	#if 1
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_PENUMBRA_INJESTION_1SPP)
 	{
 		UNROLL
 		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
@@ -488,28 +532,59 @@ void EncodeMultiplexedSignals(
 				NormalizedWorldBluringRadius == WORLD_RADIUS_MISS ? -1 : NormalizedWorldBluringRadius);
 		}
 	}
+	#endif
+	#if COMPILE_SIGNAL_COLOR_ARRAY >= 2
+	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HARMONIC_RECONSTRUCTION)
+	{
+		// diffuse harmonic
+		{
+			const uint MultiplexId = 0;
+
+			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
+
+			OutRawSample[0].rgb = Sample[MultiplexId].ColorArray[0] * NormalizationFactor;
+			OutRawSample[0].a = Sample[MultiplexId].SampleCount;
+			OutRawSample[1].rgb = Sample[MultiplexId].ColorArray[1] * NormalizationFactor;
+		}
+		
+		// specular harmonic
+		{
+			const uint MultiplexId = 1;
+
+			float NormalizationFactor = SafeRcp(Sample[1].SampleCount);
+			
+			OutRawSample[2].rgb = Sample[MultiplexId].ColorArray[0] * NormalizationFactor;
+			OutRawSample[2].a = Sample[MultiplexId].SampleCount;
+			OutRawSample[3].rgb = Sample[MultiplexId].ColorArray[1] * NormalizationFactor;
+		}
+
+		OutBufferCount = 4;
+	}
+	#endif
 	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_POLYCHROMATIC_PENUMBRA_HISTORY)
 	{
 		// Encode diffuse harmonic
 		{
-			float NormalizationFactor = SafeRcp(Sample[0].SampleCount);
+			const uint MultiplexId = 0;
 
-			OutRawSample[0] = ClampColorForEncoding(Sample[0].SceneColor * NormalizationFactor);
-			OutRawSample[0].a = Sample[0].MissCount * NormalizationFactor;
-			OutRawSample[2].r = Sample[0].SampleCount;
+			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
+
+			OutRawSample[0].rgb = ClampColorForEncoding(Sample[MultiplexId].SceneColor.rgb * NormalizationFactor);
+			OutRawSample[0].a = Sample[MultiplexId].SampleCount;
 		}
 
 		// Encode specular harmonic
 		{
-			float NormalizationFactor = SafeRcp(Sample[1].SampleCount);
+			const uint MultiplexId = 1;
 
-			OutRawSample[1] = ClampColorForEncoding(Sample[1].SceneColor * NormalizationFactor);
-			OutRawSample[1].a = Sample[1].MissCount * NormalizationFactor;
-			OutRawSample[2].g = Sample[1].SampleCount;
+			float NormalizationFactor = SafeRcp(Sample[MultiplexId].SampleCount);
+
+			OutRawSample[1].rgb = ClampColorForEncoding(Sample[MultiplexId].SceneColor.rgb * NormalizationFactor);
+			OutRawSample[1].a = Sample[MultiplexId].SampleCount;
 		}
 
-		OutBufferCount = 3;
+		OutBufferCount = 2;
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR
@@ -547,6 +622,7 @@ void EncodeMultiplexedSignals(
 		#endif
 	}
 	#endif
+	#if 1
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_REJECTION)
 	{
 		// Outputs number of ray miss in red to be compatible as a SSAO output.
@@ -565,6 +641,7 @@ void EncodeMultiplexedSignals(
 		OutRawSample[0].r = Sample[0].SampleCount > 0 ? Sample[0].MissCount / Sample[0].SampleCount : 1.0;
 		OutRawSample[0].g = Sample[0].SampleCount;
 	}
+	#endif
 	#if COMPILE_SIGNAL_COLOR
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_RECONSTRUCTION)
 	{
