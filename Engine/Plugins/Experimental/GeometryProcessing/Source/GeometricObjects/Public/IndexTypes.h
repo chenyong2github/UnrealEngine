@@ -61,6 +61,16 @@ struct FIndex2i
 		return A != Other.A || B != Other.B;
 	}
 
+	int IndexOf(int Value) const
+	{
+		return (A == Value) ? 0 : ((B == Value) ? 1 : -1);
+	}
+
+	bool Contains(int Value) const
+	{
+		return (A == Value) || (B == Value);
+	}
+
 	inline void Swap()
 	{
 		int tmp = A;
@@ -136,7 +146,7 @@ struct FIndex3i
 		return (A == Value) ? 0 : ((B == Value) ? 1 : (C == Value ? 2 : -1));
 	}
 
-	int Contains(int Value) const
+	bool Contains(int Value) const
 	{
 		return (A == Value) || (B == Value) || (C == Value);
 	}

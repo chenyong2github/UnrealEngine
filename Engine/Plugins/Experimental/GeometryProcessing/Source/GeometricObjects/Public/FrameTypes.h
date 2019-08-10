@@ -218,7 +218,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 2D coordinates in UV plane, relative to origin
 	 */
-	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
+	FVector2<RealType> ToPlaneUV(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
 		int Axis0 = 0, Axis1 = 1;
 		if (PlaneNormalAxis == 0)
@@ -243,7 +243,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to map to, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinates in frame's plane (including Origin translation)
 	 */
-	FVector3<RealType> FromPlaneUV(const FVector2<RealType>& PosUV, int PlaneNormalAxis) const
+	FVector3<RealType> FromPlaneUV(const FVector2<RealType>& PosUV, int PlaneNormalAxis = 2) const
 	{
 		FVector3<RealType> PlanePos(PosUV[0], PosUV[1], 0);
 		if (PlaneNormalAxis == 0)
@@ -265,7 +265,7 @@ struct TFrame3
 	 * @param PlaneNormalAxis which plane to project onto, identified by perpendicular normal. Default is 2, ie normal is Z, plane is (X,Y)
 	 * @return 3D coordinate in the plane
 	 */
-	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis) const
+	FVector3<RealType> ToPlane(const FVector3<RealType>& Pos, int PlaneNormalAxis = 2) const
 	{
 		FVector3<RealType> Normal = GetAxis(PlaneNormalAxis);
 		FVector3<RealType> LocalVec = Pos - Origin;

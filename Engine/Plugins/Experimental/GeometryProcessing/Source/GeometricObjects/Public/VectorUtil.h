@@ -285,6 +285,56 @@ namespace VectorUtil
 	}
 
 	/**
+	 * Compute barycentric coordinates/weights of vPoint inside 3D triangle (V0,V1,V2). 
+	 * If point is in triangle plane and inside triangle, coords will be positive and sum to 1.
+	 * ie if result is a, then vPoint = a.x*V0 + a.y*V1 + a.z*V2.
+	 * TODO: make robust to degenerate triangles?
+	 */
+	template <typename RealType>
+	FVector3<RealType> BarycentricCoords(const FVector3<RealType>& Point, const FVector3<RealType>& V0, const FVector3<RealType>& V1, const FVector3<RealType>& V2)
+	{
+		FVector3<RealType> kV02 = V0 - V2;
+		FVector3<RealType> kV12 = V1 - V2;
+		FVector3<RealType> kPV2 = Point - V2;
+		RealType fM00 = kV02.Dot(kV02);
+		RealType fM01 = kV02.Dot(kV12);
+		RealType fM11 = kV12.Dot(kV12);
+		RealType fR0 = kV02.Dot(kPV2);
+		RealType fR1 = kV12.Dot(kPV2);
+		RealType fDet = fM00 * fM11 - fM01 * fM01;
+		RealType fInvDet = 1.0 / fDet;
+		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
+		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
+		RealType fBary3 = 1.0 - fBary1 - fBary2;
+		return new FVector3<RealType>(fBary1, fBary2, fBary3);
+	}
+
+	/**
+	* Compute barycentric coordinates/weights of vPoint inside 2D triangle (V0,V1,V2). 
+	* If point is inside triangle, coords will be positive and sum to 1.
+	* ie if result is a, then vPoint = a.x*V0 + a.y*V1 + a.z*V2.
+	* TODO: make robust to degenerate triangles?
+	*/
+	template <typename RealType>
+	FVector3<RealType> BarycentricCoords(const FVector3<RealType>& Point, const FVector2<RealType>& V0, const FVector2<RealType>& V1, const FVector2<RealType>& V2)
+	{
+		FVector2<RealType> kV02 = V0 - V2;
+		FVector2<RealType> kV12 = V1 - V2;
+		FVector2<RealType> kPV2 = Point - V2;
+		RealType fM00 = kV02.Dot(kV02);
+		RealType fM01 = kV02.Dot(kV12);
+		RealType fM11 = kV12.Dot(kV12);
+		RealType fR0 = kV02.Dot(kPV2);
+		RealType fR1 = kV12.Dot(kPV2);
+		RealType fDet = fM00 * fM11 - fM01 * fM01;
+		RealType fInvDet = 1.0 / fDet;
+		RealType fBary1 = (fM11 * fR0 - fM01 * fR1) * fInvDet;
+		RealType fBary2 = (fM00 * fR1 - fM01 * fR0) * fInvDet;
+		RealType fBary3 = 1.0 - fBary1 - fBary2;
+		return new FVector3<RealType>(fBary1, fBary2, fBary3);
+	}
+
+	/**
 	 * @return solid angle at point P for triangle A,B,C
 	 */
 	template <typename RealType>
