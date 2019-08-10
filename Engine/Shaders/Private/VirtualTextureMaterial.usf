@@ -44,13 +44,11 @@ float2 PackNormal( float3 N )
 	return normalize(N).xy * 0.5 + 0.5;
 }
 
-// Prepare for VirtualTextureUnpackHeight() in VirtualTextureCommon.ush
-float2 PackHeight( float Height )
+// Prepare for VirtualTextureUnpackHeightR16() in VirtualTextureCommon.ush
+float PackWorldHeight( float Height )
 {
-	uint H = (uint)clamp(Height * 0.5f + 32768.f, 0.f, 65535.f);
-	uint LSH = H & 0xff;
-	uint MSH = (H - LSH) >> 8;
-	return float2((float)MSH, (float)LSH) * (1.f / 255.f);
+	Height *= 0.5f;
+	return saturate((Height + 32768.f) / 65535.f);
 }
 
 void FPixelShaderInOut_MainPS(
@@ -75,13 +73,15 @@ void FPixelShaderInOut_MainPS(
 	half Specular = GetVirtualTextureOutput1(MaterialParameters);
 	half Roughness = GetVirtualTextureOutput2(MaterialParameters);
 	half3 Normal = GetVirtualTextureOutput3(MaterialParameters);
-	float Opacity = GetVirtualTextureOutput4(MaterialParameters);
+	half WorldHeight = GetVirtualTextureOutput4(MaterialParameters);
+	float Opacity = GetVirtualTextureOutput5(MaterialParameters);
 #else
 	// Output is from standard material output attribute node
 	half3 BaseColor = GetMaterialBaseColor(PixelMaterialInputs);
 	half Specular = GetMaterialSpecular(PixelMaterialInputs);
 	half Roughness = GetMaterialRoughness(PixelMaterialInputs);
 	half3 Normal = mul(MaterialParameters.WorldNormal, (float3x3)ResolvedView.WorldToVirtualTexture);
+	float WorldHeight = MaterialParameters.AbsoluteWorldPosition.z;
 	float Opacity = GetMaterialOpacity(PixelMaterialInputs);
 #endif
 
@@ -94,6 +94,8 @@ void FPixelShaderInOut_MainPS(
 	Out.MRT[0] = float4(BaseColor, 1.f) * Opacity;
 	Out.MRT[1] = float4(PackNormal(Normal), 0.f, 1.f) * Opacity;
 	Out.MRT[2] = float4(Roughness, Specular, 0.f, 1.f) * Opacity;
+#elif defined(OUT_WORLDHEIGHT)
+	Out.MRT[0] = float4(PackWorldHeight(WorldHeight), 0, 0, 1);
 #endif
 }
 
@@ -108,6 +110,8 @@ void FPixelShaderInOut_MainPS(
 #define PIXELSHADEROUTPUT_MRT0 1
 #define PIXELSHADEROUTPUT_MRT1 1
 #define PIXELSHADEROUTPUT_MRT2 1
+#elif defined(OUT_WORLDHEIGHT)
+#define PIXELSHADEROUTPUT_MRT0 1
 #endif
 
 // all PIXELSHADEROUTPUT_ and "void FPixelShaderInOut_MainPS()" need to be setup before this include

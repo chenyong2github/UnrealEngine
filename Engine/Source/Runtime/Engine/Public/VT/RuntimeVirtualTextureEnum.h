@@ -16,6 +16,7 @@ enum class ERuntimeVirtualTextureMaterialType
 	BaseColor UMETA(DisplayName = "Base Color"),
 	BaseColor_Normal UMETA(DisplayName = "Base Color, Normal"),
 	BaseColor_Normal_Specular UMETA(DisplayName = "Base Color, Normal, Roughness, Specular"),
+	WorldHeight UMETA(DisplayName = "World Height"),
 	
 	Count UMETA(Hidden),
 };
