@@ -87,8 +87,8 @@ private:
 	/** Set of spawn register keys for objects that should be selected if they are spawned. */
 	TSet<FMovieSceneSpawnRegisterKey> SelectedSpawnedObjects;
 
-	/** Map from a sequenceID to an array of objects that have been modified */
-	TMap<FObjectKey, FTrackedObjectState> ModifiedObjects;
+	/** Map from a sequenceID to an array of objects that have been tracked */
+	TMap<FObjectKey, FTrackedObjectState> TrackedObjects;
 
 	/** Set of UMovieSceneSequences that this register has spawned objects for that are modified */
 	TSet<FObjectKey> SequencesWithModifiedObjects;
