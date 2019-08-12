@@ -1725,7 +1725,7 @@ public:
 	/**
 	 * Draw in-world debug information for character movement (called with p.VisualizeMovement > 0).
 	 */
-	virtual void VisualizeMovement() const;
+	virtual float VisualizeMovement() const;
 
 	/** Check if swimming pawn just ran into edge of the pool and should jump out. */
 	virtual bool CheckWaterJump(FVector CheckPoint, FVector& WallNormal);
