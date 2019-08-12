@@ -30,7 +30,7 @@ public:
 
 	virtual ITargetPlatform* GetTargetPlatform( ) override
 	{
-		if (Singleton == NULL)
+		if (Singleton == NULL&& TGenericMacTargetPlatform<false, true, false>::IsUsable())
 		{
 			Singleton = new TGenericMacTargetPlatform<false, true, false>();
 		}
