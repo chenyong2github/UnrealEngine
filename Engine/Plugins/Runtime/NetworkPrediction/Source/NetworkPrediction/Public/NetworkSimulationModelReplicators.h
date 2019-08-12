@@ -338,34 +338,16 @@ struct TReplicator_BasicReconciliar : public TBase
 			}
 			else
 			{
-				// We don't have corresponding local state. There are two cases:
-				if (NetworkSimulationModelCVars::EnableLocalPrediction) // Fixme: this is awkward. Expected if player prediction is disabled but coupling like this feels bad.
-				{
-					UE_LOG(LogNetworkSim, Warning, TEXT("::NetSerialize Fault: SyncBuffer does not contain data for frame %d. [%d-%d]"), SerializedHeadKeyframe, Buffers.Sync.GetTailKeyframe(), Buffers.Sync.GetHeadKeyframe());
-				}
-
-				// Case 1: the serialized state is older than what we've kept in our buffer. A bigger buffer would solve this! (at the price of more resimulated frames to recover when this happens)
 				if (SerializedHeadKeyframe < Buffers.Sync.GetTailKeyframe())
 				{
+					// Case 1: the serialized state is older than what we've kept in our buffer. A bigger buffer would solve this! (at the price of more resimulated frames to recover when this happens)
 					// This is a reconcile fault and we just need to chill. We'll stop sending user commands until the cmds in flight flush through the system and we catch back up.
 					bReconcileFaultDetected = true;
 				}
 				else
 				{
-					// Case 2: We've received a newer frame than what we've processed locally. This could happen if we are buffering our inputs locally (but still sending to the server).
-					// Since this doesn't require resimulating, we can just set the authoritative state here and continue on. 
-					
-					
-
-					// However, this keyframe better be a valid input. Otherwise how did the server generate it?
-					checkf(SerializedHeadKeyframe <= Buffers.Input.GetHeadKeyframe(), TEXT("Received newer motionstate that doesn't correspond to valid input cmd. SerializedHeadKeyframe: %d. {%s} {%s}"),
-						SerializedHeadKeyframe, *Buffers.Input.GetBasicDebugStr(), *Buffers.Sync.GetBasicDebugStr());
-
-					Buffers.Sync.ResetNextHeadKeyframe(SerializedHeadKeyframe);
-					TSyncState* ClientMotionState = Buffers.Sync.GetWriteNext();
-					*ClientMotionState = *SerializedState;
-
-					//!!TickInfo.LastProcessedInputKeyframe = SerializedHeadKeyframe;
+					// Case 2: We've received a newer frame than what we've processed locally. This could happen if we are buffering our inputs locally (but still sending to the server) or just not predicting
+					bPendingReconciliation =  true;
 				}
 			}
 		}
@@ -397,30 +379,38 @@ struct TReplicator_BasicReconciliar : public TBase
 			return;
 		}
 
-		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );
-
-		// Should not be here if the client doesn't have a valid state. See ::NetSerialize
-		checkf(ClientSyncState != nullptr, TEXT("SyncBuffer does not contain data for frame %d. %s"), ReconciliationKeyframe, *Buffers.Sync.GetBasicDebugStr());
-
 		// -------------------------------------------------------------------------------------------------------------------------
 		// Resimulate
 		// -------------------------------------------------------------------------------------------------------------------------
 
+		TSyncState* ClientSyncState = Buffers.Sync.FindElementByKeyframe( ReconciliationKeyframe );	
+
 		ServerState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastConfirmed, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
-		ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
-		TSyncState* LatestClient = Buffers.Sync.GetElementFromHead(0);
+		if (ClientSyncState)
+		{
+			// Existing ClientSyncState, log it before overwriting it
+			ClientSyncState->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::FirstMispredicted, ReconciliationKeyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+		}
+		else
+		{
+			// No existing state, so create add it explicitly
+			Buffers.Sync.ResetNextHeadKeyframe( ReconciliationKeyframe );
+			ClientSyncState = Buffers.Sync.GetWriteNext();
+		}
 
-		// Copy authoritative state over client state (FIXME: we may want to store this off historically somewhere? Or will VLog be enough for debugging?)
+		// Set client's sync state to the server version
+		check(ClientSyncState);
 		*ClientSyncState = *ServerState;
 
 		// Set the canonical simulation time to what we received (we will advance it as we resimulate)
 		TickInfo.TotalProcessedSimulationTime = SerializedTime;
 		TickInfo.LastProcessedInputKeyframe = ReconciliationKeyframe;
+		TickInfo.MaxAllowedInputKeyframe = FMath::Max(TickInfo.MaxAllowedInputKeyframe, TickInfo.LastProcessedInputKeyframe); // Make sure this doesn't lag behind. This is the only place we should need to do this.
 		
-		// Resimulate up to our latest SyncBuffer frame. Note that we may have unprocessed user commands in the command buffer at this point.
-		const int32 LatestKeyframe = Buffers.Sync.GetHeadKeyframe();		
-		for (int32 Keyframe = ReconciliationKeyframe+1; Keyframe <= LatestKeyframe; ++Keyframe)
+		// Resimulate all user commands 
+		const int32 LastKeyframeToProcess = TickInfo.MaxAllowedInputKeyframe;
+		for (int32 Keyframe = ReconciliationKeyframe+1; Keyframe <= LastKeyframeToProcess; ++Keyframe)
 		{
 			// Keyframe is the frame we are resimulating right now.
 			TInputCmd* ResimulateCmd	= Buffers.Input.FindElementByKeyframe(Keyframe);
@@ -442,7 +432,7 @@ struct TReplicator_BasicReconciliar : public TBase
 			// ------------------------------------------------------
 
 			// Log out the Mispredicted state that we are about to overwrite.
-			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LatestKeyframe ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastMispredicted : EVisualLoggingContext::OtherMispredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 
 			// Do the actual update
 			T::Update(Driver, ResimulateCmd->GetFrameDeltaTime(), *ResimulateCmd, *PrevMotionState, *NextMotionState, *AuxState);
@@ -452,7 +442,7 @@ struct TReplicator_BasicReconciliar : public TBase
 			TickInfo.LastProcessedInputKeyframe = Keyframe;
 
 			// Log out the newly predicted state that we got.
-			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LatestKeyframe ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
+			NextMotionState->VisualLog( FVisualLoggingParameters(Keyframe == LastKeyframeToProcess ? EVisualLoggingContext::LastPredicted : EVisualLoggingContext::OtherPredicted, Keyframe, EVisualLoggingLifetime::Persistent), Driver, Driver);
 		}
 	}
 
