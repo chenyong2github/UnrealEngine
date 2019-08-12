@@ -40,9 +40,8 @@ SAnimationModifiersTab::~SAnimationModifiersTab()
 	if (GEditor)
 	{
 		GEditor->UnregisterForUndo(this);
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetOpenedInEditor().RemoveAll(this);	
 	}
-
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OnAssetOpenedInEditor().RemoveAll(this);	
 }
 
 void SAnimationModifiersTab::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
