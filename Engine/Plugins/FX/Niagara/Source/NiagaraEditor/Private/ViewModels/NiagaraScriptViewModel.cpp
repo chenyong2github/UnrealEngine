@@ -19,51 +19,6 @@
 
 template<> TMap<UNiagaraScript*, TArray<FNiagaraScriptViewModel*>> TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>::ObjectsToViewModels{};
 
-FNiagaraScriptViewModel::FNiagaraScriptViewModel(UNiagaraScript* InScript, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
-	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(InScript, DisplayName, InParameterEditMode)))
-	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InScript, InParameterEditMode)))
-	, GraphViewModel(MakeShareable(new FNiagaraScriptGraphViewModel(Cast<UNiagaraScriptSource>(InScript->GetSource()), DisplayName)))
-	, VariableSelection(MakeShareable(new FNiagaraObjectSelection()))
-	, bUpdatingSelectionInternally(false)
-	, LastCompileStatus(ENiagaraScriptCompileStatus::NCS_Unknown)
-{
-	if (InScript != nullptr)
-	{
-		Scripts.Add(InScript);
-		Source = Cast<UNiagaraScriptSource>(InScript->GetSource());
-		Scripts[0]->OnVMScriptCompiled().AddRaw(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
-	}
-
-	InputCollectionViewModel->GetSelection().OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::InputViewModelSelectionChanged);
-	InputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::InputParameterValueChanged);
-	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
-	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
-	GEditor->RegisterForUndo(this);
-
-	// Guess at initial compile status
-	if (InScript != nullptr && InScript->GetVMExecutableData().IsValid() && InScript->GetVMExecutableData().ByteCode.Num() == 0) // This is either a brand new script or failed in the past. Since we create a default working script, assume invalid.
-	{
-		LastCompileStatus = InScript->GetLastCompileStatus();
-		GraphViewModel->SetErrorTextToolTip("Please recompile for full error stack.");
-	}
-	else // Possibly warnings previously, but still compiled. It *could* have been dirtied somehow, but we assume that it is up-to-date.
-	{
-		if (InScript != nullptr && InScript->AreScriptAndSourceSynchronized())
-		{
-			LastCompileStatus = InScript->GetLastCompileStatus();
-		}
-		else
-		{
-			LastCompileStatus = ENiagaraScriptCompileStatus::NCS_Unknown;
-			GraphViewModel->SetErrorTextToolTip("Please recompile for full error stack.");
-		}
-	}
-
-	RegisteredHandles.Add(RegisterViewModelWithMap(InScript, this));
-	//UE_LOG(LogNiagaraEditor, Warning, TEXT("FNiagaraScriptViewModel %p"), this);
-
-}
-
 FNiagaraScriptViewModel::FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode)
 	: InputCollectionViewModel(MakeShareable(new FNiagaraScriptInputCollectionViewModel(DisplayName, InParameterEditMode)))
 	, OutputCollectionViewModel(MakeShareable(new FNiagaraScriptOutputCollectionViewModel(InParameterEditMode)))
@@ -77,13 +32,6 @@ FNiagaraScriptViewModel::FNiagaraScriptViewModel(FText DisplayName, ENiagaraPara
 	OutputCollectionViewModel->OnParameterValueChanged().AddRaw(this, &FNiagaraScriptViewModel::OutputParameterValueChanged);
 	GraphViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddRaw(this, &FNiagaraScriptViewModel::GraphViewModelSelectedNodesChanged);
 	GEditor->RegisterForUndo(this);
-
-	// Guess at initial compile status
-	LastCompileStatus = ENiagaraScriptCompileStatus::NCS_UpToDate;
-
-	CompileStatuses.Empty();
-	CompileErrors.Empty();
-	CompilePaths.Empty();
 }
 
 void FNiagaraScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
@@ -202,7 +150,7 @@ void FNiagaraScriptViewModel::SetScripts(UNiagaraScriptSource* InScriptSource, T
 	{
 		int32 i = Scripts.Add(Script);
 		check(Script->GetSource() == InScriptSource);
-		Scripts[i]->OnVMScriptCompiled().AddRaw(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
+		Scripts[i]->OnVMScriptCompiled().AddSP(this, &FNiagaraScriptViewModel::OnVMScriptCompiled);
 	}
 	Source = InScriptSource;
 

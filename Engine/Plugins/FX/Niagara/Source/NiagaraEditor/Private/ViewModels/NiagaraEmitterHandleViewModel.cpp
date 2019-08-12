@@ -30,6 +30,11 @@ FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
 {
 }
 
+bool FNiagaraEmitterHandleViewModel::IsValid() const
+{
+	return EmitterHandle != nullptr;
+}
+
 void FNiagaraEmitterHandleViewModel::Cleanup()
 {
 	EmitterViewModel->Cleanup();
