@@ -715,8 +715,8 @@ struct FTemporalAAHistory
 	}
 };
 
-// TODO: merge with FTemporalAAHistory?
-struct FScreenSpaceFilteringHistory
+/** Temporal history for a denoiser. */
+struct FScreenSpaceDenoiserHistory
 {
 	// Number of history render target to store.
 	static constexpr int32 RTCount = 3;
@@ -770,22 +770,22 @@ struct FPreviousViewInfo
 	TRefCountPtr<IPooledRenderTarget> CustomSSRInput;
 
 	// History for the reflections
-	FScreenSpaceFilteringHistory ReflectionsHistory;
+	FScreenSpaceDenoiserHistory ReflectionsHistory;
 	
 	// History for the ambient occlusion
-	FScreenSpaceFilteringHistory AmbientOcclusionHistory;
+	FScreenSpaceDenoiserHistory AmbientOcclusionHistory;
 
 	// History for global illumination
-	FScreenSpaceFilteringHistory DiffuseIndirectHistory;
+	FScreenSpaceDenoiserHistory DiffuseIndirectHistory;
 
 	// History for sky light
-	FScreenSpaceFilteringHistory SkyLightHistory;
+	FScreenSpaceDenoiserHistory SkyLightHistory;
 
 	// History for shadow denoising.
-	TMap<const ULightComponent*, FScreenSpaceFilteringHistory> ShadowHistories;
+	TMap<const ULightComponent*, FScreenSpaceDenoiserHistory> ShadowHistories;
 
 	// History for denoising all lights penumbra at once.
-	FScreenSpaceFilteringHistory PolychromaticPenumbraHarmonicsHistory;
+	FScreenSpaceDenoiserHistory PolychromaticPenumbraHarmonicsHistory;
 };
 
 class FViewCommands
