@@ -661,7 +661,7 @@ FTAAOutputs AddTemporalAAPass(
 			FComputeShaderUtils::GetGroupCount(PracticableDestRect.Size(), GTemporalAATileSizeX));
 	}
 	
-	if (!View.bViewStateIsReadOnly)
+	if (!View.bStatePrevViewInfoIsReadOnly)
 	{
 		OutputHistory->SafeRelease();
 

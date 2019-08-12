@@ -505,7 +505,7 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 	View.PreExposure = PreExposure;
 
 	// Update the pre exposure of all temporal histories.
-	if (!View.bViewStateIsReadOnly)
+	if (!View.bStatePrevViewInfoIsReadOnly)
 	{
 		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
 	}

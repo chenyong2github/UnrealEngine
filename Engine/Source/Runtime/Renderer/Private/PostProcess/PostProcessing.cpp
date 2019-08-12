@@ -1183,7 +1183,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
 
 				// Post Process Material Chain - SSR Input
-				if (View.ViewState && !View.bViewStateIsReadOnly)
+				if (View.ViewState && !View.bStatePrevViewInfoIsReadOnly)
 				{
 					FPostProcessMaterialInputs Inputs;
 					Inputs.SetInput(EPostProcessMaterialInput::SceneColor, SceneColorTexture, SecondaryViewRect);

@@ -985,8 +985,8 @@ public:
 	/** Temporal AA jitter at the pixel scale. */
 	FVector2D TemporalJitterPixels;
 
-	/** Whether view state may be updated with this view. */
-	uint32 bViewStateIsReadOnly : 1;
+	/** Whether FSceneViewState::PrevFrameViewInfo can be updated with this view. */
+	uint32 bStatePrevViewInfoIsReadOnly : 1;
 
 	/** true if all PrimitiveVisibilityMap's bits are set to false. */
 	uint32 bHasNoVisiblePrimitive : 1;
@@ -1025,7 +1025,7 @@ public:
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
-	// Previous frame view info to use for this view.
+	/** Informations from the previous frame to use for this view. */
 	FPreviousViewInfo PrevViewInfo;
 
 	/** The GPU nodes on which to render this view. */

@@ -1567,7 +1567,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		SignalHistory = SignalOutput;
 	} // if (MaxPostFilterSampleCount > 1)
 
-	if (!View.bViewStateIsReadOnly && Settings.bUseTemporalAccumulation)
+	if (!View.bStatePrevViewInfoIsReadOnly && Settings.bUseTemporalAccumulation)
 	{
 		check(View.ViewState);
 
@@ -1769,7 +1769,7 @@ public:
 			PrevHistories[BatchedSignalId] = PreviousViewInfos->ShadowHistories.Find(Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent());
 			NewHistories[BatchedSignalId] = nullptr;
 				
-			if (!View.bViewStateIsReadOnly)
+			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
 				check(View.ViewState);
 				NewHistories[BatchedSignalId] = &View.ViewState->PrevFrameViewInfo.ShadowHistories.FindOrAdd(Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent());

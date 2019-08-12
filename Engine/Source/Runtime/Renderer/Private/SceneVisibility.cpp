@@ -3021,12 +3021,12 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 		if (ViewState)
 		{
-			check(View.bViewStateIsReadOnly);
-			View.bViewStateIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
+			check(View.bStatePrevViewInfoIsReadOnly);
+			View.bStatePrevViewInfoIsReadOnly = ViewFamily.bWorldIsPaused || ViewFamily.EngineShowFlags.HitProxies || bFreezeTemporalHistories;
 
 			ViewState->SetupDistanceFieldTemporalOffset(ViewFamily);
 
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->FrameIndex++;
 			}
@@ -3072,7 +3072,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Updates view state.
-			if (!View.bViewStateIsReadOnly && !bFreezeTemporalSequences)
+			if (!View.bStatePrevViewInfoIsReadOnly && !bFreezeTemporalSequences)
 			{
 				ViewState->TemporalAASampleIndex = TemporalSampleIndex;
 			}
@@ -3254,7 +3254,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			}
 
 			// Replace previous view info of the view state with this frame, clearing out references over render target.
-			if (!View.bViewStateIsReadOnly)
+			if (!View.bStatePrevViewInfoIsReadOnly)
 			{
 				ViewState->PrevFrameViewInfo = NewPrevViewInfo;
 			}

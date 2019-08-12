@@ -844,8 +844,15 @@ public:
 
 	// counts up by one each frame, warped in 0..7 range, ResetViewState() puts it back to 0
 	uint32 FrameIndex;
-
-	// Previous frame's view info to use.
+	
+	/** Informations of to persist for the next frame's FViewInfo::PrevViewInfo.
+	 *
+	 * Under normal use case (temporal histories are not frozen), this gets cleared after setting FViewInfo::PrevViewInfo
+	 * after being copied to FViewInfo::PrevViewInfo. New temporal histories get directly written to it.
+	 *
+	 * When temporal histories are frozen (pause command, or r.Test.FreezeTemporalHistories), this keeps it's values, and the currently
+	 * rendering FViewInfo should not update it. Refer to FViewInfo::bStatePrevViewInfoIsReadOnly.
+	 */
 	FPreviousViewInfo PrevFrameViewInfo;
 
 	FHeightfieldLightingAtlas* HeightfieldLightingAtlas;

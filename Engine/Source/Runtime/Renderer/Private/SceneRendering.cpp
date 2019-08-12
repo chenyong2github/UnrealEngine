@@ -820,7 +820,7 @@ void FViewInfo::Init()
 
 	bIsViewInfo = true;
 	
-	bViewStateIsReadOnly = true;
+	bStatePrevViewInfoIsReadOnly = true;
 	bUsesGlobalDistanceField = false;
 	bUsesLightingChannels = false;
 	bTranslucentSurfaceLighting = false;

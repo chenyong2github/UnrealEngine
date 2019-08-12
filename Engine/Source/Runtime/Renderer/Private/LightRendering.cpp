@@ -954,7 +954,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 				// Allocate PreprocessedShadowMaskTextures once so QueueTextureExtraction can deferred write.
 				{
-					if (!View.bViewStateIsReadOnly)
+					if (!View.bStatePrevViewInfoIsReadOnly)
 					{
 						View.ViewState->PrevFrameViewInfo.ShadowHistories.Empty();
 						View.ViewState->PrevFrameViewInfo.ShadowHistories.Reserve(SortedLights.Num());
