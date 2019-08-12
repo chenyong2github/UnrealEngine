@@ -171,6 +171,11 @@ void DecodeMultiplexedSignals(
 		// The RGS output same weigth for diffuse and specular given it depends only on shading model id.
 		float Weight = RawSample[0].a;
 
+		if (bNormalizeSample)
+		{
+			Weight = Weight > 0.0 ? 1.0 : 0.0;
+		}
+
 		// Decode diffuse
 		{
 			const uint MultiplexId = 0;
@@ -196,6 +201,10 @@ void DecodeMultiplexedSignals(
 			const uint MultiplexId = 0;
 
 			float Weight = RawSample[0].a;
+			if (bNormalizeSample)
+			{
+				Weight = Weight > 0.0 ? 1.0 : 0.0;
+			}
 
 			OutSamples.Array[MultiplexId].SampleCount = Weight;
 			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[0].rgb * Weight;
@@ -207,6 +216,10 @@ void DecodeMultiplexedSignals(
 			const uint MultiplexId = 1;
 
 			float Weight = RawSample[2].a;
+			if (bNormalizeSample)
+			{
+				Weight = Weight > 0.0 ? 1.0 : 0.0;
+			}
 
 			OutSamples.Array[MultiplexId].SampleCount = Weight;
 			OutSamples.Array[MultiplexId].ColorArray[0] = RawSample[2].rgb * Weight;

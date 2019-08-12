@@ -54,16 +54,20 @@ FSSDTexture2D SignalHarmonics_1_Textures_0;
 FSSDTexture2D SignalHarmonics_2_Textures_0;
 FSSDTexture2D SignalHarmonics_3_Textures_0;
 
+FSSDTexture2D SignalIntegrand_Textures_0;
+
 #if CONFIG_INPUT_TEXTURE_COUNT > 1
 FSSDTexture2D SignalHarmonics_0_Textures_1;
 FSSDTexture2D SignalHarmonics_1_Textures_1;
 FSSDTexture2D SignalHarmonics_2_Textures_1;
 FSSDTexture2D SignalHarmonics_3_Textures_1;
+FSSDTexture2D SignalIntegrand_Textures_1;
 #else
 #define SignalHarmonics_0_Textures_1 SignalHarmonics_0_Textures_0
 #define SignalHarmonics_1_Textures_1 SignalHarmonics_1_Textures_0
 #define SignalHarmonics_2_Textures_1 SignalHarmonics_2_Textures_0
 #define SignalHarmonics_3_Textures_1 SignalHarmonics_3_Textures_0
+#define SignalIntegrand_Textures_1 SignalIntegrand_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 2
@@ -71,11 +75,13 @@ FSSDTexture2D SignalHarmonics_0_Textures_2;
 FSSDTexture2D SignalHarmonics_1_Textures_2;
 FSSDTexture2D SignalHarmonics_2_Textures_2;
 FSSDTexture2D SignalHarmonics_3_Textures_2;
+FSSDTexture2D SignalIntegrand_Textures_2;
 #else
 #define SignalHarmonics_0_Textures_2 SignalHarmonics_0_Textures_0
 #define SignalHarmonics_1_Textures_2 SignalHarmonics_1_Textures_0
 #define SignalHarmonics_2_Textures_2 SignalHarmonics_2_Textures_0
 #define SignalHarmonics_3_Textures_2 SignalHarmonics_3_Textures_0
+#define SignalIntegrand_Textures_2 SignalIntegrand_Textures_0
 #endif
 
 #if CONFIG_INPUT_TEXTURE_COUNT > 3
@@ -83,11 +89,13 @@ FSSDTexture2D SignalHarmonics_0_Textures_3;
 FSSDTexture2D SignalHarmonics_1_Textures_3;
 FSSDTexture2D SignalHarmonics_2_Textures_3;
 FSSDTexture2D SignalHarmonics_3_Textures_3;
+FSSDTexture2D SignalIntegrand_Textures_3;
 #else
 #define SignalHarmonics_0_Textures_3 SignalHarmonics_0_Textures_0
 #define SignalHarmonics_1_Textures_3 SignalHarmonics_1_Textures_0
 #define SignalHarmonics_2_Textures_3 SignalHarmonics_2_Textures_0
 #define SignalHarmonics_3_Textures_3 SignalHarmonics_3_Textures_0
+#define SignalIntegrand_Textures_3 SignalIntegrand_Textures_0
 #endif
 
 
@@ -138,7 +146,7 @@ void MainCS(
 	float2 ScreenPosition = ViewportUVToScreenPos(BufferUVToViewportUV(SceneBufferUV));
 	FSSDSampleSceneInfos RefSceneMetadata = FetchCurrentSceneInfos(ScreenPosition, SceneBufferUV);
 
-	// Sample the reference sample.
+	// Sample the harmonics.
 	FSSDSignalArray MultiplexedHarmonics[4];
 	{
 		MultiplexedHarmonics[0] = SampleMultiplexedSignals(
@@ -189,6 +197,19 @@ void MainCS(
 			SceneBufferUV,
 			/* MipLevel = */ 0);
 	}
+	
+	// Sample the integrated signal.
+	FSSDSignalArray MultiplexedIntegrand = SampleMultiplexedSignals(
+		SignalIntegrand_Textures_0,
+		SignalIntegrand_Textures_1,
+		SignalIntegrand_Textures_2,
+		SignalIntegrand_Textures_3,
+		GlobalPointClampedSampler,
+		CONFIG_SIGNAL_RECONSTRUCTED_LAYOUT,
+		/* MultiplexedSampleId = */ 0,
+		/* bNormalizeSample = */ true,
+		SceneBufferUV,
+		/* MipLevel = */ 0);
 
 	// Whitelists computation that needs to be done.
 	FSSDSignalArray OutputSamples = CreateSignalArrayFromScalarValue(0.0);
@@ -224,16 +245,24 @@ void MainCS(
 
 			ColorMask *= HarmonicMask;
 			
-			//if (HarmonicId == View.GeneralPurposeTweak)
+			//if (HarmonicId == View.GeneralPurposeTweak && MultiplexId == 0)
 			//{
 			//	DebugOutput[DispatchThreadId] = float4(HarmonicMask, 0);
 			//}
 		}
-
-		float3 TotalLighting = MultiplexedHarmonics[DENOISER_HARMONICS_COUNT - 1].Array[MultiplexId].ColorArray[1];
-		float3 FinalLighting = ColorMask; //TotalLighting * ColorMask;
 		
-		//DebugOutput[DispatchThreadId] = float4(ColorMask, 0);
+		FSSDSignalSample IntegrandSample = MultiplexedIntegrand.Array[MultiplexId];
+		float3 TotalLighting = IntegrandSample.ColorArray[0].rgb;
+
+		float3 FinalLighting = ColorMask * TotalLighting;
+		
+		//if (MultiplexId == 0)
+		//{
+		//	if (SceneBufferUV.x > 0.5)
+		//		DebugOutput[DispatchThreadId] = float4(TotalLighting, 0);
+		//	else
+		//		DebugOutput[DispatchThreadId] = float4(TotalLighting, 0);
+		//}
 
 		OutputSamples.Array[MultiplexId].SampleCount = LowestFrequencyWeight;
 		OutputSamples.Array[MultiplexId].SceneColor.rgb = FinalLighting * LowestFrequencyWeight;

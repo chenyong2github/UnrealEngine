@@ -985,6 +985,7 @@ class FSSDComposeHarmonicsCS : public FGlobalShader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_ARRAY(FSSDSignalTextures, SignalHarmonics, [IScreenSpaceDenoiser::kMultiPolychromaticPenumbraHarmonics])
+		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, SignalIntegrand)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
 
@@ -1799,6 +1800,9 @@ public:
 	{
 		RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowsDenoiser);
 
+		FRDGTextureRef BlackDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+		FRDGTextureRef WhiteDummy = GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
+
 		FSSDComposeHarmonicsCS::FParameters* ComposePassParameters = GraphBuilder.AllocParameters<FSSDComposeHarmonicsCS::FParameters>();
 
 		// Harmonic 0 doesn't need any reconstruction given it's the highest frequency details.
@@ -1840,6 +1844,46 @@ public:
 				/* out */ &SignalOutput);
 
 			ComposePassParameters->SignalHarmonics[HarmonicId] = SignalOutput;
+		}
+
+		// Denoise the entire integrand signal.
+		// TODO(Denoiser): this assume all the lights are going into lowest frequency harmonic.
+		if (1)
+		{
+			const int32 HarmonicId = IScreenSpaceDenoiser::kMultiPolychromaticPenumbraHarmonics - 1;
+
+			int32 Periode = 1 << HarmonicId;
+
+			FSSDConstantPixelDensitySettings Settings;
+			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
+			Settings.HarmonicPeriode = Periode;
+			Settings.ReconstructionSamples = Periode * Periode; // TODO: should use preconvolution instead for harmonic 3
+			Settings.bUseTemporalAccumulation = false;
+
+			TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> PrevHistories;
+			TStaticArray<FScreenSpaceFilteringHistory*, IScreenSpaceDenoiser::kMaxBatchSize> NewHistories;
+			PrevHistories[0] = nullptr;
+			NewHistories[0] = nullptr;
+
+			// TODO(Denoiser): pipeline permutation to be faster.
+			FSSDSignalTextures InputSignal;
+			InputSignal.Textures[0] = Inputs.Diffuse.Harmonics[0];
+			InputSignal.Textures[1] = BlackDummy;
+			InputSignal.Textures[2] = Inputs.Specular.Harmonics[0];
+			InputSignal.Textures[3] = BlackDummy;
+
+			DenoiseSignalAtConstantPixelDensity(
+				GraphBuilder, View, SceneTextures,
+				InputSignal, Settings,
+				PrevHistories, NewHistories,
+				/* out */ &ComposePassParameters->SignalIntegrand);
+		}
+		else
+		{
+			ComposePassParameters->SignalIntegrand.Textures[0] = WhiteDummy;
+			ComposePassParameters->SignalIntegrand.Textures[1] = BlackDummy;
+			ComposePassParameters->SignalIntegrand.Textures[2] = WhiteDummy;
+			ComposePassParameters->SignalIntegrand.Textures[3] = BlackDummy;
 		}
 
 		// Merges the different harmonics.
