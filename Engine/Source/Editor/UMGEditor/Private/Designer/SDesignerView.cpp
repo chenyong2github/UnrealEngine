@@ -1738,13 +1738,21 @@ FReply SDesignerView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoin
 	SDesignSurface::OnMouseButtonDown(MyGeometry, MouseEvent);
 
 	//TODO UMG Undoable Selection
-	FWidgetHitResult HitResult;
-	if ( FindWidgetUnderCursor(MyGeometry, MouseEvent, UWidget::StaticClass(), HitResult) )
+
+	bool bFoundWidgetUnderCursor = false;
 	{
-		SelectedWidgetContextMenuLocation = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+		// Narrow life scope of FWidgetHitResult so it doesn't keep a hard reference on any widget.
+		FWidgetHitResult HitResult;
+		bFoundWidgetUnderCursor = FindWidgetUnderCursor(MyGeometry, MouseEvent, UWidget::StaticClass(), HitResult);
+		if (bFoundWidgetUnderCursor)
+		{
+			SelectedWidgetContextMenuLocation = HitResult.WidgetArranged.Geometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition());
+			PendingSelectedWidget = HitResult.Widget;
+		}
+	}
 
-		PendingSelectedWidget = HitResult.Widget;
-
+	if (bFoundWidgetUnderCursor)
+	{
 		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
 		{
 			const TSet<FWidgetReference>& SelectedWidgets = GetSelectedWidgets();
