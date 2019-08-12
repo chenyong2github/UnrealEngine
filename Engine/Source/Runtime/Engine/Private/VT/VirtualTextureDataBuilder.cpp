@@ -1078,9 +1078,14 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 
 		bool bUseCrunch = false;
 #if WITH_CRUNCH_COMPRESSION
-		bUseCrunch = SettingsPerLayer[0].bVirtualTextureEnableCompressCrunch &&
-			SettingsPerLayer[0].LossyCompressionAmount != TLCA_None &&
-			CrunchCompression::IsValidFormat(TextureFormatName);
+		{
+			// Crunch compressor crashes if given size larger than 8k by 8k, needs to be updated to use 64bit sizes/offsets in various places
+			const bool bCrunchSizeValid = OutData.Width * OutData.Height <= FMath::Square(8u * 1024u);
+			bUseCrunch = bCrunchSizeValid &&
+				SettingsPerLayer[0].bVirtualTextureEnableCompressCrunch &&
+				SettingsPerLayer[0].LossyCompressionAmount != TLCA_None &&
+				CrunchCompression::IsValidFormat(TextureFormatName);
+		}
 #endif // WITH_CRUNCH_COMPRESSION
 		LayerData.TextureFormatName = TextureFormatName;
 		LayerData.bUseCrunch = bUseCrunch;
