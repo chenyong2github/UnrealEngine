@@ -288,7 +288,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		for (const FNiagaraEmitterHandle& EmitterHandle: System->GetEmitterHandles())
 		{
 			UNiagaraEmitter* Emitter = Cast<UNiagaraEmitter>(EmitterHandle.GetInstance());
-			if (Emitter)
+			if (Emitter && EmitterHandle.GetIsEnabled())
 			{
 				if (Emitter->bLocalSpace)
 				{

@@ -24,6 +24,8 @@ public:
 	FOnSystemCompiled& OnSystemCompiled();
 
 	void CompileSystem(bool bForce);
+	
+	virtual ENiagaraScriptCompileStatus GetLatestCompileStatus() override;
 
 private:
 	void OnSystemVMCompiled(UNiagaraSystem* InSystem);

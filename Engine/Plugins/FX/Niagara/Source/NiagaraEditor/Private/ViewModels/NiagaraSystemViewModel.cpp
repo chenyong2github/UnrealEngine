@@ -495,7 +495,7 @@ void FNiagaraSystemViewModel::Tick(float DeltaTime)
 
 		for (TSharedRef<FNiagaraEmitterHandleViewModel> EmitterHandleViewModel : EmitterHandleViewModels)
 		{
-			if (EmitterHandleViewModel->GetEmitterViewModel()->GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty)
+			if (EmitterHandleViewModel->GetIsEnabled() && EmitterHandleViewModel->GetEmitterViewModel()->GetLatestCompileStatus() == ENiagaraScriptCompileStatus::NCS_Dirty)
 			{
 				bRecompile |= true;
 				//EmitterHandleViewModel->GetEmitterViewModel()->CompileScripts();
