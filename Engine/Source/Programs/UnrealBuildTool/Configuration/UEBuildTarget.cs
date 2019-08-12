@@ -1378,6 +1378,10 @@ namespace UnrealBuildTool
 				if(EnabledPlugin.bDescriptorNeededAtRuntime || EnabledPlugin.bDescriptorReferencedExplicitly)
 				{
 					Receipt.RuntimeDependencies.Add(EnabledPlugin.File, StagedFileType.UFS);
+					foreach (FileReference ChildFile in EnabledPlugin.ChildFiles)
+					{
+						Receipt.RuntimeDependencies.Add(ChildFile, StagedFileType.UFS);
+					}
 				}
 			}
 

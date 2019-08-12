@@ -219,20 +219,25 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 		FindPluginManifestsInDirectory(*FPaths::ProjectPluginsDir(), ManifestFileNames);
 	}
 
+	// track child plugins that don't want to go into main plugin set
+	TArray<TSharedRef<FPlugin>> ChildPlugins;
+
 	// If we didn't find any manifests, do a recursive search for plugins
 	if (ManifestFileNames.Num() == 0)
 	{
 		// Find "built-in" plugins.  That is, plugins situated right within the Engine directory.
-		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins);
+		ReadPluginsInDirectory(FPaths::EnginePluginsDir(), EPluginType::Engine, Plugins, ChildPlugins);
+		ReadPluginsInDirectory(FPaths::EnginePlatformExtensionsDir() + TEXT("Plugins"), EPluginType::Engine, Plugins, ChildPlugins);
 
 		// Find plugins in the game project directory (<MyGameProject>/Plugins). If there are any engine plugins matching the name of a game plugin,
 		// assume that the game plugin version is preferred.
 		if (Project != nullptr)
 		{
 #if IS_PROGRAM
-			ReadPluginsInDirectory(FPaths::GetPath(FPaths::GetProjectFilePath()) / TEXT("Plugins"), EPluginType::Project, Plugins);
+			ReadPluginsInDirectory(FPaths::GetPath(FPaths::GetProjectFilePath()) / TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
 #else
-			ReadPluginsInDirectory(FPaths::ProjectPluginsDir(), EPluginType::Project, Plugins);
+			ReadPluginsInDirectory(FPaths::ProjectPluginsDir(), EPluginType::Project, Plugins, ChildPlugins);
+			ReadPluginsInDirectory(FPaths::ProjectPlatformExtensionsDir() + TEXT("Plugins"), EPluginType::Project, Plugins, ChildPlugins);
 #endif
 		}
 	}
@@ -253,6 +258,7 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 
 			// Get all the standard plugin directories
 			const FString EngineDir = FPaths::EngineDir();
+			const FString PlatformExtensionEngineDir = FPaths::EnginePlatformExtensionsDir();
 			const FString EnterpriseDir = FPaths::EnterpriseDir();
 			const FString ProjectModsDir = FPaths::ProjectModsDir();
 
@@ -260,7 +266,7 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 			for (const FPluginManifestEntry& Entry : Manifest.Contents)
 			{
 				EPluginType Type;
-				if (Entry.File.StartsWith(EngineDir))
+				if (Entry.File.StartsWith(EngineDir) || Entry.File.StartsWith(PlatformExtensionEngineDir))
 				{
 					Type = EPluginType::Engine;
 				}
@@ -276,7 +282,7 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 				{
 					Type = EPluginType::Project;
 				}
-				CreatePluginObject(Entry.File, Entry.Descriptor, Type, Plugins);
+				CreatePluginObject(Entry.File, Entry.Descriptor, Type, Plugins, ChildPlugins);
 			}
 		}
 	}
@@ -284,29 +290,84 @@ void FPluginManager::ReadAllPlugins(TMap<FString, TSharedRef<FPlugin>>& Plugins,
 	if (Project != nullptr)
 	{
 		// Always add the mods from the loose directory without using manifests, because they're not packaged together.
-		ReadPluginsInDirectory(FPaths::ProjectModsDir(), EPluginType::Mod, Plugins);
+		ReadPluginsInDirectory(FPaths::ProjectModsDir(), EPluginType::Mod, Plugins, ChildPlugins);
 
 		// If they have a list of additional directories to check, add those plugins too
 		for (const FString& Dir : Project->GetAdditionalPluginDirectories())
 		{
-			ReadPluginsInDirectory(Dir, EPluginType::External, Plugins);
+			ReadPluginsInDirectory(Dir, EPluginType::External, Plugins, ChildPlugins);
 		}
 
 		// Add plugins from FPaths::EnterprisePluginsDir if it exists
 		if (FPaths::DirectoryExists(FPaths::EnterprisePluginsDir()))
 		{
-			ReadPluginsInDirectory(FPaths::EnterprisePluginsDir(), EPluginType::Enterprise, Plugins);
+			ReadPluginsInDirectory(FPaths::EnterprisePluginsDir(), EPluginType::Enterprise, Plugins, ChildPlugins);
 		}
 	}
 
 	for (const FString& ExtraSearchPath : ExtraSearchPaths)
 	{
-		ReadPluginsInDirectory(ExtraSearchPath, EPluginType::External, Plugins);
+		ReadPluginsInDirectory(ExtraSearchPath, EPluginType::External, Plugins, ChildPlugins);
 	}
+
+	// now that we have all the plugins, merge child plugins
+	for (TSharedRef<FPlugin> Child : ChildPlugins)
+	{
+		// find the parent
+		TArray<FString> Tokens;
+		FPaths::GetCleanFilename(Child->GetDescriptorFileName()).ParseIntoArray(Tokens, TEXT("_"), true);
+		TSharedRef<FPlugin>* ParentPtr = nullptr;
+		if (Tokens.Num() == 2)
+		{
+			FString ParentPluginName = Tokens[0];
+			ParentPtr = Plugins.Find(ParentPluginName);
+		}
+		if (ParentPtr != nullptr)
+		{
+			TSharedRef<FPlugin>& Parent = *ParentPtr;
+			for (const FModuleDescriptor& ChildModule : Child->GetDescriptor().Modules)
+			{
+				// look for a matching parent
+				for (FModuleDescriptor& ParentModule : Parent->Descriptor.Modules)
+				{
+					if (ParentModule.Name == ChildModule.Name && ParentModule.Type == ChildModule.Type)
+					{
+						if (ParentModule.WhitelistPlatforms.Num() > 0)
+						{
+							if (ChildModule.WhitelistPlatforms.Num() > 0)
+							{
+								ParentModule.WhitelistPlatforms.Append(ChildModule.WhitelistPlatforms);
+							}
+							else
+							{
+								ParentModule.WhitelistPlatforms.Add(FPlatformProperties::PlatformName());
+							}
+						}
+						if (ParentModule.BlacklistPlatforms.Num() > 0)
+						{
+							if (ChildModule.BlacklistPlatforms.Num() > 0)
+							{
+								ParentModule.BlacklistPlatforms.Append(ChildModule.BlacklistPlatforms);
+							}
+							else
+							{
+								ParentModule.BlacklistPlatforms.Add(FPlatformProperties::PlatformName());
+							}
+						}
+					}
+				}
+			}
+		}
+		else
+		{
+			UE_LOG(LogPluginManager, Error, TEXT("Child plugin %s was not named properly. It should be in the form <ParentPlugin>_<Platform>.uplugin."), *Child->GetDescriptorFileName());
+		}
+	}
+
 #endif
 }
 
-void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, const EPluginType Type, TMap<FString, TSharedRef<FPlugin>>& Plugins)
+void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, const EPluginType Type, TMap<FString, TSharedRef<FPlugin>>& Plugins, TArray<TSharedRef<FPlugin>>& ChildPlugins)
 {
 	// Make sure the directory even exists
 	if(FPlatformFileManager::Get().GetPlatformFile().DirectoryExists(*PluginsDirectory))
@@ -320,7 +381,7 @@ void FPluginManager::ReadPluginsInDirectory(const FString& PluginsDirectory, con
 			FText FailureReason;
 			if ( Descriptor.Load(FileName, FailureReason) )
 			{
-				CreatePluginObject(FileName, Descriptor, Type, Plugins);
+				CreatePluginObject(FileName, Descriptor, Type, Plugins, ChildPlugins);
 			}
 			else
 			{
@@ -369,9 +430,16 @@ void FPluginManager::FindPluginManifestsInDirectory(const FString& PluginManifes
 	IFileManager::Get().IterateDirectory(*PluginManifestDirectory, Visitor);
 }
 
-void FPluginManager::CreatePluginObject(const FString& FileName, const FPluginDescriptor& Descriptor, const EPluginType Type, TMap<FString, TSharedRef<FPlugin>>& Plugins)
+void FPluginManager::CreatePluginObject(const FString& FileName, const FPluginDescriptor& Descriptor, const EPluginType Type, TMap<FString, TSharedRef<FPlugin>>& Plugins, TArray<TSharedRef<FPlugin>>& ChildPlugins)
 {
 	TSharedRef<FPlugin> Plugin = MakeShareable(new FPlugin(FileName, Descriptor, Type));
+
+	// children plugins are gathered and used later
+	if (Plugin->GetDescriptor().bIsPluginExtension)
+	{
+		ChildPlugins.Add(Plugin);
+		return;
+	}
 
 	FString FullPath = FPaths::ConvertRelativePathToFull(FileName);
 	UE_LOG(LogPluginManager, Verbose, TEXT("Read plugin descriptor for %s, from %s"), *Plugin->GetName(), *FullPath);

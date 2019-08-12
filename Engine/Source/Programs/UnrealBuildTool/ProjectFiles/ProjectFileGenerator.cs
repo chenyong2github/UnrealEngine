@@ -2330,26 +2330,23 @@ namespace UnrealBuildTool
 			if(GameProjects.Count == 1)
 			{
 				ProjectFile GameProject = GameProjects.First();
-				foreach (DirectoryReference ProjectDirectory in UnrealBuildTool.GetAllProjectDirectories(GameProject.BaseDir))
+				foreach(PluginInfo PluginInfo in Plugins.ReadProjectPlugins(GameProject.BaseDir))
 				{
-					foreach (PluginInfo PluginInfo in Plugins.ReadProjectPlugins(ProjectDirectory))
+					if (PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Length > 0 && PluginInfo.Type == PluginType.Mod)
 					{
-						if (PluginInfo.Descriptor.Modules != null && PluginInfo.Descriptor.Modules.Length > 0 && PluginInfo.Type == PluginType.Mod)
-						{
-							FileReference ModProjectFilePath = FileReference.Combine(PluginInfo.Directory, "Mods", PluginInfo.Name + ProjectFileExtension);
+						FileReference ModProjectFilePath = FileReference.Combine(PluginInfo.Directory, "Mods", PluginInfo.Name + ProjectFileExtension);
 
-							bool bProjectAlreadyExisted;
-							ProjectFile ModProjectFile = FindOrAddProject(ModProjectFilePath, PluginInfo.Directory, IncludeInGeneratedProjects: true, bAlreadyExisted: out bProjectAlreadyExisted);
-							ModProjectFile.IsForeignProject = GameProject.IsForeignProject;
-							ModProjectFile.IsGeneratedProject = true;
-							ModProjectFile.IsStubProject = false;
-							ModProjectFile.PluginFilePath = PluginInfo.File;
-							ModProjectFile.ProjectTargets.AddRange(GameProject.ProjectTargets);
+						bool bProjectAlreadyExisted;
+						ProjectFile ModProjectFile = FindOrAddProject(ModProjectFilePath, PluginInfo.Directory, IncludeInGeneratedProjects: true, bAlreadyExisted: out bProjectAlreadyExisted);
+						ModProjectFile.IsForeignProject = GameProject.IsForeignProject;
+						ModProjectFile.IsGeneratedProject = true;
+						ModProjectFile.IsStubProject = false;
+						ModProjectFile.PluginFilePath = PluginInfo.File;
+						ModProjectFile.ProjectTargets.AddRange(GameProject.ProjectTargets);
 
-							AddPluginFilesToProject(PluginInfo.File, PluginInfo.Directory, ModProjectFile);
+						AddPluginFilesToProject(PluginInfo.File, PluginInfo.Directory, ModProjectFile);
 
-							ModProjects.Add(ModProjectFile);
-						}
+						ModProjects.Add(ModProjectFile);
 					}
 				}
 			}
