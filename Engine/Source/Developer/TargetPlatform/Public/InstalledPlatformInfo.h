@@ -15,6 +15,15 @@ enum class EProjectType : uint8
 
 EProjectType EProjectTypeFromString(const FString& ProjectTypeName);
 
+enum class EInstalledPlatformState
+{
+	/** Query whether the platform is supported */
+	Supported,
+
+	/** Query whether the platform has been downloaded */
+	Downloaded,
+};
+
 /**
  * Information about a single installed platform configuration
  */
@@ -81,6 +90,16 @@ public:
 	 * Queries whether a target type is valid for any configuration
 	 */
 	bool IsValidTargetType(EBuildTargetType TargetType) const;
+
+	/** Determines whether the given target type is supported
+	 * @param TargetType The target type being built
+	 * @param Platform The platform being built
+	 * @param Configuration The configuration being built
+	 * @param ProjectType The project type required
+	 * @param State State of the given platform support
+	 * @return True if the target can be built
+	 */
+	bool IsValid(TOptional<EBuildTargetType> TargetType, TOptional<FString> Platform, TOptional<EBuildConfiguration> Configuration, EProjectType ProjectType, EInstalledPlatformState State) const;
 
 	/**
 	 * Queries whether a platform architecture is valid for any configuration

@@ -13,6 +13,8 @@
 #include "Serialization/JsonReader.h"
 #include "Serialization/JsonSerializer.h"
 #include "Modules/ModuleManager.h"
+#include "DesktopPlatformPrivate.h"
+#include "Misc/OutputDeviceRedirector.h"
 
 
 #define LOCTEXT_NAMESPACE "DesktopPlatform"
@@ -746,6 +748,153 @@ FProcHandle FDesktopPlatformBase::InvokeUnrealBuildToolAsync(const FString& InCm
 	return ProcHandle;
 }
 
+struct FTargetFileVisitor : IPlatformFile::FDirectoryStatVisitor
+{
+	TSet<FString>& RemainingTargetNames;
+	FDateTime MaxDateTime;
+	TArray<FString> SubDirectories;
+	bool bSearchSubDirectories;
+
+	FTargetFileVisitor(TSet<FString>& InRemainingTargetNames, FDateTime InMaxDateTime)
+		: RemainingTargetNames(InRemainingTargetNames)
+		, MaxDateTime(InMaxDateTime)
+		, bSearchSubDirectories(false)
+	{
+	}
+
+	virtual bool Visit(const TCHAR* FileNameOrDirectory, const FFileStatData& StatData) override
+	{
+		if (StatData.bIsDirectory)
+		{
+			SubDirectories.Add(FileNameOrDirectory);
+			return true;
+		}
+
+		int32 Length = FCString::Strlen(FileNameOrDirectory);
+
+		static const TCHAR TargetExt[] = TEXT(".Target.cs");
+		static const int32 TargetExtLen = ARRAY_COUNT(TargetExt) - 1;
+		if (Length > TargetExtLen && FCString::Stricmp(FileNameOrDirectory + Length - TargetExtLen, TargetExt) == 0)
+		{
+			FString TargetName = FPaths::GetCleanFilename(FString(Length - TargetExtLen, FileNameOrDirectory));
+			return (StatData.ModificationTime < MaxDateTime && RemainingTargetNames.Remove(TargetName) == 1);
+		}
+		
+		static const TCHAR ModuleExt[] = TEXT(".Build.cs");
+		static const int32 ModuleExtLen = ARRAY_COUNT(ModuleExt) - 1;
+		if (Length > ModuleExtLen && FCString::Stricmp(FileNameOrDirectory + Length - ModuleExtLen, ModuleExt) == 0)
+		{
+			bSearchSubDirectories = false;
+			return true;
+		}
+
+		return true;
+	}
+};
+
+bool IsTargetInfoValid(const TArray<FTargetInfo>& Targets, const FString& SourceDir, const FDateTime& LastModifiedTime)
+{
+	// Create the state 
+	TSet<FString> RemainingTargetNames;
+	for (const FTargetInfo& Target : Targets)
+	{
+		RemainingTargetNames.Add(Target.Name);
+	}
+
+	// Loop through all the directories
+	TArray<FString> DirectoryNames = { SourceDir };
+	for(int Idx = 0; Idx < DirectoryNames.Num(); Idx++)
+	{
+		FTargetFileVisitor Visitor(RemainingTargetNames, LastModifiedTime);
+		if(!IFileManager::Get().IterateDirectoryStat(*DirectoryNames[Idx], Visitor))
+		{
+			return false;
+		}
+		if(Visitor.bSearchSubDirectories)
+		{
+			DirectoryNames += Visitor.SubDirectories;
+		}
+	}
+
+	// If we found all the previous target files
+	return RemainingTargetNames.Num() == 0;
+}
+
+const TArray<FTargetInfo>& FDesktopPlatformBase::GetTargetsForProject(const FString& ProjectFile) const
+{
+	// Normalize the project filename
+	FString NormalizedProjectFile = ProjectFile;
+	FPaths::NormalizeFilename(NormalizedProjectFile);
+
+	// Check if there's already a cached entry for this project
+	const TArray<FTargetInfo>* Targets = ProjectFileToTargets.Find(NormalizedProjectFile);
+	if (Targets != nullptr)
+	{
+		return *Targets;
+	}
+
+	// Get the base directory for the project (or the engine directory)
+	FString ProjectDir;
+	if(ProjectFile.Len() == 0)
+	{
+		ProjectDir = FPaths::EngineDir();
+	}
+	else
+	{
+		ProjectDir = FPaths::GetPath(ProjectFile);
+	}
+
+	// Get the project source directory. If it doesn't exist, there are no targets for this project.
+	FString ProjectSourceDir = ProjectDir / TEXT("Source");
+	if (!IFileManager::Get().DirectoryExists(*ProjectSourceDir))
+	{
+		return ProjectFileToTargets.Add(NormalizedProjectFile, TArray<FTargetInfo>());
+	}
+
+	// Get the path to the info filename
+	FString InfoFileName = ProjectDir / TEXT("Intermediate/TargetInfo.json");
+
+	// Check if the file already exists
+	FFileStatData StatData = IFileManager::Get().GetStatData(*InfoFileName);
+	if(StatData.bIsValid)
+	{
+		// Read it in and check it's still valid
+		TArray<FTargetInfo> NewTargets;
+		if(ReadTargetInfo(InfoFileName, NewTargets) && IsTargetInfoValid(NewTargets, ProjectSourceDir, StatData.ModificationTime))
+		{
+			return ProjectFileToTargets.Emplace(MoveTemp(NormalizedProjectFile), MoveTemp(NewTargets));
+		}
+	}
+
+	// Otherwise, we'll have to run UBT to update it
+	FString Arguments = TEXT("-Mode=QueryTargets");
+	if(ProjectFile.Len() > 0)
+	{
+		Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFile));
+	}
+	Arguments += FString::Printf(TEXT(" -Output=\"%s\""), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*InfoFileName));
+
+	// Run UBT to update the list of targets
+	FString Output;
+	int32 ReturnCode;
+	const_cast<FDesktopPlatformBase*>(this)->InvokeUnrealBuildToolSync(Arguments, *GLog, false, ReturnCode, Output);
+
+	// Try to read the new targets
+	TArray<FTargetInfo> NewTargets;
+	if(!ReadTargetInfo(InfoFileName, NewTargets))
+	{
+		UE_LOG(LogDesktopPlatform, Warning, TEXT("Unable to read target info for %s"), (ProjectFile.Len() == 0)? TEXT("engine") : *ProjectFile);
+	}
+
+	// Add it to the cache
+	return ProjectFileToTargets.Emplace(MoveTemp(NormalizedProjectFile), MoveTemp(NewTargets));
+}
+
+const TArray<FTargetInfo>& FDesktopPlatformBase::GetTargetsForCurrentProject() const
+{
+	return GetTargetsForProject(FPaths::GetProjectFilePath());
+}
+
 bool FDesktopPlatformBase::GetSolutionPath(FString& OutSolutionPath)
 {
 	// Get the platform-specific suffix for solution files
@@ -1167,7 +1316,7 @@ bool FDesktopPlatformBase::BuildUnrealBuildTool(const FString& RootDir, FOutputD
 
 	// Check the project file exists
 	FString CsProjLocation = GetUnrealBuildToolProjectFileName(RootDir);
-	if(!FPaths::FileExists(CsProjLocation))
+	if (!FPaths::FileExists(CsProjLocation))
 	{
 		Ar.Logf(TEXT("Project file not found at %s"), *CsProjLocation);
 		return false;
@@ -1221,10 +1370,69 @@ bool FDesktopPlatformBase::BuildUnrealBuildTool(const FString& RootDir, FOutputD
 
 	// If the executable appeared where we expect it, then we were successful
 	FString UnrealBuildToolExePath = GetUnrealBuildToolExecutableFilename(RootDir);
-	if(!FPaths::FileExists(UnrealBuildToolExePath))
+	if (!FPaths::FileExists(UnrealBuildToolExePath))
 	{
 		Ar.Logf(TEXT("Missing %s after build"), *UnrealBuildToolExePath);
 		return false;
+	}
+
+	return true;
+}
+
+bool FDesktopPlatformBase::ReadTargetInfo(const FString& FileName, TArray<FTargetInfo>& Targets)
+{
+	// Read the file to a string
+	FString Contents;
+	if (!FFileHelper::LoadFileToString(Contents, *FileName))
+	{
+		return false;
+	}
+
+	// Deserialize a JSON object from the string
+	TSharedPtr<FJsonObject> ObjectPtr;
+	TSharedRef<TJsonReader<>> Reader = TJsonReaderFactory<>::Create(Contents);
+	if (!FJsonSerializer::Deserialize(Reader, ObjectPtr) || !ObjectPtr.IsValid())
+	{
+		return false;
+	}
+
+	// Get the targets array
+	const TArray<TSharedPtr<FJsonValue>>* TargetArray;
+	if (!ObjectPtr->TryGetArrayField(TEXT("Targets"), TargetArray))
+	{
+		return false;
+	}
+
+	// Presize the output array
+	Targets.SetNum(TargetArray->Num());
+
+	// Parse the entries
+	for (int Idx = 0; Idx < TargetArray->Num(); Idx++)
+	{
+		const FJsonValue& TargetValue = *(*TargetArray)[Idx].Get();
+		if (TargetValue.Type != EJson::Object)
+		{
+			return false;
+		}
+
+		const FJsonObject& TargetObject = *TargetValue.AsObject();
+		if(!TargetObject.TryGetStringField(TEXT("Name"), Targets[Idx].Name) || !TargetObject.TryGetStringField(TEXT("Path"), Targets[Idx].Path))
+		{
+			return false;
+		}
+
+		FString Type;
+		if (!TargetObject.TryGetStringField(TEXT("Type"), Type))
+		{
+			return false;
+		}
+
+		LexFromString(Targets[Idx].Type, *Type);
+
+		if (Targets[Idx].Type == EBuildTargetType::Unknown)
+		{
+			return false;
+		}
 	}
 
 	return true;

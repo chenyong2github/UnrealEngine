@@ -495,14 +495,21 @@ namespace UnrealBuildTool
 				{
 					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
 					{
-						UEBuildPlatform.RegisterPlatforms(false);
+						UEBuildPlatform.RegisterPlatforms(false, false);
 					}
 				}
-				if((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
+				if ((ModeOptions & ToolModeOptions.BuildPlatformsHostOnly) != 0)
+				{
+					using (Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
+					{
+						UEBuildPlatform.RegisterPlatforms(false, true);
+					}
+				}
+				if ((ModeOptions & ToolModeOptions.BuildPlatformsForValidation) != 0)
 				{
 					using(Timeline.ScopeEvent("UEBuildPlatform.RegisterPlatforms()"))
 					{
-						UEBuildPlatform.RegisterPlatforms(true);
+						UEBuildPlatform.RegisterPlatforms(true, false);
 					}
 				}
 

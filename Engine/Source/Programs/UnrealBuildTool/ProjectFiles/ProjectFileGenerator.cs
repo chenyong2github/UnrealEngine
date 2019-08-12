@@ -972,10 +972,17 @@ namespace UnrealBuildTool
 				// Generate IntelliSense data if we need to.  This involves having UBT simulate the action compilation of
 				// the targets so that we can extra the compiler defines, include paths, etc.
 				GenerateIntelliSenseData(Arguments, IntelliSenseTargetFiles);
-
+				
 				// Write the project files
 				WriteProjectFiles(PlatformProjectGenerators);
 				Log.TraceVerbose( "Project generation complete ({0} generated, {1} imported)", GeneratedProjectFiles.Count, OtherProjectFiles.Count );
+
+				// Generate all the target info files for the editor
+				foreach(FileReference ProjectFile in AllGameProjects)
+				{
+					RulesAssembly RulesAssembly = RulesCompiler.CreateProjectRulesAssembly(ProjectFile, false, false);
+					QueryTargetsMode.WriteTargetInfo(ProjectFile, RulesAssembly, QueryTargetsMode.GetDefaultOutputFile(ProjectFile));
+				}
 			}
 
 			return bSuccess;

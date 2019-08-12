@@ -228,6 +228,20 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Fills a list with all the target names in this assembly
+		/// </summary>
+		/// <param name="TargetNames">List to receive the target names</param>
+		/// <param name="bIncludeParentAssembly">Whether to include targets in the parent assembly</param>
+		public void GetAllTargetNames(List<string> TargetNames, bool bIncludeParentAssembly)
+		{
+			if(Parent != null && bIncludeParentAssembly)
+			{
+				Parent.GetAllTargetNames(TargetNames, true);
+			}
+			TargetNames.AddRange(TargetNameToTargetFile.Keys);
+		}
+
+		/// <summary>
 		/// Tries to get the filename that declared the given type
 		/// </summary>
 		/// <param name="ExistingType"></param>

@@ -172,6 +172,44 @@ bool FInstalledPlatformInfo::IsValidTargetType(EBuildTargetType TargetType) cons
 	);
 }
 
+bool FInstalledPlatformInfo::IsValid(TOptional<EBuildTargetType> TargetType, TOptional<FString> Platform, TOptional<EBuildConfiguration> Configuration, EProjectType ProjectType, EInstalledPlatformState State) const
+{
+	if (!FApp::IsEngineInstalled())
+	{
+		return true;
+	}
+
+	for (const FInstalledPlatformConfiguration& Config : InstalledPlatformConfigurations)
+	{
+		// Check whether this configuration matches all the criteria
+		if(TargetType.IsSet() && Config.PlatformType != TargetType.GetValue())
+		{
+			continue;
+		}
+		if(Platform.IsSet() && Config.PlatformName != Platform.GetValue())
+		{
+			continue;
+		}
+		if(Configuration.IsSet() && Config.Configuration != Configuration.GetValue())
+		{
+			continue;
+		}
+		if(ProjectType != EProjectType::Any && Config.ProjectType != EProjectType::Any && Config.ProjectType != ProjectType)
+		{
+			continue;
+		}
+		if(State == EInstalledPlatformState::Downloaded && !Config.RequiredFile.IsEmpty() && !FPaths::FileExists(Config.RequiredFile))
+		{
+			continue;
+		}
+
+		// Success!
+		return true;
+	}
+
+	return false;
+}
+
 bool FInstalledPlatformInfo::IsValidPlatformArchitecture(const FString& PlatformName, const FString& Architecture) const
 {
 	return ContainsValidConfiguration(
