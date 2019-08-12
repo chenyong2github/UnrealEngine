@@ -32,7 +32,7 @@ void FMovieSceneLiveLinkSource::RemoveLiveLinkSource(TSharedPtr<FMovieSceneLiveL
 		ILiveLinkClient* LiveLinkClient = &IModularFeatures::Get().GetModularFeature<ILiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 
 		//If we're still enabled, put back the previous one with our name if it was enabled
-		if (InSource->PreviousSubjectEnabled.Source.IsValid() && LiveLinkClient->IsSubjectEnabled(InSource->SubjectPreset.Key))
+		if (InSource->PreviousSubjectEnabled.Source.IsValid() && LiveLinkClient->IsSubjectEnabled(InSource->SubjectPreset.Key, false))
 		{
 			LiveLinkClient->SetSubjectEnabled(InSource->PreviousSubjectEnabled, true);
 		}

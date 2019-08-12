@@ -118,6 +118,10 @@ public:
 
 	/** Does the user want to keep the files checked out */
 	bool WantToKeepCheckedOut();
+
+	/** Clears the current change list description */
+	void ClearChangeListDescription();
+
 private:
 	/**
 	 * @return the desired toggle state for the ToggleSelectedCheckBox.

@@ -1225,10 +1225,10 @@ namespace UnrealGameSync
 					{
 						CommandLine.AppendFormat(" -f");
 					}
-					if(Options != null && Options.NumThreads > 1)
-					{
-						CommandLine.AppendFormat(" --parallel=threads={0}", Options.NumThreads);
-					}
+//					if(Options != null && Options.NumThreads > 1)
+//					{
+//						CommandLine.AppendFormat(" --parallel=threads={0}", Options.NumThreads);
+//					}
 					bResult = RunCommand(CommandLine.ToString(), null, Line => FilterSyncOutput(Line, Parser, TamperedFiles, Log), CommandOptions.NoFailOnErrors | CommandOptions.IgnoreFilesUpToDateError | CommandOptions.IgnoreExitCode, Log);
 				}
 				return bResult;

@@ -438,6 +438,9 @@ public:
 	/** Reset any dynamics running simulation-style updates (e.g. on teleport, time skip etc.) */
 	void ResetDynamics(ETeleportType InTeleportType);
 
+	/** Returns all Animation Nodes of FAnimNode_AssetPlayerBase class within the specified (named) Animation Graph */
+	TArray<FAnimNode_AssetPlayerBase*> GetInstanceAssetPlayers(const FName& GraphName);
+
 	UE_DEPRECATED(4.20, "Please use ResetDynamics with a ETeleportType argument")
 	void ResetDynamics();
 
@@ -759,6 +762,9 @@ protected:
 	void AddCurveValue(const FSmartNameMapping& Mapping, const FName& CurveName, float Value);
 
 private:
+	/** Get the debug data for this instance's anim bp */
+	FAnimBlueprintDebugData* GetAnimBlueprintDebugData() const;
+
 	/** The component to world transform of the component we are running on */
 	FTransform ComponentTransform;
 

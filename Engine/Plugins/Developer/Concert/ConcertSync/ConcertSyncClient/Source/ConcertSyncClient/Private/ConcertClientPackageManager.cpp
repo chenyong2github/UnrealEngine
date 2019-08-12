@@ -310,6 +310,11 @@ void FConcertClientPackageManager::HandleLocalPackageEvent(const FConcertPackage
 				return;
 			}
 		}
+
+		if (!FPackageName::IsValidLongPackageName(Package.Info.PackageName.ToString())) // Auto-Save might save the template in /Temp/... which is an invalid long package name.
+		{
+			return;
+		}
 	}
 
 	if (Package.Info.PackageUpdateType == EConcertPackageUpdateType::Added && EnumHasAnyFlags(LiveSession->GetSessionFlags(), EConcertSyncSessionFlags::ShouldUsePackageSandbox))

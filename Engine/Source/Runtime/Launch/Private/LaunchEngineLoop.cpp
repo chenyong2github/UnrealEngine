@@ -152,6 +152,7 @@
 
 	#include "MoviePlayer.h"
     #include "PreLoadScreenManager.h"
+	#include "InstallBundleManagerInterface.h"
 
 	#include "ShaderCodeLibrary.h"
 	#include "ShaderPipelineCache.h"
@@ -889,6 +890,12 @@ void LaunchUpdateMostRecentProjectFile()
 		}
 	}
 }
+
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig);
+#endif
+void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads);
+void HandleConfigReload(bool bReloadConfig);
 
 #if !UE_BUILD_SHIPPING
 class FFileInPakFileHistoryHelper
@@ -1737,18 +1744,19 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 	constexpr bool bWithConfigPatching = false;
 #endif
 
-	if (bWithConfigPatching)
+	if (bDumpEarlyConfigReads)
+	{
+		RecordConfigReadsFromIni();
+	}
+
+	if (bDumpEarlyPakFileReads)
+	{
+		RecordFileReadsFromPaks();
+	}
+
+	if(bWithConfigPatching)
 	{
 		UE_LOG(LogInit, Verbose, TEXT("Begin recording CVar changes for config patching."));
-
-		if (bDumpEarlyConfigReads)
-		{
-			RecordConfigReadsFromIni();
-		}
-		if (bDumpEarlyPakFileReads)
-		{
-			RecordFileReadsFromPaks();
-		}
 
 		RecordApplyCVarSettingsFromIni();
 	}
@@ -2381,16 +2389,13 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 					return 1;
 				}
 			}
-
-			if (bWithConfigPatching)
+			
+			IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
+			if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 			{
-				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
-				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
-				{
-					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
-				}
-				// If not using the bundle manager, config will be reloaded after ESP, see below
+				IInstallBundleManager::InstallBundleCompleteDelegate.AddStatic(&OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads, bWithConfigPatching);
 			}
+			// If not using the bundle manager, config will be reloaded after ESP, see below
 
 			if (GetMoviePlayer()->HasEarlyStartupMovie())
 			{
@@ -2504,7 +2509,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
-		IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+		IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
@@ -2520,12 +2525,13 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 				FCoreDelegates::OnMountAllPakFiles.Execute(PakFolders);
 			}
 
+			DumpEarlyReads(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+
 			//Reapply CVars after our EarlyLoadScreen
 			if(bWithConfigPatching)
 			{
 				SCOPED_BOOT_TIMING("ReapplyCVarsFromIniAfterEarlyStartupScreen");
-
-				HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+				HandleConfigReload(bWithConfigPatching);
 			}
 
 			//Handle opening shader library after our EarlyLoadScreen
@@ -3623,7 +3629,7 @@ void FEngineLoop::Exit()
 	GIsRunning	= 0;
 	GLogConsole	= nullptr;
 
-	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 
 	// shutdown visual logger and flush all data
 #if ENABLE_VISUAL_LOG
@@ -3780,17 +3786,20 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
-void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads, bool bReloadConfig)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
-		HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+		DumpEarlyReads(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+		HandleConfigReload(bReloadConfig);
 
-		IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(&GEngineLoop);
 	}
 }
+#endif
 
-void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+void DumpEarlyReads(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
 {
 	if (bDumpEarlyConfigReads)
 	{
@@ -3803,9 +3812,15 @@ void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarly
 		DumpRecordedFileReadsFromPaks();
 		DeleteRecordedFileReadsFromPaks();
 	}
+}
 
-	ReapplyRecordedCVarSettingsFromIni();
-	DeleteRecordedCVarSettingsFromIni();
+void HandleConfigReload(bool bReloadConfig)
+{
+	if (bReloadConfig)
+	{
+		ReapplyRecordedCVarSettingsFromIni();
+		DeleteRecordedCVarSettingsFromIni();
+	}
 }
 
 bool FEngineLoop::ShouldUseIdleMode() const

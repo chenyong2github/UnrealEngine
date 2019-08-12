@@ -7,7 +7,7 @@
 #include "Components/CapsuleComponent.h"
 #include "DrawDebugHelpers.h"
 #include "VisualLogger/VisualLogger.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkPredictionTypes.h"
 
 
 DEFINE_LOG_CATEGORY_STATIC(LogBaseMovement, Log, All);

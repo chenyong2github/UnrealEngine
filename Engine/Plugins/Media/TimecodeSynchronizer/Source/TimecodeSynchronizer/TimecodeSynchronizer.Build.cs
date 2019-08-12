@@ -11,7 +11,6 @@ public class TimecodeSynchronizer : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"Media",
 				"MediaAssets",
 				"MediaUtils",
 				"TimeManagement",

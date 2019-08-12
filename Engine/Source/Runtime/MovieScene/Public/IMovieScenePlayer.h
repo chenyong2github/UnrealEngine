@@ -278,6 +278,19 @@ public:
 	}
 
 	/**
+	 * Attempt to save specific global state for the specified token state before it animates an object.
+	 * @note: Will only call IMovieSceneExecutionToken::CacheExistingState if no state has been previously cached for the specified token type
+	 *
+	 * @param InObject			The object to cache state for
+	 * @param InTokenType		Unique marker that identifies the originating token type
+	 * @param InProducer		Producer implementation that defines how to create the preanimated token, if it doesn't already exist
+	 */
+	FORCEINLINE void SaveGlobalPreAnimatedState(UObject& InObject, FMovieSceneAnimTypeID InTokenType, const IMovieScenePreAnimatedTokenProducer& InProducer)
+	{
+		PreAnimatedState.SavePreAnimatedState(InTokenType, InProducer, InObject, ECapturePreAnimatedState::Global, FMovieSceneEvaluationKey());
+	}
+
+	/**
 	 * Restore all pre-animated state
 	 */
 	void RestorePreAnimatedState()

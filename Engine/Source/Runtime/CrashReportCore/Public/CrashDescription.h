@@ -383,6 +383,11 @@ struct FPrimaryCrashProperties
 	 */
 	FString CrashType;
 
+	/**
+	 *	The cpu brand of the device, e.g. Intel, iPhone6, etc.
+	 */
+	FCrashProperty CPUBrand;
+
 protected:
 	/** Default constructor. */
 	FPrimaryCrashProperties();

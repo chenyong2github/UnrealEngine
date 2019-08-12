@@ -13,6 +13,7 @@ class SWidget;
 class UAnimationAsset;
 class USkeletalMesh;
 class USkeleton;
+struct FAnimBlueprintDebugData;
 
 USTRUCT()
 struct FAnimGroupInfo
@@ -130,7 +131,7 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	int32 FindOrAddGroup(FName GroupName);
 
 	/** Returns the most base anim blueprint for a given blueprint (if it is inherited from another anim blueprint, returning null if only native / non-anim BP classes are it's parent) */
-	static UAnimBlueprint* FindRootAnimBlueprint(UAnimBlueprint* DerivedBlueprint);
+	static UAnimBlueprint* FindRootAnimBlueprint(const UAnimBlueprint* DerivedBlueprint);
 
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnOverrideChangedMulticaster, FGuid, UAnimationAsset*);
 
@@ -165,6 +166,13 @@ public:
 	virtual USkeletalMesh* GetPreviewMesh(bool bFindIfNotSet = false) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 
+public:
+	/** Check if the anim instance is the active debug object for this anim BP */
+	bool IsObjectBeingDebugged(const UObject* AnimInstance) const;
+
+	/** Get the debug data for this anim BP */
+	FAnimBlueprintDebugData* GetDebugData() const;
+
 #if WITH_EDITORONLY_DATA
 public:
 	// Array of overrides to asset containing nodes in the parent that have been overridden
@@ -180,5 +188,5 @@ private:
 	/** The default skeletal mesh to use when previewing this asset - this only applies when you open Persona using this asset*/
 	UPROPERTY(duplicatetransient, AssetRegistrySearchable)
 	TSoftObjectPtr<class USkeletalMesh> PreviewSkeletalMesh;
-#endif
+#endif // WITH_EDITORONLY_DATA
 };

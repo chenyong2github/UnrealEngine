@@ -3554,17 +3554,8 @@ bool FRecastNavMeshGenerator::RebuildAll()
 	
 	if (MarkNavBoundsDirty() == false)
 	{
-		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-		if (NavSys && !NavSys->ShouldGenerateNavDataWhenNoCompatibleNavBound())
-		{
-			// There are no navigation bounds to build, no point keeping the nav mesh
-			DestNavMesh->Destroy();
-		}
-		else
-		{
-			// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
-			DestNavMesh->RequestDrawingUpdate();
-		}
+		// There are no navigation bounds to build, probably navmesh was resized and we just need to update debug draw
+		DestNavMesh->RequestDrawingUpdate();
 	}
 
 	return true;

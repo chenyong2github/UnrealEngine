@@ -64,21 +64,6 @@ void SNiagaraStackParameterStoreEntryValue::Construct(const FArguments& InArgs, 
 			]
 		]
 
-		// Handle drop-down button
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		.Padding(3, 0, 0, 0)
-		[
-			SNew(SComboButton)
-			.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-			.ForegroundColor(FSlateColor::UseForeground())
-			.OnGetMenuContent(this, &SNiagaraStackParameterStoreEntryValue::OnGetAvailableHandleMenu)
-			.ContentPadding(FMargin(2))
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
-		]
-
 		// Reset Button
 		+ SHorizontalBox::Slot()
 		.AutoWidth()
@@ -133,13 +118,6 @@ FReply SNiagaraStackParameterStoreEntryValue::DeleteClicked()
 	return FReply::Handled();
 }
 
-TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::OnGetAvailableHandleMenu()
-{
-	// TODO: This will need to be adjusted based on the current stack being edited, i.e. system vs emitter vs particle.
-	FMenuBuilder MenuBuilder(true, nullptr);
-	return MenuBuilder.MakeWidget();
-}
-
 TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructWidget()
 {
 	ValueStructParameterEditor.Reset();
@@ -183,6 +161,11 @@ TSharedRef<SWidget> SNiagaraStackParameterStoreEntryValue::ConstructValueStructW
 			ValueStructDetailsView = StructureDetailsView;
 			return StructureDetailsView->GetWidget().ToSharedRef();
 		}
+	}
+	else if (StackEntry->GetInputType().GetClass() != nullptr)
+	{
+		return SNew(STextBlock)
+			.Text(StackEntry->GetInputType().GetClass()->GetDisplayNameText());
 	}
 	else
 	{

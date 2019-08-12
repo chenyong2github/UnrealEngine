@@ -403,7 +403,7 @@ UObject* UTexture2DFactoryNew::FactoryCreateNew( UClass* InClass, UObject* InPar
 	//Set the source art to be white as default.
 	if( Object->Source.IsValid() )
 	{
-		TArray<uint8> TexturePixels;
+		TArray64<uint8> TexturePixels;
 		Object->Source.GetMipData( TexturePixels, 0 );
 
 		uint8* DestData = Object->Source.LockMip(0);
@@ -4540,7 +4540,7 @@ bool UTextureExporterPCX::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	// Set all PCX file header properties.
@@ -4635,7 +4635,7 @@ bool UTextureExporterBMP::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	FBitmapFileHeader bmf;
@@ -4835,7 +4835,7 @@ bool UTextureExporterTGA::ExportBinary( UObject* Object, const TCHAR* Type, FArc
 
 	int32 SizeX = Texture->Source.GetSizeX();
 	int32 SizeY = Texture->Source.GetSizeY();
-	TArray<uint8> RawData;
+	TArray64<uint8> RawData;
 	Texture->Source.GetMipData(RawData, 0);
 
 	// If we should export the file with no alpha info.  
@@ -5556,7 +5556,9 @@ bool UReimportFbxStaticMeshFactory::CanReimport( UObject* Obj, TArray<FString>& 
 				return false;
 			}
 
-			if (FPaths::GetExtension(Mesh->AssetImportData->GetFirstFilename()) == TEXT("abc"))
+			FString FileExtension = FPaths::GetExtension(Mesh->AssetImportData->GetFirstFilename());
+			const bool bIsValidFile = FileExtension.Equals(TEXT("fbx"), ESearchCase::IgnoreCase) || FileExtension.Equals("obj", ESearchCase::IgnoreCase);
+			if (!bIsValidFile)
 			{
 				return false;
 			}

@@ -40,14 +40,14 @@ bool FOSCMessagePacket::IsMessage()
 
 void FOSCMessagePacket::WriteData(FOSCStream& Stream)
 {
-	if (!Address.IsMessage())
+	if (!Address.IsValidPath())
 	{
-		UE_LOG(LogOSC, Warning, TEXT("Failed to write OSCMessagePacket. Invalid OSCAddress '%s'"), *Address.Value);
+		UE_LOG(LogOSC, Warning, TEXT("Failed to write OSCMessagePacket. Invalid OSCAddress '%s'"), *Address.GetFullPath());
 		return;
 	}
 
 	// Begin writing data 
-	Stream.WriteString(Address.Value);
+	Stream.WriteString(Address.GetFullPath());
 
 	// write type tags
 	FString TagTypes = ",";

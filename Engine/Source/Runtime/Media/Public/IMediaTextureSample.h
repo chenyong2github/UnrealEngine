@@ -249,6 +249,8 @@ public:
 		return DefaultMatrix;
 	}
 
+	virtual void Reset() { }
+	
 public:
 
 	/** Virtual destructor. */

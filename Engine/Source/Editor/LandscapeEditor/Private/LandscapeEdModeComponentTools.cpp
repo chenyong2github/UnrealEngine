@@ -792,8 +792,8 @@ public:
 			if (bHasXYOffset)
 			{
 				XYOffsetCache.SetCachedData(X1, Y1, X2, Y2, XYOffsetData);
-				XYOffsetCache.Flush();
 			}
+			XYOffsetCache.Flush();
 
 			HeightCache.SetCachedData(X1, Y1, X2, Y2, Data);
 			HeightCache.Flush();

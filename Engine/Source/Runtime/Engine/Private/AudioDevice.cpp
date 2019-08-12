@@ -344,7 +344,7 @@ bool FAudioDevice::Init(int32 InMaxSources)
 	GlobalMaxPitch = FMath::Clamp(AudioSettings->GlobalMaxPitchScale, 0.0001f, 4.0f);
 	bAllowCenterChannel3DPanning = AudioSettings->bAllowCenterChannel3DPanning;
 	bAllowPlayWhenSilent = AudioSettings->bAllowPlayWhenSilent;
-	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel;
+	DefaultReverbSendLevel = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
 
 	const FSoftObjectPath DefaultBaseSoundMixName = GetDefault<UAudioSettings>()->DefaultBaseSoundMix;
 	if (DefaultBaseSoundMixName.IsValid())
@@ -3824,10 +3824,8 @@ void FAudioDevice::Update(bool bGameTicking)
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
 
-	if (!IsInAudioThread())
+	if (IsInGameThread())
 	{
-		check(IsInGameThread());
-
 		// On game thread, look through registered sound waves and remove if we finished precaching (and audio decompressor is cleaned up)
 		// ReferencedSoundWaves is used to make sure GC doesn't run on any sound waves that are actively pre-caching within an async task.
 		// Sounds may be loaded, kick off an async task to decompress, but never actually try to play, so GC can reclaim these while precaches are in-flight.
@@ -3839,6 +3837,11 @@ void FAudioDevice::Update(bool bGameTicking)
 				ReferencedSoundWaves.RemoveAtSwap(i, 1, false);
 			}
 		}
+	}
+
+	if (!IsInAudioThread())
+	{
+		check(IsInGameThread());
 
 		FAudioDevice* AudioDevice = this;
 		FAudioThread::RunCommandOnAudioThread([AudioDevice, bGameTicking]()
@@ -4966,6 +4969,7 @@ FAudioDevice::FCreateComponentParams::FCreateComponentParams(FAudioDevice* InAud
 
 void FAudioDevice::FCreateComponentParams::CommonInit()
 {
+	bAutoDestroy = true;
 	bPlay = false;
 	bStopWhenOwnerDestroyed = true;
 	bLocationSet = false;

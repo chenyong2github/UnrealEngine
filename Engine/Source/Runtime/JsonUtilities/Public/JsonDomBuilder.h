@@ -46,6 +46,11 @@ public:
 			return MakeShared<FJsonValueObject>(Object);
 		}
 
+		TSharedRef<FJsonObject> AsJsonObject() const
+		{
+			return Object;
+		}
+
 		template <template <class> class TPrintPolicy = TPrettyJsonPrintPolicy>
 		FString ToString() const
 		{

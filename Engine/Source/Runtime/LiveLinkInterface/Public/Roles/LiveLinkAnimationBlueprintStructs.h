@@ -15,14 +15,14 @@ struct FSubjectMetadata
 {
 	GENERATED_USTRUCT_BODY()
 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "LiveLink")
-	TMap<FName, FString> StringMetadata;
+		UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "LiveLink")
+		TMap<FName, FString> StringMetadata;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "LiveLink")
-	FTimecode SceneTimecode;
+		FTimecode SceneTimecode;
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "LiveLink")
-	FFrameRate SceneFramerate;
+		FFrameRate SceneFramerate;
 };
 
 USTRUCT()
@@ -30,7 +30,7 @@ struct FCachedSubjectFrame
 {
 	GENERATED_USTRUCT_BODY()
 
-	FCachedSubjectFrame();
+		FCachedSubjectFrame();
 
 	FCachedSubjectFrame(const FLiveLinkSkeletonStaticData* InStaticData, const FLiveLinkAnimationFrameData* InAnimData);
 
@@ -83,7 +83,7 @@ struct LIVELINKINTERFACE_API FLiveLinkTransform
 {
 	GENERATED_USTRUCT_BODY()
 
-	FLiveLinkTransform();
+		FLiveLinkTransform();
 
 	virtual ~FLiveLinkTransform() = default;
 
@@ -117,7 +117,7 @@ struct LIVELINKINTERFACE_API FSubjectFrameHandle : public FLiveLinkBaseBlueprint
 {
 	GENERATED_USTRUCT_BODY()
 
-	FSubjectFrameHandle() = default;
+		FSubjectFrameHandle() = default;
 
 	virtual ~FSubjectFrameHandle() = default;
 

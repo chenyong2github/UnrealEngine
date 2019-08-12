@@ -1204,6 +1204,12 @@ extern void SubmitMeshDrawCommandsRange(
 	uint32 InstanceFactor,
 	FRHICommandList& RHICmdList);
 
+extern void ApplyViewOverridesToMeshDrawCommands(
+	const FSceneView& View,
+	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
+	FDynamicMeshDrawCommandStorage& DynamicMeshDrawCommandStorage,
+	FGraphicsMinimalPipelineStateSet& GraphicsMinimalPipelineStateSet);
+
 RENDERER_API extern void DrawDynamicMeshPassPrivate(
 	const FSceneView& View,
 	FRHICommandList& RHICmdList,
@@ -1227,6 +1233,7 @@ public:
 
 	bool bCastRayTracedShadows = true;
 	bool bOpaque = true;
+	bool bDecal = false;
 
 	/** Sets ray hit group shaders on the mesh command and allocates room for the shader bindings. */
 	RENDERER_API void SetShaders(const FMeshProcessorShaders& Shaders);

@@ -176,6 +176,8 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 	// -------------------------------------
 	if (NetworkSim)
 	{
+		PreTickSimulation(DeltaTime); // Fixme
+
 		// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
 		if (OwnerRole == ROLE_Authority && MockNetworkSimCVars::RequestMispredict)
 		{
@@ -207,7 +209,7 @@ void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState
 	OutSyncState.Total = MockValue;
 }
 
-void UMockNetworkSimulationComponent::SyncTo(const FMockSyncState& SyncState)
+void UMockNetworkSimulationComponent::FinalizeFrame(const FMockSyncState& SyncState)
 {
 	MockValue = SyncState.Total;
 }

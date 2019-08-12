@@ -330,6 +330,8 @@ enum ELandscapeLayerUpdateMode : uint32
 	Update_Client_Editing = 1 << 5
 };
 
+static const uint32 DefaultSplineHash = 0xFFFFFFFF;
+
 #endif
 
 UENUM()
@@ -528,6 +530,9 @@ public:
 
 	/** Represents hash of last weightmap usage update */
 	uint32 WeightmapsHash;
+
+	UPROPERTY()
+	uint32 SplineHash;
 #endif
 
 	/** For ES2 */
@@ -617,6 +622,8 @@ public:
 	LANDSCAPE_API const TArray<FWeightmapLayerAllocationInfo>& GetWeightmapLayerAllocations(const FGuid& InLayerGuid) const;
 
 #if WITH_EDITOR
+	LANDSCAPE_API uint32 ComputeLayerHash() const;
+
 	LANDSCAPE_API void SetHeightmap(UTexture2D* NewHeightmap);
 
 	LANDSCAPE_API void SetWeightmapTextures(const TArray<UTexture2D*>& InNewWeightmapTextures, bool InApplyToEditingWeightmap = false);

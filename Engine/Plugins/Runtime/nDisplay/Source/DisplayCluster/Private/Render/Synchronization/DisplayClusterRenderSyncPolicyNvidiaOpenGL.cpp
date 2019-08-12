@@ -104,13 +104,13 @@ bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeNvidiaSwapLock()
 
 	if (!DisplayCluster_wglJoinSwapGroupNV_ProcAddress || !DisplayCluster_wglBindSwapBarrierNV_ProcAddress)
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Group/Barrier functions not available"));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Group/Barrier functions not available"));
 		return false;
 	}
 
 	if (!GEngine || !GEngine->GameViewport || !GEngine->GameViewport->Viewport || !GEngine->GameViewport->Viewport->GetViewportRHI().IsValid())
 	{
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Game viewport hasn't been initialized yet"));
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Game viewport hasn't been initialized yet"));
 		return false;
 	}
 
@@ -125,36 +125,36 @@ bool FDisplayClusterRenderSyncPolicyNvidiaOpenGL::InitializeNvidiaSwapLock()
 
 	if (!DisplayCluster_wglQueryMaxSwapGroupsNV_ProcAddress(OpenGLContext->DeviceContext, &maxGroups, &maxBarriers))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't query gr/br limits: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't query gr/br limits: %d"), glGetError());
 		return false;
 	}
 
-	UE_LOG(LogDisplayClusterRender, Log, TEXT("max_groups=%d max_barriers=%d"), (int)maxGroups, (int)maxBarriers);
+	UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("max_groups=%d max_barriers=%d"), (int)maxGroups, (int)maxBarriers);
 
 	if (!(maxGroups > 0 && maxBarriers > 0))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("There are no available groups or barriers"));
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("There are no available groups or barriers"));
 		return false;
 	}
 
 	if (!DisplayCluster_wglJoinSwapGroupNV_ProcAddress(OpenGLContext->DeviceContext, 1))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't join swap group: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't join swap group: %d"), glGetError());
 		return false;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("Successfully joined the swap group: 1"));
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Successfully joined the swap group: 1"));
 	}
 
 	if (!DisplayCluster_wglBindSwapBarrierNV_ProcAddress(1, 1))
 	{
-		UE_LOG(LogDisplayClusterRender, Error, TEXT("Couldn't bind to swap barrier: %d"), glGetError());
+		UE_LOG(LogDisplayClusterRenderSync, Error, TEXT("Couldn't bind to swap barrier: %d"), glGetError());
 		return false;
 	}
 	else
 	{
-		UE_LOG(LogDisplayClusterRender, Log, TEXT("Successfully binded to the swap barrier: 1"));
+		UE_LOG(LogDisplayClusterRenderSync, Log, TEXT("Successfully binded to the swap barrier: 1"));
 	}
 
 	return true;
@@ -222,5 +222,5 @@ void FDisplayClusterRenderSyncPolicyNvidiaOpenGL::UpdateSwapInterval(int32 InSyn
 
 	// Perform that each frame
 	if (!DisplayCluster_wglSwapIntervalEXT_ProcAddress(InSyncInterval))
-		UE_LOG(LogDisplayClusterRender, Warning, TEXT("Couldn't set swap interval: %d"), InSyncInterval);
+		UE_LOG(LogDisplayClusterRenderSync, Warning, TEXT("Couldn't set swap interval: %d"), InSyncInterval);
 }

@@ -35,60 +35,93 @@ FFrameTime ULiveLinkTimeSynchronizationSource::GetOldestSampleTime() const
 FFrameRate ULiveLinkTimeSynchronizationSource::GetFrameRate() const
 {
 	UpdateCachedState();
-	return CachedData.Settings.FrameRate;
+	return CachedData.SampleFrameRate;
 }
 
 bool ULiveLinkTimeSynchronizationSource::IsReady() const
 {
 	UpdateCachedState();
-	return LiveLinkClient && CachedData.bIsValid && (ESyncState::NotSynced == State || LastUpdateGuid == CachedData.SkeletonGuid);
+	return LiveLinkClient && CachedData.bIsValid && IsCurrentStateValid();
 }
 
 bool ULiveLinkTimeSynchronizationSource::Open(const FTimeSynchronizationOpenData& OpenData)
 {
-	UE_LOG(LogLiveLink, Log, TEXT("ULiveLinkTimeSynchronizationSource::Open %s"), *SubjectName.ToString());
-	if (ensure(LiveLinkClient != nullptr) && IsReady())
+	State = ESyncState::NotSynced;
+	SubjectKey = FLiveLinkSubjectKey();
+
+	if (LiveLinkClient == nullptr)
 	{
-		State = ESyncState::Opened;
-		LastUpdateGuid = CachedData.SkeletonGuid;
-		LiveLinkClient->OnStartSynchronization(SubjectName, OpenData, FrameOffset);
-		return true;
-	}
-	else
-	{
-		State = ESyncState::NotSynced;
 		return false;
 	}
+
+	TArray<FLiveLinkSubjectKey> AllSubjects = LiveLinkClient->GetSubjects(false, false);
+	FLiveLinkSubjectKey* SubjectKeyPtr = AllSubjects.FindByPredicate([this](const FLiveLinkSubjectKey& InSubjectKey) { return InSubjectKey.SubjectName == SubjectName; });
+	if (SubjectKeyPtr == nullptr)
+	{
+		UE_LOG(LogLiveLink, Error, TEXT("The susbject '%s' is not valid"), *SubjectName.ToString());
+		return false;
+	}
+
+	SubjectKey = *SubjectKeyPtr;
+
+	bool bResult = IsCurrentStateValid();
+
+	if (bResult)
+	{
+		State = ESyncState::Opened;
+	}
+	return bResult;
 }
 
 void ULiveLinkTimeSynchronizationSource::Start(const FTimeSynchronizationStartData& StartData)
 {
-	UE_LOG(LogLiveLink, Log, TEXT("ULiveLinkTimeSynchronizationSource::Start %s"), *SubjectName.ToString());
-	if (ensure(LiveLinkClient != nullptr))
-	{
-		State = ESyncState::Synced;
-		LiveLinkClient->OnSynchronizationEstablished(SubjectName, StartData);
-	}
-	else
-	{
-		State = ESyncState::NotSynced;
-	}
 }
 
 void ULiveLinkTimeSynchronizationSource::Close()
 {
-	UE_LOG(LogLiveLink, Log, TEXT("ULiveLinkTimeSynchronizationSource::Close %s"), *SubjectName.ToString());
-	if (ensure(LiveLinkClient != nullptr))
-	{
-		LiveLinkClient->OnStopSynchronization(SubjectName);
-	}
-
 	State = ESyncState::NotSynced;
+	SubjectKey = FLiveLinkSubjectKey();
 }
 
 FString ULiveLinkTimeSynchronizationSource::GetDisplayName() const
 {
 	return SubjectName.ToString();
+}
+
+bool ULiveLinkTimeSynchronizationSource::IsCurrentStateValid() const
+{
+	ensure(LiveLinkClient != nullptr);
+	if (LiveLinkClient == nullptr)
+	{
+		return false;
+	}
+
+	if (!LiveLinkClient->IsSubjectEnabled(SubjectKey, false))
+	{
+		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' is not enabled."), *SubjectName.ToString());
+		return false;
+	}
+
+	if (LiveLinkClient->IsVirtualSubject(SubjectKey))
+	{
+		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' can't be a virtual subject."), *SubjectName.ToString());
+		return false;
+	}
+
+	ULiveLinkSourceSettings* SourceSettings = LiveLinkClient->GetSourceSettings(SubjectKey.Source);
+	if (SourceSettings == nullptr)
+	{
+		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' source does not have a source settings."), *SubjectName.ToString());
+		return false;
+	}
+
+	if (SourceSettings->Mode != ELiveLinkSourceMode::Timecode)
+	{
+		UE_LOG(LogLiveLink, Error, TEXT("The subject '%s' source is not in Timecode mode."), *SubjectName.ToString());
+		return false;
+	}
+
+	return true;
 }
 
 void ULiveLinkTimeSynchronizationSource::OnModularFeatureRegistered(const FName& FeatureName, class IModularFeature* Feature)

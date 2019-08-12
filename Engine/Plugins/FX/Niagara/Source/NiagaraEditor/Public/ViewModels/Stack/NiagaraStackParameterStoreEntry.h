@@ -55,7 +55,7 @@ public:
 	TSharedPtr<FStructOnScope> GetValueStruct();
 
 	/** Gets the current object value of this input is there is one. */
-	UNiagaraDataInterface* GetValueObject();
+	UObject* GetValueObject();
 
 	/** Called to notify the input that an ongoing change to it's value has begun. */
 	void NotifyBeginValueChange();
@@ -102,7 +102,7 @@ protected:
 
 	void RefreshValueAndHandle();
 	TSharedPtr<FNiagaraVariable> GetCurrentValueVariable();
-	UNiagaraDataInterface* GetCurrentValueObject();
+	UObject* GetCurrentValueObject();
 
 private:
 	void RemovePins(TArray<UEdGraphPin*> PinsToRemove);
@@ -129,7 +129,7 @@ private:
 
 	/** A pointer to the data interface object for this input if one is available. */
 	UPROPERTY()
-	UNiagaraDataInterface* ValueObject;
+	UObject* ValueObject;
 
 	UPROPERTY()
 	UObject* Owner;

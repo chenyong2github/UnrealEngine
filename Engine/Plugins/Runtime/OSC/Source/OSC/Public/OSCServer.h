@@ -14,11 +14,15 @@
 
 #include "OSCServer.generated.h"
 
-
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage &, Message);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedBundleEvent, const FOSCBundle &, Bundle);
-
+// Forward Declarations
 class FSocket;
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedMessageEvent, const FOSCMessage&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOSCDispatchMessageEvent, const FOSCAddress&, AddressPattern, const FOSCMessage&, Message);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOSCReceivedBundleEvent, const FOSCBundle&, Bundle);
+
+DECLARE_DYNAMIC_DELEGATE_TwoParams(FOSCDispatchMessageEventBP, const FOSCAddress&, AddressPattern, const FOSCMessage&, Message);
+
 
 UCLASS(BlueprintType)
 class OSC_API UOSCServer : public UObject
@@ -78,6 +82,26 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
 	TSet<FString> GetWhitelistedClients() const;
 
+	/** Adds event to dispatch when OSCAddressPattern is matched. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void BindEventToOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
+
+	/** Unbinds specific event from OSCAddress patter */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void UnbindEventFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event);
+
+	/** Removes OSCAddressPattern from sending dispatch events. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void UnbindAllEventsFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern);
+
+	/** Removes all events from OSCAddressPatterns to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	void UnbindAllEventsFromOnOSCAddressPatternMatching();
+
+	/** Returns set of OSCAddressPatterns currently listening for matches to dispatch. */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC")
+	TArray<FOSCAddress> GetBoundOSCAddressPatterns() const;
+
 protected:
 	void BeginDestroy() override;
 	
@@ -107,4 +131,7 @@ protected:
 
 	/** Whether or not to loopback if address provided is multicast */
 	bool bMulticastLoopback;
+	
+	/** Address pattern hash to  to check against when dispatching incoming messages */
+	TMap<FOSCAddress, FOSCDispatchMessageEvent> AddressPatterns;
 };

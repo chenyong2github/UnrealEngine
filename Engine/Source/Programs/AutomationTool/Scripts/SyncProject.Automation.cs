@@ -13,6 +13,7 @@ using System.Text.RegularExpressions;
 [Help("project=<FortniteGame>", "Project to sync. Will search current path and paths in ueprojectdirs. If omitted will sync projectdirs")]
 [Help("threads=N", "How many threads to use when syncing. Default=2. When >1 all output happens first")]
 [Help("cl=< 12345 >", "Changelist to sync to. If omitted will sync to latest CL of the workspace path")]
+[Help("clean", "Clean old files before building")]
 [Help("build", "Build after syncing")]
 [Help("open", "Open project editor after syncing")]
 [Help("generate", "Generate project files after syncing")]
@@ -256,6 +257,7 @@ class SyncProject : BuildCommand
 			if (BuildProject && ExitStatus == ExitCode.Success)
 			{
 				BuildEditor BuildCmd = new BuildEditor();
+				BuildCmd.Clean = ParseParam("clean");
 				BuildCmd.ProjectName = ProjectName;
 				ExitStatus = BuildCmd.Execute();
 			}

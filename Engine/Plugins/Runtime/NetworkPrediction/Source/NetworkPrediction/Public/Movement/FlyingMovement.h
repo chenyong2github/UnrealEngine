@@ -13,7 +13,7 @@
 #include "Components/SceneComponent.h"
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "FlyingMovement.generated.h"
@@ -110,8 +110,10 @@ namespace FlyingMovement
 		}
 	};
 
+	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
+
 	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, FInputCmd, FMoveState, FAuxState>
+	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes>
 	{
 	public:
 
@@ -119,8 +121,13 @@ namespace FlyingMovement
 		class IMovementDriver : public IDriver
 		{
 		public:
-			// FlyingMovement only really needs the base driver functions for moving a primitive component around.
+			// Interface for moving the collision component around
 			virtual IBaseMovementDriver& GetBaseMovementDriver() = 0;
+
+			// Called prior to running the sim to make sure to make sure the collision component is in the right place. 
+			// This is unfortunate and not good, but is needed to ensure our collision and world position have not been moved out from under us.
+			// Refactoring primitive component movement to allow the sim to do all collision queries outside of the component code would be ideal.
+			virtual void PreSimSync(const FMoveState& SyncState) = 0;
 		};
 
 		/** Main update function */
@@ -160,7 +167,8 @@ public:
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
 
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
-	void SyncTo(const FlyingMovement::FMoveState& SyncState) override;
+	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
+	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState) override;
 
 protected:
 

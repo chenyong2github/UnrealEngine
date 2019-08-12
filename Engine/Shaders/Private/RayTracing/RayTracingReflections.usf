@@ -295,7 +295,7 @@ void RayTracingReflectionsRGS()
 				{
 					if (DIM_DEFERRED_MATERIAL_MODE == DEFERRED_MATERIAL_MODE_GATHER)
 					{
-						uint RayFlags = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+						uint RayFlags = 0;
 						DeferredMaterialPayload.SortKey = RAY_TRACING_DEFERRED_MATERIAL_KEY_RAY_MISS;
 						TraceRay(
 							TLAS,								// AccelerationStructure
@@ -438,7 +438,10 @@ void RayTracingReflectionsRGS()
 						uint NumCulledReflectionCaptures = ForwardLightData.NumReflectionCaptures;
 						uint ReflectionCapturesStartIndex = 0;
 
-						float3 R = reflect(BottomLayerRay.Direction, BottomLayerWorldNormal);
+						// Compute a perfect mirror reflection direction to use for prefiltered cubemap lookup.
+						// Note that CompositeReflectionCapturesAndSkylight() uses BottomLayerRoughness to compute the cubemap mip level.
+						float3 R = reflect(IncidentDirection, BottomLayerWorldNormal);
+
 						const float NoV = saturate(dot(-BottomLayerRay.Direction, BottomLayerWorldNormal));
 						const float AO = 1.0f;
 						const float RoughnessSq = BottomLayerRoughness * BottomLayerRoughness;

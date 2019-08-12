@@ -26,7 +26,8 @@ const TCHAR* FHoloLensProcess::BaseDir()
 		{
 			CmdLine = FCommandLine::Get();
 		}
-		// @ATG_CHANGE :  - code path that was hitting BaseDir in static initializers was removed
+		// Change from Microsoft, may require further review:
+		// code path that was hitting BaseDir in static initializers was removed
 		//                  and command line parsing was moved to earlier in launch to help avoid having 
 		//                  to have command line parsing code in multiple location.
 		//                  There's still potential for error here until Epic allows platform-subclassing the

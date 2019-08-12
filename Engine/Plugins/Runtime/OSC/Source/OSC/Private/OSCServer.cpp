@@ -30,17 +30,10 @@ UOSCServer::UOSCServer(const FObjectInitializer& ObjectInitializer)
 
 void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endpoint)
 {
-	// Throw request on the ground if not endpoint address not whitelisted.
-	if (bWhitelistClients && !ClientWhitelist.Contains(Endpoint.Address.Value))
-	{
-		return;
-	}
-
 	TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Data->GetData());
 	if (Packet.IsValid())
 	{
 		FOSCStream Stream = FOSCStream(Data->GetData(), Data->Num());
-
 		Packet->ReadData(Stream);
 		OSCPackets.Enqueue(MoveTemp(Packet));
 	}
@@ -49,11 +42,18 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 		!OSCPackets.IsEmpty())
 	{
 		check(OSCBufferLock == OSC_SERVER_BUFFER_LOCKED);
-		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(FSimpleDelegateGraphTask::FDelegate::CreateLambda([this]()
+		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(FSimpleDelegateGraphTask::FDelegate::CreateLambda([this, Endpoint]()
 		{
 			check(OSCBufferLock == OSC_SERVER_BUFFER_LOCKED);
 			FPlatformAtomics::InterlockedCompareExchange(&OSCBufferLock, OSC_SERVER_BUFFER_FREE, OSC_SERVER_BUFFER_LOCKED);
-				
+
+			// Throw request on the ground if endpoint address not whitelisted.
+			if (bWhitelistClients && !ClientWhitelist.Contains(Endpoint.Address.Value))
+			{
+				OSCPackets.Empty();
+				return;
+			}
+
 			TSharedPtr<IOSCPacket> Packet;
 			while (OSCPackets.Dequeue(Packet))
 			{
@@ -61,6 +61,20 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				{
 					FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
 					OnOscReceived.Broadcast(Message);
+					UE_LOG(LogOSC, Verbose, TEXT("Message received from endpoint '%s', OSCAddress of '%s'."), *Endpoint.Address.ToString(), *Message.GetAddress().GetFullPath());
+
+					for (const TPair<FOSCAddress, FOSCDispatchMessageEvent>& Pair: AddressPatterns)
+					{
+						const FOSCDispatchMessageEvent& DispatchEvent = Pair.Value;
+						if (Pair.Key.Matches(Message.GetAddress()))
+						{
+							DispatchEvent.Broadcast(Pair.Key, Message);
+							UE_LOG(LogOSC, Verbose, TEXT("Message dispatched from endpoint '%s', OSCAddress path of '%s' matched OSCAddress pattern '%s'."),
+								*Endpoint.Address.ToString(),
+								*Message.GetAddress().GetFullPath(),
+								*Pair.Key.GetFullPath());
+						}
+					}
 				}
 				else if (Packet->IsBundle())
 				{
@@ -69,7 +83,7 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				}
 				else
 				{
-					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().Value);
+					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. Invalid type (packet is neither identified as message nor bundle)."));
 				}
 			}
 		}),
@@ -220,4 +234,51 @@ TSet<FString> UOSCServer::GetWhitelistedClients() const
 	}
 
 	return OutWhitelist;
+}
+
+void UOSCServer::BindEventToOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event)
+{
+	if (OSCAddressPattern.IsValidPattern())
+	{
+		FOSCDispatchMessageEvent& MessageEvent = AddressPatterns.FindOrAdd(OSCAddressPattern);
+		MessageEvent.AddUnique(Event);
+	}
+}
+
+void UOSCServer::UnbindEventFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern, const FOSCDispatchMessageEventBP& Event)
+{
+	if (OSCAddressPattern.IsValidPattern())
+	{
+		if (FOSCDispatchMessageEvent* AddressPatternEvent = AddressPatterns.Find(OSCAddressPattern))
+		{
+			AddressPatternEvent->Remove(Event);
+			if (!AddressPatternEvent->IsBound())
+			{
+				AddressPatterns.Remove(OSCAddressPattern);
+			}
+		}
+	}
+}
+
+void UOSCServer::UnbindAllEventsFromOnOSCAddressPatternMatchesPath(const FOSCAddress& OSCAddressPattern)
+{
+	if (OSCAddressPattern.IsValidPattern())
+	{
+		AddressPatterns.Remove(OSCAddressPattern);
+	}
+}
+
+void UOSCServer::UnbindAllEventsFromOnOSCAddressPatternMatching()
+{
+	AddressPatterns.Reset();
+}
+
+TArray<FOSCAddress> UOSCServer::GetBoundOSCAddressPatterns() const
+{
+	TArray<FOSCAddress> OutAddressPatterns;
+	for (const TPair<FOSCAddress, FOSCDispatchMessageEvent>& Pair : AddressPatterns)
+	{
+		OutAddressPatterns.Add(Pair.Key);
+	}
+	return MoveTemp(OutAddressPatterns);
 }

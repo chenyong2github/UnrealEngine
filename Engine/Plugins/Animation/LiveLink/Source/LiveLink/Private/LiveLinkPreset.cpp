@@ -12,7 +12,7 @@ bool ULiveLinkPreset::ApplyToClient() const
 		FLiveLinkClient& LiveLinkClient = IModularFeatures::Get().GetModularFeature<FLiveLinkClient>(ILiveLinkClient::ModularFeatureName);
 
 		LiveLinkClient.RemoveAllSources();
-		LiveLinkClient.Tick(0.f);
+		LiveLinkClient.Tick();
 
 		bResult = true;
 		for (const FLiveLinkSourcePreset& SourcePreset : Sources)

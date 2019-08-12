@@ -1157,6 +1157,7 @@ namespace Gauntlet
 			MB.Paragraph(string.Format("Context: {0}", Context.ToString()));
 			MB.Paragraph(string.Format("FatalErrors: {0}, Ensures: {1}, Errors: {2}, Warnings: {3}", FatalErrors, Ensures, Errors, Warnings));
 			MB.Paragraph(string.Format("ResultHash: {0}", GetTestResultHash()));
+			MB.Paragraph(string.Format("Result: {0}", GetTestResult()));
 			//MB.Paragraph(string.Format("Artifacts: {0}", CachedArtifactPath));
 
 			return MB.ToString();

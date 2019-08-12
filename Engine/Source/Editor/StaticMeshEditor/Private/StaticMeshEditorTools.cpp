@@ -2310,7 +2310,7 @@ UStaticMesh& FMeshMaterialsLayout::GetStaticMesh() const
 	return *StaticMesh;
 }
 
-void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder)
+void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder, TSharedPtr<class IPropertyHandle> InHandle)
 {
 	CategoryBuilder.AddCustomRow(LOCTEXT("AddLODLevelCategories_MaterialArrayOperationAdd", "Add Material Slot"))
 		.CopyAction(FUIAction(FExecuteAction::CreateSP(this, &FMeshMaterialsLayout::OnCopyMaterialList), FCanExecuteAction::CreateSP(this, &FMeshMaterialsLayout::OnCanCopyMaterialList)))
@@ -2376,7 +2376,7 @@ void FMeshMaterialsLayout::AddToCategory(IDetailCategoryBuilder& CategoryBuilder
 	MaterialListDelegates.OnCanCopyMaterialItem.BindSP(this, &FMeshMaterialsLayout::OnCanCopyMaterialItem);
 	MaterialListDelegates.OnPasteMaterialItem.BindSP(this, &FMeshMaterialsLayout::OnPasteMaterialItem);
 
-	CategoryBuilder.AddCustomBuilder(MakeShareable(new FMaterialList(CategoryBuilder.GetParentLayout(), MaterialListDelegates, false, true, true)));
+	CategoryBuilder.AddCustomBuilder(MakeShareable(new FMaterialList(CategoryBuilder.GetParentLayout(), MaterialListDelegates, false, true, true, InHandle)));
 }
 
 void FMeshMaterialsLayout::OnCopyMaterialList()
@@ -3268,9 +3268,9 @@ void FLevelOfDetailSettingsLayout::AddLODLevelCategories( IDetailLayoutBuilder& 
 			FString CategoryName = FString(TEXT("StaticMeshMaterials"));
 
 			IDetailCategoryBuilder& MaterialsCategory = DetailBuilder.EditCategory(*CategoryName, LOCTEXT("StaticMeshMaterialsLabel", "Material Slots"), ECategoryPriority::Important);
-
+			TSharedPtr<IPropertyHandle> MeshLODHandle = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UStaticMesh, LODGroup));
 			MaterialsLayoutWidget = MakeShareable(new FMeshMaterialsLayout(StaticMeshEditor));
-			MaterialsLayoutWidget->AddToCategory(MaterialsCategory);
+			MaterialsLayoutWidget->AddToCategory(MaterialsCategory, MeshLODHandle);
 		}
 
 		int32 CurrentLodIndex = 0;

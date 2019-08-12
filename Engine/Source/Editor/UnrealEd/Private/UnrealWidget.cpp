@@ -787,7 +787,8 @@ void FWidget::Render_Rotate( const FSceneView* View,FPrimitiveDrawInterface* PDI
 			FColor ArcColor = ArcBallColor;
 			ArcColor.A = (CurrentAxis==EAxisList::XYZ) ? ArcBallColor.A + 5 : ArcBallColor.A; //less transparent if selected
 
-			PDI->SetHitProxy(new HWidgetAxis(EAxisList::XYZ, bDisabled));
+			//set priority to foreground so axis get hit first
+			PDI->SetHitProxy(new HWidgetAxis(EAxisList::XYZ, bDisabled, HPP_Foreground));
 			{
 				DrawColoredSphere(PDI, InLocation, FRotator::ZeroRotator, ArcColor, Radii, 32, 24, TransparentPlaneMaterialXY->GetRenderProxy(), SDPG_Foreground, true);
 			}

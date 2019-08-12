@@ -94,7 +94,7 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 
 	// Requests the given LiveLink Source to shut down via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	static bool RequestShutdown(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
+	static bool RemoveSource(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
 
 	// Get the text status of a LiveLink Source via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
@@ -119,17 +119,30 @@ public:
 	static TArray<FLiveLinkSubjectKey> GetLiveLinkSubjects(bool bIncludeDisabledSubject, bool bIncludeDisal);
 
 	/**
-	 * Whether or not a subject from the specific source is the enabled subject
-	 * Only 1 subject with the same name can be enabled
+	 * Whether or not a subject from the specific source is the enabled subject.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey);
+	bool IsSpecificLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bUseSnapshot);
 
-	/** Whether or not the client has a subject with this name enabled */
+	/**
+	 * Whether or not the client has a subject with this name enabled
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
 	bool IsLiveLinkSubjectEnabled(const FLiveLinkSubjectName SubjectName);
 
-	/** Set the subject's from a specific source to enabled, disabling the other in the process, or disabled */
+	/** 
+	 * Set the subject's from a specific source to enabled, disabling the other in the process.
+	 * Only 1 subject with the same name can be enabled.
+	 * At the start of the frame, a snapshot of the enabled subjects will be made.
+	 * That snapshot dictate which subject will be used for the duration of that frame.
+	 * SetSubjectEnabled will take effect on the next frame.
+	 */
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
 	void SetLiveLinkSubjectEnabled(const FLiveLinkSubjectKey SubjectKey, bool bEnabled);
 

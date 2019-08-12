@@ -1124,10 +1124,33 @@ bool UNiagaraScript::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* Tar
 {
 	if (ShouldCacheShadersForCooking())
 	{
+		bool bHasOutstandingCompilationRequests = false;
 		if (UNiagaraSystem* SystemOwner = FindRootSystem())
 		{
-			return !SystemOwner->HasOutstandingCompilationRequests();
+			bHasOutstandingCompilationRequests = SystemOwner->HasOutstandingCompilationRequests();
 		}
+
+		if (!bHasOutstandingCompilationRequests)
+		{
+			TArray<FName> DesiredShaderFormats;
+			TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
+
+			const TArray<FNiagaraShaderScript*>* CachedScriptResourcesForPlatform = CachedScriptResourcesForCooking.Find(TargetPlatform);
+			if (CachedScriptResourcesForPlatform)
+			{
+				for (const auto& MaterialResource : *CachedScriptResourcesForPlatform)
+				{
+					if (MaterialResource->IsCompilationFinished() == false)
+					{
+						return false;
+					}
+				}
+
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	return true;

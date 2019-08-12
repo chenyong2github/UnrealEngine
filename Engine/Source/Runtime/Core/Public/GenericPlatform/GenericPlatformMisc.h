@@ -10,7 +10,7 @@
 class Error;
 class GenericApplication;
 class IPlatformChunkInstall;
-class IPlatformInstallBundleManager;
+class IInstallBundleManager;
 class IPlatformCompression;
 struct FGenericCrashContext;
 struct FGenericMemoryWarningContext;
@@ -525,6 +525,14 @@ struct CORE_API FGenericPlatformMisc
 	{
 	}
 
+	/**
+	 * Determines if a warning handler has been set
+	 */
+	static bool HasMemoryWarningHandler()
+	{
+		return false;
+	}
+	
 	FORCEINLINE static uint32 GetLastError()
 	{
 		return 0;
@@ -854,13 +862,6 @@ public:
 	 * @return	Returns the platform specific chunk based install implementation
 	 */
 	static IPlatformChunkInstall* GetPlatformChunkInstall();
-
-	/**
-	 * Returns the platform specific Install Bundle Manager
-	 *
-	 * @return	Returns the platform specific Install Bundle Manager implementation
-	 */
-	static IPlatformInstallBundleManager* GetPlatformInstallBundleManager();
 
 	/**
 	 * Returns the platform specific compression interface

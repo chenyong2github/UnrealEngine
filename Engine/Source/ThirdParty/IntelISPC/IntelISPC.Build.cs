@@ -8,7 +8,7 @@ public class IntelISPC : ModuleRules
 	{
 		Type = ModuleType.External;
 
-		if ( (Target.Platform == UnrealTargetPlatform.Win64) || (Target.Platform == UnrealTargetPlatform.Win32) )
+		if ( ( Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Win32 ) && Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.PVSStudio )
 		{
             PublicDefinitions.Add("INTEL_ISPC=1");
         }

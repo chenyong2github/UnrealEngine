@@ -1870,10 +1870,16 @@ namespace VivoxClientApi {
             RequestAudioInputDevices();
             RequestAudioOutputDevices();
 
-            while ( !m_audioInputDeviceListPopulated ||
-                    !m_audioOutputDeviceListPopulated ){
+            unsigned int ElapsedTime = 0;
+            const unsigned int SleepDuration = 20000;
+            const unsigned int MaxElapsedTime = 25 * SleepDuration;
+            OnResponseOrEventFromSdkUiThread();
+            if ((!m_audioInputDeviceListPopulated || !m_audioOutputDeviceListPopulated)
+                && ElapsedTime < MaxElapsedTime)
+            {
+                sleepMicroseconds(SleepDuration);
+                ElapsedTime += SleepDuration;
                 OnResponseOrEventFromSdkUiThread();
-                sleepMicroseconds(100000);
             }
 
             return VCSStatus(0);
@@ -1885,10 +1891,14 @@ namespace VivoxClientApi {
                 if(m_currentState == ConnectorStateInitialized || m_currentState == ConnectorStateInitializing) {
                     Disconnect(m_currentServer);
                 }
-                while(m_currentState == ConnectorStateUninitializing) {
+                unsigned int ElapsedTime = 0;
+                const unsigned int SleepDuration = 20000;
+                const unsigned int MaxElapsedTime = 25 * SleepDuration;
+                while(m_currentState == ConnectorStateUninitializing && ElapsedTime < MaxElapsedTime) {
                     // wait for the the response
                     WaitForShutdownResponse();
-                    sleepMicroseconds(30000);
+                    sleepMicroseconds(SleepDuration);
+                    ElapsedTime += SleepDuration;
                 }
                 vx_uninitialize();
                 m_app = NULL;

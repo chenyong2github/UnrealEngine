@@ -14,7 +14,7 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
 
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "NetworkPredictionComponent.h"
 
 #include "MockNetworkSimulation.generated.h"
@@ -116,8 +116,10 @@ struct FMockAuxState
 	}
 };
 
+using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
+
 // Actual definition of our network simulation.
-class FMockNetworkSimulation : public TNetworkedSimulationModel<FMockNetworkSimulation, FMockInputCmd, FMockSyncState, FMockAuxState>
+class FMockNetworkSimulation : public TNetworkedSimulationModel<FMockNetworkSimulation, TMockNetworkSimulationBufferTypes>
 {
 public:
 
@@ -163,7 +165,7 @@ private:
 	
 public:
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void SyncTo(const FMockSyncState& SyncState) override;
+	void FinalizeFrame(const FMockSyncState& SyncState) override;
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
 	virtual UObject* GetVLogOwner() const override final;
 	virtual FTransform GetDebugWorldTransform() const override final;

@@ -5,7 +5,7 @@
 #include "ILiveLinkClient.h"
 #include "LiveLinkFrameTranslator.h"
 
-DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkSubject, Warning, Warning);
+DEFINE_LOG_CATEGORY_STATIC(LogLiveLinkSubject, Warning, All);
 
 
 bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, FLiveLinkSubjectFrameData& OutFrame)
@@ -40,7 +40,7 @@ bool ILiveLinkSubject::EvaluateFrame(TSubclassOf<ULiveLinkRole> InDesiredRole, F
 	const bool bSuccess = Translate(this, InDesiredRole, GetFrameSnapshot().StaticData, GetFrameSnapshot().FrameData, OutFrame);
 	if (!bSuccess)
 	{
-		UE_LOG(LogLiveLinkSubject, Warning, TEXT("Can't evaluate frame for subject '%s' for incompatible role '%s. Subject has the role '%s' and no translators could work."), *GetSubjectKey().SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
+		UE_LOG(LogLiveLinkSubject, Verbose, TEXT("Can't evaluate frame for subject '%s' for incompatible role '%s. Subject has the role '%s' and no translators could work."), *GetSubjectKey().SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
 	}
 
 	return bSuccess;

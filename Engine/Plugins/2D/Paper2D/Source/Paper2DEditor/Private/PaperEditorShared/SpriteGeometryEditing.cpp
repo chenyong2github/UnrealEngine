@@ -11,7 +11,7 @@
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "SpriteEditor/SpriteEditorSelections.h"
-#include "PaperGeomTools.h"
+#include "GeomTools.h"
 #include "DynamicMeshBuilder.h"
 
 #define LOCTEXT_NAMESPACE "PaperGeometryEditing"
@@ -378,7 +378,7 @@ void FSpriteGeometryEditingHelper::DrawGeometry(const FSceneView& View, FPrimiti
 			Shape.GetTextureSpaceVertices(/*out*/ SourceTextureSpaceVertices);
 
 			TArray<FVector2D> TriangulatedPolygonVertices;
-			PaperGeomTools::TriangulatePoly(/*out*/ TriangulatedPolygonVertices, SourceTextureSpaceVertices, /*bKeepColinearVertices=*/ true);
+			FGeomTools2D::TriangulatePoly(/*out*/ TriangulatedPolygonVertices, SourceTextureSpaceVertices, /*bKeepColinearVertices=*/ true);
 
 			if (((TriangulatedPolygonVertices.Num() % 3) == 0) && (TriangulatedPolygonVertices.Num() > 0))
 			{

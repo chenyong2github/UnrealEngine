@@ -29,6 +29,7 @@ namespace UnrealVS
 	[ProvideMenuResource( "Menus.ctmenu", 1 )]
 
 	// Force the package to load whenever a solution exists
+	//[ProvideAutoLoad(VSConstants.UICONTEXT.SolutionExistsAndFullyLoaded_string, PackageAutoLoadFlags.BackgroundLoad)]
 	[ProvideAutoLoad(UIContextGuids80.SolutionExists, PackageAutoLoadFlags.BackgroundLoad)]
 
 	// Register the settings implementing class as providing support to UnrealVSPackage.
@@ -57,7 +58,7 @@ namespace UnrealVS
 	{
 		/** Constants */
 
-		private const string VersionString = "v1.55";
+		private const string VersionString = "v1.56";
 		private const string UnrealSolutionFileNamePrefix = "UE4";
 		private const string ExtensionName = "UnrealVS";
 		private const string CommandLineOptionKey = ExtensionName + "CommandLineMRU";
@@ -212,7 +213,7 @@ namespace UnrealVS
 			SolutionBuildManager.AdviseUpdateSolutionEvents(this, out UpdateSolutionEventsHandle);
 
 			// Create our command-line editor
-			CommandLineEditor = new CommandLineEditor();
+			CommandLineEditor.Initialize();
 
 			// Create our startup project selector
 			StartupProjectSelector = new StartupProjectSelector();
@@ -227,7 +228,7 @@ namespace UnrealVS
 			GenerateProjectFiles = new GenerateProjectFiles();
 
 			// Create Batch Builder tools
-			BatchBuilder = new BatchBuilder();
+			BatchBuilder.Initialize();
 
 			// Create the project menu quick builder
 			QuickBuilder = new QuickBuild();
@@ -486,6 +487,7 @@ namespace UnrealVS
 		/// <param name="stream">The stream to load the option data from.</param>
 		protected override void OnLoadOptions(string key, Stream stream)
 		{
+			Logging.WriteLine("Loading Options for key: " + key);
 			try
 			{
 				if (0 == string.Compare(key, CommandLineOptionKey))
@@ -847,7 +849,7 @@ namespace UnrealVS
 		UInt32 ProjectHierarchyEventsHandle;
 
 		/// Our command-line editing component
-		private CommandLineEditor CommandLineEditor;
+		private CommandLineEditor CommandLineEditor = new CommandLineEditor();
 
 		/// BuildStartupProject feature
 		private BuildStartupProject BuildStartupProject;
@@ -859,7 +861,7 @@ namespace UnrealVS
 		private GenerateProjectFiles GenerateProjectFiles;
 
 		/// Batch Builder button/command handler
-		private BatchBuilder BatchBuilder;
+		private BatchBuilder BatchBuilder = new BatchBuilder();
 
 		/// Ticker thread
 		private Thread Ticker;

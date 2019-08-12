@@ -219,7 +219,9 @@ bool FPicpProjectionModule::GetWarpFrustum(const FString& ViewportId, const uint
 
 void FPicpProjectionModule::SetViewport(const FString& Id, FRotator& OutViewRotation, FVector& OutViewLocation, FMatrix& OutPrjMatrix)
 {
-	for (auto listener : PicpEventListeners)
+	TArray<TScriptInterface<IPicpProjectionFrustumDataListener>> EmptyListeners;
+
+	for (auto Listener : PicpEventListeners)
 	{
 		FPicpProjectionFrustumData data;
 		data.Id = Id;
@@ -227,7 +229,19 @@ void FPicpProjectionModule::SetViewport(const FString& Id, FRotator& OutViewRota
 		data.ViewLocation = OutViewLocation;
 		data.PrjMatrix = OutPrjMatrix;
 
-		listener->Execute_OnProjectionDataUpdate(listener.GetObject(), data);
+		if (Listener.GetObject() != nullptr && !Listener.GetObject()->IsPendingKill())
+		{
+			Listener->Execute_OnProjectionDataUpdate(Listener.GetObject(), data);
+		}		
+		else
+		{
+			EmptyListeners.Add(Listener);
+		}
+	}
+
+	for (auto EmptyListener : EmptyListeners)
+	{
+		PicpEventListeners.Remove(EmptyListener);
 	}
 }
 

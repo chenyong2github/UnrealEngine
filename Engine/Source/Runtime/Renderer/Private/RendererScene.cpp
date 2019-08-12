@@ -907,6 +907,9 @@ void FScene::AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmd
 
 	DistanceFieldSceneData.AddPrimitive(PrimitiveSceneInfo);
 
+	// Flush virtual textures touched by primitive
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
+
 	// LOD Parent, if this is LOD parent, we should update Proxy Scene Info
 	// LOD parent gets removed WHEN no children is accessing
 	// LOD parent can be recreated as scene updates
@@ -1290,8 +1293,9 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
-	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer() 
-		|| !UseGPUScene(GMaxRHIShaderPlatform, GetFeatureLevel());
+	const bool bUpdateStaticDrawLists = !PrimitiveSceneProxy->StaticElementsAlwaysUseProxyPrimitiveUniformBuffer();
+
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 
 	// Remove the primitive from the scene at its old location
 	// (note that the octree update relies on the bounds not being modified yet).
@@ -1325,6 +1329,8 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 
 	// Re-add the primitive to the scene with the new transform.
 	PrimitiveSceneInfo->AddToScene(RHICmdList, bUpdateStaticDrawLists);
+
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 }
 
 void FScene::UpdatePrimitiveTransform(UPrimitiveComponent* Primitive)
@@ -1640,6 +1646,9 @@ void FScene::RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* Primitiv
 
 	// Unlink the LOD parent info if valid
 	PrimitiveSceneInfo->UnlinkLODParentComponent();
+
+	// Flush virtual textures touched by primitive
+	PrimitiveSceneInfo->FlushRuntimeVirtualTexture();
 
 	// Remove the primitive from the scene.
 	PrimitiveSceneInfo->RemoveFromScene(true);
@@ -2534,7 +2543,8 @@ void FScene::UpdateRuntimeVirtualTextureForAllPrimitives_RenderThread()
 	{
 		if (PrimitiveVirtualTextureFlags[Index].bRenderToVirtualTexture)
 		{
-			PrimitiveVirtualTextureFlags[Index].RuntimeVirtualTextureMask = GetRuntimeVirtualTextureMask(PrimitiveSceneProxies[Index]);
+			Primitives[Index]->UpdateRuntimeVirtualTextureFlags();
+			PrimitiveVirtualTextureFlags[Index] = Primitives[Index]->GetRuntimeVirtualTextureFlags();
 		}
 	}
 }
@@ -2554,25 +2564,13 @@ uint32 FScene::GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId)
 	return 0;
 }
 
-uint32 FScene::GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy)
+void FScene::FlushDirtyRuntimeVirtualTextures()
 {
-	uint32 Mask = 0;
-	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(RuntimeVirtualTextures); It; ++It)
+	checkSlow(IsInRenderingThread());
+	for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TIterator It(RuntimeVirtualTextures); It; ++It)
 	{
-		int32 SceneIndex = It.GetIndex();
-		if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
-		{
-			URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
-			for (URuntimeVirtualTexture* PrimitiveVirtualTexture : Proxy->RuntimeVirtualTextures)
-			{
-				if (SceneVirtualTexture == PrimitiveVirtualTexture)
-				{
-					Mask |= 1 << SceneIndex;
-				}
-			}
-		}
+		(*It)->FlushDirtyPages();
 	}
-	return Mask;
 }
 
 bool FScene::GetPreviousLocalToWorld(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMatrix& OutPreviousLocalToWorld) const

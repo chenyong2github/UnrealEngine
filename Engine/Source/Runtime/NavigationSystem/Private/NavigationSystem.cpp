@@ -245,8 +245,8 @@ bool UNavigationSystemV1::bIsPIEActive = false;
 UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bTickWhilePaused(false)
-	, bGenerateNavDataWhenNoCompatibleNavBound(true)
-	, bUseNavDataInAdditionalLevelWhenDuplicatedAgent(false)
+	, bShouldGenerateNavDataOnlyWhenCompatibleNavBound(false)
+	, bAllowEquivalentNavDataOverride(false)
 	, bWholeWorldNavigable(false)
 	, bSkipAgentHeightCheckWhenPickingNavData(false)
 	, OperationMode(FNavigationSystemRunMode::InvalidMode)
@@ -873,7 +873,7 @@ void UNavigationSystemV1::RegisterNavigationDataInstances()
 		ANavigationData* Nav = (*It);
 		if (Nav != NULL && Nav->IsPendingKill() == false && Nav->IsRegistered() == false)
 		{
-			RequestRegistration(Nav, false);
+			RequestRegistrationDeferred(*Nav);
 			bProcessRegistration = true;
 		}
 	}
@@ -938,6 +938,11 @@ void UNavigationSystemV1::Tick(float DeltaSeconds)
 	{
 		PerformNavigationBoundsUpdate(PendingNavBoundsUpdates);
 		PendingNavBoundsUpdates.Reset();
+	}
+
+	if (NavDataRegistrationQueue.Num() > 0)
+	{
+		ProcessRegistrationCandidates();
 	}
 
 	if (DefaultOctreeController.PendingOctreeUpdates.Num() > 0)
@@ -1746,29 +1751,13 @@ void UNavigationSystemV1::ApplyWorldOffset(const FVector& InOffset, bool bWorldS
 //----------------------------------------------------------------------//
 // Bookkeeping 
 //----------------------------------------------------------------------//
-void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing)
+void UNavigationSystemV1::RequestRegistrationDeferred(ANavigationData& NavData)
 {
 	FScopeLock RegistrationLock(&NavDataRegistrationSection);
 
 	if (NavDataRegistrationQueue.Num() < REGISTRATION_QUEUE_SIZE)
 	{
-		NavDataRegistrationQueue.AddUnique(NavData);
-
-		// checking if bWorldInitDone since requesting out-of-order registration
-		// processing when we're still setting up can result in odd cases,
-		// like initializing navmesh generators while the nav system doesn't have
-		// the navmesh bounds collected yet.
-		if (bTriggerRegistrationProcessing && bWorldInitDone)
-		{
-			// trigger registration candidates processing
-			DECLARE_CYCLE_STAT(TEXT("FSimpleDelegateGraphTask.Process registration candidates"),
-				STAT_FSimpleDelegateGraphTask_ProcessRegistrationCandidates,
-				STATGROUP_TaskGraphTasks);
-
-			FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
-				FSimpleDelegateGraphTask::FDelegate::CreateUObject(this, &UNavigationSystemV1::ProcessRegistrationCandidates),
-				GET_STATID(STAT_FSimpleDelegateGraphTask_ProcessRegistrationCandidates), NULL, ENamedThreads::GameThread);
-		}
+		NavDataRegistrationQueue.AddUnique(&NavData);
 	}
 	else
 	{
@@ -1778,47 +1767,47 @@ void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData, bool bTr
 
 void UNavigationSystemV1::ProcessRegistrationCandidates()
 {
-	//if (FUObjectThreadContext::Get().IsRoutingPostLoad)
-	//{
-	//	// postopne
-	//	return;
-	//}
-
 	FScopeLock RegistrationLock(&NavDataRegistrationSection);
 
 	if (NavDataRegistrationQueue.Num() == 0)
 	{
 		return;
 	}
-
-	ANavigationData** NavDataPtr = NavDataRegistrationQueue.GetData();
+	
 	const int CandidatesCount = NavDataRegistrationQueue.Num();
-
-	for (int32 CandidateIndex = 0; CandidateIndex < CandidatesCount; ++CandidateIndex, ++NavDataPtr)
+	int32 NumNavDataProcessed = 0;
+	for (int32 CandidateIndex = CandidatesCount - 1; CandidateIndex >= 0; --CandidateIndex)
 	{
-		if (*NavDataPtr != NULL)
+		ANavigationData* NavDataPtr = NavDataRegistrationQueue[CandidateIndex];
+		ULevel* OwningLevel = NavDataPtr != nullptr ? NavDataPtr->GetLevel() : nullptr;
+		if (OwningLevel && OwningLevel->bIsVisible)
 		{
-			ERegistrationResult Result = RegisterNavData(*NavDataPtr);
+			const ERegistrationResult Result = RegisterNavData(NavDataPtr);
 
-			if (Result == RegistrationSuccessful)
+			if (Result != RegistrationSuccessful && Result != RegistrationFailed_DataPendingKill)
 			{
-				continue;
-			}
-			else if (Result != RegistrationFailed_DataPendingKill)
-			{
-				(*NavDataPtr)->CleanUpAndMarkPendingKill();
-				if ((*NavDataPtr) == MainNavData)
+				NavDataPtr->CleanUpAndMarkPendingKill();
+				if (NavDataPtr == MainNavData)
 				{
 					MainNavData = NULL;
 				}
 			}
+
+			NumNavDataProcessed++;
+			NavDataRegistrationQueue.RemoveAtSwap(CandidateIndex);
+		}
+	}	
+	
+	if (NumNavDataProcessed)
+	{
+		MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
+
+		// See if any of registered navigation data now needs NavOctree
+		if (DefaultOctreeController.IsValid() == false && RequiresNavOctree() == true)
+		{
+			ConditionalPopulateNavOctree();
 		}
 	}
-
-	MainNavData = GetDefaultNavDataInstance(FNavigationSystem::DontCreate);
-	
-	// we processed all candidates so clear the queue
-	NavDataRegistrationQueue.Reset();
 }
 
 void UNavigationSystemV1::ProcessCustomLinkPendingRegistration()
@@ -1855,6 +1844,15 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 	{
 		return RegistrationSuccessful;
 	}
+    // Don't allow nav data to register
+	else if (ShouldGenerateNavigationEverywhere() == false && ShouldGenerateNavDataOnlyWhenCompatibleNavBound() == true && NavData->IsA(AAbstractNavData::StaticClass()) == false)
+	{
+		TArray<FBox> SupportedBounds;
+		if (GetNavigationBoundsForNavData(*NavData, SupportedBounds) <= 0)
+		{
+			return RegistrationFailed_NotSuitable;
+		}
+	}
 
 	FScopeLock Lock(&NavDataRegistration);
 
@@ -1880,11 +1878,11 @@ UNavigationSystemV1::ERegistrationResult UNavigationSystemV1::RegisterNavData(AN
 		TWeakObjectPtr<ANavigationData>* NavDataForAgent = AgentToNavDataMap.Find(NavConfig);
 		ANavigationData* NavDataInstanceForAgent = NavDataForAgent ? NavDataForAgent->Get() : nullptr;
 
-		if (NavDataInstanceForAgent == nullptr || ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent())
+		if (NavDataInstanceForAgent == nullptr || ShouldAllowEquivalentNavDataOverride())
 		{
 			if (NavData->IsA(AAbstractNavData::StaticClass()) == false)
 			{
-				if (NavDataInstanceForAgent != nullptr && ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent())
+				if (NavDataInstanceForAgent != nullptr && ShouldAllowEquivalentNavDataOverride())
 				{
 					if (MainNavData == NavDataInstanceForAgent)
 					{
@@ -1967,6 +1965,7 @@ void UNavigationSystemV1::UnregisterNavData(ANavigationData* NavData)
     AgentToNavDataMap.Remove(NavData->GetConfig());
 
 	FScopeLock Lock(&NavDataRegistration);
+	NavDataRegistrationQueue.Remove(NavData);
 	NavData->OnUnregistered();
 }
 
@@ -2301,13 +2300,12 @@ void UNavigationSystemV1::InitializeForWorld(UWorld& World, FNavigationSystemRun
 	OnWorldInitDone(Mode);
 }
 
-void UNavigationSystemV1::OnNavSystemOverriden(UNavigationSystemBase* PreviousNavSystem)
+void UNavigationSystemV1::FinalizeOverridingNavSystem(UNavigationSystemV1& PreviousNavSystem)
 {
     // When a Navigation Override Config loads it may happen that we have some nav data queued to be registered, keep them
-	const UNavigationSystemV1* PrevNavSystemV1 = Cast<UNavigationSystemV1>(PreviousNavSystem);
-	if (PreviousNavSystem && PrevNavSystemV1->NavDataRegistrationQueue.Num() > 0)
+	if (PreviousNavSystem.NavDataRegistrationQueue.Num() > 0)
 	{
-		NavDataRegistrationQueue = PrevNavSystemV1->NavDataRegistrationQueue;		
+		NavDataRegistrationQueue = PreviousNavSystem.NavDataRegistrationQueue;
 	}
 }
 
@@ -2910,7 +2908,7 @@ void UNavigationSystemV1::PerformNavigationBoundsUpdate(const TArray<FNavigation
 		}
 	}
 
-	if (!IsNavigationBuildingLocked() || ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent())
+	if (!IsNavigationBuildingLocked())
 	{
 		if (UpdatedAreas.Num())
 		{
@@ -2922,7 +2920,7 @@ void UNavigationSystemV1::PerformNavigationBoundsUpdate(const TArray<FNavigation
 				}
 			}
 		}
-				
+
 		// Propagate to generators areas that needs to be updated
 		AddDirtyAreas(UpdatedAreas, ENavigationDirtyFlag::All | ENavigationDirtyFlag::NavigationBounds);
 	}
@@ -3109,7 +3107,7 @@ void UNavigationSystemV1::SpawnMissingNavigationData()
 				ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, nullptr);
 				if (Instance)
 				{
-					RequestRegistration(Instance);
+					RequestRegistrationDeferred(*Instance);
 				}
 				else
 				{
@@ -3242,8 +3240,7 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 
 	DefaultDirtyAreasController.Reset();
 
-	// Going backward as if bGenerateNavDataWhenNoCompatibleNavBound is false, we will destroy the nav data in RebuildAll
-	for (int32 NavDataIndex = NavDataSet.Num() - 1; NavDataIndex >= 0 ; --NavDataIndex)
+	for (int32 NavDataIndex = 0; NavDataIndex < NavDataSet.Num(); ++NavDataIndex)
 	{
 		ANavigationData* NavData = NavDataSet[NavDataIndex];
 				
@@ -3330,18 +3327,20 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 
 		if (!InLevel->IsPersistentLevel())
 		{
-			if (ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent())
+#if WITH_EDITOR
+            // Registering NavigationData in its PostLoad() isn't enough because when adding/removing level in editor, it calls Remove/Load to refresh streaming levels
+			if (GIsEditor)
 			{
 				for (TActorIterator<ANavigationData> It(InWorld); It; ++It)
 				{
 					ANavigationData* NavData = *It;
 					if (NavData->GetLevel() == InLevel)
 					{
-						RegisterNavData(NavData);
+						RequestRegistrationDeferred(*NavData);
 					}
 				}
 			}
-
+#endif
 			for (ANavigationData* NavData : NavDataSet)
 			{
 				if (NavData)
@@ -3371,20 +3370,21 @@ void UNavigationSystemV1::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWor
 						NavData->OnStreamingLevelRemoved(InLevel, InWorld);
 					}
 					else
-					{			
+					{
                         if (NavData->IsRegistered())
                         {
                             UnregisterNavData(NavData);
 
-                            if (ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent())
+                            if (ShouldAllowEquivalentNavDataOverride())
                             {
                                 for (TActorIterator<ANavigationData> It(InWorld); It; ++It)
                                 {
                                     ANavigationData* CurrentNavData = *It;
                                     const FNavDataConfig& TestConfig = NavData->GetConfig();
-                                    if (CurrentNavData->GetLevel() != InLevel && GetTypeHash(CurrentNavData->GetConfig()) == GetTypeHash(NavData->GetConfig()))
+                                    if (!CurrentNavData->IsRegistered() && CurrentNavData->GetLevel() != InLevel && GetTypeHash(CurrentNavData->GetConfig()) == GetTypeHash(NavData->GetConfig()))
                                     {
-                                        RequestRegistration(CurrentNavData);
+                                        RequestRegistrationDeferred(*CurrentNavData);
+										break;
                                     }
                                 }
                             }
@@ -3521,9 +3521,18 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 			UnregisterNavData(NavData);
 		}
 	}	
-	NavDataSet.Reset();
-
-	AgentToNavDataMap.Reset();
+	if (NavDataSet.Num())
+	{
+        UE_LOG(LogNavigation, Error, TEXT("UNavigationSystemV1::CleanUp still have an agent in NavDataSet loaded after unregister them all!!"));
+        NavDataSet.Reset();
+    }
+	
+	if (AgentToNavDataMap.Num())
+	{
+		UE_LOG(LogNavigation, Error, TEXT("UNavigationSystemV1::CleanUp still have an agent mapped to navigation data after clean up!"));
+		AgentToNavDataMap.Reset();
+	}
+	
 	MainNavData = nullptr;
 
 	// reset unique link Id for new map
@@ -4044,6 +4053,14 @@ void UNavigationSystemV1::UnregisterNavigationInvoker(AActor* Invoker)
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing)
+{
+	if (NavData)
+	{
+		RequestRegistrationDeferred(*NavData);
+	}	
+}
+
 FVector UNavigationSystemV1::ProjectPointToNavigation(UObject* WorldContextObject, const FVector& Point, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass, const FVector QueryExtent)
 {
 	FNavLocation ProjectedPoint(Point);
@@ -4253,8 +4270,8 @@ void UNavigationSystemModuleConfig::UpdateWithNavSysCDO(const UNavigationSystemV
 		bCreateOnClient = NavSysCDO.bAllowClientSideNavigation;
 		bAutoSpawnMissingNavData = NavSysCDO.bAutoCreateNavigationData;
 		bSpawnNavDataInNavBoundsLevel = NavSysCDO.bSpawnNavDataInNavBoundsLevel;
-		bGenerateNavDataWhenNoCompatibleNavBound = NavSysCDO.bGenerateNavDataWhenNoCompatibleNavBound;
-		bUseNavDataInAdditionalLevelWhenDuplicatedAgent = NavSysCDO.bUseNavDataInAdditionalLevelWhenDuplicatedAgent;
+		bShouldGenerateNavDataOnlyWhenCompatibleNavBound = NavSysCDO.bShouldGenerateNavDataOnlyWhenCompatibleNavBound;
+		bAllowEquivalentNavDataOverride = NavSysCDO.bAllowEquivalentNavDataOverride;
 	}
 }
 
@@ -4276,8 +4293,8 @@ UNavigationSystemBase* UNavigationSystemModuleConfig::CreateAndConfigureNavigati
 	{
 		NavSysInstance->bAutoCreateNavigationData = bAutoSpawnMissingNavData;
 		NavSysInstance->bSpawnNavDataInNavBoundsLevel = bSpawnNavDataInNavBoundsLevel;
-		NavSysInstance->bGenerateNavDataWhenNoCompatibleNavBound = bGenerateNavDataWhenNoCompatibleNavBound;
-		NavSysInstance->bUseNavDataInAdditionalLevelWhenDuplicatedAgent = bUseNavDataInAdditionalLevelWhenDuplicatedAgent;
+		NavSysInstance->bShouldGenerateNavDataOnlyWhenCompatibleNavBound = bShouldGenerateNavDataOnlyWhenCompatibleNavBound;
+		NavSysInstance->bAllowEquivalentNavDataOverride  = bAllowEquivalentNavDataOverride;
 		if (bStrictlyStatic)
 		{
 			NavSysInstance->ConfigureAsStatic();

@@ -5324,9 +5324,16 @@ void GetRootObjectBindingNodes(const TArray<TSharedRef<FSequencerDisplayNode>>& 
 
 void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 {
-	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
-	if ( bUpdatingExternalSelection || !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr)
+	if ( bUpdatingExternalSelection )
 	{
+		return;
+	}
+
+	UMovieSceneSequence* Sequence = GetFocusedMovieSceneSequence();
+	if( !IsLevelEditorSequencer() || ExactCast<ULevelSequence>(Sequence) == nullptr )
+	{
+		// Only level sequences have a full update here, but we still want filters to update for UMG animations
+		NodeTree->RequestFilterUpdate();
 		return;
 	}
 
@@ -5405,7 +5412,7 @@ void FSequencer::SynchronizeSequencerSelectionWithExternalSelection()
 		}
 	}
 
-	if (!bAllAlreadySelected || NodesToSelect.Num() == 0)
+	if (!bAllAlreadySelected || (NodesToSelect.Num() == 0 && Selection.GetSelectedOutlinerNodes().Num()))
 	{
 		Selection.SuspendBroadcast();
 		Selection.EmptySelectedOutlinerNodes();
