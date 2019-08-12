@@ -60,6 +60,10 @@
 		#define CONFIG_REJECTION_SAMPLE_SET               REJECTION_SAMPLE_SET_SOBEK2018
 	#endif
 
+	#if DIM_SIGNAL_BATCH_SIZE > 1
+		#define CONFIG_CLAMP_UV_PER_SIGNAL 1
+	#endif
+
 	#define MAX_SIGNAL_BATCH_SIZE CONFIG_SIGNAL_BATCH_SIZE
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_POLYCHROMATIC_PENUMBRA_HARMONIC
@@ -173,6 +177,11 @@
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
 
+/** Whether should clamp the UV individually per texture. */
+#ifndef CONFIG_CLAMP_UV_PER_SIGNAL
+	#define CONFIG_CLAMP_UV_PER_SIGNAL 0
+#endif
+
 /** Whether this pass make use of a tile classification. */
 #ifndef CONFIG_USE_TILE_CLASSIFICATION
 	#define CONFIG_USE_TILE_CLASSIFICATION 0
@@ -259,11 +268,7 @@ int bCameraCut[MAX_SIGNAL_BATCH_SIZE];
 
 float HistoryPreExposureCorrection;
 
-static const uint iMipLevel = 0;
-static const uint iMipLevelPow2 = 1;
-static const float MipLevel = 0;
-static const float MipLevelPow2 = 1;
-static const float InvMipLevelPow2 = 1;
+float4 HistoryBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
 
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
@@ -379,10 +384,10 @@ void TemporallyAccumulate(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = ((DispatchThreadId + 0.5) * MipLevelPow2 + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = ((ViewportMin + DispatchThreadId) + 0.5) * View.BufferSizeAndInvSize.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	float2 ViewportUV = BufferUVToViewportUV(SceneBufferUV);
 	float2 ScreenPosition = ViewportUVToScreenPos(ViewportUV);
@@ -429,7 +434,7 @@ void TemporallyAccumulate(
 
 
 	// Use the diameter, because that is the distance between two pixel.
-	float PixelWorldBluringRadius = MipLevelPow2 * ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
+	float PixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
 	float WorldBluringRadius = WorldBluringRadiusToBilateralWorldDistance(PixelWorldBluringRadius);
 	
 	float TargetedSampleCount = TARGETED_SAMPLE_COUNT;
@@ -453,7 +458,7 @@ void TemporallyAccumulate(
 	FSSDSignalArray HistorySamples = CreateSignalArrayFromScalarValue(0.0);
 	{
 		float2 HistoryBufferUV = HistoryScreenPosition * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		float2 ClampedHistoryBufferUV = clamp(HistoryBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 		bool bIsPreviousFrameOffscreen = any(HistoryBufferUV != ClampedHistoryBufferUV);
 
 		// TODO: global camera cut to save perf that is going to be required for panic post filtering.
@@ -469,6 +474,7 @@ void TemporallyAccumulate(
 			KernelConfig.bUnroll = true;
 			KernelConfig.bPreviousFrameMetadata = true;
 			KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_MIN_METADATA;
+			KernelConfig.bClampUVPerMultiplexedSignal = CONFIG_CLAMP_UV_PER_SIGNAL != 0;
 			
 			if (CONFIG_USE_NEAREST_HISTORY)
 				KernelConfig.SampleSet = SAMPLE_SET_1X1;
@@ -477,7 +483,18 @@ void TemporallyAccumulate(
 
 			// SGPR configuration of the kernel.
 			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
+			
+			#if CONFIG_CLAMP_UV_PER_SIGNAL
+			{
+				UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+				for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+				{
+					uint MultiplexId = BatchedSignalId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
+					KernelConfig.PerSignalUVMinMax[MultiplexId] = HistoryBufferUVMinMax[MultiplexId];
+				}
+			}
+			#endif
 			
 			// VGPR configuration of the kernel.
 			KernelConfig.BufferUV = HistoryBufferUV;
@@ -614,7 +631,7 @@ void TemporallyAccumulate(
 		// SGPR configuration of the kernel.
 		{
 			KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-			KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+			KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		}
 
 		// VGPR configuration of the kernel.
@@ -966,9 +983,11 @@ void TemporallyAccumulate(
 		// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the kernel.
 		uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
 	#else
-		uint2 OutputPixelPostion = DispatchThreadId;
+		uint2 OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif
-
+		
+	BRANCH
+	if (all(OutputPixelPostion < ViewportMax))
 	{
 		OutputMultiplexedSignal(
 			SignalHistoryOutput_UAVs_0,

@@ -60,6 +60,10 @@
 
 //------------------------------------------------------- SHARED SHADER PARAMETERS
 
+uint2 ViewportMin;
+uint2 ViewportMax;
+float4 BufferBilinearUVMinMax;
+
 float4x4  PrevScreenToTranslatedWorld;
 Texture2D PrevDepthBuffer;
 Texture2D PrevGBufferA;

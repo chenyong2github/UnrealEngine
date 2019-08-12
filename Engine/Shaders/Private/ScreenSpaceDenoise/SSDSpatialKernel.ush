@@ -112,6 +112,9 @@ struct FSSDKernelConfig
 	// Whether the spherical harmonic of a sample should be computed before accumulation.
 	bool bComputeSampleColorSH;
 
+	// Whether should clamp the UV individually per signal.
+	bool bClampUVPerMultiplexedSignal;
+
 	// The color space that has been encoded in the buffer.
 	uint BufferColorSpace[MAX_SIGNAL_MULTIPLEXING];
 	
@@ -136,6 +139,9 @@ struct FSSDKernelConfig
 
 	// The periode of the harmonic being sampled.
 	float HarmonicPeriode;
+
+	// Buffer's min and max UV, per texture.
+	float4 PerSignalUVMinMax[MAX_SIGNAL_MULTIPLEXING];
 
 	
 	// --------------------------- Per lane.
@@ -182,6 +188,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.bMinSamplePairInvFrequency = false;
 	KernelConfig.bMaxWithRefBilateralDistance = false;
 	KernelConfig.bComputeSampleColorSH = false;
+	KernelConfig.bClampUVPerMultiplexedSignal = false;
 	
 	{
 		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
@@ -200,6 +207,14 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.KernelSpreadFactor = 1;
 	KernelConfig.HarmonicPeriode = 1.0;
 	
+	{
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
+		for (uint MultiplexId = 0; MultiplexId < MAX_SIGNAL_MULTIPLEXING; MultiplexId++)
+		{
+			KernelConfig.PerSignalUVMinMax[MultiplexId] = 0.0;
+		}
+	}
+
 	// VGPRs.
 	KernelConfig.BoxKernelRadius = 1;
 	KernelConfig.SampleCount = 1;
@@ -445,6 +460,21 @@ void SampleMultiplexedSignals(
 		KernelConfig.bNormalizeSample,
 		SampleBufferUV,
 		KernelConfig.BufferMipLevel + MipLevel);
+
+	if (KernelConfig.bClampUVPerMultiplexedSignal)
+	{
+		UNROLL_N(MAX_SIGNAL_MULTIPLEXING)
+		for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+		{
+			bool bInvalidSample = any(SampleBufferUV != clamp(
+				SampleBufferUV, KernelConfig.PerSignalUVMinMax[SignalMultiplexId].xy, KernelConfig.PerSignalUVMinMax[SignalMultiplexId].zw));
+
+			if (bInvalidSample)
+			{
+				OutMultiplexedSamples.Array[SignalMultiplexId] = CreateSignalSampleFromScalarValue(0.0);
+			}
+		} // for (uint SignalMultiplexId = 0; SignalMultiplexId < MAX_SIGNAL_MULTIPLEXING; SignalMultiplexId++)
+	}
 } // SampleMultiplexedSignals()
 
 /** Accumulate multiplexed samples and their metadata to an accumulator. */

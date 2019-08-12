@@ -147,10 +147,10 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (DispatchThreadId + 0.5 + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = (ViewportMin + DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
@@ -182,7 +182,7 @@ void MainCS(
 		}
 
 		// TODO: TODO: reduce VGPR pressure here
-		uint2 OutputPixelPostion = DispatchThreadId;
+		uint2 OutputPixelPostion = ViewportMax + DispatchThreadId;
 
 		OutputMultiplexedSignal(
 			SignalOutputMips_0_UAVs_0,
@@ -204,10 +204,10 @@ void MainCS(
 			OutputSamples.Array[MultiplexId] = RefSamples.Array[MultiplexId];
 		}
 
-		uint2 OutputPixelPostion = DispatchThreadId >> MipLevel;
+		uint2 OutputPixelPostion = (ViewportMax + DispatchThreadId) >> MipLevel;
 
 		BRANCH
-		if (all((OutputPixelPostion << MipLevel) == DispatchThreadId))
+		if (all((OutputPixelPostion << MipLevel) == (ViewportMax + DispatchThreadId)))
 		{
 			if (MipLevel == 1)
 			{

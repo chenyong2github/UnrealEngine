@@ -136,10 +136,10 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (DispatchThreadId + 0.5 + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = (ViewportMin + DispatchThreadId + 0.5) * View.BufferSizeAndInvSize.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
@@ -279,12 +279,23 @@ void MainCS(
 			OutputSamples.Array[MultiplexId].SceneColor = max(OutputSamples.Array[MultiplexId].SceneColor, 0);
 		#endif
 	}
-
-	OutputMultiplexedSignal(
-		SignalOutput_UAVs_0,
-		SignalOutput_UAVs_1,
-		SignalOutput_UAVs_2,
-		SignalOutput_UAVs_3,
-		CONFIG_SIGNAL_OUTPUT_LAYOUT, CONFIG_SIGNAL_BATCH_SIZE,
-		DispatchThreadId, OutputSamples.Array);
+	
+	#if CONFIG_VGPR_OPTIMIZATION
+		// No need to keep DispatchThreadId, while SceneBufferUV is arround at highest VGPR peak because center of the unique pixel to sample.
+		uint2 OutputPixelPostion = uint2(SceneBufferUV * View.BufferSizeAndInvSize.xy);
+	#else
+		uint2 OutputPixelPostion = ViewportMin + DispatchThreadId;
+	#endif 
+		
+	BRANCH
+	if (all(OutputPixelPostion < ViewportMax))
+	{
+		OutputMultiplexedSignal(
+			SignalOutput_UAVs_0,
+			SignalOutput_UAVs_1,
+			SignalOutput_UAVs_2,
+			SignalOutput_UAVs_3,
+			CONFIG_SIGNAL_OUTPUT_LAYOUT, CONFIG_SIGNAL_BATCH_SIZE,
+			OutputPixelPostion, OutputSamples.Array);
+	}
 } // MainCS

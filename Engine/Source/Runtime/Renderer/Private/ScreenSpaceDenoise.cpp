@@ -621,6 +621,10 @@ bool ShouldCompileSignalPipeline(ESignalProcessing SignalProcessing, EShaderPlat
 
 /** Shader parameter structure used for all shaders. */
 BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
+	SHADER_PARAMETER(FIntPoint, ViewportMin)
+	SHADER_PARAMETER(FIntPoint, ViewportMax)
+	SHADER_PARAMETER(FVector4, BufferBilinearUVMinMax)
+
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TileClassificationTexture)
@@ -910,6 +914,8 @@ class FSSDSpatialAccumulationCS : public FGlobalShader
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_ARRAY(FVector4, InputBufferUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
+
 		SHADER_PARAMETER(uint32, MaxSampleCount)
 		SHADER_PARAMETER(int32, UpscaleFactor)
 		SHADER_PARAMETER(float, KernelSpreadFactor)
@@ -956,6 +962,8 @@ class FSSDTemporalAccumulationCS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(int32, bCameraCut, [IScreenSpaceDenoiser::kMaxBatchSize])
 		SHADER_PARAMETER(FMatrix, PrevScreenToTranslatedWorld)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
+
+		SHADER_PARAMETER_ARRAY(FVector4, HistoryBufferUVMinMax, [IScreenSpaceDenoiser::kMaxBatchSize])
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDCommonParameters, CommonParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSSDConvolutionMetaData, ConvolutionMetaData)
@@ -1005,6 +1013,7 @@ IMPLEMENT_GLOBAL_SHADER(FSSDComposeHarmonicsCS, "/Engine/Private/ScreenSpaceDeno
 /** Generic settings to denoise signal at constant pixel density across the viewport. */
 struct FSSDConstantPixelDensitySettings
 {
+	FIntRect Viewport;
 	ESignalProcessing SignalProcessing;
 	int32 SignalBatchSize = 1;
 	float HarmonicPeriode = 1.0f;
@@ -1016,6 +1025,7 @@ struct FSSDConstantPixelDensitySettings
 	bool bUseTemporalAccumulation = false;
 	int32 HistoryConvolutionSampleCount = 1;
 	float HistoryConvolutionKernelSpreadFactor = 1.0f;
+	TStaticArray<FIntRect, IScreenSpaceDenoiser::kMaxBatchSize> SignalScissor;
 	TStaticArray<const FLightSceneInfo*, IScreenSpaceDenoiser::kMaxBatchSize> LightSceneInfo;
 };
 
@@ -1031,6 +1041,14 @@ static void DenoiseSignalAtConstantPixelDensity(
 	FSSDSignalTextures* OutputSignal)
 {
 	check(UsesConstantPixelDensityPassLayout(Settings.SignalProcessing));
+	
+	// Make sure the viewport of the denoiser is within the viewport of the view.
+	{
+		FIntRect Union = View.ViewRect;
+		Union.Union(Settings.Viewport);
+		check(Union == View.ViewRect);
+	}
+
 	ensure(Settings.InputResolutionFraction == 1.0f || Settings.InputResolutionFraction == 0.5f);
 	
 	auto GetResourceNames = [&](const TCHAR* const ResourceNames[])
@@ -1042,10 +1060,9 @@ static void DenoiseSignalAtConstantPixelDensity(
 		Settings.MaxInputSPP > 1 || 
 		(CVarShadowUse1SPPCodePath.GetValueOnRenderThread() == 0 && Settings.SignalProcessing == ESignalProcessing::MonochromaticPenumbra));
 
-	const FIntPoint DenoiseResolution = View.ViewRect.Size();
+	FIntPoint BufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+	const FIntPoint DenoiseResolution = Settings.Viewport.Size();
 	
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(GraphBuilder.RHICmdList);
-
 	// Number of signal to batch.
 	int32 MaxSignalBatchSize = SignalMaxBatchSize(Settings.SignalProcessing);
 	check(Settings.SignalBatchSize >= 1 && Settings.SignalBatchSize <= MaxSignalBatchSize);
@@ -1075,7 +1092,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		};
 
 		FRDGTextureDesc RefDesc = FRDGTextureDesc::Create2DDesc(
-			SceneTextures.SceneDepthBuffer->Desc.Extent,
+			BufferExtent,
 			PF_Unknown,
 			FClearValueBinding::Black,
 			/* InFlags = */ TexCreate_None,
@@ -1195,6 +1212,14 @@ static void DenoiseSignalAtConstantPixelDensity(
 	// Setup common shader parameters.
 	FSSDCommonParameters CommonParameters;
 	{
+		CommonParameters.ViewportMin = Settings.Viewport.Min;
+		CommonParameters.ViewportMax = Settings.Viewport.Max;
+		CommonParameters.BufferBilinearUVMinMax = FVector4(
+			float(Settings.Viewport.Min.X + 0.5f) / float(BufferExtent.X),
+			float(Settings.Viewport.Min.Y + 0.5f) / float(BufferExtent.Y),
+			float(Settings.Viewport.Max.X - 0.5f) / float(BufferExtent.X),
+			float(Settings.Viewport.Max.Y - 0.5f) / float(BufferExtent.Y));
+
 		CommonParameters.SceneTextures = SceneTextures;
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
@@ -1328,6 +1353,16 @@ static void DenoiseSignalAtConstantPixelDensity(
 			GetResourceNames(kReconstructionResourceNames));
 
 		FSSDSpatialAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDSpatialAccumulationCS::FParameters>();
+		for (int32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
+		{
+			FIntRect SignalScissor = Settings.SignalScissor[BatchedSignalId];
+			PassParameters->InputBufferUVMinMax[BatchedSignalId] = FVector4(
+				float(SignalScissor.Min.X + 0.5f) / float(BufferExtent.X),
+				float(SignalScissor.Min.Y + 0.5f) / float(BufferExtent.Y),
+				float(SignalScissor.Max.X - 0.5f) / float(BufferExtent.X),
+				float(SignalScissor.Max.Y - 0.5f) / float(BufferExtent.Y));
+		}
+
 		PassParameters->MaxSampleCount = FMath::Clamp(Settings.ReconstructionSamples, 1, kStackowiakMaxSampleCountPerSet);
 		PassParameters->UpscaleFactor = int32(1.0f / Settings.InputResolutionFraction);
 		PassParameters->HarmonicPeriode = Settings.HarmonicPeriode;
@@ -1349,10 +1384,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 		TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("SSD SpatialAccumulation(Reconstruction MaxSamples=%i Upscale=%i MultiSPP=%i)",
+			RDG_EVENT_NAME("SSD SpatialAccumulation(Reconstruction MaxSamples=%i Scissor=%ix%i%s%s)",
 				PassParameters->MaxSampleCount,
-				int32(PermutationVector.Get<FSSDSpatialAccumulationCS::FUpscaleDim>()),
-				int32(PermutationVector.Get<FMultiSPPDim>())),
+				DenoiseResolution.X, DenoiseResolution.Y,
+				PermutationVector.Get<FSSDSpatialAccumulationCS::FUpscaleDim>() ? TEXT(" Upscale") : TEXT(""),
+				PermutationVector.Get<FMultiSPPDim>() ? TEXT("") : TEXT(" 1SPP")),
 			*ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(DenoiseResolution, FSSDSpatialAccumulationCS::kGroupSize));
@@ -1515,6 +1551,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 					GraphBuilder, PrevFrameHistory->RT[BufferId], GSystemTextures.BlackDummy);
 			}
 
+			PassParameters->HistoryBufferUVMinMax[BatchedSignalId] = FVector4(
+				float(PrevFrameHistory->Scissor.Min.X + 0.5f) / float(BufferExtent.X),
+				float(PrevFrameHistory->Scissor.Min.Y + 0.5f) / float(BufferExtent.Y),
+				float(PrevFrameHistory->Scissor.Max.X - 0.5f) / float(BufferExtent.X),
+				float(PrevFrameHistory->Scissor.Max.Y - 0.5f) / float(BufferExtent.Y));
+
 			// Releases the reference on previous frame so the history's render target can be reused ASAP.
 			PrevFrameHistory->SafeRelease();
 		} // for (uint32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
@@ -1604,6 +1646,8 @@ static void DenoiseSignalAtConstantPixelDensity(
 				int32 HistoryBufferId = BatchedSignalId * HistoryTextureCountPerSignal + BufferId;
 				GraphBuilder.QueueTextureExtraction(SignalHistory.Textures[HistoryBufferId], &NewHistory->RT[BufferId]);
 			}
+
+			NewHistory->Scissor = Settings.Viewport;
 		} // for (uint32 BatchedSignalId = 0; BatchedSignalId < Settings.SignalBatchSize; BatchedSignalId++)
 	}
 	else if (HistoryTextureCountPerSignal >= 2)
@@ -1752,8 +1796,33 @@ public:
 		for (int32 BatchedSignalId = 0; BatchedSignalId < InputParameterCount; BatchedSignalId++)
 		{
 			const FShadowParameters& Parameters = InputParameters[BatchedSignalId];
+			const FLightSceneProxy* Proxy = Parameters.LightSceneInfo->Proxy;
+			
+			// Scissor the denoiser.
+			{
+				FIntRect LightScissorRect;
+				if (Proxy->GetScissorRect(/* out */ LightScissorRect, View, View.ViewRect))
+				{
 
-			ensure(IsSupportedLightType(ELightComponentType(Parameters.LightSceneInfo->Proxy->GetLightType())));
+				}
+				else
+				{
+					LightScissorRect = View.ViewRect;
+				}
+
+				if (BatchedSignalId == 0)
+				{
+					Settings.Viewport = LightScissorRect;
+				}
+				else
+				{
+					Settings.Viewport.Union(LightScissorRect);
+				}
+
+				Settings.SignalScissor[BatchedSignalId] = LightScissorRect;
+			}
+
+			ensure(IsSupportedLightType(ELightComponentType(Proxy->GetLightType())));
 
 			Settings.LightSceneInfo[BatchedSignalId] = Parameters.LightSceneInfo;
 			if (Settings.MaxInputSPP == 1 && CVarShadowUse1SPPCodePath.GetValueOnRenderThread() != 0)
@@ -1774,6 +1843,12 @@ public:
 				check(View.ViewState);
 				NewHistories[BatchedSignalId] = &View.ViewState->PrevFrameViewInfo.ShadowHistories.FindOrAdd(Settings.LightSceneInfo[BatchedSignalId]->Proxy->GetLightComponent());
 			}
+		}
+
+		// Force viewport to be a multiple of 2, to avoid over frame interference between TAA jitter of the frame, and Stackowiack's SampleTrackId.
+		{
+			Settings.Viewport.Min.X &= ~1;
+			Settings.Viewport.Min.Y &= ~1;
 		}
 
 		FSSDSignalTextures SignalOutput;
@@ -1820,6 +1895,7 @@ public:
 			int32 Periode = 1 << HarmonicId;
 
 			FSSDConstantPixelDensitySettings Settings;
+			Settings.Viewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
 			Settings.HarmonicPeriode = Periode;
 			Settings.ReconstructionSamples = Periode * Periode; // TODO: should use preconvolution instead for harmonic 3
@@ -1855,6 +1931,7 @@ public:
 			int32 Periode = 1 << HarmonicId;
 
 			FSSDConstantPixelDensitySettings Settings;
+			Settings.Viewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
 			Settings.HarmonicPeriode = Periode;
 			Settings.ReconstructionSamples = Periode * Periode; // TODO: should use preconvolution instead for harmonic 3
@@ -1889,9 +1966,11 @@ public:
 		// Merges the different harmonics.
 		FSSDSignalTextures ComposedHarmonics;
 		{
+			FIntPoint BufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-					SceneTextures.SceneDepthBuffer->Desc.Extent,
+					BufferExtent,
 					PF_FloatRGBA,
 					FClearValueBinding::Black,
 					/* InFlags = */ TexCreate_None,
@@ -1904,6 +1983,13 @@ public:
 
 			ComposePassParameters->CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
 			ComposePassParameters->CommonParameters.SceneTextures = SceneTextures;
+			ComposePassParameters->CommonParameters.ViewportMin = View.ViewRect.Min;
+			ComposePassParameters->CommonParameters.ViewportMax = View.ViewRect.Max;
+			ComposePassParameters->CommonParameters.BufferBilinearUVMinMax = FVector4(
+				float(View.ViewRect.Min.X + 0.5f) / float(BufferExtent.X),
+				float(View.ViewRect.Min.Y + 0.5f) / float(BufferExtent.Y),
+				float(View.ViewRect.Max.X - 0.5f) / float(BufferExtent.X),
+				float(View.ViewRect.Max.Y - 0.5f) / float(BufferExtent.Y));
 
 			ComposePassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, ComposedHarmonics);
 
@@ -1931,6 +2017,7 @@ public:
 		FPolychromaticPenumbraOutputs Outputs;
 		{
 			FSSDConstantPixelDensitySettings Settings;
+			Settings.Viewport = View.ViewRect;
 			Settings.SignalProcessing = ESignalProcessing::PolychromaticPenumbraHarmonic;
 			Settings.bEnableReconstruction = false;
 			Settings.bUseTemporalAccumulation = CVarShadowTemporalAccumulation.GetValueOnRenderThread() != 0;
@@ -1973,6 +2060,7 @@ public:
 		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
 
 		FSSDConstantPixelDensitySettings Settings;
+		Settings.Viewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::Reflections;
 		Settings.InputResolutionFraction = RayTracingConfig.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarReflectionReconstructionSampleCount.GetValueOnRenderThread();
@@ -2013,6 +2101,7 @@ public:
 		InputSignal.Textures[1] = ReflectionInputs.RayHitDistance;
 		
 		FSSDConstantPixelDensitySettings Settings;
+		Settings.Viewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::AmbientOcclusion;
 		Settings.InputResolutionFraction = RayTracingConfig.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarAOReconstructionSampleCount.GetValueOnRenderThread();
@@ -2054,6 +2143,7 @@ public:
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
 
 		FSSDConstantPixelDensitySettings Settings;
+		Settings.Viewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::DiffuseAndAmbientOcclusion;
 		Settings.InputResolutionFraction = Config.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
@@ -2096,6 +2186,7 @@ public:
 		InputSignal.Textures[1] = Inputs.RayHitDistance;
 
 		FSSDConstantPixelDensitySettings Settings;
+		Settings.Viewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::DiffuseAndAmbientOcclusion;
 		Settings.InputResolutionFraction = Config.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();
@@ -2138,6 +2229,7 @@ public:
 			InputSignal.Textures[i] = Inputs.SphericalHarmonic[i];
 
 		FSSDConstantPixelDensitySettings Settings;
+		Settings.Viewport = View.ViewRect;
 		Settings.SignalProcessing = ESignalProcessing::DiffuseSphericalHarmonic;
 		Settings.InputResolutionFraction = Config.ResolutionFraction;
 		Settings.ReconstructionSamples = CVarGIReconstructionSampleCount.GetValueOnRenderThread();

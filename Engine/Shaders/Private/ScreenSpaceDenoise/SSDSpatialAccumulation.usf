@@ -62,6 +62,10 @@
 		#define CONFIG_MAX_WITH_REF_DISTANCE 1
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 
+		#if DIM_SIGNAL_BATCH_SIZE > 1
+			#define CONFIG_CLAMP_UV_PER_SIGNAL 1
+		#endif
+
 	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
 		// Input and output layout.
 		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
@@ -352,6 +356,11 @@
 
 //------------------------------------------------------- CONFIG DISABLED DEFAULTS
 
+/** Whether should clamp the UV individually per texture. */
+#ifndef CONFIG_CLAMP_UV_PER_SIGNAL
+	#define CONFIG_CLAMP_UV_PER_SIGNAL 0
+#endif
+
 /** Changes the logic controling the number of sample to do. */
 #ifndef CONFIG_SAMPLE_COUNT_POLICY
 	#define CONFIG_SAMPLE_COUNT_POLICY SAMPLE_COUNT_POLICY_DISABLED
@@ -471,6 +480,8 @@ uint UpscaleFactor;
 
 float HarmonicPeriode;
 
+float4 InputBufferUVMinMax[CONFIG_SIGNAL_BATCH_SIZE];
+
 
 #if !defined(CONFIG_INPUT_TEXTURE_COUNT)
 	#error Missing CONFIG_INPUT_TEXTURE_COUNT
@@ -548,10 +559,10 @@ void MainCS(
 	uint GroupThreadIndex : SV_GroupIndex)
 {
 	// Find out scene buffer UV.
-	float2 SceneBufferUV = (DispatchThreadId + 0.5 + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+	float2 SceneBufferUV = ((DispatchThreadId + ViewportMin) + 0.5) * View.BufferSizeAndInvSize.zw;
 	if (true)
 	{
-		SceneBufferUV = clamp(SceneBufferUV, View.BufferBilinearUVMinMax.xy, View.BufferBilinearUVMinMax.zw);
+		SceneBufferUV = clamp(SceneBufferUV, BufferBilinearUVMinMax.xy, BufferBilinearUVMinMax.zw);
 	}
 	
 	// Read reference meta data.
@@ -651,6 +662,7 @@ void MainCS(
 		KernelConfig.bNormalizeSample = CONFIG_NORMALIZE_INPUT != 0;
 		KernelConfig.bSampleKernelCenter = CONFIG_UPSCALE;
 		KernelConfig.bForceKernelCenterAccumulation = true;
+		KernelConfig.bClampUVPerMultiplexedSignal = CONFIG_CLAMP_UV_PER_SIGNAL != 0;
 
 		// Reconstruct the spherical harmonic when reconstructing from 1spp.
 		KernelConfig.bComputeSampleColorSH = DIM_STAGE == STAGE_RECONSTRUCTION && DIM_MULTI_SPP == 0;
@@ -666,12 +678,23 @@ void MainCS(
 
 		SetBilateralPreset(CONFIG_BILATERAL_PRESET, /* inout */ KernelConfig);
 
-
 		// SGPRs
 		KernelConfig.BufferSizeAndInvSize = View.BufferSizeAndInvSize;
-		KernelConfig.BufferBilinearUVMinMax = View.BufferBilinearUVMinMax;
+		KernelConfig.BufferBilinearUVMinMax = BufferBilinearUVMinMax;
 		KernelConfig.KernelSpreadFactor = KernelSpreadFactor;
 		KernelConfig.HarmonicPeriode = HarmonicPeriode;
+
+		#if CONFIG_CLAMP_UV_PER_SIGNAL
+		{
+			UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
+			for (uint BatchedSignalId = 0; BatchedSignalId < CONFIG_SIGNAL_BATCH_SIZE; BatchedSignalId++)
+			{
+				uint MultiplexId = BatchedSignalId / CONFIG_MULTIPLEXED_SIGNALS_PER_SIGNAL_DOMAIN;
+				KernelConfig.PerSignalUVMinMax[MultiplexId] = InputBufferUVMinMax[MultiplexId];
+			}
+		}
+		#endif
+
 
 		// VGPRs
 		KernelConfig.BufferUV = SceneBufferUV;
@@ -771,7 +794,7 @@ void MainCS(
 			
 				uint RaySubPixelId = View.StateFrameIndex & (UpscaleFactor * UpscaleFactor - 1);
 
-				KernelConfig.BufferUV = ((ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5)) + View.ViewRectMin.xy) * View.BufferSizeAndInvSize.zw;
+				KernelConfig.BufferUV = ((ViewportMin + ClosestRayPixelCoord + (0.5 * KernelSpreadFactor + 0.5))) * View.BufferSizeAndInvSize.zw;
 			
 				// Sample the center of the kernel by comparing it against the RefSceneMetadata, since it may no match.
 				KernelConfig.bSampleKernelCenter = true;
@@ -785,7 +808,7 @@ void MainCS(
 			#else
 			{
 				// Put the kernel center at the center of the quad. Half pixel shift is done in the sample offsets.
-				KernelConfig.BufferUV = (DispatchThreadId | 1) * View.BufferSizeAndInvSize.zw;
+				KernelConfig.BufferUV = (ViewportMin + (DispatchThreadId | 1)) * View.BufferSizeAndInvSize.zw;
 
 				// Id of the pixel in the quad. This is to match hard coded first samples of the sample set.
 				KernelConfig.SampleTrackId = ((DispatchThreadId.x & 1) | ((DispatchThreadId.y & 1) << 1));
@@ -1024,47 +1047,51 @@ void MainCS(
 		#endif
 	}
 	#else
-		OutputPixelPostion = DispatchThreadId;
+		OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif 
 
-	// Output the multiplexed signal.
-	#if DIM_STAGE == STAGE_FINAL_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
+	BRANCH
+	if (all(OutputPixelPostion < ViewportMax))
 	{
-		UNROLL
-		for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
+		// Output the multiplexed signal.
+		#if DIM_STAGE == STAGE_FINAL_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_MONOCHROMATIC_PENUMBRA
 		{
-			float Shadow = GetSamplePenumbraSafe(OutputSamples.Array[MultiplexId]);
+			UNROLL
+			for (uint MultiplexId = 0; MultiplexId < MultiplexCount; MultiplexId++)
+			{
+				float Shadow = GetSamplePenumbraSafe(OutputSamples.Array[MultiplexId]);
 
-			const float ShadowFadeFraction = 1;
-			float SSSTransmission = Shadow;
+				const float ShadowFadeFraction = 1;
+				float SSSTransmission = Shadow;
 
-			// 0 is shadowed, 1 is unshadowed
-			// RETURN_COLOR not needed unless writing to SceneColor;
-			float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
-			float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
+				// 0 is shadowed, 1 is unshadowed
+				// RETURN_COLOR not needed unless writing to SceneColor;
+				float FadedShadow = lerp(1.0f, Square(Shadow), ShadowFadeFraction);
+				float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
 
-			// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
-			float4 OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
+				// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
+				float4 OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
 
-			if (MultiplexId == 0)
-				SignalOutput_UAVs_0[OutputPixelPostion] = OutColor;
-			if (MultiplexId == 1)
-				SignalOutput_UAVs_1[OutputPixelPostion] = OutColor;
-			if (MultiplexId == 2)
-				SignalOutput_UAVs_2[OutputPixelPostion] = OutColor;
-			if (MultiplexId == 3)
-				SignalOutput_UAVs_3[OutputPixelPostion] = OutColor;
+				if (MultiplexId == 0)
+					SignalOutput_UAVs_0[OutputPixelPostion] = OutColor;
+				if (MultiplexId == 1)
+					SignalOutput_UAVs_1[OutputPixelPostion] = OutColor;
+				if (MultiplexId == 2)
+					SignalOutput_UAVs_2[OutputPixelPostion] = OutColor;
+				if (MultiplexId == 3)
+					SignalOutput_UAVs_3[OutputPixelPostion] = OutColor;
+			}
 		}
+		#else
+		{
+			OutputMultiplexedSignal(
+				SignalOutput_UAVs_0,
+				SignalOutput_UAVs_1,
+				SignalOutput_UAVs_2,
+				SignalOutput_UAVs_3,
+				CONFIG_SIGNAL_OUTPUT_LAYOUT, MultiplexCount,
+				OutputPixelPostion, OutputSamples.Array);
+		}
+		#endif
 	}
-	#else
-	{
-		OutputMultiplexedSignal(
-			SignalOutput_UAVs_0,
-			SignalOutput_UAVs_1,
-			SignalOutput_UAVs_2,
-			SignalOutput_UAVs_3,
-			CONFIG_SIGNAL_OUTPUT_LAYOUT, MultiplexCount,
-			OutputPixelPostion, OutputSamples.Array);
-	}
-	#endif
 } // MainCS
