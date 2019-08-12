@@ -195,7 +195,7 @@ static TAutoConsoleVariable<int32> CVarAtmosphereRender(
 // On CPU
 void UAtmosphericFogComponent::InitResource()
 {
-	bool bNewAtmosphere = CVarAtmosphereRender.GetValueOnGameThread() != 0;
+	bool bNewAtmosphere = CVarAtmosphereRender.GetValueOnAnyThread() != 0;
 
 	if(!bNewAtmosphere)
 	{
