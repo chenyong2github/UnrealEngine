@@ -69,6 +69,8 @@ inline static void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFe
 
 	// ----------
 
+	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
+
 	// Histogram related values.
 	float LowPercent = FMath::Clamp(Settings.AutoExposureLowPercent, 1.0f, 99.0f) * 0.01f;
 	float HighPercent = FMath::Clamp(Settings.AutoExposureHighPercent, 1.0f, 99.0f) * 0.01f;
@@ -115,7 +117,7 @@ inline static void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFe
 	// When !EngineShowFlags.EyeAdaptation (from "r.EyeAdaptationQuality 0") or the feature level doesn't support eye adaptation, only Settings.AutoExposureBias controls exposure.
 	else if (EngineShowFlags.EyeAdaptation && View.GetFeatureLevel() >= MinFeatureLevel)
 	{
-		if (Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
+		if (AutoExposureMethod == EAutoExposureMethod::AEM_Manual)
 		{
 			const float FixedEV100 = FMath::Log2(FMath::Square(Settings.DepthOfFieldFstop) * Settings.CameraShutterSpeed * 100 / FMath::Max(1.f, Settings.CameraISO));
 			MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(FixedEV100);
@@ -132,7 +134,7 @@ inline static void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFe
 		}
 
 		// Note that AEM_Histogram implements the calibration constant through LowPercent and HiPercent.
-		if (Settings.AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
+		if (AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
 		{
 			const float CalibrationConstant = FMath::Clamp<float>(Settings.AutoExposureCalibrationConstant, 1.f, 100.f) * 0.01f;
 			AverageLuminanceScale = 1.f / CalibrationConstant;

@@ -295,13 +295,20 @@ void FRCPassPostProcessVisualizeHDR::Process(FRenderingCompositePassContext& Con
 		Canvas.DrawShadowedString(MinX + XAdd - 5, MaxY + YStep, *Line, GetStatsFont(), FLinearColor(1, 0.3f, 0.3f));
 	}
 	Y += 3 * YStep;
-	if (AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
+	switch (AutoExposureMethod)
 	{
+	case EAutoExposureMethod::AEM_Basic:
 		Line = FString::Printf(TEXT("Basic"));
-	}
-	else
-	{
+		break;
+	case EAutoExposureMethod::AEM_Histogram:
 		Line = FString::Printf(TEXT("Histogram"));
+		break;
+	case EAutoExposureMethod::AEM_Manual:
+		Line = FString::Printf(TEXT("Manual"));
+		break;
+	default:
+		Line = FString::Printf(TEXT("Unknown"));
+		break;
 	}
 	Canvas.DrawShadowedString(X, Y += YStep, TEXT("Auto Exposure Method:"), GetStatsFont(), FLinearColor(1, 1, 1));
 	Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 1));

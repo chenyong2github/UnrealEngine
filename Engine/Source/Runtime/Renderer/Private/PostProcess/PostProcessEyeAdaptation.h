@@ -103,43 +103,6 @@ private:
 // Console Variable that is used to over-ride the post process settings.
 extern TAutoConsoleVariable<int32> CVarEyeAdaptationMethodOverride;
 
-// Query the view for the auto exposure method, and allow for CVar override.
-static inline EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View)
-{
-	EAutoExposureMethod AutoExposureMethodId = View.FinalPostProcessSettings.AutoExposureMethod;
-	const int32 EyeOverride = CVarEyeAdaptationMethodOverride.GetValueOnRenderThread();
-
-	// Early out for common case
-	if (EyeOverride < 0) return AutoExposureMethodId;
-
-	// Additional branching for override.
-	switch (EyeOverride)
-	{
-	case 1:
-	{
-			  AutoExposureMethodId = EAutoExposureMethod::AEM_Histogram;
-			  break;
-	}
-	case 2:
-	{
-			  AutoExposureMethodId = EAutoExposureMethod::AEM_Basic;
-			  break;
-	}
-	case 3:
-	{
-			  AutoExposureMethodId = EAutoExposureMethod::AEM_Manual;
-			  break;
-	}
-	default:
-	{
-			   // Should only happen if the user supplies an override > 3
-			   AutoExposureMethodId = EAutoExposureMethod::AEM_MAX;
-			   break;
-	}
-	}
-	return AutoExposureMethodId;
-}
-
 // @return true if the current feature level supports this auto exposure method.
 static inline bool IsAutoExposureMethodSupported(const ERHIFeatureLevel::Type& FeatureLevel, const EAutoExposureMethod& AutoExposureMethodId)
 {
@@ -158,6 +121,52 @@ static inline bool IsAutoExposureMethodSupported(const ERHIFeatureLevel::Type& F
 		break;
 	}
 	return Result;
+}
+
+// Query the view for the auto exposure method, and allow for CVar override.
+static inline EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View)
+{
+	EAutoExposureMethod AutoExposureMethodId = View.FinalPostProcessSettings.AutoExposureMethod;
+
+	const int32 EyeOverride = CVarEyeAdaptationMethodOverride.GetValueOnRenderThread();
+
+	if (EyeOverride >= 0)
+	{
+		// Additional branching for override.
+		switch (EyeOverride)
+		{
+		case 1:
+		{
+			// Only override if the platform supports it.
+			if (View.GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+			{
+				AutoExposureMethodId = EAutoExposureMethod::AEM_Histogram;
+			}
+			break;
+		}
+		case 2:
+		{
+			AutoExposureMethodId = EAutoExposureMethod::AEM_Basic;
+			break;
+		}
+		case 3:
+		{
+			AutoExposureMethodId = EAutoExposureMethod::AEM_Manual;
+			break;
+		}
+		}
+	}
+
+	// If auto exposure is disabled, revert to manual mode which will clamp to a reasonable default.
+	if (!View.Family->EngineShowFlags.EyeAdaptation)
+	{
+		AutoExposureMethodId = AEM_Manual;
+	}
+
+	// We should have a valid exposure method at this stage.
+	check(IsAutoExposureMethodSupported(View.GetFeatureLevel(), AutoExposureMethodId));
+
+	return AutoExposureMethodId;
 }
 
 extern TAutoConsoleVariable<float> CVarEyeAdaptationFocus;
