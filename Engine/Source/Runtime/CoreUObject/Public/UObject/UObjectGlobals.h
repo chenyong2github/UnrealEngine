@@ -958,11 +958,6 @@ public:
 		return *this;
 	}
 
-	/** 
-	 * Internal use only, checks if the override is legal and if not deal with error messages
-	**/
-	bool IsLegalOverride(FName InComponentName, class UClass* DerivedComponentClass, class UClass* BaseComponentClass) const;
-
 	/**
 	 * Asserts with the specified message if code is executed inside UObject constructor
 	 **/
@@ -1032,41 +1027,16 @@ private:
 	struct FOverrides
 	{
 		/**  Add an override, make sure it is legal **/
-		void Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer)
-		{
-			int32 Index = Find(InComponentName);
-			if (Index == INDEX_NONE)
-			{
-				new (Overrides) FOverride(InComponentName, InComponentClass);
-			}
-			else if (InComponentClass && Overrides[Index].ComponentClass)
-			{
-				ObjectInitializer.IsLegalOverride(InComponentName, Overrides[Index].ComponentClass, InComponentClass); // if a base class is asking for an override, the existing override (which we are going to use) had better be derived
-			}
-		}
-		/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
-		UClass* Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer)
-		{
-			int32 Index = Find(InComponentName);
-			UClass* BaseComponentClass = ClassToConstructByDefault;
-			if (Index == INDEX_NONE)
-			{
-				return BaseComponentClass; // no override so just do what the base class wanted
-			}
-			else if (Overrides[Index].ComponentClass)
-			{
-				if (ObjectInitializer.IsLegalOverride(InComponentName, Overrides[Index].ComponentClass, ReturnType)) // if THE base class is asking for a T, the existing override (which we are going to use) had better be derived
-				{
-					return Overrides[Index].ComponentClass; // the override is of an acceptable class, so use it
-				}
-				// else return nullptr; this is a unacceptable override
-			}
-			return nullptr;  // the override is of nullptr, which means "don't create this component"
-		}
+		void Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer);
 
-private:
+		/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
+		UClass* Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer) const;
+
+	private:
+		static bool IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass);
+
 		/**  Search for an override **/
-		int32 Find(FName InComponentName)
+		int32 Find(FName InComponentName) const
 		{
 			for (int32 Index = 0 ; Index < Overrides.Num(); Index++)
 			{
