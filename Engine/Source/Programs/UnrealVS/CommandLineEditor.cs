@@ -29,6 +29,11 @@ namespace UnrealVS
 
 		public CommandLineEditor()
 		{
+		}
+
+
+		public void Initialize()
+		{
 			// Create the handlers for our commands
 			{
 				// CommandLineCombo
