@@ -52,6 +52,7 @@
 #include "Serialization/DeferredMessageLog.h"
 #include "UObject/CoreRedirects.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/LowLevelMemStats.h"
 
 DEFINE_LOG_CATEGORY(LogObj);
 
