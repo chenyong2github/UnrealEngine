@@ -31,8 +31,8 @@
     <ApplicationTypeRevision>10.0</ApplicationTypeRevision>
   </PropertyGroup>
   <PropertyGroup>
-	<SceneUnderstandingWinMDArm Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\SceneUnderstanding.winmd</SceneUnderstandingWinMDArm>
-	<SceneUnderstandingWinMDx64 Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\SceneUnderstanding.winmd</SceneUnderstandingWinMDx64>
+	<SceneUnderstandingWinMDArm Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\Microsoft.MixedReality.SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\ARM64\Microsoft.MixedReality.SceneUnderstanding.winmd</SceneUnderstandingWinMDArm>
+	<SceneUnderstandingWinMDx64 Condition="exists('$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\Microsoft.MixedReality.SceneUnderstanding.winmd')">$(SolutionDir)..\..\..\Binaries\ThirdParty\HoloLens\x64\Microsoft.MixedReality.SceneUnderstanding.winmd</SceneUnderstandingWinMDx64>
 	<WithSceneUnderstanding Condition="$(SceneUnderstandingWinMDArm) != ''">1</WithSceneUnderstanding>
 	<WithSceneUnderstanding Condition="$(WithSceneUnderstanding) == ''">0</WithSceneUnderstanding>
   </PropertyGroup>

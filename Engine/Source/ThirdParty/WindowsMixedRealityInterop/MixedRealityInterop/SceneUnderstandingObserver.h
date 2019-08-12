@@ -10,7 +10,7 @@ using namespace Windows::Perception::Spatial::Surfaces;
 using namespace Platform;
 
 #if WITH_SCENE_UNDERSTANDING
-using namespace SceneUnderstanding;
+	using namespace Microsoft::MixedReality::SceneUnderstanding;
 #endif
 
 /**
@@ -43,7 +43,7 @@ public:
 	void Log(const wchar_t* LogMsg);
 
 #if WITH_SCENE_UNDERSTANDING
-	void OnSceneUnderstandingUpdateComplete(SceneProcessor^ UpdatedProcessor);
+	void OnSceneUnderstandingUpdateComplete();
 #endif
 
 private:
@@ -84,11 +84,13 @@ private:
 	void InitSettings();
 	
 	/** Copies the mesh data to the UE4 array data */
-	void CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<int>^ Indices);
+	void CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<unsigned int>^ Indices);
 
 	/** The scene understanding query settings that we'll use to observe the scene */
-	QuerySettings Settings;
-	/** The processor that will give us scene understanding updates */
-	SceneProcessor^ Processor = nullptr;
+	SceneQuerySettings Settings;
+	/** The last scene the observer returned to us */
+	Scene^ ObservedScene = nullptr;
 #endif
+	/** Whether we are running and requesting updates */
+	bool bIsRunning = false;
 };

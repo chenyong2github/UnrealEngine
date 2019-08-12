@@ -175,11 +175,28 @@ void SceneUnderstandingObserver::StartSceneUnderstandingObserver(
 	}
 
 #if WITH_SCENE_UNDERSTANDING
+	// If it's supported, request access
+	if (SceneObserver::IsSupported())
 	{
-		std::lock_guard<std::mutex> lock(RefsLock);
-		Processor = ref new SceneProcessor();
+		auto RequestTask = concurrency::create_task(SceneObserver::RequestAccessAsync());
+		RequestTask.then([this](SceneObserverAccessStatus AccessStatus)
+		{
+			if (AccessStatus == SceneObserverAccessStatus::Allowed)
+			{
+				std::lock_guard<std::mutex> lock(RefsLock);
+				bIsRunning = true;
+				RequestAsyncUpdate();
+			}
+			else
+			{
+				Log(L"User denied permission for scene understanding. No updates will occur.");
+			}
+		});
 	}
-	RequestAsyncUpdate();
+	else
+	{
+		Log(L"SceneObserver::IsSupported() returned false. No updates will occur.");
+	}
 #endif
 }
 
@@ -188,18 +205,18 @@ void SceneUnderstandingObserver::StopSceneUnderstandingObserver()
 	std::lock_guard<std::mutex> lock(RefsLock);
 
 #if WITH_SCENE_UNDERSTANDING
-	Processor = nullptr;
+	bIsRunning = false;
 #endif
 }
 
 void SceneUnderstandingObserver::RequestAsyncUpdate()
 {
 #if WITH_SCENE_UNDERSTANDING
-	std::lock_guard<std::mutex> lock(RefsLock);
-	create_task([this, UpdateProcessor = Processor]()
+	concurrency::create_task([this]()
 	{
-		UpdateProcessor->Update(Settings, VolumeSize);
-		OnSceneUnderstandingUpdateComplete(UpdateProcessor);
+		std::lock_guard<std::mutex> lock(RefsLock);
+		ObservedScene = SceneObserver::Compute(Settings, VolumeSize, ObservedScene);
+		OnSceneUnderstandingUpdateComplete();
 	});
 #endif
 }
@@ -208,121 +225,113 @@ void SceneUnderstandingObserver::RequestAsyncUpdate()
 void SceneUnderstandingObserver::InitSettings()
 {
 	Settings.EnableSceneObjectQuads = bWantsPlanes;
+	Settings.EnableSceneObjectMeshes = bWantsSceneMeshes;
 	Settings.EnableOnlyObservedSceneObjects = !bWantsPlanes && bWantsSceneMeshes;
-	Settings.EnablePersistentSceneObjects = bWantsSceneMeshes;
 	// This comes from the mesh observer
 	Settings.EnableWorldMesh = false;
-	Settings.RequestedMeshLOD = MeshLOD::Medium;
+	Settings.RequestedMeshLevelOfDetail = SceneMeshLevelOfDetail::Medium;
 }
 
-void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete(SceneProcessor^ UpdatedProcessor)
+void SceneUnderstandingObserver::OnSceneUnderstandingUpdateComplete()
 {
 	{
 		std::lock_guard<std::mutex> lock(RefsLock);
-		// It's possible this processor was stopped while an update was pending
-		// So only process this update if it's for the same scene processor object
-		if (UpdatedProcessor == Processor)
+		OnStartUpdates();
+
+		// Tracks current vs last known for removal notifications
+		std::set<Guid, GUIDComparer> CurrentPlaneGuidSet;
+		std::set<Guid, GUIDComparer> CurrentMeshGuidSet;
+
+		IVectorView<SceneObject^>^ SceneObjects = ObservedScene->SceneObjects;
+		const unsigned int SceneObjectCount = SceneObjects != nullptr ? SceneObjects->Size : 0;
+		for (unsigned int ObjectIndex = 0; ObjectIndex < SceneObjectCount; ObjectIndex++)
 		{
-			OnStartUpdates();
-			Array<SceneObject^>^ SceneObjects = nullptr;
-			Processor->GetSceneObjects(&SceneObjects);
-			const unsigned int SceneObjectCount = SceneObjects->Length;
-			for (unsigned int ObjectIndex = 0; ObjectIndex < SceneObjectCount; ObjectIndex++)
+			SceneObject^ SCObject = SceneObjects->GetAt(ObjectIndex);
+
+			// Process each quad this scene object has
+			IVectorView<SceneQuad^>^ QuadObjects = SCObject->Quads;
+			const unsigned int QuadCount = QuadObjects != nullptr ? QuadObjects->Size : 0;
+			for (unsigned int QuadIndex = 0; QuadIndex < QuadCount; QuadIndex++)
 			{
-				SceneObject^ SCObject = SceneObjects->get(ObjectIndex);
+				SceneQuad^ QuadObject = QuadObjects->GetAt(QuadIndex);
+				PlaneUpdate CurrentPlane;
+				CurrentPlane.Id = QuadObject->Id;
+				CurrentPlaneGuidSet.insert(CurrentPlane.Id);
 
-				// Process each quad this scene object has
+				CurrentPlane.Width = QuadObject->Extents.x * 100.f;
+				CurrentPlane.Height = QuadObject->Extents.y * 100.f;
+				CurrentPlane.Orientation = (int32)QuadObject->Alignment;
+				CurrentPlane.ObjectLabel = (int32)SCObject->Kind;
+
+				Windows::Perception::Spatial::SpatialCoordinateSystem^ QuadCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentPlane.Id);
+				CopyTransform(CurrentPlane, QuadCoordSystem);
+			}
+
+			// Process each mesh this scene object has
+			IVectorView<SceneMesh^>^ MeshObjects = SCObject->Meshes;
+			const unsigned int MeshCount = MeshObjects != nullptr ? MeshObjects->Size : 0;
+			for (unsigned int MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
+			{
+				SceneMesh^ MeshObject = MeshObjects->GetAt(MeshIndex);
+				MeshUpdate CurrentMesh;
+				CurrentMesh.Id = MeshObject->Id;
+
+				Windows::Perception::Spatial::SpatialCoordinateSystem^ MeshCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentMesh.Id);
+				CopyTransform(CurrentMesh, MeshCoordSystem);
+
+				const unsigned int TriangleIndexCount = MeshObject->TriangleIndexCount;
+				const unsigned int VertexCount = MeshObject->VertexCount;
+				if (TriangleIndexCount > 0 && VertexCount > 0)
 				{
-					std::set<Guid, GUIDComparer> CurrentPlaneGuidSet;
-					Array<Quad^>^ QuadObjects = nullptr;
-					SCObject->GetAssociatedQuads(&QuadObjects);
-					if (QuadObjects != nullptr)
-					{
-						const unsigned int QuadCount = SceneObjects->Length;
-						for (unsigned int QuadIndex = 0; QuadIndex < QuadCount; QuadIndex++)
-						{
-							Quad^ QuadObject = QuadObjects->get(QuadIndex);
-							PlaneUpdate CurrentPlane;
-							CurrentPlane.Id = QuadObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
-							CurrentPlaneGuidSet.insert(CurrentPlane.Id);
+					CurrentMesh.NumVertices = VertexCount;
+					CurrentMesh.NumIndices = TriangleIndexCount;
+					OnAllocateMeshBuffers(&CurrentMesh);
 
-							CurrentPlane.Width = QuadObject->WidthInMeters * 100.f;
-							CurrentPlane.Height = QuadObject->HeightInMeters * 100.f;
-							CurrentPlane.Orientation = (int32)QuadObject->Orientation;
-							CurrentPlane.ObjectLabel = (int32)SCObject->Label;
+					Array<unsigned int>^ Indices = ref new Array<unsigned int>(TriangleIndexCount);
+					MeshObject->GetTriangleIndices(Indices);
+					Array<float>^ VertexComponents = ref new Array<float>(VertexCount * 3);
+					MeshObject->GetVertexPositions(VertexComponents);
 
-							Windows::Perception::Spatial::SpatialCoordinateSystem^ QuadCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentPlane.Id);
-							CopyTransform(CurrentPlane, QuadCoordSystem);
-						}
-					}
-					// Remove any planes that were seen last time, but not this time
-					std::set<Guid>::iterator It = LastPlaneGuidSet.begin();
-					while (It != LastPlaneGuidSet.end())
-					{
-						Guid Id = *It;
-						// If this one is not in the new set, then it was removed
-						if (CurrentPlaneGuidSet.find(Id) == CurrentPlaneGuidSet.end())
-						{
-							PlaneUpdate RemovedPlane;
-							RemovedPlane.Id = Id;
-							OnRemovedPlane(&RemovedPlane);
-						}
-					}
-					LastPlaneGuidSet = CurrentPlaneGuidSet;
-				}
-
-				// Process each mesh this scene object has
-				{
-					std::set<Guid, GUIDComparer> CurrentMeshGuidSet;
-					Array<Mesh^>^ MeshObjects = nullptr;
-					SCObject->GetAssociatedMeshes(&MeshObjects);
-					if (MeshObjects != nullptr)
-					{
-						const unsigned int MeshCount = SceneObjects->Length;
-						for (unsigned int MeshIndex = 0; MeshIndex < MeshCount; MeshIndex++)
-						{
-							Mesh^ MeshObject = MeshObjects->get(MeshIndex);
-							MeshUpdate CurrentMesh;
-							CurrentMesh.Id = MeshObject->SpatialCoordinateSystem->SpatialCoordinateGuid;
-
-							Windows::Perception::Spatial::SpatialCoordinateSystem^ MeshCoordSystem = Windows::Perception::Spatial::Preview::SpatialGraphInteropPreview::CreateCoordinateSystemForNode(CurrentMesh.Id);
-							CopyTransform(CurrentMesh, MeshCoordSystem);
-
-							Array<int>^ Indices = nullptr;
-							Array<float>^ Vertices = nullptr;
-							MeshObject->GetTriangleIndices(&Indices);
-							MeshObject->GetVertices(&Vertices);
-							if (Indices != nullptr && Vertices != nullptr)
-							{
-								CurrentMesh.NumVertices = Vertices->Length / 3;
-								CurrentMesh.NumIndices = Indices->Length;
-								OnAllocateMeshBuffers(&CurrentMesh);
-								CopyMeshData(CurrentMesh, Vertices, Indices);
-							}
-						}
-					}
-					std::set<Guid>::iterator It = LastMeshGuidSet.begin();
-					while (It != LastMeshGuidSet.end())
-					{
-						Guid Id = *It;
-						// If this one is not in the new set, then it was removed
-						if (CurrentMeshGuidSet.find(Id) == CurrentMeshGuidSet.end())
-						{
-							MeshUpdate RemovedMesh;
-							RemovedMesh.Id = Id;
-							OnRemovedMesh(&RemovedMesh);
-						}
-					}
-					LastMeshGuidSet = CurrentMeshGuidSet;
+					CopyMeshData(CurrentMesh, VertexComponents, Indices);
 				}
 			}
-			OnFinishUpdates();
 		}
+
+		// Remove any planes that were seen last time, but not this time
+		std::set<Guid>::iterator PlaneIt = LastPlaneGuidSet.begin();
+		while (PlaneIt != LastPlaneGuidSet.end())
+		{
+			Guid Id = *PlaneIt;
+			// If this one is not in the new set, then it was removed
+			if (CurrentPlaneGuidSet.find(Id) == CurrentPlaneGuidSet.end())
+			{
+				PlaneUpdate RemovedPlane;
+				RemovedPlane.Id = Id;
+				OnRemovedPlane(&RemovedPlane);
+			}
+		}
+		LastPlaneGuidSet = CurrentPlaneGuidSet;
+
+		std::set<Guid>::iterator MeshIt = LastMeshGuidSet.begin();
+		while (MeshIt != LastMeshGuidSet.end())
+		{
+			Guid Id = *MeshIt;
+			// If this one is not in the new set, then it was removed
+			if (CurrentMeshGuidSet.find(Id) == CurrentMeshGuidSet.end())
+			{
+				MeshUpdate RemovedMesh;
+				RemovedMesh.Id = Id;
+				OnRemovedMesh(&RemovedMesh);
+			}
+		}
+		LastMeshGuidSet = CurrentMeshGuidSet;
+
+		OnFinishUpdates();
 	}
 	RequestAsyncUpdate();
 }
 
-void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<int>^ Indices)
+void SceneUnderstandingObserver::CopyMeshData(MeshUpdate& DestMesh, Array<float>^ Vertices, Array<unsigned int>^ Indices)
 {
 	int Floats = DestMesh.NumVertices;
 	float* DestVertices = (float*)DestMesh.Vertices;

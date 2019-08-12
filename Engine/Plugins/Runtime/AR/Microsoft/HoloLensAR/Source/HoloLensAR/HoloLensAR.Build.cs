@@ -50,11 +50,11 @@ public class HoloLensAR : ModuleRules
 		PublicDefinitions.Add("WITH_WINDOWS_MIXED_REALITY=1");
 
 		// Add a dependency to SceneUnderstanding.dll if present
-		string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
-        string SceneUnderstandingWinMDPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.winmd");
+		string SceneUnderstandingDllPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
+        string SceneUnderstandingWinMDPath = System.IO.Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.winmd");
         if (System.IO.File.Exists(SceneUnderstandingDllPath) && System.IO.File.Exists(SceneUnderstandingWinMDPath))
 		{
-			PublicDelayLoadDLLs.Add("SceneUnderstanding.dll");
+			PublicDelayLoadDLLs.Add("Microsoft.MixedReality.SceneUnderstanding.dll");
 			RuntimeDependencies.Add(SceneUnderstandingDllPath);
             RuntimeDependencies.Add(SceneUnderstandingWinMDPath);
             PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");

@@ -145,7 +145,7 @@ namespace UnrealBuildTool.Rules
                 PublicDelayLoadDLLs.Add("QRCodesTrackerPlugin.dll");
                 RuntimeDependencies.Add(Path.Combine("$(EngineDir)/Binaries/ThirdParty/HoloLens/ARM64", "QRCodesTrackerPlugin.dll"));
 
-				string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "SceneUnderstanding.dll");
+				string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
 				if (File.Exists(SceneUnderstandingPath))
 				{
 					PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
