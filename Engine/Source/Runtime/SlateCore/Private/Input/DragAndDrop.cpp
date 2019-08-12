@@ -32,7 +32,17 @@ void FDragDropOperation::OnDragged( const class FDragDropEvent& DragDropEvent )
 {
 	if (CursorDecoratorWindow.IsValid())
 	{
-		CursorDecoratorWindow->MoveWindowTo(DragDropEvent.GetScreenSpacePosition() + FSlateApplicationBase::Get().GetCursorSize());
+		FSlateApplicationBase& SlateApplication = FSlateApplicationBase::Get();
+						
+		FVector2D Position = DragDropEvent.GetScreenSpacePosition() + FSlateApplicationBase::Get().GetCursorSize();
+
+		if (Position != CursorDecoratorWindow->GetPositionInScreen())
+		{
+			FSlateRect Anchor(Position.X, Position.Y, Position.X, Position.Y);
+			Position = SlateApplication.CalculateTooltipWindowPosition(Anchor, CursorDecoratorWindow->GetDesiredSizeDesktopPixels(), false);
+		}
+
+		CursorDecoratorWindow->MoveWindowTo(Position);
 	}
 }
 
