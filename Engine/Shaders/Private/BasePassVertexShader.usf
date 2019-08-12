@@ -128,7 +128,7 @@ void Main(
 	Output.BasePassInterpolants.VertexFog = CalculateHeightFog(WorldPosition.xyz - ResolvedView.TranslatedWorldCameraOrigin);
 	#endif
 
-#if PROJECT_SUPPORT_SKY_ATMOSPHERE
+#if PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_FORCE_SKIP_AERIAL_PERSPECTIVE==0
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
 		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;

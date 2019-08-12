@@ -33,13 +33,6 @@ static TAutoConsoleVariable<int32> CVarSupportSkyAtmosphere(
 
 ////////////////////////////////////////////////////////////////////////// Regular sky 
 
-static TAutoConsoleVariable<int32> CVarSkyAtmosphereRelyOnSkyDome(
-	TEXT("r.SkyAtmosphere.RelyOnSkyDome"), 0,
-	TEXT("When true, the sky pixels will not be rendered by the full screen sky and aerialpesepctive pass.\n")
-	TEXT("Sky pixels will be skipped using depth bound test when available and\n")
-	TEXT("only the aerial perspective will be evaluated on opaque mesh pixels.\n"),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<float> CVarSkyAtmosphereSampleCountMin(
 	TEXT("r.SkyAtmosphere.SampleCountMin"), 2.0f,
 	TEXT("The minimum sample count used to compute sky/atmosphere scattering and transmittance.\n")
@@ -312,6 +305,11 @@ static void CopyAtmosphereSetupToUniformShaderParameters(FAtmosphereUniformShade
 #undef COPYMACRO
 }
 
+static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light, FLinearColor LightIlluminance)
+{
+	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(Light.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
+	return LightIlluminance / SunSolidAngle; // approximation
+}
 
 
 /*=============================================================================
@@ -355,10 +353,7 @@ void FSkyAtmosphereRenderSceneInfo::PrepareSunLightProxy(FLightSceneInfo& SunLig
 
 	FLinearColor SunZenithIlluminance = SunLight.Proxy->GetColor();
 	FLinearColor SunOuterSpaceIlluminance = SunZenithIlluminance / TransmittanceAtZenithFinal;
-
-	// SunDiscScale is only considered as a visual tweak so we do not make it influence the sun disk outerspace luminance.
-	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(SunLight.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
-	FLinearColor SunDiskOuterSpaceLuminance = SunOuterSpaceIlluminance / SunSolidAngle; // approximation
+	FLinearColor SunDiskOuterSpaceLuminance = GetLightDiskLuminance(SunLight, SunOuterSpaceIlluminance);
 
 	SunLight.Proxy->SetAtmosphereRelatedProperties(TransmittanceTowardSun / TransmittanceAtZenithFinal, SunDiskOuterSpaceLuminance);
 }
@@ -418,6 +413,20 @@ void FScene::RemoveSkyAtmosphere(const USkyAtmosphereComponent* SkyAtmosphereCom
 				Scene->SkyAtmosphere = NULL;
 			}
 		} );
+}
+
+void FScene::ResetAtmosphereLightsProperties()
+{
+	// Also rest the current atmospheric light to default atmosphere
+	for (int32 LightIndex = 0; LightIndex < NUM_ATMOSPHERE_LIGHTS; ++LightIndex)
+	{
+		FLightSceneInfo* Light = AtmosphereLights[LightIndex];
+		if (Light)
+		{
+			FLinearColor LightZenithIlluminance = Light->Proxy->GetColor();
+			Light->Proxy->SetAtmosphereRelatedProperties(FLinearColor::White, GetLightDiskLuminance(*Light, LightZenithIlluminance));
+		}
+	}
 }
 
 
@@ -1136,7 +1145,6 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 	const bool bFastSky = CVarSkyAtmosphereFastSkyLUT.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPespective = CVarSkyAtmosphereAerialPerspectiveApplyOnOpaque.GetValueOnRenderThread() > 0;
 	const bool bFastAerialPespectiveDepthTest = CVarSkyAtmosphereAerialPerspectiveDepthTest.GetValueOnRenderThread() > 0;
-	const bool bSkyRelyOnSkyDome = CVarSkyAtmosphereRelyOnSkyDome.GetValueOnAnyThread();
 	const bool bSecondAtmosphereLightEnabled = IsSecondAtmosphereLightEnabled(Scene);
 
 	FRHISamplerState* SamplerLinearClamp = TStaticSamplerState<SF_Trilinear>::GetRHI();
@@ -1157,6 +1165,11 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 
 		const bool bLightDiskEnabled = !View.bIsReflectionCapture;
 
+		// If the scene contains Sky material then it is likely rendering the sky using a sky dome mesh.
+		// In this case we can use a simpler shader during this pass to only render aerial perspective
+		// and sky pixels can likely be optimised out.
+		const bool bRenderSkyPixel = !View.bSceneHasSkyMaterial;
+
 		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
 		const float KmToCm = 100000.0f;
 		const FVector PlanetOrigin = FVector(0.0f, 0.0f, -Atmosphere.BottomRadius * KmToCm);
@@ -1172,7 +1185,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 			PsPermutationVector.Set<FFastAerialPespective>(bFastAerialPespective && !ForceRayMarching);
 			PsPermutationVector.Set<FSourceDiskEnabled>(bLightDiskEnabled);
 			PsPermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
-			PsPermutationVector.Set<FRenderSky>(!bSkyRelyOnSkyDome);
+			PsPermutationVector.Set<FRenderSky>(bRenderSkyPixel);
 			PsPermutationVector = FRenderSkyAtmospherePS::RemapPermutation(PsPermutationVector);
 			TShaderMapRef<FRenderSkyAtmospherePS> PixelShader(View.ShaderMap, PsPermutationVector);
 
@@ -1213,10 +1226,10 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 
 			FIntRect Viewport = View.ViewRect;
 			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("SkyAtmosphere"),
+				RDG_EVENT_NAME("SkyAtmosphereDraw"),
 				PsPassParameters,
 				ERDGPassFlags::Raster,
-				[PsPassParameters, VertexShader, PixelShader, Viewport, bFastAerialPespectiveDepthTest, bSkyRelyOnSkyDome, StartDepthZ](FRHICommandList& RHICmdList)
+				[PsPassParameters, VertexShader, PixelShader, Viewport, bFastAerialPespectiveDepthTest, bRenderSkyPixel, StartDepthZ](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
 
@@ -1239,7 +1252,7 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader->GetPixelShader();
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
-				if (bSkyRelyOnSkyDome && GSupportsDepthBoundsTest)
+				if (!bRenderSkyPixel && GSupportsDepthBoundsTest)
 				{
 					// When we do not render the sky in the sky pass and depth bound test is supported, we take advantage of it in order to skip the processing of sky pixels.
 					GraphicsPSOInit.bDepthBounds = true;
@@ -1288,6 +1301,61 @@ void FSceneRenderer::RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList)
 			FString Text = TEXT("You are using a FastAerialPespective without FastSky, visuals might look wrong.");
 			Canvas.DrawShadowedString(ViewPortWidth*0.5 - Text.Len()*7, ViewPortHeight*0.5, *Text, GetStatsFont(), TextColor);
 
+			Canvas.Flush_RenderThread(RHICmdList);
+		}
+	}
+#endif
+}
+
+bool FSceneRenderer::ShouldRenderSkyAtmosphereEditorNotifications()
+{
+#if WITH_EDITOR
+	bool bAnyViewHasSkyMaterial = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bAnyViewHasSkyMaterial |= Views[ViewIndex].bSceneHasSkyMaterial;
+	}
+	return bAnyViewHasSkyMaterial;
+#endif
+	return false;
+}
+
+void FSceneRenderer::RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList)
+{
+#if WITH_EDITOR
+	DECLARE_GPU_STAT(SkyAtmosphereEditor);
+	SCOPED_DRAW_EVENT(RHICmdList, SkyAtmosphereEditor);
+	SCOPED_GPU_STAT(RHICmdList, SkyAtmosphereEditor);
+
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+
+		if (View.bSceneHasSkyMaterial)
+		{
+			const float ViewPortWidth = float(View.ViewRect.Width());
+			const float ViewPortHeight = float(View.ViewRect.Height());
+
+			FRenderTargetTemp TempRenderTarget(View, (const FTexture2DRHIRef&)SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
+			FCanvas Canvas(&TempRenderTarget, NULL, View.Family->CurrentRealTime, ViewFamily.CurrentWorldTime, ViewFamily.DeltaWorldTime, View.GetFeatureLevel());
+
+			FLinearColor TextColor(1.0f, 0.5f, 0.0f);
+			FString Text  = TEXT("Your scene contains a mesh with a sky material assigned to it.");
+			FString Text2 = TEXT("So we optimize by not rendering the sky as a full-screen pass.");
+			FString Text3 = TEXT("However, your sky mesh does not cover that part of the screen!");
+			const int32 TextWidth = Text.Len() * 7;
+			for (int i = 32; i < ViewPortWidth; i += (TextWidth + 32))
+			{
+				for (int j = 32; j < ViewPortHeight; j += 128)
+				{
+					Canvas.DrawShadowedString(i, j     , *Text , GetStatsFont(), TextColor);
+					Canvas.DrawShadowedString(i, j + 16, *Text2, GetStatsFont(), TextColor);
+					Canvas.DrawShadowedString(i, j + 32, *Text3, GetStatsFont(), TextColor);
+				}
+			}
+
+			// Flush immediately to output into the scene color right away
 			Canvas.Flush_RenderThread(RHICmdList);
 		}
 	}

@@ -733,6 +733,11 @@ void RenderSkyAtmosphereRayMarchingPS(
 		// We should not render the sky and the current pixels are at far depth, so simply early exit.
 		// We enable depth bound when supported to not have to even process those pixels.
 		OutLuminance = PrepareOutput(float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+
+		//Now the sky pass can ignore the pixel with depth == far but it will need to alpha clip because not all RHI backend support depthbound tests.
+		// And the depthtest is already setup to avoid writing all the pixel closer than to the camera than the start distance (very good optimisation).
+		// Since this shader does not write to depth or stencil it should still benefit from EArlyZ even with the clip (See AMD depth-in-depth documentation)
+		clip(0);
 		return;
 #endif
 	}

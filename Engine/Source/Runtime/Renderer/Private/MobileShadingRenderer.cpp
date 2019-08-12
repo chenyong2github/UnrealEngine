@@ -315,7 +315,7 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	PrepareViewRectsForRendering();
 
-	if (Scene->HasSkyAtmosphere())
+	if (Scene->HasSkyAtmosphere() && ShouldRenderSkyAtmosphere(Scene->SkyAtmosphere, Scene->GetShaderPlatform()))
 	{
 		for (int32 LightIndex = 0; LightIndex < NUM_ATMOSPHERE_LIGHTS; ++LightIndex)
 		{
@@ -324,6 +324,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				Scene->GetSkyAtmosphereSceneInfo()->PrepareSunLightProxy(*Scene->AtmosphereLights[LightIndex]);
 			}
 		}
+	}
+	else
+	{
+		Scene->ResetAtmosphereLightsProperties();
 	}
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);

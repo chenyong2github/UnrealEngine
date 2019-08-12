@@ -1017,6 +1017,11 @@ public:
 	 * TODO: Right now decal visibility is computed right before rendering them. Ideally it should be done in InitViews and this flag should be replaced with list of visible decals  
 	 */
 	uint32 bSceneHasDecals : 1;
+	/**
+	 * true if the scene has at least one mesh with a material tagged as sky. 
+	 * This is used to skip the sky rendering part during the SkyAtmosphere pass on non mobile platforms.
+	 */
+	uint32 bSceneHasSkyMaterial : 1;
 	/** Bitmask of all shading models used by primitives in this view */
 	uint16 ShadingModelMaskInView;
 
@@ -1689,6 +1694,11 @@ protected:
 	void RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& RHICmdList);
 	/** Render the sky atmosphere over the scene.*/
 	void RenderSkyAtmosphere(FRHICommandListImmediate& RHICmdList);
+
+	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
+	void RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList);
+	/** We should render on screen notification only if any of the scene contains a mesh using a sky material.*/
+	bool ShouldRenderSkyAtmosphereEditorNotifications();
 
 	void ResolveSceneColor(FRHICommandList& RHICmdList);
 

@@ -2713,6 +2713,9 @@ public:
 		return (SkyAtmosphere != NULL);
 	}
 
+	// Reset all the light to default state "not being affected by atmosphere". Should only be called from render side.
+	void ResetAtmosphereLightsProperties();
+
 	/**
 	 * Retrieves the lights interacting with the passed in primitive and adds them to the out array.
 	 *
