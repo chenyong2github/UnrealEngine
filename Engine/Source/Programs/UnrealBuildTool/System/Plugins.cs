@@ -422,7 +422,6 @@ namespace UnrealBuildTool
 					{
 						PluginInfo Plugin = new PluginInfo(PluginFileName, Type);
 
-						Console.WriteLine("Plugin: {0}", PluginFileName);
 						// is there a parent to merge up into?
 						if (Plugin.Descriptor.bIsPluginExtension)
 						{
