@@ -43,13 +43,13 @@ public class MaterialEditor : ModuleRules
                 "Projects",
                 "AssetRegistry",
 				"ToolMenus",
+				"MainFrame",
 			}
 		);
 
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
-				"MainFrame",
 				"SceneOutliner",
 				"ClassViewer",
 				"ContentBrowser",
