@@ -47,6 +47,9 @@ namespace Audio
 
 		virtual FString GetCurrentDeviceName() const;
 
+	protected:
+		FCriticalSection OutputBufferMutex;
+
 	private:
 
 		SDL_AudioDeviceID AudioDeviceID;
