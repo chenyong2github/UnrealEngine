@@ -239,9 +239,10 @@ void SNiagaraScriptGraph::OnNodeTitleCommitted(const FText& NewText, ETextCommit
 bool SNiagaraScriptGraph::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage)
 {
 	bool bValid = true;
-	if (NodeBeingChanged->IsA(UNiagaraNodeInput::StaticClass()))
+	UNiagaraNodeInput* InputNodeBeingChanged = Cast<UNiagaraNodeInput>(NodeBeingChanged);
+	if (InputNodeBeingChanged != nullptr)
 	{
-		return UNiagaraNodeInput::VerifyNodeRenameTextCommit(NewText, Cast<UNiagaraNodeInput>(NodeBeingChanged), OutErrorMessage);
+		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), *NewText.ToString(), OutErrorMessage);
 	}
 	return bValid;
 }
