@@ -181,6 +181,11 @@ void FAvfMediaVideoSampler::SetOutput(AVPlayerItemVideoOutput* InOutput, float I
 	}
 }
 
+void FAvfMediaVideoSampler::Reset()
+{
+	auto VideoSample = VideoSamplePool->AcquireShared();
+	VideoSample->Reset();
+}
 
 void FAvfMediaVideoSampler::Tick()
 {

@@ -321,6 +321,9 @@ FAvfMediaPlayer::~FAvfMediaPlayer()
 {
 	Close();
 
+	delete Tracks;
+	Tracks = nullptr;
+	
 	delete Samples;
 	Samples = nullptr;
 }
