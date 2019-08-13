@@ -242,6 +242,22 @@ bool UAnimGraphNode_CustomProperty::HasExternalDependencies(TArray<class UStruct
 	return InstanceClassToUse || bSuperResult;
 }
 
+void UAnimGraphNode_CustomProperty::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
+{
+	Super::CustomizeDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
+
+	// Customize InstanceClass
+	{
+		TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
+		if (ClassHandle->IsValidHandle())
+		{
+			ClassHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateUObject(this, &UAnimGraphNode_CustomProperty::OnStructuralPropertyChanged, &DetailBuilder));
+		}
+	}
+}
+
 void UAnimGraphNode_CustomProperty::GetExposableProperties( TArray<UProperty*>& OutExposableProperties) const
 {
 	OutExposableProperties.Empty();
