@@ -10,11 +10,11 @@
 #include "Engine/Engine.h"
 #include "UObject/WeakObjectPtrTemplates.h"
 #include "Tickable.h"
-#include "NetworkSimulationModel.h"
+#include "NetworkPredictionTypes.h"
 #include "CanvasItem.h"
 #include "Containers/Array.h"
 #include "Templates/UniquePtr.h"
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogNetworkSimDebug, Log, All);
 
@@ -355,10 +355,10 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		// ------------------------------------------------------------------------------------------------------------------------------------------------
 
 		Out.Emit(FString::Printf(TEXT("%s - %s"), *Owner->GetName(), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), Owner->Role)), FColor::Yellow);
-		Out.Emit(FString::Printf(TEXT("LastProcessedInputKeyframe: %d (%d Buffered)"), NetworkSim->LastProcessedInputKeyframe, NetworkSim->InputBuffer.GetHeadKeyframe() - NetworkSim->LastProcessedInputKeyframe));
+		Out.Emit(FString::Printf(TEXT("LastProcessedInputKeyframe: %d (%d Buffered)"), NetworkSim->TickInfo.LastProcessedInputKeyframe, NetworkSim->Buffers.Input.GetHeadKeyframe() - NetworkSim->TickInfo.LastProcessedInputKeyframe));
 
 		// Autorproxy
-		{
+		{			
 			FColor Color = FColor::White;
 			const bool FaultDetected = NetworkSim->RepProxy_Autonomous.IsReconcileFaultDetected();
 
@@ -366,15 +366,15 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 			// Calc how much predicted time we have processed. Note that we use the motionstate buffer to iterate but the MS is on the input cmd. (if we are buffering cmds, don't want to count them)
 			float PredictedMS = 0.f;
-			for (int32 PredKeyrame = LastSerializedKeyframe+1; PredKeyrame <= NetworkSim->SyncBuffer.GetHeadKeyframe(); ++PredKeyrame)
+			for (int32 PredKeyrame = LastSerializedKeyframe+1; PredKeyrame <= NetworkSim->Buffers.Sync.GetHeadKeyframe(); ++PredKeyrame)
 			{
-				if (auto* Cmd = NetworkSim->InputBuffer.FindElementByKeyframe(PredKeyrame))
+				if (auto* Cmd = NetworkSim->Buffers.Input.FindElementByKeyframe(PredKeyrame))
 				{
 					PredictedMS += Cmd->FrameDeltaTime * 1000.f;
 				}
 			}
 
-			FString ConfirmedFrameStr = FString::Printf(TEXT("LastConfirmedFrame: %d. Prediction: %d Frames, %.2f MS"), LastSerializedKeyframe, NetworkSim->SyncBuffer.GetHeadKeyframe() - LastSerializedKeyframe, PredictedMS);
+			FString ConfirmedFrameStr = FString::Printf(TEXT("LastConfirmedFrame: %d. Prediction: %d Frames, %.2f MS"), LastSerializedKeyframe, NetworkSim->Buffers.Sync.GetHeadKeyframe() - LastSerializedKeyframe, PredictedMS);
 			if (FaultDetected)
 			{
 				ConfirmedFrameStr += TEXT(" RECONCILE FAULT DETECTED!");
@@ -382,6 +382,11 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			}
 
 			Out.Emit(*ConfirmedFrameStr, Color);
+
+			FString SimulationTimeString = FString::Printf(TEXT("Local SimulationTime: %s. SerialisedSimulationTime: %s. Difference MS: %s"), *NetworkSim->TickInfo.ProcessedSimulationTime.ToString(),
+				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimulationTimeKeeper().ToString(), *(NetworkSim->TickInfo.ProcessedSimulationTime - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimulationTimeKeeper()).ToString());
+			Out.Emit(*SimulationTimeString, Color);
+			
 		}
 
 		auto EmitBuffer = [&Out](FString BufferName, auto& Buffer)
@@ -393,8 +398,8 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			Out.EmitElement(Buffer, FStandardLoggingParameters(nullptr, EStandardLoggingContext::Full, Buffer.GetHeadKeyframe()));
 		};
 
-		EmitBuffer(TEXT("InputBuffer"), NetworkSim->InputBuffer);
-		EmitBuffer(TEXT("SyncBuffer"), NetworkSim->SyncBuffer);
+		EmitBuffer(TEXT("InputBuffer"), NetworkSim->Buffers.Input);
+		EmitBuffer(TEXT("SyncBuffer"), NetworkSim->Buffers.Sync);
 
 		// ------------------------------------------------------------------------------------------------------------------------------------------------
 		//	Canvas
@@ -403,7 +408,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 		auto* DebugBuffer = NetworkSim->GetDebugBuffer();
 		if (Canvas && DebugBuffer && DebugBuffer->GetNumValidElements() > 0)
 		{
-			auto& InputBuffer = NetworkSim->GetHistoricBuffers() ? NetworkSim->GetHistoricBuffers()->InputBuffer : NetworkSim->InputBuffer;
+			auto& InputBuffer = NetworkSim->GetHistoricBuffers() ? NetworkSim->GetHistoricBuffers()->Input : NetworkSim->Buffers.Input;
 
 			static float StartPctX = 0.3f;
 			static float StartPctY = 0.6f;
@@ -497,26 +502,26 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 		UWorld* World = Owner->GetWorld();
 
-		if (auto* LatestSync = NetworkSim->SyncBuffer.GetElementFromHead(0))
+		if (auto* LatestSync = NetworkSim->Buffers.Sync.GetElementFromHead(0))
 		{
-			LatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastPredicted, NetworkSim->SyncBuffer.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
+			LatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::LastPredicted, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
 		}
 
 		FStuff ServerPIEStuff = GetServerPIEStuff();
 		if (ServerPIEStuff.Driver && ServerPIEStuff.NetworkSim)
 		{
-			if (auto* ServerLatestSync = ServerPIEStuff.NetworkSim->SyncBuffer.GetElementFromHead(0))
+			if (auto* ServerLatestSync = ServerPIEStuff.NetworkSim->Buffers.Sync.GetElementFromHead(0))
 			{
-				ServerLatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->SyncBuffer.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), ServerPIEStuff.Driver, Driver);
+				ServerLatestSync->VisualLog( FVisualLoggingParameters(EVisualLoggingContext::CurrentServerPIE, ServerPIEStuff.NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), ServerPIEStuff.Driver, Driver);
 			}
 		}
-		
-		for (int32 Keyframe = NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe(); Keyframe < NetworkSim->SyncBuffer.GetHeadKeyframe(); ++Keyframe)
+
+		for (int32 Keyframe = NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe(); Keyframe < NetworkSim->Buffers.Sync.GetHeadKeyframe(); ++Keyframe)
 		{
-			if (auto* SyncState = NetworkSim->SyncBuffer.FindElementByKeyframe(Keyframe))
+			if (auto* SyncState = NetworkSim->Buffers.Sync.FindElementByKeyframe(Keyframe))
 			{
 				const EVisualLoggingContext Context = (Keyframe == NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe()) ? EVisualLoggingContext::LastConfirmed : EVisualLoggingContext::OtherPredicted;
-				SyncState->VisualLog( FVisualLoggingParameters(Context, NetworkSim->SyncBuffer.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
+				SyncState->VisualLog( FVisualLoggingParameters(Context, NetworkSim->Buffers.Sync.GetHeadKeyframe(), EVisualLoggingLifetime::Transient), Driver, Driver);
 			}
 		}
 	}

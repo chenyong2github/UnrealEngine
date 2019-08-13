@@ -34,7 +34,7 @@ Code to look at:
 -MockNetworkSimulation.h: Good place to start to see a bare minimum example of a predicted network simulation. Both the simulation and actor component live in this header.
 -NetworkPredictionExtrasFlyingPawn.h: Starting point to see how a pawn using flying movement is setup. In NetworkPredictionExtras.
 -FlyingMovement.h: The actual implementation of the flying movement system. In NetworkPrediction.
--NetworkSimulationModelTemplates.h: this is the lowest level guts of the system. This is what every simulation ultimately uses to stay in sync.
+-NetworkSimulationModel.h: this is the lowest level guts of the system. This is what every simulation ultimately uses to stay in sync.
  
 Extremely high level technical overview:
 -Concept of "NetworkedSimulationModel": defining a tightly constrained (gameplay) simulation that can be run predictively on clients and authoritatively on server. E.g., a "Movement System" is a NetworkedSimulationModel.
@@ -94,6 +94,13 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
+ 
+Update (8-9-19)
+-Big refactor underway within the NetworkSimModel. Some files are renamed or moved as well. Still a bit to do but this was a good commit point.
+-Mainly to facilitate clean implementation of interpolation/extrapolation/forward predict option for simulated proxy simulations: this was exposing weaknesses in the templated implementations.
+-Working towards improving "how and when simulation is allowed to advanced" (see TNetworkSimulationTickInfo)
+-Incomplete, but thinking about global management of active simulations: making sure reconcile and Tick are called in the right places. See notes in NetworkSimulationGlobalManager.h
+
  
 Update (8-2-19)
 -We want to take a look non player controlled simulations, such as doors, elevators, "pushers" before going deeper on ability system or movement.
