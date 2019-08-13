@@ -544,7 +544,7 @@ namespace Gauntlet
 
 			if (TargetType.UsesEditor())
 			{
-				ExePath = string.Format("Engine/Binaries/{0}/UE4Editor-Win64-DebugGame{1}", BuildHostPlatform.Current.Platform, Platform.GetExeExtension(TargetPlatform));
+				ExePath = string.Format("Engine/Binaries/{0}/UE4Editor{1}", BuildHostPlatform.Current.Platform, Platform.GetExeExtension(TargetPlatform));
 			}
 			else
 			{
