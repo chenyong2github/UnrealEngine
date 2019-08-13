@@ -45,6 +45,9 @@ public:
 protected:
 	// Finds out whether there is a loop in the graph formed by sub instances from this node
 	bool HasInstanceLoop();
+	
+	/** Generates widgets for exposing/hiding Pins for this node using the rpovided detail builder */
+	void GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder);
 
 	// Finds out whether there is a loop in the graph formed by sub instances from CurrNode, used by HasInstanceLoop. VisitedNodes and NodeStack are required
 	// to track the graph links
