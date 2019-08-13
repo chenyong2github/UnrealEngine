@@ -811,6 +811,10 @@ bool FLiveLinkClient::EvaluateFrame_AnyThread(FLiveLinkSubjectName InSubjectName
 			return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 		}
 	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
+	}
 
 	return false;
 }
@@ -836,6 +840,10 @@ bool FLiveLinkClient::EvaluateFrameAtWorldTime_AnyThread(FLiveLinkSubjectName In
 			}
 		}
 	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
+	}
 
 	return false;
 }
@@ -860,6 +868,10 @@ bool FLiveLinkClient::EvaluateFrameAtSceneTime_AnyThread(FLiveLinkSubjectName In
 				return SubjectItem->GetSubject()->EvaluateFrame(InDesiredRole, OutFrame);
 			}
 		}
+	}
+	else
+	{
+		UE_LOG(LogLiveLink, Verbose, TEXT("Subject '%s' is not enabled or doesn't exist"), *InSubjectName.ToString());
 	}
 
 	return false;
