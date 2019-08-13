@@ -142,6 +142,9 @@ public:
 	/** Updates source effect chain on all sources currently using the source effect chain. */
 	void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails);
 
+	/** Updates this submix for any changes made. Broadcasts to all submix instances. */
+	void UpdateSubmix(USoundSubmix* SoundSubmix);
+
 	/** Sets which audio device is the active audio device. */
 	void SetActiveDevice(uint32 InAudioDeviceHandle);
 
