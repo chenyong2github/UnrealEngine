@@ -55,7 +55,7 @@ namespace Gauntlet
 		/// <summary>
 		/// Returns the path to the project file. Created based on the Project argument
 		/// </summary>
-		public FileReference ProjectPath { get; protected set; }
+		public FileReference ProjectPath { get; set; }
 
 		/// <summary>
 		/// Reference to the build that is being tested
