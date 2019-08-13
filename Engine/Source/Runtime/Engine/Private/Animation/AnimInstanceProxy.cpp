@@ -373,15 +373,14 @@ void FAnimInstanceProxy::PreUpdate(UAnimInstance* InAnimInstance, float DeltaSec
 	FMemory::Memset(MachineWeights.GetData(), 0, MachineWeights.Num() * sizeof(float));
 
 #if WITH_EDITORONLY_DATA
-	bIsBeingDebugged = false;
-	if (UAnimBlueprint* AnimBlueprint = GetAnimBlueprint())
+	UAnimBlueprint* AnimBP = GetAnimBlueprint();
+	bIsBeingDebugged = AnimBP ? AnimBP->IsObjectBeingDebugged(InAnimInstance) : false;
+	if (bIsBeingDebugged)
 	{
-		bIsBeingDebugged = (AnimBlueprint->GetObjectBeingDebugged() == InAnimInstance);
-		if(bIsBeingDebugged)
+		FAnimBlueprintDebugData* DebugData = AnimBP->GetDebugData();
+		if (DebugData)
 		{
-			UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-			FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-			PoseWatchEntriesForThisFrame = DebugData.AnimNodePoseWatch;
+			PoseWatchEntriesForThisFrame = DebugData->AnimNodePoseWatch;
 		}
 	}
 #endif
@@ -458,12 +457,10 @@ void FAnimInstanceProxy::PostUpdate(UAnimInstance* InAnimInstance) const
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
 #if WITH_EDITORONLY_DATA
-	if(bIsBeingDebugged)
+	if (FAnimBlueprintDebugData* DebugData = GetAnimBlueprintDebugData())
 	{
-		UAnimBlueprintGeneratedClass* AnimBlueprintGeneratedClass = Cast<UAnimBlueprintGeneratedClass>(InAnimInstance->GetClass());
-		FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
-		DebugData.RecordNodeVisitArray(UpdatedNodesThisFrame);
-		DebugData.AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
+		DebugData->RecordNodeVisitArray(UpdatedNodesThisFrame);
+		DebugData->AnimNodePoseWatch = PoseWatchEntriesForThisFrame;
 	}
 #endif
 
@@ -2526,6 +2523,19 @@ void FAnimInstanceProxy::AddCurveValue(const FSmartNameMapping& Mapping, const F
 			}
 		}
 	}
+}
+
+FAnimBlueprintDebugData* FAnimInstanceProxy::GetAnimBlueprintDebugData() const
+{
+#if WITH_EDITORONLY_DATA
+	if (bIsBeingDebugged)
+	{
+		UAnimBlueprint* AnimBP = GetAnimBlueprint();
+		return AnimBP ? AnimBP->GetDebugData() : nullptr;
+	}
+#endif
+
+	return nullptr;
 }
 
 #undef LOCTEXT_NAMESPACE
