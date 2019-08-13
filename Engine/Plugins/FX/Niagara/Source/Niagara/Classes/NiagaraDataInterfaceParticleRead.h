@@ -59,6 +59,9 @@ public:
 	virtual void ReadColor(FVectorVMContext& Context, FName AttributeToRead);
 	virtual void ReadQuat(FVectorVMContext& Context, FName AttributeToRead);
 
+protected:
+	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
 private:
 	template<typename T>
 	T RetrieveValueWithCheck(FNiagaraEmitterInstance* EmitterInstance, const FNiagaraTypeDefinition& Type, const FName& Attr, const FNiagaraID& ParticleID, bool &bValid);
