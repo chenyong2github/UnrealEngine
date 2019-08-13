@@ -749,6 +749,9 @@ bool FSlateEditableTextLayout::HandleFocusReceived(const FFocusEvent& InFocusEve
 	// Focus change affects volatility, so update that too
 	OwnerWidget->GetSlateWidget()->Invalidate(EInvalidateWidget::LayoutAndVolatility);
 
+	// Force update of last cursor interaction time to ensure the caret blinks at the correct frequency regardless of how focus is set.
+	CursorInfo.UpdateLastCursorInteractionTime();
+
 	return true;
 }
 

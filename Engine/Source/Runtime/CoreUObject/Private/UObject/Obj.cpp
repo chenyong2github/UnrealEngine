@@ -1546,7 +1546,6 @@ protected:
 };
 
 
-#define ALLOW_SUB_SUB_OBJECTS (1)
 // if this is set to fatal, then we don't run any testing since it is time consuming.
 DEFINE_LOG_CATEGORY_STATIC(LogCheckSubobjects, Fatal, All);
 
@@ -1626,16 +1625,6 @@ bool UObject::CheckDefaultSubobjectsInternal() const
 		CompCheck(GetFName() == ObjClass->GetDefaultObjectName());
 	}
 
-
-	TArray<UObject *> AllCollectedComponents;
-	CollectDefaultSubobjects(AllCollectedComponents, true);
-	TArray<UObject *> DirectCollectedComponents;
-	CollectDefaultSubobjects(DirectCollectedComponents, false);
-		
-	AllCollectedComponents.Sort();
-	DirectCollectedComponents.Sort();
-
-	CompCheck(ALLOW_SUB_SUB_OBJECTS || AllCollectedComponents == DirectCollectedComponents); // just say no to subobjects of subobjects
 
 	return Result;
 }

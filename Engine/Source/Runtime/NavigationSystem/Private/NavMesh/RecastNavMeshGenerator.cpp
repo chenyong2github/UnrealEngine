@@ -1112,23 +1112,6 @@ void FRecastGeometryExport::SetNavDataPerInstanceTransformDelegate(const FNavDat
 	Data->NavDataPerInstanceTransformDelegate = InDelegate;
 }
 
-static void PartialTransformConvexHull(FConvexNavAreaData& ConvexData, const FTransform& LocalToWorld)
-{
-	FVector ScaleXY = LocalToWorld.GetScale3D().GetAbs();
-	ScaleXY.Z = 1.f;
-
-	FVector TranslationXY = LocalToWorld.GetLocation();
-	TranslationXY.Z = 0.f;
-
-	for (FVector& Point : ConvexData.Points)
-	{
-		Point = Point*ScaleXY + TranslationXY;
-	}
-
-	ConvexData.MaxZ+= LocalToWorld.GetLocation().Z;
-	ConvexData.MinZ+= LocalToWorld.GetLocation().Z;
-}
-
 FORCEINLINE void GrowConvexHull(const float ExpandBy, const TArray<FVector>& Verts, TArray<FVector>& OutResult)
 {
 	if (Verts.Num() < 3)
@@ -3090,11 +3073,17 @@ void FRecastTileGenerator::MarkDynamicArea(const FAreaNavModifier& Modifier, con
 		break;
 
 	case ENavigationShapeType::Convex:
+	case ENavigationShapeType::InstancedConvex:
 		{
 			FConvexNavAreaData ConvexData;
-			Modifier.GetConvex(ConvexData);
-			// Only scaling and translation
-			PartialTransformConvexHull(ConvexData, LocalToWorld);
+			if (Modifier.GetShapeType() == ENavigationShapeType::InstancedConvex)
+			{
+				Modifier.GetPerInstanceConvex(LocalToWorld, ConvexData);
+			} 
+			else
+			{
+				Modifier.GetConvex(ConvexData);
+			}
 
 			TArray<FVector> ConvexVerts;
 			GrowConvexHull(ExpandBy, ConvexData.Points, ConvexVerts);
@@ -4849,17 +4838,13 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 				const FNavigationOctreeElement& Element = It.GetCurrentElement();
 				const bool bExportGeometry = Element.Data->HasGeometry() && Element.ShouldUseGeometry(DestNavMesh->GetConfig());
 
+				TArray<FTransform> InstanceTransforms;
+				Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(Element.Bounds.GetBox(), InstanceTransforms);
+
 				if (bExportGeometry && Element.Data->CollisionData.Num())
 				{
 					FRecastGeometryCache CachedGeometry(Element.Data->CollisionData.GetData());
 					
-					const uint32 NumVerts = CachedGeometry.Header.NumVerts;
-					CoordBuffer.Reset(NumVerts);
-					for (uint32 VertIdx = 0; VertIdx < NumVerts * 3; VertIdx += 3)
-					{
-						CoordBuffer.Add(Recast2UnrealPoint(&CachedGeometry.Verts[VertIdx]));
-					}
-
 					const uint32 NumIndices = CachedGeometry.Header.NumFaces * 3;
 					Indices.SetNum(NumIndices, false);
 					for (uint32 IndicesIdx = 0; IndicesIdx < NumIndices; ++IndicesIdx)
@@ -4867,50 +4852,89 @@ void FRecastNavMeshGenerator::GrabDebugSnapshot(struct FVisualLogEntry* Snapshot
 						Indices[IndicesIdx] = CachedGeometry.Indices[IndicesIdx];
 					}
 
-					Snapshot->AddElement(CoordBuffer, Indices, CategoryName, LogVerbosity, FColorList::LightGrey.WithAlpha(255));
+					auto AddElementFunc = [&](const FTransform& Transform)
+					{
+						const uint32 NumVerts = CachedGeometry.Header.NumVerts;
+						CoordBuffer.Reset(NumVerts);
+						for (uint32 VertIdx = 0; VertIdx < NumVerts * 3; VertIdx += 3)
+						{
+							CoordBuffer.Add(Transform.TransformPosition(Recast2UnrealPoint(&CachedGeometry.Verts[VertIdx])));
+						}
+
+						Snapshot->AddElement(CoordBuffer, Indices, CategoryName, LogVerbosity, FColorList::LightGrey.WithAlpha(255));
+					};
+
+					if (InstanceTransforms.Num() == 0)
+					{
+						AddElementFunc(FTransform::Identity);
+					}
+					for (const FTransform& InstanceTransform : InstanceTransforms)
+					{
+						AddElementFunc(InstanceTransform);
+					}
 				}
 				else
 				{
 					TArray<FVector> Verts;
-					const TArray<FAreaNavModifier>& AreaMods = Element.Data->Modifiers.GetAreas();
-					for (int32 i = 0; i < AreaMods.Num(); i++)
+					for (const FAreaNavModifier& AreaMod : Element.Data->Modifiers.GetAreas())
 					{
-						if (AreaMods[i].GetShapeType() == ENavigationShapeType::Unknown)
+						ENavigationShapeType::Type ShapeType = AreaMod.GetShapeType();
+						if (ShapeType == ENavigationShapeType::Unknown)
 						{
 							continue;
 						}
 
-						const uint8 AreaId = NavData->GetAreaID(AreaMods[i].GetAreaClass());
+						const uint8 AreaId = NavData->GetAreaID(AreaMod.GetAreaClass());
 						const UClass* AreaClass = NavData->GetAreaClass(AreaId);
 						const UNavArea* DefArea = AreaClass ? ((UClass*)AreaClass)->GetDefaultObject<UNavArea>() : NULL;
 						const FColor PolygonColor = AreaClass != FNavigationSystem::GetDefaultWalkableArea() ? (DefArea ? DefArea->DrawColor : NavData->GetConfig().Color) : FColorList::Cyan;
 
-						if (AreaMods[i].GetShapeType() == ENavigationShapeType::Box)
+						if (ShapeType == ENavigationShapeType::Box)
 						{
 							FBoxNavAreaData Box;
-							AreaMods[i].GetBox(Box);
+							AreaMod.GetBox(Box);
 
 							Snapshot->AddElement(FBox::BuildAABB(Box.Origin, Box.Extent), FMatrix::Identity, CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
 						}
-						else if (AreaMods[i].GetShapeType() == ENavigationShapeType::Cylinder)
+						else if (ShapeType == ENavigationShapeType::Cylinder)
 						{
 							FCylinderNavAreaData Cylinder;
-							AreaMods[i].GetCylinder(Cylinder);
+							AreaMod.GetCylinder(Cylinder);
 
 							Snapshot->AddElement(Cylinder.Origin, Cylinder.Origin + FVector(0, 0, Cylinder.Height), Cylinder.Radius, CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
 						}
-						else
+						else if (ShapeType == ENavigationShapeType::Convex || ShapeType == ENavigationShapeType::InstancedConvex)
 						{
-							FConvexNavAreaData Convex;
-							AreaMods[i].GetConvex(Convex);
-							Verts.Reset();
-							GrowConvexHull(NavData->AgentRadius, Convex.Points, Verts);
+							auto AddElementFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
+							{
+								Verts.Reset();
+								GrowConvexHull(NavData->AgentRadius, InConvexNavAreaData.Points, Verts);
 
-							Snapshot->AddElement(
-								Verts,
-								Convex.MinZ - NavData->CellHeight, 
-								Convex.MaxZ + NavData->CellHeight, 
-								CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
+								if (Verts.Num())
+								{
+									Snapshot->AddElement(
+										Verts,
+										InConvexNavAreaData.MinZ - NavData->CellHeight,
+										InConvexNavAreaData.MaxZ + NavData->CellHeight,
+										CategoryName, NavAreaVerbosity, PolygonColor.WithAlpha(255));
+								}
+							};
+
+							if (ShapeType == ENavigationShapeType::Convex)
+							{
+								FConvexNavAreaData Convex;
+								AreaMod.GetConvex(Convex);
+								AddElementFunc(Convex);
+							}
+							else // ShapeType == ENavigationShapeType::InstancedConvex
+							{
+								for (const FTransform& InstanceTransform : InstanceTransforms)
+								{
+									FConvexNavAreaData Convex;
+									AreaMod.GetPerInstanceConvex(InstanceTransform, Convex);
+									AddElementFunc(Convex);
+								}
+							}
 						}
 					}
 				}
@@ -4958,39 +4982,85 @@ void FRecastNavMeshGenerator::ExportNavigationData(const FString& FileName) cons
 				const FNavigationOctreeElement& Element = It.GetCurrentElement();
 				const bool bExportGeometry = Element.Data->HasGeometry() && Element.ShouldUseGeometry(DestNavMesh->GetConfig());
 
+				TArray<FTransform> InstanceTransforms;
+				Element.Data->NavDataPerInstanceTransformDelegate.ExecuteIfBound(Element.Bounds.GetBox(), InstanceTransforms);
+				
 				if (bExportGeometry && Element.Data->CollisionData.Num())
 				{
+					const int32 NumInstances = FMath::Max(InstanceTransforms.Num(), 1);
 					FRecastGeometryCache CachedGeometry(Element.Data->CollisionData.GetData());
-					IndexBuffer.Reserve( IndexBuffer.Num() + (CachedGeometry.Header.NumFaces * 3 ));
-					CoordBuffer.Reserve( CoordBuffer.Num() + (CachedGeometry.Header.NumVerts * 3 ));
-					for (int32 i = 0; i < CachedGeometry.Header.NumFaces * 3; i++)
+					IndexBuffer.Reserve( IndexBuffer.Num() + (CachedGeometry.Header.NumFaces * 3 ) * NumInstances );
+					CoordBuffer.Reserve( CoordBuffer.Num() + (CachedGeometry.Header.NumVerts * 3 ) * NumInstances );
+
+					if (InstanceTransforms.Num() == 0)
 					{
-						IndexBuffer.Add(CachedGeometry.Indices[i] + CoordBuffer.Num() / 3);
+						for (int32 i = 0; i < CachedGeometry.Header.NumFaces * 3; i++)
+						{
+							IndexBuffer.Add(CachedGeometry.Indices[i] + CoordBuffer.Num() / 3);
+						}
+						for (int32 i = 0; i < CachedGeometry.Header.NumVerts * 3; i++)
+						{
+							CoordBuffer.Add(CachedGeometry.Verts[i]);
+						}
 					}
-					for (int32 i = 0; i < CachedGeometry.Header.NumVerts * 3; i++)
+					for (const FTransform& InstanceTransform : InstanceTransforms)
 					{
-						CoordBuffer.Add(CachedGeometry.Verts[i]);
+						for (int32 i = 0; i < CachedGeometry.Header.NumFaces * 3; i++)
+						{
+							IndexBuffer.Add(CachedGeometry.Indices[i] + CoordBuffer.Num() / 3);
+						}
+
+						FMatrix LocalToRecastWorld = InstanceTransform.ToMatrixWithScale()*Unreal2RecastMatrix();
+
+						for (int32 i = 0; i < CachedGeometry.Header.NumVerts * 3; i += 3)
+						{
+							// collision cache stores coordinates in recast space, convert them to unreal and transform to recast world space
+							FVector WorldRecastCoord = LocalToRecastWorld.TransformPosition(Recast2UnrealPoint(&CachedGeometry.Verts[i]));
+
+							CoordBuffer.Add(WorldRecastCoord.X);
+							CoordBuffer.Add(WorldRecastCoord.Y);
+							CoordBuffer.Add(WorldRecastCoord.Z);
+						}
 					}
 				}
 				else
 				{
-					const TArray<FAreaNavModifier>& AreaMods = Element.Data->Modifiers.GetAreas();
-					for (int32 i = 0; i < AreaMods.Num(); i++)
+					for (const FAreaNavModifier& AreaMod : Element.Data->Modifiers.GetAreas())
 					{
-						FAreaExportData ExportInfo;
-						ExportInfo.AreaId = NavData->GetAreaID(AreaMods[i].GetAreaClass());
-
-						if (AreaMods[i].GetShapeType() == ENavigationShapeType::Convex)
+						ENavigationShapeType::Type ShapeType = AreaMod.GetShapeType();
+						
+						if (ShapeType == ENavigationShapeType::Convex || ShapeType == ENavigationShapeType::InstancedConvex)
 						{
-							AreaMods[i].GetConvex(ExportInfo.Convex);
+							FAreaExportData ExportInfo;
+							ExportInfo.AreaId = NavData->GetAreaID(AreaMod.GetAreaClass());
 
-							TArray<FVector> ConvexVerts;
-							GrowConvexHull(NavData->AgentRadius, ExportInfo.Convex.Points, ConvexVerts);
-							ExportInfo.Convex.MinZ -= NavData->CellHeight;
-							ExportInfo.Convex.MaxZ += NavData->CellHeight;
-							ExportInfo.Convex.Points = ConvexVerts;
+							auto AddAreaExportDataFunc = [&](const FConvexNavAreaData& InConvexNavAreaData)
+							{
+								TArray<FVector> ConvexVerts;
+								GrowConvexHull(NavData->AgentRadius, ExportInfo.Convex.Points, ConvexVerts);
+								if (ConvexVerts.Num())
+								{
+									ExportInfo.Convex.MinZ -= NavData->CellHeight;
+									ExportInfo.Convex.MaxZ += NavData->CellHeight;
+									ExportInfo.Convex.Points = ConvexVerts;
 
-							AreaExport.Add(ExportInfo);
+									AreaExport.Add(ExportInfo);
+								}								
+							};
+
+							if (ShapeType == ENavigationShapeType::Convex)
+							{
+								AreaMod.GetConvex(ExportInfo.Convex);
+								AddAreaExportDataFunc(ExportInfo.Convex);
+							}
+							else // ShapeType == ENavigationShapeType::InstancedConvex
+							{
+								for (const FTransform& InstanceTransform : InstanceTransforms)
+								{
+									AreaMod.GetPerInstanceConvex(InstanceTransform, ExportInfo.Convex);
+									AddAreaExportDataFunc(ExportInfo.Convex);
+								}
+							}
 						}
 					}
 				}

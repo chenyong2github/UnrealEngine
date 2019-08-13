@@ -125,11 +125,6 @@ public:
 		return Authorized;
 	}
 
-	virtual const bool IsConsole() const override
-	{
-		return IsConsoleBuild;
-	}
-
 	DECLARE_DERIVED_EVENT(FSessionInstanceInfo, ISessionInstanceInfo::FLogReceivedEvent, FLogReceivedEvent);
 	virtual FLogReceivedEvent& OnLogReceived() override
 	{
@@ -182,9 +177,6 @@ private:
 
 	/** Holds the instance type (i.e. game, editor etc.) */
 	FString InstanceType;
-
-	/** Holds a flag indicating whether this is a console build. */
-	bool IsConsoleBuild;
 
 	/** Holds the time at which the last pong was received. */
 	FDateTime LastUpdateTime;

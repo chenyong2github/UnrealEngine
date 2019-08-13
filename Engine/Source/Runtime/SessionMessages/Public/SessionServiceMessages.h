@@ -61,10 +61,6 @@ struct FSessionServicePong
 	UPROPERTY(EditAnywhere, Category="Message")
 	FString InstanceName;
 
-	/** Indicates whether the application is running on a console. */
-	UPROPERTY(EditAnywhere, Category="Message")
-	bool IsConsoleBuild;
-
 	/** Holds the name of the platform that the application is running on. */
 	UPROPERTY(EditAnywhere, Category="Message")
 	FString PlatformName;

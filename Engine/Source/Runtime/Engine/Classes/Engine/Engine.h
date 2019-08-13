@@ -102,15 +102,6 @@ enum class ETransitionType : uint8
 	MAX
 };
 
-
-UENUM()
-enum class EConsoleType : uint8
-{
-	Any,
-	Mobile,
-	MAX
-};
-
 /** Status of dynamic resolution that depends on project setting cvar, game user settings, and pause */
 enum class EDynamicResolutionStatus
 {
@@ -1388,14 +1379,6 @@ public:
 	UPROPERTY(globalconfig)
 	uint32 bShouldGenerateLowQualityLightmaps_DEPRECATED :1;
 
-	/**
-	 * Bool that indicates that 'console' input is desired. This flag is mis named as it is used for a lot of gameplay related things
-	 * (e.g. increasing collision size, changing vehicle turning behavior, modifying put down/up weapon speed, bot behavior)
-	 *
-	 * currently set when you are running a console build (implicitly or explicitly via ?param on the commandline)
-	 */
-	uint32 bUseConsoleInput:1;
-
 	// Color preferences.
 	UPROPERTY()
 	FColor C_WorldBox;
@@ -2339,14 +2322,6 @@ public:
 	 * Returns the current desired time between garbage collection passes (not the time remaining)
 	 */
 	float GetTimeBetweenGarbageCollectionPasses() const;
-
-	/**
-	 * Returns whether we are running on a console platform or on the PC.
-	 * @param ConsoleType - if specified, only returns true if we're running on the specified platform
-	 *
-	 * @return true if we're on a console, false if we're running on a PC
-	 */
-	bool IsConsoleBuild(EConsoleType ConsoleType = EConsoleType::Any) const;
 
 	/** Add a FString to the On-screen debug message system. bNewerOnTop only works with Key == INDEX_NONE */
 	void AddOnScreenDebugMessage(uint64 Key,float TimeToDisplay,FColor DisplayColor,const FString& DebugMessage, bool bNewerOnTop = true, const FVector2D& TextScale = FVector2D::UnitVector);
