@@ -237,7 +237,7 @@ void FAudioDebugger::DrawDebugInfo(const FSoundSource& SoundSource)
 #endif // ENABLE_DRAW_DEBUG
 }
 
-void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances)
+void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray<FWaveInstance*>& ThisSoundsWaveInstances, const float DeltaTime)
 {
 #if ENABLE_DRAW_DEBUG
 	if (!ActiveSoundVisualizeModeCVar)
@@ -248,6 +248,16 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 	// Only draw spatialized sounds
 	const USoundBase* Sound = ActiveSound.GetSound();
 	if (!Sound || !ActiveSound.bAllowSpatialization)
+	{
+		return;
+	}
+
+	const float PlaybackTime = ActiveSound.PlaybackTime;
+	const float PlaybackTimeNonVirtualized = ActiveSound.PlaybackTimeNonVirtualized;
+
+	// StopQuietest sounds can start and immediately stop repeatedly when subscribed
+	// concurrency is flooded, so don't show the initial frame.
+	if (FMath::IsNearlyZero(PlaybackTimeNonVirtualized))
 	{
 		return;
 	}
@@ -295,7 +305,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 		}
 
 		TWeakObjectPtr<UWorld> WorldPtr = ActiveSound.GetWeakWorld();
-		FAudioThread::RunCommandOnGameThread([Name, TextColor, CurTransform, DisplayValue, WorldPtr, CurMaxDistance]()
+		FAudioThread::RunCommandOnGameThread([Name, TextColor, CurTransform, DisplayValue, WorldPtr, CurMaxDistance, PlaybackTime, PlaybackTimeNonVirtualized, DeltaTime]()
 		{
 			if (WorldPtr.IsValid())
 			{
@@ -313,11 +323,11 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 					const float DisplayDbVolume = Audio::ConvertToDecibels(DisplayValue);
 					if (ActiveSoundVisualizeModeCVar == 1)
 					{
-						Descriptor = FString::Printf(TEXT(" (Vol: %.3f)"), DisplayValue);
+						Descriptor = FString::Printf(TEXT(" (Vol: %.3f [Active: %.2fs, Playing: %.2fs])"), DisplayValue, PlaybackTime, PlaybackTimeNonVirtualized);
 					}
 					else
 					{
-						Descriptor = FString::Printf(TEXT(" (Vol: %.3f dB)"), DisplayDbVolume);
+						Descriptor = FString::Printf(TEXT(" (Vol: %.3f dB [Active: %.2fs, Playing: %.2fs])"), DisplayDbVolume, PlaybackTime, PlaybackTimeNonVirtualized);
 					}
 					static const float DbColorMinVol = -30.0f;
 					const float DbVolume = FMath::Clamp(DisplayDbVolume, DbColorMinVol, 0.0f);
@@ -332,7 +342,7 @@ void FAudioDebugger::DrawDebugInfo(const FActiveSound& ActiveSound, const TArray
 				}
 
 				const FString Description = FString::Printf(TEXT("%s%s"), *Name, *Descriptor);
-				DrawDebugString(DebugWorld, Location + FVector(0, 0, 32), *Description, nullptr, Color, 0.03f, false);
+				DrawDebugString(DebugWorld, Location + FVector(0, 0, 32), *Description, nullptr, Color, DeltaTime, false);
 			}
 		}, GET_STATID(STAT_AudioDrawActiveSoundDebugInfo));
 	}
@@ -365,11 +375,12 @@ void FAudioDebugger::DrawDebugInfo(const FAudioVirtualLoop& VirtualLoop)
 		const TWeakObjectPtr<UWorld> World = ActiveSound.GetWeakWorld();
 		const FString Name = Sound->GetName();
 		const float DrawInterval = VirtualLoop.GetUpdateInterval();
-		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval]()
+		const float TimeVirtualized = VirtualLoop.GetTimeVirtualized();
+		FAudioThread::RunCommandOnGameThread([World, Transform, Name, DrawInterval, TimeVirtualized]()
 		{
 			if (World.IsValid())
 			{
-				const FString Description = FString::Printf(TEXT("%s [V]"), *Name);
+				const FString Description = FString::Printf(TEXT("%s [Virt: %.2fs]"), *Name, TimeVirtualized);
 				FVector Location = Transform.GetLocation();
 				FRotator Rotation = Transform.GetRotation().Rotator();
 				DrawDebugCrosshairs(World.Get(), Location, Rotation, 20.0f, FColor::Blue, false, DrawInterval, SDPG_Foreground);

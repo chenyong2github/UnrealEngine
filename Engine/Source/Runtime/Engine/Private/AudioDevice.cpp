@@ -2173,28 +2173,12 @@ void FAudioDevice::StopQuietSoundsDueToMaxConcurrency(TArray<FWaveInstance*>& Wa
 				continue;
 			}
 
-			if (ActiveSound->bIsStopping)
+			if (IsPendingStop(ActiveSound))
 			{
 				continue;
 			}
 
-			ConcurrencyManager.RemoveActiveSound(*ActiveSound);
-			ConcurrencyManager.FadeOutActiveSound(*ActiveSound);
-
-			const bool bDoRangeCheck = false;
-			FAudioVirtualLoop VirtualLoop;
-			if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
-			{
-				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
-				ActiveSound->ClearAudioComponent();
-
-				if (USoundBase* Sound = ActiveSound->GetSound())
-				{
-					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Invalidated by 'StopQuiestest' Concurrency Rule."), *Sound->GetName());
-				}
-				AddVirtualLoop(VirtualLoop);
-			}
-			ActiveSoundsCopy.RemoveAtSwap(i, 1, false);
+			ConcurrencyManager.StopDueToVoiceStealing(*ActiveSound);
 		}
 	}
 
@@ -2737,22 +2721,30 @@ void FAudioDevice::VirtualizeInactiveLoops()
 	const bool bDoRangeCheck = true;
 	for (FActiveSound* ActiveSound : ActiveSounds)
 	{
-		// If already pending stop, don't attempt to virtualize
-		if (!IsPendingStop(ActiveSound))
+		// Don't virtualize if set to fade out
+		if (ActiveSound->FadeOut != FActiveSound::EFadeOut::None)
 		{
-			FAudioVirtualLoop VirtualLoop;
-			if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
-			{
-				AddSoundToStop(ActiveSound);
+			continue;
+		}
 
-				// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
-				ActiveSound->ClearAudioComponent();
-				if (USoundBase* Sound = ActiveSound->GetSound())
-				{
-					UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Out of audible range."), *Sound->GetName());
-				}
-				AddVirtualLoop(VirtualLoop);
+		// If already pending stop, don't attempt to virtualize
+		if (IsPendingStop(ActiveSound))
+		{
+			continue;
+		}
+
+		FAudioVirtualLoop VirtualLoop;
+		if (FAudioVirtualLoop::Virtualize(*ActiveSound, bDoRangeCheck, VirtualLoop))
+		{
+			AddSoundToStop(ActiveSound);
+
+			// Clear must be called after AddSoundToStop to ensure AudioComponent is properly removed from AudioComponentIDToActiveSoundMap
+			ActiveSound->ClearAudioComponent();
+			if (USoundBase* Sound = ActiveSound->GetSound())
+			{
+				UE_LOG(LogAudio, Verbose, TEXT("Playing ActiveSound %s Virtualizing: Out of audible range."), *Sound->GetName());
 			}
+			AddVirtualLoop(VirtualLoop);
 		}
 	}
 }
@@ -3519,7 +3511,9 @@ void FAudioDevice::UpdateActiveSoundPlaybackTime(bool bIsGameTicking)
 		for (FActiveSound* ActiveSound : ActiveSounds)
 		{
 			// Scale the playback time with the device delta time and the current "min pitch" of the sounds which would play on it.
-			ActiveSound->PlaybackTime += GetDeviceDeltaTime() * ActiveSound->MinCurrentPitch;
+			const float DeltaTimePitchCorrected = GetDeviceDeltaTime() * ActiveSound->MinCurrentPitch;
+			ActiveSound->PlaybackTime += DeltaTimePitchCorrected;
+			ActiveSound->PlaybackTimeNonVirtualized += DeltaTimePitchCorrected;
 		}
 	}
 	else if (GIsEditor)
@@ -3529,7 +3523,9 @@ void FAudioDevice::UpdateActiveSoundPlaybackTime(bool bIsGameTicking)
 			if (ActiveSound->bIsPreviewSound)
 			{
 				// Scale the playback time with the device delta time and the current "min pitch" of the sounds which would play on it.
-				ActiveSound->PlaybackTime += GetDeviceDeltaTime() * ActiveSound->MinCurrentPitch;
+				const float DeltaTimePitchCorrected = GetDeviceDeltaTime() * ActiveSound->MinCurrentPitch;
+				ActiveSound->PlaybackTime += DeltaTimePitchCorrected;
+				ActiveSound->PlaybackTimeNonVirtualized += DeltaTimePitchCorrected;
 			}
 		}
 	}
@@ -4146,7 +4142,7 @@ void FAudioDevice::AddNewActiveSound(const FActiveSound& NewActiveSound)
 void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound, FAudioVirtualLoop* VirtualLoopToRetrigger)
 {
 	LLM_SCOPE(ELLMTag::AudioMisc);
-
+	
 	if (!IsInAudioThread())
 	{
 		DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.AddNewActiveSound"), STAT_AudioAddNewActiveSound, STATGROUP_AudioThreadCommands);
@@ -4244,9 +4240,9 @@ void FAudioDevice::AddNewActiveSoundInternal(const FActiveSound& NewActiveSound,
 		ActiveSound = ConcurrencyManager.CreateNewActiveSound(NewActiveSound, VirtualLoopToRetrigger != nullptr);
 	}
 
+	// Didn't pass concurrency, and not an attempt to revive from virtualization, so see if candidate for virtualization
 	if (!ActiveSound)
 	{
-		// Didn't pass concurrency, so attempt to add to re-trigger if applicable
 		if (!VirtualLoopToRetrigger)
 		{
 			const bool bDoRangeCheck = false;
@@ -4506,11 +4502,7 @@ void FAudioDevice::AddSoundToStop(FActiveSound* SoundToStop)
 	PendingSoundsToStop.Add(SoundToStop, &bAlreadyPending);
 	if (!bAlreadyPending)
 	{
-		const uint64 AudioComponentID = SoundToStop->GetAudioComponentID();
-		if (AudioComponentID > 0)
-		{
-			AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
-		}
+		UnlinkActiveSoundFromComponent(*SoundToStop);
 
 		if (VirtualLoops.Contains(SoundToStop))
 		{
@@ -4869,6 +4861,15 @@ int32 FAudioDevice::FindClosestListenerIndex(const FTransform& SoundTransform) c
 	}
 
 	return INDEX_NONE;
+}
+
+void FAudioDevice::UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound)
+{
+	const uint64 AudioComponentID = InActiveSound.GetAudioComponentID();
+	if (AudioComponentID > 0)
+	{
+		AudioComponentIDToActiveSoundMap.Remove(AudioComponentID);
+	}
 }
 
 void FAudioDevice::GetAzimuth(const FAttenuationListenerData& ListenerData, float& OutAzimuth, float& OutAbsoluteAzimuth) const
@@ -5791,16 +5792,9 @@ void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 				continue;
 			}
 
-			const float DeltaTime = GetDeviceDeltaTime();
-
-			// Keep playback time up-to-date as it may be used to evaluate whether or
-			// not virtual sound is eligible for playback when compared against
-			// actively playing sounds in concurrency checks.
-			ActiveSound.PlaybackTime += DeltaTime * ActiveSound.MinCurrentPitch;
-
 			// If the loop is ready to realize, add to array to be re-triggered
 			// outside of the loop to avoid map manipulation while iterating.
-			if (VirtualLoop.CanRealize(DeltaTime, bForceUpdate))
+			if (VirtualLoop.Update(GetDeviceDeltaTime(), bForceUpdate))
 			{
 				VirtualLoopsToRetrigger.Add(VirtualLoop);
 			}
@@ -5820,13 +5814,9 @@ void FAudioDevice::UpdateVirtualLoops(bool bForceUpdate)
 		for (FVirtualLoopPair& Pair : VirtualLoops)
 		{
 			FActiveSound* ActiveSound = Pair.Key;
+			check(ActiveSound);
 
-			const uint64 ComponentID = ActiveSound->GetAudioComponentID();
-			if (ComponentID > 0)
-			{
-				AudioComponentIDToActiveSoundMap.Remove(ComponentID);
-			}
-
+			UnlinkActiveSoundFromComponent(*ActiveSound);
 			AddNewActiveSound(*ActiveSound);
 
 			ActiveSound->ClearAudioComponent();
