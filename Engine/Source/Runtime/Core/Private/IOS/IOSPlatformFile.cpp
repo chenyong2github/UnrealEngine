@@ -838,6 +838,12 @@ IFileHandle* FIOSPlatformFile::OpenWrite(const TCHAR* Filename, bool bAppend, bo
 	}
 	FString IOSFilename = ConvertToIOSPath(NormalizeFilename(Filename), true, bCreatePublicFiles);
 	int32 Handle = open(TCHAR_TO_UTF8(*IOSFilename), Flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
+
+	if (!bAppend)
+	{
+		ftruncate(Handle, 0);
+	}
+
 	if (Handle != -1)
 	{
 		FIOSFileHandle* FileHandleIOS = new FIOSFileHandle(Handle, IOSFilename, false);
