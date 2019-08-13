@@ -1,9 +1,10 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-#include "GenericPlatform/GenericPlatformInstallBundleManager.h"
+#include "InstallBundleManagerInterface.h"
+#include "InstallBundleManagerModule.h"
 #include "Modules/ModuleManager.h"
 
-class FNullInstallBundleManager : public IPlatformInstallBundleManager
+class FNullInstallBundleManager : public IInstallBundleManager
 {
 	virtual bool HasBuildMetaData() const override
 	{
@@ -123,7 +124,7 @@ private:
 	
 };
 
-class FNullInstallBundleManagerModule : public TPlatformInstallBundleManagerModule<FNullInstallBundleManager>
+class FNullInstallBundleManagerModule : public TInstallBundleManagerModule<FNullInstallBundleManager>
 {	
 };
 

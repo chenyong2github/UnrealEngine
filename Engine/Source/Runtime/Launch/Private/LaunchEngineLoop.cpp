@@ -153,6 +153,7 @@
 
 	#include "MoviePlayer.h"
     #include "PreLoadScreenManager.h"
+	#include "InstallBundleManagerInterface.h"
 
 	#include "ShaderCodeLibrary.h"
 	#include "ShaderPipelineCache.h"
@@ -890,6 +891,11 @@ void LaunchUpdateMostRecentProjectFile()
 		}
 	}
 }
+
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads);
+#endif
+void HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads);
 
 #if !UE_BUILD_SHIPPING
 class FFileInPakFileHistoryHelper
@@ -2390,10 +2396,10 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 			if (bWithConfigPatching)
 			{
-				IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+				IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 				if (BundleManager != nullptr && !BundleManager->IsNullInterface())
 				{
-					IPlatformInstallBundleManager::InstallBundleCompleteDelegate.AddRaw(this, &FEngineLoop::OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
+					IInstallBundleManager::InstallBundleCompleteDelegate.AddStatic(&OnStartupContentMounted, bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
 				}
 				// If not using the bundle manager, config will be reloaded after ESP, see below
 			}
@@ -2510,7 +2516,7 @@ int32 FEngineLoop::PreInit(const TCHAR* CmdLine)
 
 		//Now that our EarlyStartupScreen is finished, lets take the necessary steps to mount paks, apply .ini cvars, and open the shader libraries if we installed content we expect to handle
 		//If using a bundle manager, assume its handling all this stuff and that we don't have to do it.
-		IPlatformInstallBundleManager* BundleManager = FPlatformMisc::GetPlatformInstallBundleManager();
+		IInstallBundleManager* BundleManager = IInstallBundleManager::GetPlatformInstallBundleManager();
 		if (BundleManager == nullptr || BundleManager->IsNullInterface())
 		{
 			// Mount Paks that were installed during EarlyStartupScreen
@@ -3629,7 +3635,7 @@ void FEngineLoop::Exit()
 	GIsRunning	= 0;
 	GLogConsole	= nullptr;
 
-	IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+	IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
 
 	// shutdown visual logger and flush all data
 #if ENABLE_VISUAL_LOG
@@ -3801,17 +3807,19 @@ void FEngineLoop::ProcessLocalPlayerSlateOperations() const
 	}
 }
 
-void FEngineLoop::OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+#if WITH_ENGINE
+void OnStartupContentMounted(FInstallBundleResultInfo Result, bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
 {
 	if (Result.bIsStartup && Result.Result == EInstallBundleResult::OK)
 	{
 		HandleConfigReload(bDumpEarlyConfigReads, bDumpEarlyPakFileReads);
 
-		IPlatformInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(this);
+		IInstallBundleManager::InstallBundleCompleteDelegate.RemoveAll(&GEngineLoop);
 	}
 }
+#endif
 
-void FEngineLoop::HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
+void HandleConfigReload(bool bDumpEarlyConfigReads, bool bDumpEarlyPakFileReads)
 {
 	if (bDumpEarlyConfigReads)
 	{
