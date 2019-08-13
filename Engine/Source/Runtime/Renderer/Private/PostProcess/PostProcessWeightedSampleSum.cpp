@@ -79,7 +79,7 @@ public:
 		{
 			return CompileTimeNumSamples <= MAX_FILTER_COMPILE_TIME_SAMPLES_IOS;
 		}
-		else if( IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) )
+		else if( IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) )
 		{
 			return CompileTimeNumSamples <= MAX_FILTER_COMPILE_TIME_SAMPLES_SM4;
 		}
@@ -237,7 +237,7 @@ public:
 		{
 			return NumSamples <= MAX_FILTER_COMPILE_TIME_SAMPLES_IOS;
 		}
-		else if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4))
+		else if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 		{
 			return NumSamples <= MAX_FILTER_COMPILE_TIME_SAMPLES_SM4;
 		}
@@ -1312,12 +1312,8 @@ uint32 FRCPassPostProcessWeightedSampleSum::GetMaxNumSamples(ERHIFeatureLevel::T
 	if (IsMetalMRTPlatform(InPlatform))
 	{
 		MaxNumSamples = MAX_FILTER_COMPILE_TIME_SAMPLES_IOS;
-	}
-	else if (InFeatureLevel == ERHIFeatureLevel::SM4)
-	{
-		MaxNumSamples = MAX_FILTER_COMPILE_TIME_SAMPLES_SM4;
-	}
-	else if (InFeatureLevel < ERHIFeatureLevel::SM4)
+	}	
+	else if (InFeatureLevel < ERHIFeatureLevel::SM5)
 	{
 		MaxNumSamples = MAX_FILTER_COMPILE_TIME_SAMPLES_ES2;
 	}

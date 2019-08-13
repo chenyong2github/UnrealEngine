@@ -99,7 +99,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 
 	TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
 
-	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		if (TextureCube || RTTextureCube)
 		{

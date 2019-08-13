@@ -666,7 +666,7 @@ int32 FStatUnitData::DrawStat(FViewport* InViewport, FCanvas* InCanvas, int32 In
 		}
 
 		ERHIFeatureLevel::Type FeatureLevel = InCanvas->GetFeatureLevel();
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			float ResolutionFraction = DynamicResolutionStateInfos.ResolutionFractionApproximation;
 			float ScreenPercentage = ResolutionFraction * 100.0f;

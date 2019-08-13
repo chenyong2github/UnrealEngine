@@ -188,7 +188,7 @@ FVector GetReflectionEnvironmentRoughnessMixingScaleBiasAndLargestWeight()
 
 bool IsReflectionEnvironmentAvailable(ERHIFeatureLevel::Type InFeatureLevel)
 {
-	return (InFeatureLevel >= ERHIFeatureLevel::SM4) && (GetReflectionEnvironmentCVar() != 0);
+	return (InFeatureLevel >= ERHIFeatureLevel::SM5) && (GetReflectionEnvironmentCVar() != 0);
 }
 
 bool IsReflectionCaptureAvailable()
@@ -520,7 +520,7 @@ class FReflectionEnvironmentSkyLightingPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4))
+		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 		{
 			return false;
 		}

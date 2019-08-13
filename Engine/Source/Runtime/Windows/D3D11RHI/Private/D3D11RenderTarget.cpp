@@ -242,26 +242,6 @@ void FD3D11DynamicRHI::RHICopyToResolveTarget(FRHITexture* SourceTextureRHI, FRH
 					FDummyResolveParameter()
 					);
 			}
-			else if(FeatureLevel == D3D_FEATURE_LEVEL_10_0 
-				&& DestTexture2D->GetDepthStencilView(FExclusiveDepthStencil::DepthWrite_StencilWrite))
-			{
-				D3D11_TEXTURE2D_DESC ResolveTargetDesc;
-
-				DestTexture2D->GetResource()->GetDesc(&ResolveTargetDesc);
-
-				ResolveTextureUsingShader<FResolveDepthNonMSPS>(
-					RHICmdList,
-					SourceTexture2D,
-					DestTexture2D,
-					NULL,
-					DestTexture2D->GetDepthStencilView(FExclusiveDepthStencil::DepthWrite_StencilWrite),
-					ResolveTargetDesc,
-					GetDefaultRect(ResolveParams.Rect,DestTexture2D->GetSizeX(),DestTexture2D->GetSizeY()),
-					GetDefaultRect(ResolveParams.Rect,DestTexture2D->GetSizeX(),DestTexture2D->GetSizeY()),
-					Direct3DDeviceIMContext,
-					FDummyResolveParameter()
-					);
-			}
 			else
 			{
 				DXGI_FORMAT SrcFmt = (DXGI_FORMAT)GPixelFormats[SourceTextureRHI->GetFormat()].PlatformFormat;

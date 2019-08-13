@@ -205,7 +205,7 @@ public:
 		}
 
 		OutEnvironment.SetDefine(TEXT("USE_INSTANCING"),TEXT("1"));
-		if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4))
+		if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 		{
 			OutEnvironment.SetDefine(TEXT("USE_DITHERED_LOD_TRANSITION_FOR_INSTANCED"), ALLOW_DITHERED_LOD_FOR_INSTANCED_STATIC_MESHES);
 		}

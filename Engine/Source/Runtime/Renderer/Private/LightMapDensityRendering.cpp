@@ -61,7 +61,7 @@ bool FDeferredShadingSceneRenderer::RenderLightMapDensities(FRHICommandListImmed
 {
 	bool bDirty = false;
 
-	if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+	if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, LightMapDensity);
 
@@ -235,7 +235,7 @@ void FLightmapDensityMeshProcessor::Process(
 
 void FLightmapDensityMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch, uint64 BatchElementMask, const FPrimitiveSceneProxy* RESTRICT PrimitiveSceneProxy, int32 StaticMeshId)
 {
-	if (FeatureLevel >= ERHIFeatureLevel::SM4 && ViewIfDynamicMeshCommand->Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes() && MeshBatch.bUseForMaterial)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5 && ViewIfDynamicMeshCommand->Family->EngineShowFlags.LightMapDensity && AllowDebugViewmodes() && MeshBatch.bUseForMaterial)
 	{
 		// Determine the mesh's material and blend mode.
 		const FMaterialRenderProxy* MaterialRenderProxy = nullptr;

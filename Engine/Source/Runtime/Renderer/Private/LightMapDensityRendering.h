@@ -61,7 +61,7 @@ public:
 		return  AllowDebugViewmodes(Parameters.Platform) 
 				&& (Parameters.Material->IsSpecialEngineMaterial() || Parameters.Material->IsMasked() || Parameters.Material->MaterialMayModifyMeshPosition())
 				&& LightMapPolicyType::ShouldCompilePermutation(Parameters)
-				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -184,7 +184,7 @@ public:
 		return	AllowDebugViewmodes(Parameters.Platform) 
 				&& (Parameters.Material->IsSpecialEngineMaterial() || Parameters.Material->IsMasked() || Parameters.Material->MaterialMayModifyMeshPosition())
 				&& LightMapPolicyType::ShouldCompilePermutation(Parameters)
-				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+				&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

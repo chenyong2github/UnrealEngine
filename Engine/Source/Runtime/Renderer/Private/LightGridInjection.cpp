@@ -85,7 +85,7 @@ public:
 
 	virtual void InitRHI()
 	{
-		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4)
+		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 			{

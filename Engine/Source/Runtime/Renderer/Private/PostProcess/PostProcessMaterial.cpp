@@ -87,25 +87,7 @@ ECustomDepthPolicy GetMaterialCustomDepthPolicy(const FMaterial* Material, ERHIF
 		// Custom stencil texture allocated and available.
 		if (IsCustomDepthEnabled())
 		{
-			if (FeatureLevel == ERHIFeatureLevel::SM4)
-			{
-				const FMaterialShaderMap* MaterialShaderMap = Material->GetRenderingThreadShaderMap();
-
-				const bool bIsDepthStencilReadByShader = MaterialShaderMap->UsesSceneTexture(PPI_CustomDepth) || MaterialShaderMap->UsesSceneTexture(PPI_CustomStencil);
-
-				if (!bIsDepthStencilReadByShader)
-				{
-					return ECustomDepthPolicy::Enabled;
-				}
-				else if (IsPostProcessStencilTestWithCopyAllowed())
-				{
-					return ECustomDepthPolicy::EnabledWithCopy;
-				}
-			}
-			else
-			{
-				return ECustomDepthPolicy::Enabled;
-			}
+			return ECustomDepthPolicy::Enabled;
 		}
 		else
 		{
@@ -227,7 +209,7 @@ public:
 			}
 			else
 			{
-				return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+				return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 			}
 		}
 		return false;

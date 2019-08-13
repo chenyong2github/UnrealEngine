@@ -444,11 +444,6 @@ FDynamicRHI* FD3D12DynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedF
 			GMaxRHIShaderPlatform = SP_PCD3D_ES3_1;
 		}
 	}
-	else if (RequestedFeatureLevel == ERHIFeatureLevel::SM4)
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM4;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM4;
-	}
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
@@ -647,7 +642,7 @@ void FD3D12DynamicRHI::Init()
 
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_PCD3D_ES2;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_PCD3D_SM4;
+	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
 	GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && IsRHIDeviceAMD();

@@ -107,7 +107,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 #if PLATFORM_MAC
 			if (FParse::Param(FCommandLine::Get(),TEXT("metal")))
 			{
-				RequestedFeatureLevel = ERHIFeatureLevel::SM4;
+				RequestedFeatureLevel = ERHIFeatureLevel::SM5;
 			}
 			else if (FParse::Param(FCommandLine::Get(),TEXT("metalsm5")) || FParse::Param(FCommandLine::Get(),TEXT("metalmrt")))
 			{
@@ -132,7 +132,7 @@ FDynamicRHI* PlatformCreateDynamicRHI()
 		if (Sum == 1)
 		{
 #if PLATFORM_MAC
-			RequestedFeatureLevel = ERHIFeatureLevel::SM4;
+			RequestedFeatureLevel = ERHIFeatureLevel::ES3_1;
 #else
 			RequestedFeatureLevel = ERHIFeatureLevel::ES2;
 #endif

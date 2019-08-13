@@ -89,12 +89,7 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GConfig->GetInt( TEXT( "TextureStreaming" ), TEXT( "PoolSizeVRAMPercentage" ), GPoolSizeVRAMPercentage, GEngineIni );	
 
 	// Initialize the RHI capabilities.
-	check(FeatureLevel == D3D_FEATURE_LEVEL_11_1 || FeatureLevel == D3D_FEATURE_LEVEL_11_0 || FeatureLevel == D3D_FEATURE_LEVEL_10_0 );
-
-	if(FeatureLevel == D3D_FEATURE_LEVEL_10_0)
-	{
-		GSupportsDepthFetchDuringDepthTest = false;
-	}
+	check(FeatureLevel == D3D_FEATURE_LEVEL_11_1 || FeatureLevel == D3D_FEATURE_LEVEL_11_0);
 
 	ERHIFeatureLevel::Type PreviewFeatureLevel;
 	if (RHIGetPreviewFeatureLevel(PreviewFeatureLevel))
@@ -114,11 +109,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;
 		GMaxRHIShaderPlatform = SP_PCD3D_SM5;
-	}
-	else if(FeatureLevel == D3D_FEATURE_LEVEL_10_0)
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM4;
-		GMaxRHIShaderPlatform = SP_PCD3D_SM4;
 	}
 
 	// Initialize the platform pixel format map.
@@ -208,12 +198,6 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 		GMaxTextureArrayLayers = D3D11_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 		GRHISupportsMSAADepthSampleAccess = true;
 		GRHISupportsRHIThread = !!EXPERIMENTAL_D3D11_RHITHREAD;
-	}
-	else if (FeatureLevel >= D3D_FEATURE_LEVEL_10_0)
-	{
-		GMaxTextureDimensions = D3D10_REQ_TEXTURE2D_U_OR_V_DIMENSION;
-		GMaxCubeTextureDimensions = D3D10_REQ_TEXTURECUBE_DIMENSION;
-		GMaxTextureArrayLayers = D3D10_REQ_TEXTURE2D_ARRAY_AXIS_DIMENSION;
 	}
 
 	GMaxTextureMipCount = FMath::CeilLogTwo( GMaxTextureDimensions ) + 1;
@@ -365,14 +349,6 @@ void FD3D11DynamicRHI::RHIGetSupportedResolution( uint32 &Width, uint32 &Height 
 
 void FD3D11DynamicRHI::GetBestSupportedMSAASetting( DXGI_FORMAT PlatformFormat, uint32 MSAACount, uint32& OutBestMSAACount, uint32& OutMSAAQualityLevels )
 {
-	//  We disable MSAA for Feature level 10
-	if (GMaxRHIFeatureLevel == ERHIFeatureLevel::SM4)
-	{
-		OutBestMSAACount = 1;
-		OutMSAAQualityLevels = 0;
-		return;
-	}
-
 	// start counting down from current setting (indicated the current "best" count) and move down looking for support
 	for(uint32 IndexCount = MSAACount;IndexCount > 0;IndexCount--)
 	{

@@ -913,7 +913,7 @@ void FMaterial::LegacySerialize(FArchive& Ar)
 		int32 LegacyInt;
 		Ar << LegacyInt;
 
-		FeatureLevel = ERHIFeatureLevel::SM4;
+		FeatureLevel = ERHIFeatureLevel::SM4_REMOVED;
 		QualityLevel = EMaterialQualityLevel::High;
 
 #if !WITH_EDITOR
@@ -1700,7 +1700,7 @@ void FMaterial::SetupMaterialEnvironment(
 		OutEnvironment.SetDefine(TEXT("EDITOR_PRIMITIVE_MATERIAL"),TEXT("1"));
 	}
 
-	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4))
+	if (IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5))
 	{	
 		static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.StencilForLODDither"));
 		OutEnvironment.SetDefine(TEXT("USE_STENCIL_LOD_DITHER_DEFAULT"), CVar->GetValueOnAnyThread() != 0 ? 1 : 0);
@@ -2944,7 +2944,7 @@ bool FMaterial::GetMaterialExpressionSource( FString& OutSource )
 bool FMaterial::WritesEveryPixel(bool bShadowPass) const
 {
 	bool bStencilDitheredLOD = false;
-	if (FeatureLevel >= ERHIFeatureLevel::SM4)
+	if (FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		// this option affects only deferred renderer
 		static TConsoleVariableData<int32>* CVarStencilDitheredLOD =

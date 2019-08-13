@@ -3045,7 +3045,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 			// Compute number of TAA samples.
 			int32 TemporalAASamples = CVarTemporalAASamplesValue;
 			{
-				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+				if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 				{
 					// Only support 2 samples for mobile temporal AA.
 					TemporalAASamples = 2;
@@ -3079,7 +3079,7 @@ void FSceneRenderer::PreVisibilityFrameSetup(FRHICommandListImmediate& RHICmdLis
 
 			// Choose sub pixel sample coordinate in the temporal sequence.
 			float SampleX, SampleY;
-			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+			if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 			{
 				float SamplesX[] = { -8.0f/16.0f, 0.0/16.0f };
 				float SamplesY[] = { /* - */ 0.0f/16.0f, 8.0/16.0f };

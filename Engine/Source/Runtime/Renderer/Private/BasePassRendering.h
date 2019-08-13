@@ -289,7 +289,7 @@ public:
 		bShouldCache &= (bEnableAtmosphericFog && bProjectAllowsAtmosphericFog && IsTranslucentBlendMode(Parameters.Material->GetBlendMode())) || !bEnableAtmosphericFog;
 
 		return bShouldCache
-			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4));
+			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5));
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -498,7 +498,7 @@ public:
 			|| LightMapPolicyType::RequiresSkylight()
 			|| ((bProjectSupportsStationarySkylight || IsForwardShadingEnabled(Parameters.Platform)) && Parameters.Material->GetShadingModels().IsLit());
 		return bCacheShaders
-			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4))
+			&& (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
 			&& TBasePassPixelShaderBaseType<LightMapPolicyType>::ShouldCompilePermutation(Parameters);
 	}
 

@@ -733,7 +733,7 @@ public:
 	
 	FMaterialShaderMapId()
 		: QualityLevel(EMaterialQualityLevel::High)
-		, FeatureLevel(ERHIFeatureLevel::SM4)
+		, FeatureLevel(ERHIFeatureLevel::SM5)
 #if WITH_EDITOR
 		, Usage(EMaterialShaderMapUsage::Default)
 		, bIsCookedId(false)
@@ -1369,7 +1369,7 @@ public:
 		RenderingThreadShaderMap(NULL),
 		QualityLevel(EMaterialQualityLevel::High),
 		bHasQualityLevelUsage(false),
-		FeatureLevel(ERHIFeatureLevel::SM4),
+		FeatureLevel(ERHIFeatureLevel::SM5),
 		bContainsInlineShaders(false),
 		bLoadedCookedShaderMapId(false)
 	{}

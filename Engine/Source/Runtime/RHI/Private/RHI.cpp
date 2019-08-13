@@ -576,7 +576,7 @@ FName FeatureLevelNames[] =
 {
 	FName(TEXT("ES2")),
 	FName(TEXT("ES3_1")),
-	FName(TEXT("SM4")),
+	FName(TEXT("SM4_REMOVED")),
 	FName(TEXT("SM5")),
 };
 

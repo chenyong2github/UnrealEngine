@@ -4077,7 +4077,7 @@ void FEngineLoop::Tick()
 		#if WITH_PROFILEGPU && !UE_BUILD_SHIPPING
 			// Issue the measurement of the execution time of a basic LongGPUTask unit on the very first frame
 			// The results will be retrived on the first call of IssueScalableLongGPUTask
-			if (GFrameCounter == 0 && IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM4) && FApp::CanEverRender())
+			if (GFrameCounter == 0 && IsFeatureLevelSupported(GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5) && FApp::CanEverRender())
 			{
 				FlushRenderingCommands();
 

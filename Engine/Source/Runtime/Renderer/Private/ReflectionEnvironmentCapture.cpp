@@ -1648,7 +1648,7 @@ void FScene::UpdateSkyCaptureContents(
 	FSHVectorRGB3& OutIrradianceEnvironmentMap,
 	TArray<FFloat16Color>* OutRadianceMap)
 {	
-	if (GSupportsRenderTargetFormat_PF_FloatRGBA || GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+	if (GSupportsRenderTargetFormat_PF_FloatRGBA || GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateSkyCaptureContents);
 		{

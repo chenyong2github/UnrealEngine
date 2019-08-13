@@ -42,15 +42,13 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 	
 	// command line overrides
 	bool bForceSM5 = FParse::Param(FCommandLine::Get(), TEXT("sm5"));
-	bool bForceSM4 = FParse::Param(FCommandLine::Get(), TEXT("sm4"));
 	bool bForceVulkan = FParse::Param(FCommandLine::Get(), TEXT("vulkan"));
 	bool bForceOpenGL = FWindowsPlatformMisc::VerifyWindowsVersion(6, 0) == false || FParse::Param(FCommandLine::Get(), TEXT("opengl")) || FParse::Param(FCommandLine::Get(), TEXT("opengl3")) || FParse::Param(FCommandLine::Get(), TEXT("opengl4"));
-	bool bForceD3D10 = FParse::Param(FCommandLine::Get(), TEXT("d3d10")) || FParse::Param(FCommandLine::Get(), TEXT("dx10")) || (bForceSM4 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D11 = FParse::Param(FCommandLine::Get(), TEXT("d3d11")) || FParse::Param(FCommandLine::Get(), TEXT("dx11")) || (bForceSM5 && !bForceVulkan && !bForceOpenGL);
 	bool bForceD3D12 = FParse::Param(FCommandLine::Get(), TEXT("d3d12")) || FParse::Param(FCommandLine::Get(), TEXT("dx12"));
 	DesiredFeatureLevel = ERHIFeatureLevel::Num;
 	
-	if(!(bForceVulkan||bForceOpenGL||bForceD3D10||bForceD3D11||bForceD3D12))
+	if(!(bForceVulkan||bForceOpenGL||bForceD3D11||bForceD3D12))
 	{
 		//Default graphics RHI is only used if no command line option is specified
 		FConfigFile EngineSettings;
@@ -80,16 +78,11 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 
 
 
-	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceD3D10 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
-
-	if (bForceSM5 && bForceSM4)
-	{
-		UE_LOG(LogRHI, Fatal, TEXT("-sm4 and -sm5 are mutually exclusive options, but more than one was specified on the command-line."));
-	}
+	int32 Sum = ((bForceD3D12 ? 1 : 0) + (bForceD3D11 ? 1 : 0) + (bForceOpenGL ? 1 : 0) + (bForceVulkan ? 1 : 0));
 
 	if (Sum > 1)
 	{
-		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -d3d10, -vulkan, and -opengl[3|4] are mutually exclusive options, but more than one was specified on the command-line."));
+		UE_LOG(LogRHI, Fatal, TEXT("-d3d12, -d3d11, -vulkan, and -opengl[3|4] are mutually exclusive options, but more than one was specified on the command-line."));
 	}
 	else if (Sum == 0)
 	{
@@ -112,12 +105,6 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		if (bForceSM5)
 		{
 			DesiredFeatureLevel = ERHIFeatureLevel::SM5;
-		}
-
-		if (bForceSM4)
-		{
-			DesiredFeatureLevel = ERHIFeatureLevel::SM4;
-			bPreferD3D12 = false;
 		}
 	}
 

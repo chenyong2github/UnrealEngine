@@ -82,7 +82,7 @@ public:
 				ShaderBindings.Add(DynamicParameter, FVector4(DynamicVertex->DynamicValue[0], DynamicVertex->DynamicValue[1], DynamicVertex->DynamicValue[2], DynamicVertex->DynamicValue[3]));
 			}
 
-			if (BatchParameters->PrevTransformBuffer && FeatureLevel >= ERHIFeatureLevel::SM4)
+			if (BatchParameters->PrevTransformBuffer && FeatureLevel >= ERHIFeatureLevel::SM5)
 			{
 				ShaderBindings.Add(PrevTransform0, PrevTransformVertex->PrevTransform0);
 				ShaderBindings.Add(PrevTransform1, PrevTransformVertex->PrevTransform1);
@@ -91,7 +91,7 @@ public:
 
 			ShaderBindings.Add(ParticleColor, FVector4(Vertex->Color.Component(0), Vertex->Color.Component(1), Vertex->Color.Component(2), Vertex->Color.Component(3)));
 		}
-		else if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		else if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ShaderBindings.Add(PrevTransformBuffer, MeshParticleVF->GetPreviousTransformBufferSRV());
 		}
@@ -199,7 +199,7 @@ void FMeshParticleVertexFactory::InitRHI()
 			}
 
 			// Add a dummy resource to avoid crash due to missing resource
-			if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4)
+			if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 			{
 				PrevTransformBuffer.NumBytes = 0;
 				PrevTransformBuffer.Buffer = GDummyPrevTransformBuffer.GetVB();

@@ -246,7 +246,7 @@ void FRectLightSceneProxy::GetLightShaderParameters(FLightShaderParameters& Ligh
 */
 bool FRectLightSceneProxy::GetWholeSceneProjectedShadowInitializer(const FSceneViewFamily& ViewFamily, TArray<FWholeSceneProjectedShadowInitializer, TInlineAllocator<6> >& OutInitializers) const
 {
-	if (ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::SM4
+	if (ViewFamily.GetFeatureLevel() >= ERHIFeatureLevel::SM5
 		&& GAllowPointLightCubemapShadows != 0)
 	{
 		FWholeSceneProjectedShadowInitializer& OutInitializer = *new(OutInitializers) FWholeSceneProjectedShadowInitializer;

@@ -485,7 +485,7 @@ uint16 FSceneRenderTargets::GetNumSceneColorMSAASamples(ERHIFeatureLevel::Type I
 {
 	uint16 NumSamples = 1;
 
-	if (InFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (InFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		static IConsoleVariable* CVarDefaultAntiAliasing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.DefaultFeature.AntiAliasing"));
 		EAntiAliasingMethod Method = (EAntiAliasingMethod)CVarDefaultAntiAliasing->GetInt();
@@ -857,7 +857,7 @@ void FSceneRenderTargets::BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERe
 	check(RHICmdList.IsOutsideRenderPass());
 
 	SCOPED_DRAW_EVENT(RHICmdList, BeginRenderingGBuffer);
-	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM4);
+	check(CurrentFeatureLevel >= ERHIFeatureLevel::SM5);
 	AllocSceneColor(RHICmdList);
 
 	const ERenderTargetStoreAction DepthStoreAction = (DepthStencilAccess & FExclusiveDepthStencil::DepthWrite) ? ERenderTargetStoreAction::EStore : ERenderTargetStoreAction::ENoAction;
@@ -985,7 +985,7 @@ int32 FSceneRenderTargets::GetNumGBufferTargets() const
 {
 	int32 NumGBufferTargets = 1;
 
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
 		if (IsUsingGBuffers(ShaderPlatform))
@@ -1174,7 +1174,7 @@ void FSceneRenderTargets::AllocGBufferTargets(FRHICommandList& RHICmdList)
 	// create GBuffer on demand so it can be shared with other pooled RT
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(CurrentFeatureLevel);
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
-	const bool bCanReadGBufferUniforms = (bUseGBuffer || IsSimpleForwardShadingEnabled(ShaderPlatform)) && CurrentFeatureLevel >= ERHIFeatureLevel::SM4;
+	const bool bCanReadGBufferUniforms = (bUseGBuffer || IsSimpleForwardShadingEnabled(ShaderPlatform)) && CurrentFeatureLevel >= ERHIFeatureLevel::SM5;
 	if (bUseGBuffer)
 	{
 		// good to see the quality loss due to precision in the gbuffer
@@ -2296,7 +2296,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 	}
 
 	// Create the required render targets if running Highend.
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		// Create the screen space ambient occlusion buffer
 		{
@@ -2394,7 +2394,7 @@ void FSceneRenderTargets::AllocateDeferredShadingPathRenderTargets(FRHICommandLi
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DirectionalOcclusion, TEXT("DirectionalOcclusion"));
 	}
 
-	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM4) 
+	if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5) 
 	{
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(BufferSize, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable, false));
 		if (CurrentFeatureLevel >= ERHIFeatureLevel::SM5)
@@ -2549,7 +2549,7 @@ EPixelFormat FSceneRenderTargets::GetSceneColorFormat(ERHIFeatureLevel::Type InF
 {
 	EPixelFormat SceneColorBufferFormat = PF_FloatRGBA;
 
-	if (InFeatureLevel < ERHIFeatureLevel::SM4)
+	if (InFeatureLevel < ERHIFeatureLevel::SM5)
 	{
 		return GetMobileSceneColorFormat();
 	}
@@ -2749,7 +2749,7 @@ const FUnorderedAccessViewRHIRef& FSceneRenderTargets::GetSceneColorTextureUAV()
 const FTexture2DRHIRef* FSceneRenderTargets::GetActualDepthTexture() const
 {
 	const FTexture2DRHIRef* DepthTexture = NULL;
-	if((CurrentFeatureLevel >= ERHIFeatureLevel::SM4) || IsPCPlatform(GShaderPlatformForFeatureLevel[CurrentFeatureLevel]))
+	if((CurrentFeatureLevel >= ERHIFeatureLevel::SM5) || IsPCPlatform(GShaderPlatformForFeatureLevel[CurrentFeatureLevel]))
 	{
 		if(GSupportsDepthFetchDuringDepthTest)
 		{

@@ -205,7 +205,7 @@ static bool ShouldCacheLandscapeGrassShaders(EShaderPlatform Platform, const FMa
 {
 	// We only need grass weight shaders for Landscape vertex factories on desktop platforms
 	return (Material->IsUsedWithLandscape() || Material->IsSpecialEngineMaterial()) &&
-		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) &&
+		IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) &&
 		((VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeVertexFactory"), FNAME_Find))) || (VertexFactoryType == FindVertexFactoryType(FName(TEXT("FLandscapeXYOffsetVertexFactory"), FNAME_Find))))
 		&& !IsConsolePlatform(Platform);
 }
@@ -867,7 +867,7 @@ bool ULandscapeComponent::CanRenderGrassMap() const
 {
 	// Check we can render
 	UWorld* ComponentWorld = GetWorld();
-	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->FeatureLevel < ERHIFeatureLevel::SM4 || !SceneProxy)
+	if (!GIsEditor || GUsingNullRHI || !ComponentWorld || ComponentWorld->IsGameWorld() || ComponentWorld->FeatureLevel < ERHIFeatureLevel::SM5 || !SceneProxy)
 	{
 		return false;
 	}
@@ -2031,7 +2031,7 @@ void ALandscapeProxy::FlushGrassComponents(const TSet<ULandscapeComponent*>* Onl
 			}
 		}
 #if WITH_EDITOR
-		if (GIsEditor && bFlushGrassMaps && GetWorld() && GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (GIsEditor && bFlushGrassMaps && GetWorld() && GetWorld()->FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			for (ULandscapeComponent* Component : *OnlyForComponents)
 			{
@@ -2076,7 +2076,7 @@ void ALandscapeProxy::FlushGrassComponents(const TSet<ULandscapeComponent*>* Onl
 #if WITH_EDITOR
 		UWorld* World = GetWorld();
 
-		if (GIsEditor && bFlushGrassMaps && World != nullptr && World->Scene != nullptr && World->Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (GIsEditor && bFlushGrassMaps && World != nullptr && World->Scene != nullptr && World->Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Clear GrassMaps
 			for (UActorComponent* Component : GetComponents())

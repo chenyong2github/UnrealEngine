@@ -80,11 +80,6 @@ FDynamicRHI* FVulkanDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type InRequest
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::ES3_1;
 		GMaxRHIShaderPlatform = PLATFORM_LUMIN ? SP_VULKAN_ES3_1_LUMIN : (PLATFORM_ANDROID ? SP_VULKAN_ES3_1_ANDROID : SP_VULKAN_PCES3_1);
 	}
-	else if (InRequestedFeatureLevel == ERHIFeatureLevel::SM4)
-	{
-		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM4;
-		GMaxRHIShaderPlatform = SP_VULKAN_SM4;
-	}
 	else
 	{
 		GMaxRHIFeatureLevel = ERHIFeatureLevel::SM5;

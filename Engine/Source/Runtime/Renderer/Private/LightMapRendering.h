@@ -207,7 +207,7 @@ public:
 	{
 		return Parameters.Material->GetShadingModels().IsLit() &&
 			IsTranslucentBlendMode(Parameters.Material->GetBlendMode()) &&
-			IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+			IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -275,7 +275,7 @@ struct FCachedVolumeIndirectLightingPolicy
 		return Parameters.Material->GetShadingModels().IsLit()
 			&& !IsTranslucentBlendMode(Parameters.Material->GetBlendMode())
 			&& (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnAnyThread() != 0)
-			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+			&& IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)

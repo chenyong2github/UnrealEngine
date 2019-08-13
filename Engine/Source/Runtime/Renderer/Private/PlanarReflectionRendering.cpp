@@ -148,7 +148,7 @@ public:
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return bEnablePlanarReflectionPrefilter ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) : true;
+		return bEnablePlanarReflectionPrefilter ? IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) : true;
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
@@ -218,7 +218,7 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 {
 	FRHITexture* SceneColorInput = FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture();
 
-	if(View.FeatureLevel >= ERHIFeatureLevel::SM4)
+	if(View.FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		TRefCountPtr<IPooledRenderTarget> FilteredSceneColor;
 		GPostProcessing.ProcessPlanarReflection(RHICmdList, View, FilteredSceneColor);
@@ -646,7 +646,7 @@ class FPlanarReflectionPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )

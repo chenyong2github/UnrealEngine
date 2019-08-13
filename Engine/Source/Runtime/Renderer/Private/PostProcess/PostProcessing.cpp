@@ -452,7 +452,7 @@ static bool AddPostProcessDepthOfFieldGaussian(FPostprocessContext& Context, FDe
 		const bool bFar = FarSize > 0.0f;
 		const bool bNear = NearSize > 0.0f;
 		const bool bCombinedNearFarPass = bFar && bNear;
-		const bool bMobileQuality = Context.View.FeatureLevel < ERHIFeatureLevel::SM4;
+		const bool bMobileQuality = Context.View.FeatureLevel < ERHIFeatureLevel::SM5;
 
 		FRenderingCompositeOutputRef SetupInput(Context.FinalOutput);
 		if (bMobileQuality)
@@ -509,7 +509,7 @@ static bool AddPostProcessDepthOfFieldGaussian(FPostprocessContext& Context, FDe
 	{
 		GaussianDOFPass(SeparateTranslucencyRef, Out.bFar ? FarSize : 0, Out.bNear ? NearSize : 0);
 
-		const bool bMobileQuality = Context.View.FeatureLevel < ERHIFeatureLevel::SM4;
+		const bool bMobileQuality = Context.View.FeatureLevel < ERHIFeatureLevel::SM5;
 		return SeparateTranslucencyRef.IsValid() && !bMobileQuality;
 	}
 	else
@@ -835,7 +835,7 @@ void FPostProcessing::OverrideRenderTarget(FRenderingCompositeOutputRef It, TRef
 
 bool FPostProcessing::AllowFullPostProcessing(const FViewInfo& View, ERHIFeatureLevel::Type FeatureLevel)
 {
-	if(FeatureLevel >= ERHIFeatureLevel::SM4)
+	if(FeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		return View.Family->EngineShowFlags.PostProcessing
 			&& !View.Family->EngineShowFlags.VisualizeDistanceFieldAO
@@ -906,7 +906,7 @@ class FComposeSeparateTranslucencyPS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 };
 
@@ -953,7 +953,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 
 	const ERHIFeatureLevel::Type FeatureLevel = View.GetFeatureLevel();
 
-	check(FeatureLevel >= ERHIFeatureLevel::SM4);
+	check(FeatureLevel >= ERHIFeatureLevel::SM5);
 
 	GRenderTargetPool.AddPhaseEvent(TEXT("PostProcessing"));
 
@@ -1452,7 +1452,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
 		}
 #endif
-		if(View.Family->EngineShowFlags.VisualizeShadingModels && FeatureLevel >= ERHIFeatureLevel::SM4)
+		if(View.Family->EngineShowFlags.VisualizeShadingModels && FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ensureMsgf(!bUnscaledFinalOutput, TEXT("VisualizeShadingModels is incompatible with unscaled output."));
 
@@ -1461,7 +1461,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
 		}
 
-		if (View.Family->EngineShowFlags.GBufferHints && FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (View.Family->EngineShowFlags.GBufferHints && FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			ensureMsgf(!bUnscaledFinalOutput, TEXT("GBufferHints is incompatible with unscaled output."));
 
@@ -1479,7 +1479,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 		//No more postprocess Final color should be the real one
 		//The HDR was save before the tonemapping
 		//GBuffer should not be change during post process 
-		if (View.bUsePixelInspector && FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (View.bUsePixelInspector && FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBufferInspector(RHICmdList));
 			Node->SetInput(ePId_Input0, Context.FinalOutput);
@@ -1517,7 +1517,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);
 		}
 
-		if(View.Family->EngineShowFlags.TestImage && FeatureLevel >= ERHIFeatureLevel::SM4)
+		if(View.Family->EngineShowFlags.TestImage && FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessTestImage());
 			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));

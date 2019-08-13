@@ -160,15 +160,7 @@ void PlatformOpenGLVersionFromCommandLine(int& OutMajorVersion, int& OutMinorVer
 	bool bGL4 = IsOpenGL4Forced();
 	if (!bGL3 && !bGL4)
 	{
-		// if neither is forced, go with the first RHI in the list.
-		if (GRequestedFeatureLevel == ERHIFeatureLevel::SM4)
-		{
-			bGL3 = true;
-		}
-		else
-		{
-			bGL4 = true;
-		}
+		bGL4 = true;
 	}
 
 	// between GL3 and GL4, prefer GL3 since it might have been forced as a safety measure.

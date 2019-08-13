@@ -896,7 +896,7 @@ void FMetalDynamicRHI::SetupRecursiveResources()
 					TShaderMapRef<TOneColorPixelShaderMRT<1> > MRTPixelShader(ShaderMap);
 					PixelShader = *MRTPixelShader;
 				}
-				else if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM4 ))
+				else if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5 ))
 				{
 					if (NumBuffers == 2)
 					{

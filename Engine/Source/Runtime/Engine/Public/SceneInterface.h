@@ -403,7 +403,7 @@ public:
 
 	static EShadingPath GetShadingPath(ERHIFeatureLevel::Type InFeatureLevel)
 	{
-		if (InFeatureLevel >= ERHIFeatureLevel::SM4)
+		if (InFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			return EShadingPath::Deferred;
 		}

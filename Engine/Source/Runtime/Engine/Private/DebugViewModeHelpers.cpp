@@ -62,7 +62,7 @@ bool AllowDebugViewShaderMode(EDebugViewShaderMode ShaderMode, EShaderPlatform P
 		return false;
 	}
 #else
-	return ShaderMode == DVSM_ShaderComplexity && FeatureLevel != ERHIFeatureLevel::SM4;
+	return ShaderMode == DVSM_ShaderComplexity;
 #endif
 }
 

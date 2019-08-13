@@ -4279,7 +4279,7 @@ protected:
 		}
 
 		// If mobile, then disabling AutomaticViewMipBias.
-		if (FeatureLevel < ERHIFeatureLevel::SM4)
+		if (FeatureLevel < ERHIFeatureLevel::SM5)
 		{
 			AutomaticViewMipBias = false;
 		}
@@ -4808,7 +4808,7 @@ protected:
 										SceneTextureId == PPI_SceneDepth ||
 										SceneTextureId == PPI_CustomStencil;
 
-		if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (!bSupportedOnMobile	&& ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -4840,7 +4840,7 @@ protected:
 
 		AddEstimatedTextureSample();
 
-		if (FeatureLevel >= ERHIFeatureLevel::SM4)
+		if (FeatureLevel >= ERHIFeatureLevel::SM5)
 		{
 			return AddCodeChunk(
 				MCT_Float4,
@@ -4912,7 +4912,7 @@ protected:
 
 			if (bRequiresSM5)
 			{
-				ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4);
+				ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5);
 			}
 		}
 
@@ -4978,7 +4978,7 @@ protected:
 			Errorf(TEXT("SceneColor lookups are only available when MaterialDomain = Surface."));
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -5112,7 +5112,7 @@ protected:
 
 	virtual int32 ExternalTexture(const FGuid& ExternalTextureGuid) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -5124,7 +5124,7 @@ protected:
 
 	virtual int32 ExternalTexture(UTexture* InTexture, int32& TextureReferenceIndex) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -5139,7 +5139,7 @@ protected:
 
 	virtual int32 ExternalTextureParameter(FName ParameterName, UTexture* DefaultValue, int32& TextureReferenceIndex) override
 	{
-		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM4;
+		bool bOnlyInPixelShader = GetFeatureLevel() < ERHIFeatureLevel::SM5;
 
 		if (bOnlyInPixelShader && ShaderFrequency != SF_Pixel)
 		{
@@ -6118,7 +6118,7 @@ protected:
 			return NonPixelShaderExpressionError();
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6141,7 +6141,7 @@ protected:
 			return NonPixelShaderExpressionError();
 		}
 
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6317,7 +6317,7 @@ protected:
 
 	virtual int32 AntialiasedTextureMask(int32 Tex, int32 UV, float Threshold, uint8 Channel) override
 	{
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -6394,7 +6394,7 @@ protected:
 		// GradientTex3D uses 3D texturing, which is not available on ES2
 		if (NoiseFunction == NOISEFUNCTION_GradientTex3D)
 		{
-			if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+			if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 			{
 				Errorf(TEXT("3D textures are not supported for ES2"));
 				return INDEX_NONE;
@@ -6533,7 +6533,7 @@ protected:
 
 	virtual int32 AtmosphericFogColor( int32 WorldPosition ) override
 	{
-		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM4) == INDEX_NONE)
+		if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
 		{
 			return INDEX_NONE;
 		}
@@ -7003,7 +7003,7 @@ protected:
 	 */
 	virtual int32 TextureCoordinateOffset() override
 	{
-		if (FeatureLevel < ERHIFeatureLevel::SM4 && ShaderFrequency == SF_Vertex)
+		if (FeatureLevel < ERHIFeatureLevel::SM5 && ShaderFrequency == SF_Vertex)
 		{
 			return AddInlinedCodeChunk(MCT_Float2, TEXT("Parameters.TexCoordOffset"));
 		}

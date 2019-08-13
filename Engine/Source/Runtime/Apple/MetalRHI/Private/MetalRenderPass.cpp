@@ -2452,7 +2452,7 @@ void FMetalRenderPass::ConditionalSubmit()
 		{
 			bool bSet = false;
 			State.InvalidateRenderTargets();
-			if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM4 ))
+			if (IsFeatureLevelSupported( GMaxRHIShaderPlatform, ERHIFeatureLevel::SM5 ))
 			{
 				bSet = State.SetRenderPassInfo(CurrentRenderTargets, State.GetVisibilityResultsBuffer(), false);
 			}

@@ -31,7 +31,7 @@ class FPostProcessDOFSetupPS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters,OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("MOBILE_SHADING"), IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) ? 0u : 1u);
+		OutEnvironment.SetDefine(TEXT("MOBILE_SHADING"), IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) ? 0u : 1u);
 		OutEnvironment.SetDefine(TEXT("NEAR_BLUR"), (uint32)(NearBlur >= 1));
 		OutEnvironment.SetDefine(TEXT("DOF_VIGNETTE"), (uint32)(NearBlur == 2));
 		OutEnvironment.SetDefine(TEXT("MRT_COUNT"), FarBlur + (NearBlur > 0));
@@ -69,7 +69,7 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 
-		if (Context.GetFeatureLevel() < ERHIFeatureLevel::SM4)
+		if (Context.GetFeatureLevel() < ERHIFeatureLevel::SM5)
 		{
 			// Trying bilin here to attempt to alleviate some issues with 1/4 res input...
 			PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Border, AM_Border, AM_Clamp>::GetRHI());
@@ -311,7 +311,7 @@ class FPostProcessDOFRecombinePS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("FAR_BLUR"), FarBlur);
 		OutEnvironment.SetDefine(TEXT("NEAR_BLUR"), NearBlur);
 		OutEnvironment.SetDefine(TEXT("SEPARATE_TRANSLUCENCY"), SeparateTranslucency);
-		OutEnvironment.SetDefine(TEXT("MOBILE_SHADING"), IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM4) ? 0u : 1u);
+		OutEnvironment.SetDefine(TEXT("MOBILE_SHADING"), IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) ? 0u : 1u);
 	}
 
 	/** Default constructor. */

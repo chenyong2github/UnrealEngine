@@ -7773,11 +7773,17 @@ void UMaterialExpressionFeatureLevelSwitch::Serialize(FStructuredArchive::FRecor
 {
 	Super::Serialize(Record);
 	FArchive& UnderlyingArchive = Record.GetUnderlyingArchive();
+	UnderlyingArchive.UsingCustomVersion(FRenderingObjectVersion::GUID);
 
 	if (UnderlyingArchive.IsLoading() && UnderlyingArchive.UE4Ver() < VER_UE4_RENAME_SM3_TO_ES3_1)
 	{
 		// Copy the ES2 input to SM3 (since SM3 will now become ES3_1 and we don't want broken content)
 		Inputs[ERHIFeatureLevel::ES3_1] = Inputs[ERHIFeatureLevel::ES2];
+	}
+
+	if (UnderlyingArchive.CustomVer(FRenderingObjectVersion::GUID) < FRenderingObjectVersion::RemovedSM4)
+	{
+		Inputs[ERHIFeatureLevel::SM4_REMOVED] = UMaterialExpressionFeatureLevelSwitch::Default;
 	}
 }
 
@@ -7819,7 +7825,7 @@ int32 UMaterialExpressionShadingPathSwitch::Compile(class FMaterialCompiler* Com
 	{
 		ShadingPathToCompile = ERHIShadingPath::Forward;
 	}
-	else if (Compiler->GetFeatureLevel() < ERHIFeatureLevel::SM4)
+	else if (Compiler->GetFeatureLevel() < ERHIFeatureLevel::SM5)
 	{
 		ShadingPathToCompile = ERHIShadingPath::Mobile;
 	}

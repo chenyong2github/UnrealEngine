@@ -1293,10 +1293,6 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
 				{
-					case ERHIFeatureLevel::SM4:
-					{
-						return LOCTEXT("PreviewModeSM4_Text", "SM4 Preview");
-					}
 					case ERHIFeatureLevel::ES2:
 					{
 						return LOCTEXT("PreviewModeES2_Text", "ES2 Preview");
@@ -1367,10 +1363,6 @@ TSharedRef< SWidget > FLevelEditorToolBar::MakeLevelEditorToolBar( const TShared
 				}
 				switch (GEditor->PreviewPlatform.PreviewFeatureLevel)
 				{
-					case ERHIFeatureLevel::SM4:
-					{
-						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.SM4.Enabled" : "LevelEditor.PreviewMode.SM4.Disabled");
-					}
 					case ERHIFeatureLevel::ES2:
 					{
 						return FSlateIcon(FEditorStyle::GetStyleSetName(), GEditor->IsFeatureLevelPreviewActive() ? "LevelEditor.PreviewMode.AndroidES2.Enabled" : "LevelEditor.PreviewMode.AndroidES2.Disabled");
@@ -1815,9 +1807,6 @@ static void MakeShaderModelPreviewMenu( FMenuBuilder& MenuBuilder )
 
 	// SM5
 	MenuBuilder.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_SM5);
-
-	// SM4
-	MenuBuilder.AddMenuEntry(FLevelEditorCommands::Get().PreviewPlatformOverride_SM4);
 
 	// Android
 	bool bAndroidBuildForES31 = false;

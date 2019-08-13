@@ -218,7 +218,7 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedVolumetricLightmapData& Volume)
 
 	if (Ar.IsLoading())
 	{
-		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM4 && !GIsEditor)
+		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 && !GIsEditor)
 		{
 			// drop LQ data for SM4+
 			Volume.BrickData.DiscardLowQualityLayers();

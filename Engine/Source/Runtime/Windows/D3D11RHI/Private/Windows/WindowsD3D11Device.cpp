@@ -77,24 +77,6 @@ struct AmdAgsInfo
 static AmdAgsInfo AmdInfo;
 #endif
 
-static TAutoConsoleVariable<int32> CVarForceAMDToSM4(
-	TEXT("r.ForceAMDToSM4"),
-	0,
-	TEXT("Forces AMD devices to use SM4.0/D3D10.0 feature level."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarForceIntelToSM4(
-	TEXT("r.ForceIntelToSM4"),
-	0,
-	TEXT("Forces Intel devices to use SM4.0/D3D10.0 feature level."),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarForceNvidiaToSM4(
-	TEXT("r.ForceNvidiaToSM4"),
-	0,
-	TEXT("Forces Nvidia devices to use SM4.0/D3D10.0 feature level."),
-	ECVF_RenderThreadSafe);
-
 static TAutoConsoleVariable<int32> CVarAMDUseMultiThreadedDevice(
 	TEXT("r.AMDD3D11MultiThreadedDevice"),
 	0,
@@ -128,13 +110,6 @@ static FAutoConsoleVariableRef CVarDX11NumGPUs(
  */
 namespace RHIConsoleVariables
 {
-	int32 MinFeatureSetLimit = -1;
-	static FAutoConsoleVariableRef CVarMinFeatureSetLimit(
-		TEXT("RHI.MinFeatureSetLimit"),
-		MinFeatureSetLimit,
-		TEXT("If set to 11, limit D3D RHI to D3D11 and 11.1 feature levels, disallowing 10. Otherwise, it will use default. Changing this at run-time has no effect. (default is -1)")
-		);
-
 	int32 MaxFeatureSetLimit = -1;
 	static FAutoConsoleVariableRef CVarMaxFeatureSetLimit(
 		TEXT("RHI.FeatureSetLimit"),
@@ -250,14 +225,8 @@ static void SafeCreateDXGIFactory(IDXGIFactory1** DXGIFactory1)
  */
 static D3D_FEATURE_LEVEL GetMinAllowedD3DFeatureLevel()
 {
-	// Default to 10.0
-	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
-
-	if (RHIConsoleVariables::MinFeatureSetLimit == 11)
-	{
-		AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-	}
-
+	// Default to 11.0
+	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
 	return AllowedFeatureLevel;
 }
 
@@ -269,24 +238,6 @@ static D3D_FEATURE_LEVEL GetMaxAllowedD3DFeatureLevel()
 {
 	// Default to 11.0
 	D3D_FEATURE_LEVEL AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_0;
-
-	// Use a feature level 10 if specified on the command line.
-	if(FParse::Param(FCommandLine::Get(),TEXT("d3d10")) || 
-		FParse::Param(FCommandLine::Get(),TEXT("dx10")) ||
-		FParse::Param(FCommandLine::Get(),TEXT("sm4")) ||
-		RHIConsoleVariables::MaxFeatureSetLimit == 10)
-	{
-		AllowedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
-	}
-
-	if (bIsQuadBufferStereoEnabled)
-	{
-		if (AllowedFeatureLevel == D3D_FEATURE_LEVEL_10_0)
-		{
-			UE_LOG(LogD3D11RHI, Warning, TEXT("D3D Feature Level overriden from 10.0 to 11.1 due to quad_buffer_stereo"));
-		}
-		AllowedFeatureLevel = D3D_FEATURE_LEVEL_11_1;
-	}
 	return AllowedFeatureLevel;
 }
 
@@ -313,7 +264,6 @@ static bool SafeTestD3D11CreateDevice(IDXGIAdapter* Adapter,D3D_FEATURE_LEVEL Mi
 	{
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
-		D3D_FEATURE_LEVEL_10_0
 	};
 	
 	// Trim to allowed feature levels
@@ -943,27 +893,6 @@ void FD3D11DynamicRHIModule::FindAdapter()
 	else
 	{
 		UE_LOG(LogD3D11RHI, Error, TEXT("Failed to choose a D3D11 Adapter."));
-	}
-
-	// Workaround to force specific IHVs to SM4.0
-	if (ChosenAdapter.IsValid() && ChosenAdapter.MaxSupportedFeatureLevel != D3D_FEATURE_LEVEL_10_0)
-	{
-		DXGI_ADAPTER_DESC AdapterDesc;
-		ZeroMemory(&AdapterDesc, sizeof(DXGI_ADAPTER_DESC));
-
-		DXGIFactory1->EnumAdapters(ChosenAdapter.AdapterIndex, TempAdapter.GetInitReference());
-		VERIFYD3D11RESULT(TempAdapter->GetDesc(&AdapterDesc));	
-
-		const bool bIsAMD = AdapterDesc.VendorId == 0x1002;
-		const bool bIsIntel = AdapterDesc.VendorId == 0x8086;
-		const bool bIsNVIDIA = AdapterDesc.VendorId == 0x10DE;
-
-		if ((bIsAMD && CVarForceAMDToSM4.GetValueOnGameThread() > 0) ||
-			(bIsIntel && CVarForceIntelToSM4.GetValueOnGameThread() > 0) ||
-			(bIsNVIDIA && CVarForceNvidiaToSM4.GetValueOnGameThread() > 0))
-		{
-			ChosenAdapter.MaxSupportedFeatureLevel = D3D_FEATURE_LEVEL_10_0;
-		}
 	}
 }
 
@@ -1602,7 +1531,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_PCD3D_ES2;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES3_1] = SP_PCD3D_ES3_1;
-		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4] = SP_PCD3D_SM4;
+		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM4_REMOVED] = SP_NumPlatforms;
 		GShaderPlatformForFeatureLevel[ERHIFeatureLevel::SM5] = SP_PCD3D_SM5;
 
 		if (IsRHIDeviceAMD() && CVarAMDDisableAsyncTextureCreation.GetValueOnAnyThread())

@@ -107,11 +107,9 @@ namespace ERHIFeatureLevel
 
 		/**
 		 * Feature level defined by the capabilities of DX10 Shader Model 4.
-		 *    Shaders can reference 128 unique textures, 16 texture samplers, 14 constant buffers
-		 *    Rendering to cubemaps and volume textures
-		 * Geometry shaders are not required for Feature Level SM4, as long as vertex shader render target selection is supported
+		 * SUPPORT FOR THIS FEATURE LEVEL HAS BEEN ENTIRELY REMOVED.
 		 */
-		SM4,
+		SM4_REMOVED,
 
 		/**
 		 * Feature level defined by the capabilities of DX11 Shader Model 5.
@@ -1063,7 +1061,7 @@ inline ERHIFeatureLevel::Type GetMaxSupportedFeatureLevel(EShaderPlatform InShad
 	case SP_VULKAN_SM4:
 	case SP_PCD3D_SM4:
 	case SP_OPENGL_SM4:
-		return ERHIFeatureLevel::SM4;
+		return ERHIFeatureLevel::SM4_REMOVED;
 	case SP_PCD3D_ES2:
 	case SP_OPENGL_PCES2:
 	case SP_OPENGL_ES2_ANDROID:
@@ -1167,7 +1165,7 @@ inline bool RHISupportsComputeShaders(const EShaderPlatform Platform)
 
 inline bool RHISupportsGeometryShaders(const EShaderPlatform Platform)
 {
-	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM4) && !IsMetalPlatform(Platform) && !IsVulkanMobilePlatform(Platform) && Platform != SP_VULKAN_SM5_LUMIN;
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5) && !IsMetalPlatform(Platform) && !IsVulkanMobilePlatform(Platform) && Platform != SP_VULKAN_SM5_LUMIN;
 }
 
 inline bool RHIHasTiledGPU(const EShaderPlatform Platform)
@@ -1223,8 +1221,7 @@ inline int32 GetFeatureLevelMaxNumberOfBones(ERHIFeatureLevel::Type FeatureLevel
 	{
 	case ERHIFeatureLevel::ES2:
 	case ERHIFeatureLevel::ES3_1:
-		return 75;
-	case ERHIFeatureLevel::SM4:
+		return 75;	
 	case ERHIFeatureLevel::SM5:
 		return 256;
 	default:

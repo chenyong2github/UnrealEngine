@@ -344,7 +344,7 @@ public:
 	// FResource interface.
 	virtual void InitRHI() override
 	{
-		if (GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+		if (GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 		{
 			// Create the texture RHI.
 			FBlackVolumeTextureResourceBulkDataInterface BlackTextureBulkData(0);

@@ -377,7 +377,7 @@ void FMaterialStatsUtils::GetRepresentativeShaderTypesAndDescriptions(TMap<FName
 		ShaderTypeNamesAndDescriptions.FindOrAdd(FLocalVertexFactoryName)
 			.Add(FRepresentativeShaderInfo(ERepresentativeShader::UIInstancedVertexShader, TSlateMaterialShaderVStrueName, TEXT("Instanced UI Vertex Shader")));
 	}
-	else if (TargetMaterial->GetFeatureLevel() >= ERHIFeatureLevel::SM4)
+	else if (TargetMaterial->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
 	{
 		if (TargetMaterial->GetShadingModels().IsUnlit())
 		{
