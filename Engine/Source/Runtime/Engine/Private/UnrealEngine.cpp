@@ -1097,7 +1097,7 @@ Engine init and exit.
 /** Callback from OS when we get a low memory warning.
 * Note: might not be called from the game thread
 */
-void EngineMemoryWarningHandler(const FGenericMemoryWarningContext& GenericContext)
+static void EngineMemoryWarningHandler(const FGenericMemoryWarningContext& GenericContext)
 {
 	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 
@@ -1389,7 +1389,10 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 #endif
 
 	// Set the memory warning handler
-	FPlatformMisc::SetMemoryWarningHandler(EngineMemoryWarningHandler);
+	if (!FPlatformMisc::HasMemoryWarningHandler())
+	{
+		FPlatformMisc::SetMemoryWarningHandler(EngineMemoryWarningHandler);
+	}
 
 	EngineLoop = InEngineLoop;
 
