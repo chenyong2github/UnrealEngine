@@ -390,7 +390,7 @@ void FNiagaraShaderType::AddReferencedUniformBufferIncludes(FShaderCompilerEnvir
 	GeneratedUniformBuffersInclude.Append(UniformBufferIncludes);
 
 	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(Platform);
-	if (MaxFeatureLevel >= ERHIFeatureLevel::SM4)
+	if (MaxFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		OutEnvironment.SetDefine(TEXT("PLATFORM_SUPPORTS_SRV_UB"), TEXT("1"));
 	}
