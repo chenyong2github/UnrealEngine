@@ -194,9 +194,16 @@ bool ANavLinkProxy::GetNavigationLinksClasses(TArray<TSubclassOf<UNavLinkDefinit
 bool ANavLinkProxy::GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const
 {
 	OutLink.Append(PointLinks);
+
+	const bool bIsSmartLinkActive = (SmartLinkComp && SmartLinkComp->IsNavigationRelevant());
+	if (bIsSmartLinkActive)
+	{
+		OutLink.Add(SmartLinkComp->GetLinkModifier());
+	}
+
 	OutSegments.Append(SegmentLinks);
 
-	return (PointLinks.Num() > 0) || (SegmentLinks.Num() > 0);
+	return (PointLinks.Num() > 0) || (SegmentLinks.Num() > 0) || bIsSmartLinkActive;
 }
 
 FBox ANavLinkProxy::GetComponentsBoundingBox(bool bNonColliding) const

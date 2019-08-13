@@ -36,4 +36,9 @@ class NAVIGATIONSYSTEM_API UNavLinkComponent : public UPrimitiveComponent, publi
 	virtual void PostEditUndo() override;
 	virtual void PostEditImport() override;
 #endif // WITH_EDITOR
+
+	virtual void OnRegister() override;
+
+protected:
+	void InitializeLinksAreaClasses();
 };
