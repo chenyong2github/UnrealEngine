@@ -47,7 +47,6 @@ public:
 		return PF_Unknown;
 	}
 
-	static bool SupportsDepthFetchDuringDepthTest() { return true; }
 	static bool SupportsTimestampRenderQueries() { return true; }
 
 	static bool RequiresMobileRenderer() { return false; }

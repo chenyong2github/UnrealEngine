@@ -69,7 +69,6 @@ public:
 	static bool SupportsStandardSwapchain();
 	static EPixelFormat GetPixelFormatForNonDefaultSwapchain();
 
-	static bool SupportsDepthFetchDuringDepthTest() { return true; }
 	static bool SupportsTimestampRenderQueries() { return false; }
 
 	static bool RequiresMobileRenderer() { return true; }

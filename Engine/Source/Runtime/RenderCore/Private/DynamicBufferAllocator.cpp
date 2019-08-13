@@ -74,7 +74,7 @@ void FGlobalDynamicReadBuffer::Cleanup()
 {
 	if (FloatBufferPool)
 	{
-		UE_LOG(LogRendererCore, Log, TEXT("FGlobalDynamicReadBuffer::Cleanup()"));
+		UE_LOG(LogRendererCore, Verbose, TEXT("FGlobalDynamicReadBuffer::Cleanup()"));
 		delete FloatBufferPool;
 		FloatBufferPool = nullptr;
 	}

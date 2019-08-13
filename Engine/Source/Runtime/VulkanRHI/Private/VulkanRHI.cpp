@@ -720,7 +720,7 @@ void FVulkanDynamicRHI::InitInstance()
 		GRHISupportsBaseVertexIndex = true;
 		GSupportsSeparateRenderTargetBlendState = true;
 
-		GSupportsDepthFetchDuringDepthTest = FVulkanPlatform::SupportsDepthFetchDuringDepthTest();
+		GSupportsDepthFetchDuringDepthTest = true;
 
 		FVulkanPlatform::SetupFeatureLevels();
 
