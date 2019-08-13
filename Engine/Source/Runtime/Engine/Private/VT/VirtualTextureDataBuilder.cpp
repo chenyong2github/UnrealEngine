@@ -304,6 +304,7 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 		break;
 	}
 
+	check(SettingsPerLayer[0].MaxTextureResolution >= (uint32)TileSize);
 	BlockSizeX = FMath::Min<uint32>(BlockSizeX, SettingsPerLayer[0].MaxTextureResolution);
 	BlockSizeY = FMath::Min<uint32>(BlockSizeY, SettingsPerLayer[0].MaxTextureResolution);
 
