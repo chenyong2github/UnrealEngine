@@ -197,7 +197,7 @@ public:
 		if (!PermutationVector.Get<FTonemapperVSUseAutoExposure>())
 		{
 			// Compute a CPU-based default.  NB: reverts to "1" if SM5 feature level is not supported
-			float FixedExposure = FRCPassPostProcessEyeAdaptation::GetFixedExposure(Context.View);
+			float FixedExposure = GetEyeAdaptationFixedExposure(Context.View);
 			// Load a default value 
 			SetShaderValue(Context.RHICmdList, ShaderRHI, DefaultEyeExposure, FixedExposure);
 		}

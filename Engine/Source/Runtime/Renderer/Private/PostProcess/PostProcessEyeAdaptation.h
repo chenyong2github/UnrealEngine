@@ -32,8 +32,10 @@ FORCEINLINE float Log2ToEV100(float Log2)
 	return Log2 - 0.263f; // Where .263 is log2(1.2)
 }
 
+// Returns whether the auto exposure method is supported by the feature level.
 bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId);
 
+// Returns the auto exposure method enabled by the view (including CVar override).
 EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, )
@@ -54,35 +56,8 @@ END_SHADER_PARAMETER_STRUCT()
 
 FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& ViewInfo, ERHIFeatureLevel::Type MinFeatureLevel = ERHIFeatureLevel::SM5);
 
-// Computes the eye-adaptation from HDRHistogram.
-// ePId_Input0: HDRHistogram or nothing
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessEyeAdaptation : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	FRCPassPostProcessEyeAdaptation(bool bInIsComputePass)
-	{
-		bIsComputePass = bInIsComputePass;
-		bPreferAsyncCompute = false;
-		bPreferAsyncCompute &= (GNumAlternateFrameRenderingGroups == 1); // Can't handle multi-frame updates on async pipe
-	}
-
-	// Computes the a fix exposure to be used to replace the dynamic exposure when it's not available (< SM5).
-	static float GetFixedExposure(const FViewInfo& View);
-
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-	virtual FRHIComputeFence* GetComputePassEndFence() const override { return AsyncEndFence; }
-
-private:
-	template <typename TRHICmdList>
-	void DispatchCS(TRHICmdList& RHICmdList, FRenderingCompositePassContext& Context, FRHIUnorderedAccessView* DestUAV, IPooledRenderTarget* LastEyeAdaptation);
-
-	FComputeFenceRHIRef AsyncEndFence;
-};
+// Computes the a fixed exposure to be used to replace the dynamic exposure when it's not supported (< SM5).
+float GetEyeAdaptationFixedExposure(const FViewInfo& View);
 
 // Write Log2(Luminance) in the alpha channel.
 // ePId_Input0: Half-Res HDR scene color
@@ -115,3 +90,5 @@ public:
 private:
 	FIntPoint DownsampledViewRect;
 };
+
+FRenderingCompositeOutputRef AddHistogramEyeAdaptationPass(FPostprocessContext& Context, FRenderingCompositeOutputRef Histogram);

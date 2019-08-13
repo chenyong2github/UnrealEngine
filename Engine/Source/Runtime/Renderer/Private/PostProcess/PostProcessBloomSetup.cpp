@@ -64,7 +64,7 @@ public:
 
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
-		const float FixedExposure = FRCPassPostProcessEyeAdaptation::GetFixedExposure(Context.View);
+		const float FixedExposure = GetEyeAdaptationFixedExposure(Context.View);
 
 		FVector4 BloomThresholdValue(Settings.BloomThreshold, 0, 0, FixedExposure);
 		SetShaderValue(RHICmdList, ShaderRHI, BloomThreshold, BloomThresholdValue);

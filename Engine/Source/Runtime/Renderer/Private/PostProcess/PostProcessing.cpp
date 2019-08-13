@@ -413,15 +413,6 @@ static FRenderingCompositeOutputRef AddPostProcessBasicEyeAdaptation(const FView
 	return FRenderingCompositeOutputRef(Node);
 }
 
-static FRenderingCompositeOutputRef AddPostProcessHistogramEyeAdaptation(FPostprocessContext& Context, FRenderingCompositeOutputRef& Histogram)
-{
-	const bool bIsComputePass = ShouldDoComputePostProcessing(Context.View);
-	FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessEyeAdaptation(bIsComputePass));
-
-	Node->SetInput(ePId_Input0, Histogram);
-	return FRenderingCompositeOutputRef(Node);
-}
-
 static void AddVisualizeBloomOverlay(FPostprocessContext& Context, FRenderingCompositeOutputRef& HDRColor, FRenderingCompositeOutputRef& BloomOutputCombined)
 {
 	auto Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessVisualizeBloomOverlay());
@@ -1286,7 +1277,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 				}
 				else
 				{
-					EyeAdaptation = AddPostProcessHistogramEyeAdaptation(Context, Histogram);
+					EyeAdaptation = AddHistogramEyeAdaptationPass(Context, Histogram);
 				}
 			}
 
