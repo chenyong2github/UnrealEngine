@@ -859,8 +859,6 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 		bFlushCaches = false;
 	}
 
-	Producers.CallPendingCallbacks();
-
 	DestroyPendingVirtualTextures();
 
 	FMemStack& MemStack = FMemStack::Get();
@@ -1944,4 +1942,9 @@ void FVirtualTextureSystem::AllocateResources(FRHICommandListImmediate& RHICmdLi
 			Spaces[ID]->AllocateTextures(RHICmdList);
 		}
 	}
+}
+
+void FVirtualTextureSystem::CallPendingCallbacks()
+{
+	Producers.CallPendingCallbacks();
 }
