@@ -417,7 +417,6 @@ NIAGARASHADER_API  FNiagaraShader* FNiagaraShaderScript::GetShaderGameThread() c
 
 void FNiagaraShaderScript::GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMapIds)
 {
-	check(IsInGameThread());
 	// Build an array of the shader map Id's are not finished compiling.
 	if (GameThreadShaderMap && GameThreadShaderMap.IsValid() && !GameThreadShaderMap->IsCompilationFinalized())
 	{
