@@ -228,12 +228,8 @@ void USoundClass::Serialize( FArchive& Ar )
 
 	if (ReleaseObjectVersion < FReleaseObjectVersion::SoundClass2DReverbSend)
 	{
-		UE_LOG(LogAudio, Warning, TEXT("//----------------------------------------------------------------------------------//"));
-		UE_LOG(LogAudio, Warning, TEXT("HIT: ReleaseObjectVersion < FReleaseObjectVersion::SoundClass2DReverbSend, so going to take project Default reverb send level instead of the SoundClass parameter..."));
 		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
 		Properties.Default2DReverbSendAmount = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
-		UE_LOG(LogAudio, Warning, TEXT("We think the project value was: %f"), AudioSettings->DefaultReverbSendLevel_DEPRECATED);
-		UE_LOG(LogAudio, Warning, TEXT("//----------------------------------------------------------------------------------//"));
 	}
 }
 
