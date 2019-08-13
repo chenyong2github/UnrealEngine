@@ -17,7 +17,6 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnOutputParametersChanged);
 
 public:
-	FNiagaraScriptOutputCollectionViewModel(UNiagaraScript* InScript, ENiagaraParameterEditMode InParameterEditMode);
 	FNiagaraScriptOutputCollectionViewModel(ENiagaraParameterEditMode InParameterEditMode);
 
 	~FNiagaraScriptOutputCollectionViewModel();
