@@ -1503,6 +1503,12 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	MenuBuilder.BeginSection("SequencerTracksResetFilters");
 	{
 		MenuBuilder.AddMenuEntry(
+			LOCTEXT("FilterListEnableAll", "Enable All"),
+			LOCTEXT("FilterListEnableAllToolTip", "Selects all filters"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllFilters)));
+
+		MenuBuilder.AddMenuEntry(
 			LOCTEXT("FilterListResetFilters", "Reset Filters"),
 			LOCTEXT("FilterListResetToolTip", "Resets current filter selection"),
 			FSlateIcon(),
@@ -1599,6 +1605,22 @@ void SSequencer::OnResetFilters()
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	Sequencer->GetNodeTree()->RemoveAllFilters();
+}
+
+void SSequencer::OnEnableAllFilters()
+{
+	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+
+	for (TSharedRef<FSequencerTrackFilter> TrackFilter : AllTrackFilters)
+	{
+		if (TrackFilter->SupportsSequence(Sequencer->GetFocusedMovieSceneSequence()))
+		{
+			if (!Sequencer->GetNodeTree()->IsTrackFilterActive(TrackFilter))
+			{
+				Sequencer->GetNodeTree()->AddFilter(TrackFilter);
+			}
+		}
+	}
 }
 
 void SSequencer::OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter)
