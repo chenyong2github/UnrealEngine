@@ -31,14 +31,14 @@ FIOSAudioSoundBuffer::FIOSAudioSoundBuffer(FIOSAudioDevice* InAudioDevice, USoun
 {
 	if (!bIsProcedural)
 	{
-		DecompressionState = InAudioDevice->CreateCompressedAudioInfo(InWave);
+		DecompressionState = static_cast<FADPCMAudioInfo*>(InAudioDevice->CreateCompressedAudioInfo(InWave));
 
 		if (!ReadCompressedInfo(InWave))
 		{
 			return;
 		}
 
-		SoundFormat = static_cast<ESoundFormat>(static_cast<FADPCMAudioInfo*>(DecompressionState)->GetFormatTag());
+		SoundFormat = static_cast<ESoundFormat>(DecompressionState->GetFormatTag());
 	}
     else
     {
