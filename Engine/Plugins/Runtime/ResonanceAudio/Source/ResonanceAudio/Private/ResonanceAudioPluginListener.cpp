@@ -7,6 +7,7 @@
 #include "AudioDevice.h"
 #include "Async/Async.h"
 #include "Components/BrushComponent.h"
+#include "Model.h"
 
 namespace ResonanceAudio
 {
