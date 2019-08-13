@@ -87,6 +87,18 @@ struct DESKTOPPLATFORM_API FTargetReceipt
 	 */
 	bool Read(const FString& FileName);
 
+	/**
+	 * Gets the default path for a target receipt
+	 *
+	 * @param BaseDir Base directory for the target being built; either the project directory or engine directory.
+	 * @param TargetName The target being built
+	 * @param Platform The target platform
+	 * @param Configuration The target configuration
+	 * @param BuildArchitecture The architecture being built
+	 * @return Path to the receipt for this target
+	 */
+	static FString GetDefaultPath(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* BuildArchitecture);
+
 private:
 	/**
 	 * Expands the $(EngineDir) and $(ProjectDir) variables within a string

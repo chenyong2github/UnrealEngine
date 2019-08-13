@@ -562,20 +562,21 @@ bool FDesktopPlatformBase::CompileGameProject(const FString& RootDir, const FStr
 {
 	FModuleManager& ModuleManager = FModuleManager::Get();
 
-	// Get the project directory
-	FString ProjectDir = FPaths::GetPath(ProjectFileName);
-
 	// Build the argument list
 	FString Arguments = FString::Printf(TEXT("%s %s"), ModuleManager.GetUBTConfiguration(), FPlatformMisc::GetUBTPlatform());
 
-	// Append the project name if it's a foreign project
-	if ( !ProjectFileName.IsEmpty() )
+	// Append the project name if it's a foreign project. Otherwise compile UE4Editor.
+	if ( ProjectFileName.IsEmpty() )
 	{
-		Arguments += FString::Printf(TEXT(" -Project=\"%s\""), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFileName));
+		Arguments = TEXT("UE4Editor ") + Arguments;
+	}
+	else
+	{
+		Arguments += FString::Printf(TEXT(" -Project=\"%s\" -TargetType=Editor"), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFileName));
 	}
 
 	// Append any other options
-	Arguments += " -TargetType=Editor -Progress -NoHotReloadFromIDE";
+	Arguments += " -Progress -NoHotReloadFromIDE";
 
 	// Run UBT
 	bool bResult = RunUnrealBuildTool(LOCTEXT("CompilingProject", "Compiling project..."), RootDir, Arguments, Warn);

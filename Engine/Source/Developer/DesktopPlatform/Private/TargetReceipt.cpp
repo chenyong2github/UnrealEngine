@@ -141,6 +141,24 @@ bool FTargetReceipt::Read(const FString& FileName)
 	return true;
 }
 
+FString FTargetReceipt::GetDefaultPath(const TCHAR* BaseDir, const TCHAR* TargetName, const TCHAR* Platform, EBuildConfiguration Configuration, const TCHAR* BuildArchitecture)
+{
+	const TCHAR* ArchitectureSuffix = TEXT("");
+	if (BuildArchitecture != nullptr)
+	{
+		ArchitectureSuffix = BuildArchitecture;
+	}
+
+	if ((BuildArchitecture == nullptr || BuildArchitecture[0] == 0) && Configuration == EBuildConfiguration::Development)
+	{
+		return FPaths::Combine(BaseDir, FString::Printf(TEXT("Binaries/%s/%s.target"), Platform, TargetName));
+	}
+	else
+	{
+		return FPaths::Combine(BaseDir, FString::Printf(TEXT("Binaries/%s/%s-%s-%s%s.target"), Platform, TargetName, Platform, Configuration, ArchitectureSuffix));
+	}
+}
+
 void FTargetReceipt::ExpandVariables(FString& Path)
 {
 	static FString EngineDirPrefix = TEXT("$(EngineDir)");
