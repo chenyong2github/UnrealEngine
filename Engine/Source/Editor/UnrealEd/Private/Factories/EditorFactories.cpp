@@ -4459,9 +4459,14 @@ void UTextureFactory::ApplyAutoImportSettings(UTexture* Texture)
 
 bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bAllowNonPowerOfTwo, FFeedbackContext* Warn)
 {
+	static const auto CVarVirtualTexturesEnabled = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VirtualTextures")); check(CVarVirtualTexturesEnabled);
+
+	// In theory this value could be much higher, but various UE4 image code currently uses 32bit size/offset values
+	const int32 MaximumSupportedVirtualTextureResolution = 16 * 1024;
+
 	// Calculate the maximum supported resolution utilizing the global max texture mip count
 	// (Note, have to subtract 1 because 1x1 is a valid mip-size; this means a GMaxTextureMipCount of 4 means a max resolution of 8x8, not 2^4 = 16x16)
-	const int32 MaximumSupportedResolution = 1 << (GMaxTextureMipCount - 1);
+	const int32 MaximumSupportedResolution = CVarVirtualTexturesEnabled->GetValueOnAnyThread() ? MaximumSupportedVirtualTextureResolution : (1 << (GMaxTextureMipCount - 1));
 
 	bool bValid = true;
 
@@ -4472,6 +4477,12 @@ bool UTextureFactory::IsImportResolutionValid(int32 Width, int32 Height, bool bA
 				NSLOCTEXT("UnrealEd", "Warning_LargeTextureImport", "Attempting to import {0} x {1} texture, proceed?\nLargest supported texture size: {2} x {3}"),
 				FText::AsNumber(Width), FText::AsNumber(Height), FText::AsNumber(MaximumSupportedResolution), FText::AsNumber(MaximumSupportedResolution)) ) )
 		{
+			bValid = false;
+		}
+
+		if (bValid && (Width * Height) > FMath::Square(MaximumSupportedVirtualTextureResolution))
+		{
+			Warn->Log(ELogVerbosity::Error, *NSLOCTEXT("UnrealEd", "Warning_TextureSizeTooLarge", "Texture is too large to import").ToString());
 			bValid = false;
 		}
 	}
