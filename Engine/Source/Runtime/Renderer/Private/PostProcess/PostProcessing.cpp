@@ -20,7 +20,6 @@
 #include "PostProcess/PostProcessMobile.h"
 #include "PostProcess/PostProcessDownsample.h"
 #include "PostProcess/PostProcessHistogram.h"
-#include "PostProcess/PostProcessHistogramReduce.h"
 #include "PostProcess/PostProcessVisualizeHDR.h"
 #include "PostProcess/VisualizeShadingModels.h"
 #include "PostProcess/PostProcessSelectionOutline.h"
@@ -1059,8 +1058,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			SceneContext.AdjustGBufferRefCount(RHICmdList, 1);
 
 			FRenderingCompositePass* RDGPass = Context.Graph.RegisterPass(
-				new(FMemStack::Get()) TRCPassForRDG<5, 2>(
-					[&View, &SceneContext, bVisualizeBloom, bMotionBlurEnabled, bVisualizeMotionBlur, bDepthOfFieldEnabled, DownsampleQuality, DownsampleOverrideFormat]
+				new(FMemStack::Get()) TRCPassForRDG<5, 3>(
+					[&View, &SceneContext, bVisualizeBloom, bMotionBlurEnabled, bVisualizeMotionBlur, bDepthOfFieldEnabled, bHistogramEnabled, DownsampleQuality, DownsampleOverrideFormat]
 			(FRenderingCompositePass* Pass, FRenderingCompositePassContext& InContext)
 			{
 				FRDGBuilder GraphBuilder(InContext.RHICmdList);
@@ -1132,8 +1131,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					SceneColorTexture = AddPostProcessMaterialChain(GraphBuilder, ScreenPassView, Inputs, BL_BeforeTonemapping);
 				}
 
-				// Half-resolution scene color texture.
 				FRDGTextureRef SceneColorHalfResTexture = nullptr;
+				FIntRect SceneColorHalfResViewRect;
 
 				// Scene color view rectangle after temporal AA upscale to secondary screen percentage.
 				FIntRect SecondaryViewRect = PrimaryViewRect;
@@ -1158,8 +1157,9 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 						DownsampleOverrideFormat,
 						SceneColorTexture,
 						&SceneColorTexture,
+						&SecondaryViewRect,
 						&SceneColorHalfResTexture,
-						&SecondaryViewRect);
+						&SceneColorHalfResViewRect);
 				}
 
 				//! SceneColorTexture is now upsampled to the SecondaryViewRect. Use SecondaryViewRect for input / output.
@@ -1221,6 +1221,19 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 					FDownsamplePassOutputs Outputs = AddDownsamplePass(GraphBuilder, ScreenPassView, Inputs);
 
 					SceneColorHalfResTexture = Outputs.Texture;
+					SceneColorHalfResViewRect = Outputs.Viewport;
+				}
+
+				if (bHistogramEnabled)
+				{
+					FRDGTextureRef HistogramTexture = AddHistogramPass(
+						GraphBuilder,
+						ScreenPassView,
+						SceneColorHalfResViewRect,
+						SceneColorHalfResTexture,
+						GetEyeAdaptationTexture(GraphBuilder, View));
+
+					Pass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output2, HistogramTexture);
 				}
 
 				// Release held GBuffer reference taken during composition graph setup. Passes will take their own references during RDG setup.
@@ -1245,17 +1258,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 
 			if (bHistogramEnabled)
 			{
-				FRenderingCompositePass* NodeHistogram = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessHistogram());
-
-				NodeHistogram->SetInput(ePId_Input0, SceneColorHalfRes);
-
-				HistogramOverScreen = FRenderingCompositeOutputRef(NodeHistogram);
-
-				FRenderingCompositePass* NodeHistogramReduce = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessHistogramReduce());
-
-				NodeHistogramReduce->SetInput(ePId_Input0, NodeHistogram);
-
-				Histogram = FRenderingCompositeOutputRef(NodeHistogramReduce);
+				Histogram = FRenderingCompositeOutputRef(RDGPass, ePId_Output2);
 			}
 
 			const bool bBasicEyeAdaptationEnabled = bEyeAdaptationEnabled && (AutoExposureMethod == EAutoExposureMethod::AEM_Basic);
@@ -1509,7 +1512,6 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 			Node->SetInput(ePId_Input0, FRenderingCompositeOutputRef(Context.FinalOutput));
 			Node->SetInput(ePId_Input1, Histogram);
 			Node->SetInput(ePId_Input2, PreTonemapHDRColor);
-			Node->SetInput(ePId_Input3, HistogramOverScreen);
 			Node->AddDependency(EyeAdaptation);
 
 			Context.FinalOutput = FRenderingCompositeOutputRef(Node);

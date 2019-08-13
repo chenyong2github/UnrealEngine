@@ -5,13 +5,38 @@
 =============================================================================*/
 
 #include "PostProcess/PostProcessHistogram.h"
-#include "SceneUtils.h"
 #include "PostProcess/PostProcessEyeAdaptation.h"
 
-/** Encapsulates the post processing histogram compute shader. */
-class FPostProcessHistogramCS : public FGlobalShader
+namespace
 {
-	DECLARE_SHADER_TYPE(FPostProcessHistogramCS, Global);
+
+class FHistogramCS : public FGlobalShader
+{
+public:
+	// Changing these numbers requires Histogram.usf to be recompiled.
+	static const uint32 ThreadGroupSizeX = 8;
+	static const uint32 ThreadGroupSizeY = 4;
+	static const uint32 LoopCountX = 8;
+	static const uint32 LoopCountY = 8;
+	static const uint32 HistogramSize = 64;
+
+	// /4 as we store 4 buckets in one ARGB texel.
+	static const uint32 HistogramTexelCount = HistogramSize / 4;
+
+	// The number of texels on each axis processed by a single thread group.
+	static const FIntPoint TexelsPerThreadGroup;
+
+	DECLARE_GLOBAL_SHADER(FHistogramCS);
+	SHADER_USE_PARAMETER_STRUCT(FHistogramCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramRWTexture)
+		SHADER_PARAMETER_ARRAY(FVector4, EyeAdaptationParams, [EYE_ADAPTATION_PARAMS_SIZE])
+		SHADER_PARAMETER(FIntPoint, ThreadGroupCount)
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -21,150 +46,151 @@ class FPostProcessHistogramCS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), FRCPassPostProcessHistogram::ThreadGroupSizeX);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), FRCPassPostProcessHistogram::ThreadGroupSizeY);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), FRCPassPostProcessHistogram::LoopCountX);
-		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), FRCPassPostProcessHistogram::LoopCountY);
-		OutEnvironment.SetDefine(TEXT("HISTOGRAM_SIZE"), FRCPassPostProcessHistogram::HistogramSize);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEX"), ThreadGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZEY"), ThreadGroupSizeY);
+		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), LoopCountX);
+		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), LoopCountY);
+		OutEnvironment.SetDefine(TEXT("HISTOGRAM_SIZE"), HistogramSize);
 		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 		OutEnvironment.CompilerFlags.Add( CFLAG_StandardOptimization );
 	}
 
-	/** Default constructor. */
-	FPostProcessHistogramCS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderResourceParameter HistogramRWTexture;
-	FShaderParameter HistogramParameters;
-	FShaderParameter ThreadGroupCount;
-	FShaderParameter LeftTopOffset;
-	FShaderParameter EyeAdaptationParams;
-
-	/** Initialization constructor. */
-	FPostProcessHistogramCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
+	// One ThreadGroup processes LoopCountX*LoopCountY blocks of size ThreadGroupSizeX*ThreadGroupSizeY
+	static FIntPoint GetThreadGroupCount(FIntPoint InputExtent)
 	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-		HistogramRWTexture.Bind(Initializer.ParameterMap, TEXT("HistogramRWTexture"));
-		HistogramParameters.Bind(Initializer.ParameterMap, TEXT("HistogramParameters"));
-		ThreadGroupCount.Bind(Initializer.ParameterMap, TEXT("ThreadGroupCount"));
-		LeftTopOffset.Bind(Initializer.ParameterMap, TEXT("LeftTopOffset"));
-		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
-	}
-
-	void SetCS(FRHICommandList& RHICmdList, const FRenderingCompositePassContext& Context, FIntPoint ThreadGroupCountValue, FIntPoint LeftTopOffsetValue, FIntPoint GatherExtent)
-	{
-		FRHIComputeShader* ShaderRHI = GetComputeShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-
-		PostprocessParameter.SetCS(ShaderRHI, Context, Context.RHICmdList, TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-
-		SetShaderValue(RHICmdList, ShaderRHI, ThreadGroupCount, ThreadGroupCountValue);
-		SetShaderValue(RHICmdList, ShaderRHI, LeftTopOffset, LeftTopOffsetValue);
-
-		FVector4 HistogramParametersValue(GatherExtent.X, GatherExtent.Y, 0, 0);
-		SetShaderValue(RHICmdList, ShaderRHI, HistogramParameters, HistogramParametersValue);
-
-		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-
-			FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(Context.View, Temp);
-			SetShaderValueArray(RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
-		}
-	}
-	
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << HistogramRWTexture << HistogramParameters << ThreadGroupCount << LeftTopOffset << EyeAdaptationParams;
-		return bShaderHasOutdatedParameters;
+		return FIntPoint::DivideAndRoundUp(InputExtent, TexelsPerThreadGroup);
 	}
 };
 
-IMPLEMENT_SHADER_TYPE(,FPostProcessHistogramCS,TEXT("/Engine/Private/PostProcessHistogram.usf"),TEXT("MainCS"),SF_Compute);
+const FIntPoint FHistogramCS::TexelsPerThreadGroup(ThreadGroupSizeX * LoopCountX, ThreadGroupSizeY * LoopCountY);
 
-void FRCPassPostProcessHistogram::Process(FRenderingCompositePassContext& Context)
+IMPLEMENT_GLOBAL_SHADER(FHistogramCS, "/Engine/Private/PostProcessHistogram.usf", "MainCS", SF_Compute);
+
+class FHistogramReducePS : public FGlobalShader
 {
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessHistogram);
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
+public:
+	DECLARE_GLOBAL_SHADER(FHistogramReducePS);
+	SHADER_USE_PARAMETER_STRUCT(FHistogramReducePS, FGlobalShader);
+	
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_SAMPLER(SamplerState, InputSampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
+		SHADER_PARAMETER(uint32, LoopSize)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
-	if(!InputDesc)
+	// Uses full float4 to get best quality for smooth eye adaptation transitions.
+	static const EPixelFormat OutputFormat = PF_A32B32G32R32F;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		// input is not hooked up correctly
-		return;
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	const FViewInfo& View = Context.View;
-	const FSceneViewFamily& ViewFamily = *(View.Family);
-	
-	FIntPoint SrcSize = InputDesc->Extent;
-	FIntRect DestRect = Context.SceneColorViewRect;
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetRenderTargetOutputFormat(0, OutputFormat);
+	}
+};
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+IMPLEMENT_GLOBAL_SHADER(FHistogramReducePS, "/Engine/Private/PostProcessHistogramReduce.usf", "MainPS", SF_Pixel);
 
-	TShaderMapRef<FPostProcessHistogramCS> ComputeShader(Context.GetShaderMap());
+} //! namespace
 
-	// #todo-renderpasses remove once everything is renderpasses
-	UnbindRenderTargets(Context.RHICmdList);
-    Context.RHICmdList.SetComputeShader(ComputeShader->GetComputeShader());
-    
+FRDGTextureRef AddHistogramPass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FIntRect SceneColorViewportRect,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef EyeAdaptationTexture)
+{
+	check(SceneColorTexture);
+	check(EyeAdaptationTexture);
 
-	// set destination
-	check(DestRenderTarget.UAV);
-	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DestRenderTarget.UAV);
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->HistogramRWTexture.GetBaseIndex(), DestRenderTarget.UAV);
+	const FIntPoint HistogramThreadGroupCount = FIntPoint::DivideAndRoundUp(SceneColorViewportRect.Size(), FHistogramCS::TexelsPerThreadGroup);
 
-	FIntPoint GatherExtent = ComputeGatherExtent(Context);
-	FIntPoint ThreadGroupCountValue = ComputeThreadGroupCount(GatherExtent);
+	const uint32 HistogramThreadGroupCountTotal = HistogramThreadGroupCount.X * HistogramThreadGroupCount.Y;
 
-	ComputeShader->SetCS(Context.RHICmdList, Context, ThreadGroupCountValue, (DestRect.Min + FIntPoint(1, 1)) / 2, GatherExtent);
-	
-	DispatchComputeShader(Context.RHICmdList, *ComputeShader, ThreadGroupCountValue.X, ThreadGroupCountValue.Y, 1);
+	FRDGTextureRef HistogramTexture = nullptr;
 
-	// un-set destination
-	Context.RHICmdList.SetUAVParameter(ComputeShader->GetComputeShader(), ComputeShader->HistogramRWTexture.GetBaseIndex(), NULL);
+	// First pass outputs one flattened histogram per group.
+	{
+		const FIntPoint TextureExtent = FIntPoint(FHistogramCS::HistogramTexelCount, HistogramThreadGroupCountTotal);
 
-	Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, DestRenderTarget.UAV);
-	ensureMsgf(DestRenderTarget.TargetableTexture == DestRenderTarget.ShaderResourceTexture, TEXT("%s should be resolved to a separate SRV"), *DestRenderTarget.TargetableTexture->GetName().ToString());	
+		const FRDGTextureDesc TextureDesc = FPooledRenderTargetDesc::Create2DDesc(
+			TextureExtent,
+			PF_FloatRGBA,
+			FClearValueBinding::None,
+			GFastVRamConfig.Histogram,
+			TexCreate_RenderTargetable | TexCreate_UAV,
+			false);
+
+		HistogramTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("Histogram"));
+
+		FHistogramCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHistogramCS::FParameters>();
+		PassParameters->View = ScreenPassView.View.ViewUniformBuffer;
+		PassParameters->Input = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(SceneColorViewportRect, SceneColorTexture));
+		PassParameters->InputTexture = SceneColorTexture;
+		PassParameters->HistogramRWTexture = GraphBuilder.CreateUAV(HistogramTexture);
+		PassParameters->ThreadGroupCount = HistogramThreadGroupCount;
+		ComputeEyeAdaptationValues(ERHIFeatureLevel::SM5, ScreenPassView.View, &PassParameters->EyeAdaptationParams[0]);
+
+		TShaderMapRef<FHistogramCS> ComputeShader(ScreenPassView.View.ShaderMap);
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("Histogram %dx%d (CS)", SceneColorViewportRect.Width(), SceneColorViewportRect.Height()),
+			*ComputeShader,
+			PassParameters,
+			FIntVector(HistogramThreadGroupCount.X, HistogramThreadGroupCount.Y, 1));
+	}
+
+	FRDGTextureRef HistogramReduceTexture = nullptr;
+
+	// Second pass further reduces the histogram to a single line. The second line contains the eye adaptation value (two line texture).
+	{
+		const FIntPoint TextureExtent = FIntPoint(FHistogramCS::HistogramTexelCount, 2);
+
+		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DDesc(
+			TextureExtent,
+			FHistogramReducePS::OutputFormat,
+			FClearValueBinding::None,
+			GFastVRamConfig.HistogramReduce,
+			TexCreate_RenderTargetable,
+			false);
+
+		HistogramReduceTexture = GraphBuilder.CreateTexture(TextureDesc, TEXT("HistogramReduce"));
+
+		const FScreenPassTextureViewport InputViewport(HistogramTexture);
+		const FScreenPassTextureViewport OutputViewport(HistogramReduceTexture);
+
+		FHistogramReducePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FHistogramReducePS::FParameters>();
+		PassParameters->Input = GetScreenPassTextureViewportParameters(InputViewport);
+		PassParameters->InputTexture = HistogramTexture;
+		PassParameters->InputSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->LoopSize = HistogramThreadGroupCountTotal;
+		PassParameters->EyeAdaptationTexture = EyeAdaptationTexture;
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(HistogramReduceTexture, ERenderTargetLoadAction::ENoAction);
+
+		TShaderMapRef<FHistogramReducePS> PixelShader(ScreenPassView.View.ShaderMap);
+
+		AddDrawScreenPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("HistogramReduce %dx%d (PS)", InputViewport.Extent.X, InputViewport.Extent.Y),
+			ScreenPassView,
+			OutputViewport,
+			InputViewport,
+			*PixelShader,
+			PassParameters);
+	}
+
+	return HistogramReduceTexture;
 }
 
-
-FIntPoint FRCPassPostProcessHistogram::ComputeGatherExtent(const FRenderingCompositePassContext& Context)
+FIntPoint GetHistogramTexelsPerGroup()
 {
-	// we currently assume the input is half res, one full res pixel less to avoid getting bilinear filtered input
-	return (Context.SceneColorViewRect.Size() - FIntPoint(1, 1)) / 2;
-}
-
-FIntPoint FRCPassPostProcessHistogram::ComputeThreadGroupCount(FIntPoint PixelExtent)
-{
-	uint32 TexelPerThreadGroupX = ThreadGroupSizeX * LoopCountX;
-	uint32 TexelPerThreadGroupY = ThreadGroupSizeY * LoopCountY;
-
-	uint32 ThreadGroupCountX = (PixelExtent.X + TexelPerThreadGroupX - 1) / TexelPerThreadGroupX;
-	uint32 ThreadGroupCountY = (PixelExtent.Y + TexelPerThreadGroupY - 1) / TexelPerThreadGroupY;
-
-	return FIntPoint(ThreadGroupCountX, ThreadGroupCountY);
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessHistogram::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc UnmodifiedRet = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-
-	UnmodifiedRet.Reset();
-	FIntPoint PixelExtent = UnmodifiedRet.Extent;
-
-	FIntPoint ThreadGroupCount = ComputeThreadGroupCount(PixelExtent);
-
-	// each ThreadGroup outputs one histogram
-	FIntPoint NewSize = FIntPoint(HistogramTexelCount, ThreadGroupCount.X * ThreadGroupCount.Y);
-
-	// format can be optimized later
-	FPooledRenderTargetDesc Ret(FPooledRenderTargetDesc::Create2DDesc(NewSize, PF_FloatRGBA, FClearValueBinding::None, TexCreate_None, TexCreate_RenderTargetable | TexCreate_UAV, false));
-	Ret.Flags |= GFastVRamConfig.Histogram;
-	Ret.DebugName = TEXT("Histogram");
-
-	return Ret;
+	return FHistogramCS::TexelsPerThreadGroup;
 }

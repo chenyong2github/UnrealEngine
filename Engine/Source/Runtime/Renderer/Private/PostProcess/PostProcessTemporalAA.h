@@ -156,5 +156,6 @@ void AddTemporalAAPass(
 	const EPixelFormat DownsampleOverrideFormat,
 	FRDGTextureRef InSceneColorTexture,
 	FRDGTextureRef* OutSceneColorTexture,
+	FIntRect* OutSceneColorViewRect,
 	FRDGTextureRef* OutSceneColorHalfResTexture,
-	FIntRect* OutSecondaryViewRect);
+	FIntRect* OutSceneColorHalfResViewRect);

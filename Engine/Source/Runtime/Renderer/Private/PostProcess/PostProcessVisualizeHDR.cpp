@@ -19,6 +19,8 @@
 #include "PipelineStateCache.h"
 #include "Curves/CurveFloat.h"
 
+extern FIntPoint GetHistogramTexelsPerGroup();
+
 /** Encapsulates the post processing eye adaptation pixel shader. */
 class FPostProcessVisualizeHDRPS : public FGlobalShader
 {
@@ -139,12 +141,10 @@ public:
 		}
 
 		{
-			FIntPoint GatherExtent = FRCPassPostProcessHistogram::ComputeGatherExtent(Context);
+			// we currently assume the input is half res, one full res pixel less to avoid getting bilinear filtered input
+			FIntPoint GatherExtent = (Context.SceneColorViewRect.Size() - FIntPoint(1, 1)) / 2;
 
-			uint32 TexelPerThreadGroupX = FRCPassPostProcessHistogram::ThreadGroupSizeX * FRCPassPostProcessHistogram::LoopCountX;
-			uint32 TexelPerThreadGroupY = FRCPassPostProcessHistogram::ThreadGroupSizeY * FRCPassPostProcessHistogram::LoopCountY;
-
-			FIntRect Value(GatherExtent, FIntPoint(TexelPerThreadGroupX, TexelPerThreadGroupY));
+			FIntRect Value(GatherExtent, GetHistogramTexelsPerGroup());
 
 			SetShaderValue(RHICmdList, ShaderRHI, HistogramParams, Value);
 		}

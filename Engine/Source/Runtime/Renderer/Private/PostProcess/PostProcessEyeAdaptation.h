@@ -34,6 +34,8 @@ FORCEINLINE float Log2ToEV100(float Log2)
 	return Log2 - 0.263f; // Where .263 is log2(1.2)
 }
 
+void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFeatureLevel, const FViewInfo& View, FVector4 Out[EYE_ADAPTATION_PARAMS_SIZE]);
+
 // Computes the eye-adaptation from HDRHistogram.
 // ePId_Input0: HDRHistogram or nothing
 // derives from TRenderingCompositePassBase<InputCount, OutputCount> 

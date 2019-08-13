@@ -57,6 +57,11 @@ public:
 		, Extent(InTexture->Desc.Extent)
 	{}
 
+	FScreenPassTextureViewport(FRDGTextureRef InTexture)
+		: Rect(FIntPoint::ZeroValue, InTexture->Desc.Extent)
+		, Extent(InTexture->Desc.Extent)
+	{}
+
 	FScreenPassTextureViewport(const FScreenPassTextureViewport&) = default;
 
 	bool operator==(const FScreenPassTextureViewport& Other) const;

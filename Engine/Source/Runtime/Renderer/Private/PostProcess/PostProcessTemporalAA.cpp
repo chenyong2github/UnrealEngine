@@ -687,8 +687,9 @@ void AddTemporalAAPass(
 	const EPixelFormat DownsampleOverrideFormat,
 	FRDGTextureRef InSceneColorTexture,
 	FRDGTextureRef* OutSceneColorTexture,
+	FIntRect* OutSceneColorViewRect,
 	FRDGTextureRef* OutSceneColorHalfResTexture,
-	FIntRect* OutSecondaryViewRect)
+	FIntRect* OutSceneColorHalfResViewRect)
 {
 	const FViewInfo& View = ScreenPassView.View;
 
@@ -767,8 +768,9 @@ void AddTemporalAAPass(
 	}
 
 	*OutSceneColorTexture = SceneColorTexture;
+	*OutSceneColorViewRect = SecondaryViewRect;
 	*OutSceneColorHalfResTexture = TAAOutputs.DownsampledSceneColor;
-	*OutSecondaryViewRect = SecondaryViewRect;
+	*OutSceneColorHalfResViewRect = FIntRect::DivideAndRoundUp(SecondaryViewRect, 2);
 }
 
 //////////////////////////////////////////////////////////////////////////
