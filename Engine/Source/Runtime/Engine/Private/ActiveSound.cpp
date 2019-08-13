@@ -565,15 +565,23 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	bFinished = true;
 	if (FadeOut == EFadeOut::None || (PlaybackTime <= TargetAdjustVolumeStopTime))
 	{
+		bool bReverbSendLevelWasSet = false;
 		if (bHasAttenuationSettings)
 		{
 			UpdateAttenuation(DeltaTime, ParseParams, *ClosestListenerPtr);
+			bReverbSendLevelWasSet = true;
 		}
 		else
 		{
-			// In the case of no attenuation settings, we still want to setup a default send reverb level
-			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;
-			ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
+			ParseParams.ReverbSendMethod = EReverbSendMethod::Manual;		
+			if (ParseParams.SoundClass)
+			{
+				ParseParams.ManualReverbSendLevel = ParseParams.SoundClass->Properties.Default2DReverbSendAmount;
+			}
+			else
+			{
+				ParseParams.ManualReverbSendLevel = AudioDevice->GetDefaultReverbSendLevel();
+			}
 		}
 
 		ParseParams.ModulationPluginSettings = FindModulationSettings();
