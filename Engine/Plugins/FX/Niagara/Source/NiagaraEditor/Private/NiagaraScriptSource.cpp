@@ -72,6 +72,21 @@ void UNiagaraScriptSource::InvalidateCachedCompileIds()
 	NodeGraph->InvalidateCachedCompileIds();
 }
 
+void UNiagaraScriptSource::RefreshFromExternalChanges()
+{
+	if (NodeGraph)
+	{
+		for (UEdGraphNode* Node : NodeGraph->Nodes)
+		{
+			UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
+			if (NiagaraNode)
+			{
+				NiagaraNode->RefreshFromExternalChanges();
+			}
+		}
+	}
+}
+
 
 void UNiagaraScriptSource::PostLoad()
 {

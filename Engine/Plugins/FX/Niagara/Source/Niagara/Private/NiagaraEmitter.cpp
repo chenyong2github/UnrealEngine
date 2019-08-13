@@ -724,6 +724,16 @@ UNiagaraEmitter::FOnEmitterCompiled& UNiagaraEmitter::OnEmitterVMCompiled()
 	return OnVMScriptCompiledDelegate;
 }
 
+void  UNiagaraEmitter::InvalidateCompileResults()
+{
+	TArray<UNiagaraScript*> Scripts;
+	GetScripts(Scripts, false);
+	for (int32 i = 0; i < Scripts.Num(); i++)
+	{
+		Scripts[i]->InvalidateCompileResults();
+	}
+}
+
 void UNiagaraEmitter::OnPostCompile()
 {
 	SyncEmitterAlias(TEXT("Emitter"), UniqueEmitterName);

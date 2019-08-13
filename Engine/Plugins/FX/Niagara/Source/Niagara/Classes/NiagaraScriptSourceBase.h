@@ -113,6 +113,8 @@ class UNiagaraScriptSourceBase : public UObject
 
 	virtual void InvalidateCachedCompileIds() {}
 
+	virtual void RefreshFromExternalChanges() {}
+
 protected:
 	FOnChanged OnChangedDelegate;
 #endif

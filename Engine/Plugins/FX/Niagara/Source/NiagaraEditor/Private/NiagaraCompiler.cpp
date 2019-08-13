@@ -50,7 +50,29 @@ static FAutoConsoleVariableRef CVarForceNiagaraTranslatorSingleThreaded(
 	ECVF_Default
 );
 
+// Enable this to log out generated HLSL for debugging purposes.
+static int32 GbForceNiagaraTranslatorDump = 0;
+static FAutoConsoleVariableRef CVarForceNiagaraTranslatorDump(
+	TEXT("fx.ForceNiagaraTranslatorDump"),
+	GbForceNiagaraTranslatorSingleThreaded,
+	TEXT("If > 0 all translation generated HLSL will be dumped \n"),
+	ECVF_Default
+);
+
 static FCriticalSection TranslationCritSec;
+
+void DumpHLSLText(const FString& SourceCode, const FString& DebugName)
+{
+	UE_LOG(LogNiagaraEditor, Log, TEXT("Compile output as text: %s"), *DebugName);
+	UE_LOG(LogNiagaraEditor, Log, TEXT("==================================================================================="));
+	TArray<FString> OutputByLines;
+	SourceCode.ParseIntoArrayLines(OutputByLines, false);
+	for (int32 i = 0; i < OutputByLines.Num(); i++)
+	{
+		UE_LOG(LogNiagaraEditor, Log, TEXT("/*%04d*/\t\t%s"), i + 1, *OutputByLines[i]);
+	}
+	UE_LOG(LogNiagaraEditor, Log, TEXT("==================================================================================="));
+}
 
 void FNiagaraCompileRequestData::VisitReferencedGraphs(UNiagaraGraph* InSrcGraph, UNiagaraGraph* InDupeGraph, ENiagaraScriptUsage InUsage, FCompileConstantResolver ConstantResolver)
 {
@@ -234,6 +256,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 				{
 					if (Ptr->EmitterUniqueName == EmitterNode->GetEmitterUniqueName())
 					{
+						EmitterNode->SyncEnabledState(); // Just to be safe, sync here while we likely still have the handle source.
 						EmitterNode->SetOwnerSystem(nullptr);
 						EmitterNode->SetCachedVariablesForCompilation(*Ptr->EmitterUniqueName, Ptr->NodeGraphDeepCopy, Ptr->Source);
 					}
@@ -470,7 +493,10 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
 			FCompileConstantResolver ConstantResolver(Handle.GetInstance());
 			TSharedPtr<FNiagaraCompileRequestData, ESPMode::ThreadSafe> EmitterPtr = MakeShared<FNiagaraCompileRequestData, ESPMode::ThreadSafe>();
-			EmitterPtr->DeepCopyGraphs(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver);
+			if (Handle.GetIsEnabled()) // Don't need to copy the graph if we aren't going to use it.
+			{
+				EmitterPtr->DeepCopyGraphs(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver);
+			}
 			EmitterPtr->EmitterUniqueName = Handle.GetInstance()->GetUniqueEmitterName();
 			EmitterPtr->SourceName = BasePtr->SourceName;
 			BasePtr->EmitterData.Add(EmitterPtr);
@@ -490,8 +516,11 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 		{
 			const FNiagaraEmitterHandle& Handle = System->GetEmitterHandle(i);
 			FCompileConstantResolver ConstantResolver(Handle.GetInstance());
-			BasePtr->EmitterData[i]->FinishPrecompile(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), EncounterableVars, ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver);
-			BasePtr->MergeInEmitterPrecompiledData(BasePtr->EmitterData[i].Get());
+			if (Handle.GetIsEnabled()) // Don't pull in the emitter if it isn't going to be used.
+			{
+				BasePtr->EmitterData[i]->FinishPrecompile(Cast<UNiagaraScriptSource>(Handle.GetInstance()->GraphSource), EncounterableVars, ENiagaraScriptUsage::EmitterSpawnScript, ConstantResolver);
+				BasePtr->MergeInEmitterPrecompiledData(BasePtr->EmitterData[i].Get());
+			}
 		}
 
 	}
@@ -544,6 +573,11 @@ TSharedPtr<FNiagaraVMExecutableData> FNiagaraEditorModule::CompileScript(const F
 		}
 		TranslationTime = (float)(FPlatformTime::Seconds() - TranslationStartTime);
 
+		if (GbForceNiagaraTranslatorDump != 0)
+		{
+			DumpHLSLText(Translator.GetTranslatedHLSL(), InCompileOptions.FullName);
+		}
+		
 		Results = Compiler.CompileScript(CompileRequest, InCompileOptions, &Translator.GetTranslateOutput(), Translator.GetTranslatedHLSL());
 		VMCompilationTime = Results.CompileTime;
 	}
