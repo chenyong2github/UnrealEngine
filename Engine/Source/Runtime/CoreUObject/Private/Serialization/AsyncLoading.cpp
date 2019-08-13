@@ -6831,6 +6831,13 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 	{
 		UObject* Object = DeferredPostLoadObjects[DeferredPostLoadIndex++];
 		check(Object);
+
+		if (!Object->IsReadyForAsyncPostLoad())
+		{
+			--DeferredPostLoadIndex;
+			break;
+		}
+
 		LastObjectWorkWasPerformedOn = Object;
 		LastTypeOfWorkPerformed = TEXT("postloading_gamethread");
 
