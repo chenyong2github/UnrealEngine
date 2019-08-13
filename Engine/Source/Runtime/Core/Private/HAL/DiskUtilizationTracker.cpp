@@ -1,3 +1,5 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
 #include "HAL/DiskUtilizationTracker.h"
 
 #if TRACK_DISK_UTILIZATION
