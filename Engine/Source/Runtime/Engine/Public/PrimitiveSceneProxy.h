@@ -923,7 +923,7 @@ protected:
 	 * Whether this proxy ever draws with vertex factories that require a primitive uniform buffer. 
 	 * When false, updating the primitive uniform buffer can be skipped since vertex factories always use GPUScene instead.
 	 */
-	uint32 bVFRequiresPrimitiveUniformBuffer : 1;
+	uint8 bVFRequiresPrimitiveUniformBuffer : 1;
 
 	/** Whether the primitive should always be considered to have velocities, even if it hasn't moved. */
 	uint8 bAlwaysHasVelocity : 1;
@@ -978,6 +978,13 @@ protected:
 	/** Quality of interpolated indirect lighting for Movable components. */
 	TEnumAsByte<EIndirectLightingCacheQuality> IndirectLightingCacheQuality;
 
+	/** Geometry Lod bias when rendering to runtime virtual texture. */
+	int8 VirtualTextureLodBias;
+	/** Number of low mips to skip when rendering to runtime virtual texture. */
+	int8 VirtualTextureCullMips;
+	/** Log2 of minimum estimated pixel coverage before culling from runtime virtual texture. */
+	int8 VirtualTextureMinCoverage;
+
 	/** The bias applied to LPV injection */
 	float LpvBiasMultiplier;
 
@@ -989,14 +996,7 @@ protected:
 	/** Array of runtime virtual textures that this proxy should render to. */
 	TArray<URuntimeVirtualTexture*> RuntimeVirtualTextures;
 	/** Set of unique runtime virtual texture material types referenced by RuntimeVirtualTextures. */
-	TSet<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
-
-	/** Geometry Lod bias when rendering to runtime virtual texture. */
-	int8 VirtualTextureLodBias;
-	/** Number of low mips to skip when rendering to runtime virtual texture. */
-	int8 VirtualTextureCullMips;
-	/** Log2 of minimum estimated pixel coverage before culling from runtime virtual texture. */
-	int8 VirtualTextureMinCoverage;
+	TArray<ERuntimeVirtualTextureMaterialType> RuntimeVirtualTextureMaterialTypes;
 
 private:
 	/** The hierarchy of owners of this primitive.  These must not be dereferenced on the rendering thread, but the pointer values can be used for identification.  */
