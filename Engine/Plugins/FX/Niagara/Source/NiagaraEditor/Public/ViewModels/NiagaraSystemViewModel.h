@@ -291,6 +291,9 @@ public:
 	/** Gets the a view model representing the selected entries in the overview. */
 	NIAGARAEDITOR_API UNiagaraSystemSelectionViewModel* GetSelectionViewModel();
 
+	/** Duplicates a set of emitters and refreshes everything.*/
+	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
+
 private:
 
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
@@ -393,9 +396,6 @@ private:
 
 	/** Called whenever the System instance is reset.*/
 	void SystemInstanceReset();
-
-	/** Duplicates a set of emitters and refreshes everything.*/
-	void DuplicateEmitters(TArray<FEmitterHandleToDuplicate> EmitterHandlesToDuplicate);
 
 	/** Adds event handler for the system's scripts. */
 	void AddSystemEventHandlers();

@@ -768,7 +768,7 @@ void UNiagaraGraph::AddParameter(const FNiagaraVariable& Parameter)
 	UNiagaraScriptVariable** FoundScriptVariable = VariableToScriptVariable.Find(Parameter);
 	if (!FoundScriptVariable)
 	{
-		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this);
+		UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(this, Parameter.GetName(), RF_Transactional);
 		NewScriptVariable->Variable = Parameter;
 		VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 	}
@@ -1444,7 +1444,7 @@ void UNiagaraGraph::SetMetaData(const FNiagaraVariable& InVar, const FNiagaraVar
 	}
 	else 
 	{
-		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this));
+		UNiagaraScriptVariable*& NewScriptVariable = VariableToScriptVariable.Add(InVar, NewObject<UNiagaraScriptVariable>(this, InVar.GetName(), RF_Transactional));
 		NewScriptVariable->Variable = InVar;
 		NewScriptVariable->Metadata = InMetaData;
 	}
@@ -1530,7 +1530,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 				{
 					// Warning! This method (RefreshParameterReferences) isn't const at all!
 					// Need to cast away the const to be able to create a serializable UObject here...
-					UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
+					UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this), Parameter.GetName(), RF_Transactional);
 					NewScriptVariable->Variable = Parameter;
 					VariableToScriptVariable.Add(Parameter, NewScriptVariable);
 				}
@@ -1556,7 +1556,7 @@ void UNiagaraGraph::RefreshParameterReferences() const
 		UNiagaraScriptVariable** FoundScriptVariable = VariableToScriptVariable.Find(Variable);
 		if (!FoundScriptVariable)
 		{
-			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this));
+			UNiagaraScriptVariable* NewScriptVariable = NewObject<UNiagaraScriptVariable>(const_cast<UNiagaraGraph*>(this), Variable.GetName(), RF_Transactional);
 			NewScriptVariable->Variable = Variable;
 			NewScriptVariable->Metadata.bIsStaticSwitch = true;
 			VariableToScriptVariable.Add(Variable, NewScriptVariable);
