@@ -23,27 +23,31 @@ public:
 	/** Register a external texture to be tracked by the render graph. */
 	FRDGTextureRef RegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		const TCHAR* Name = TEXT("External"));
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None);
 
 	/** Variant of RegisterExternalTexture which will returns null (rather than assert) if the external texture is null. */
 	inline FRDGTextureRef TryRegisterExternalTexture(
 		const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-		const TCHAR* Name = TEXT("External"))
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None)
 	{
-		return ExternalPooledTexture ? RegisterExternalTexture(ExternalPooledTexture, Name) : nullptr;
+		return ExternalPooledTexture ? RegisterExternalTexture(ExternalPooledTexture, Name, Flags) : nullptr;
 	}
 
 	/** Register a external buffer to be tracked by the render graph. */
 	FRDGBufferRef RegisterExternalBuffer(
 		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
-		const TCHAR* Name = TEXT("External"));
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None);
 
 	/** Variant of RegisterExternalBuffer which will return null (rather than assert) if the external buffer is null. */
 	inline FRDGBufferRef TryRegisterExternalBuffer(
 		const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
-		const TCHAR* Name = TEXT("External"))
+		const TCHAR* Name = TEXT("External"),
+		ERDGResourceFlags Flags = ERDGResourceFlags::None)
 	{
-		return ExternalPooledBuffer ? RegisterExternalBuffer(ExternalPooledBuffer, Name) : nullptr;
+		return ExternalPooledBuffer ? RegisterExternalBuffer(ExternalPooledBuffer, Name, Flags) : nullptr;
 	}
 
 	/** Create graph tracked resource from a descriptor with a debug name.

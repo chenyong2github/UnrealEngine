@@ -2,7 +2,10 @@
 
 #pragma once
 
-inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture, const TCHAR* Name)
+inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
+	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
+	const TCHAR* Name,
+	ERDGResourceFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
@@ -18,7 +21,7 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 		return *Texture;
 	}
 
-	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), ERDGResourceFlags::None);
+	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, ExternalPooledTexture->GetDesc(), Flags);
 	OutTexture->PooledRenderTarget = ExternalPooledTexture;
 	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
 	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
@@ -30,7 +33,10 @@ inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(const TRefCountPtr<IP
 	return OutTexture;
 }
 
-inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer, const TCHAR* Name)
+inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
+	const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
+	const TCHAR* Name,
+	ERDGResourceFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
@@ -44,7 +50,7 @@ inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(const TRefCountPtr<FPoo
 		return *Buffer;
 	}
 
-	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, ERDGResourceFlags::None);
+	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, Flags);
 	OutBuffer->PooledBuffer = ExternalPooledBuffer;
 	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
 
