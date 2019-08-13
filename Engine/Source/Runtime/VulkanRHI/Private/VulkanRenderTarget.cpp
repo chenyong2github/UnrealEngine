@@ -1232,6 +1232,7 @@ bool FVulkanCommandListContext::FPendingTransition::GatherBarriers(FTransitionAn
 			DestAccess = VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_WRITE_BIT;
 			break;
 		case EResourceTransitionAccess::ERWNoBarrier:
+		case EResourceTransitionAccess::ERWSubResBarrier:
 			//#todo-rco: Skip for now
 			continue;
 		default:
