@@ -34,6 +34,7 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 
 	static EAppReturnType::Type MessageBoxExt( EAppMsgType::Type MsgType, const TCHAR* Text, const TCHAR* Caption );
 	static void SetMemoryWarningHandler(void (* Handler)(const FGenericMemoryWarningContext& Context));
+	static bool HasMemoryWarningHandler();
 	static bool HasPlatformFeature(const TCHAR* FeatureName);
 	static bool SetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, const FString& InValue);
 	static bool GetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, FString& OutValue);
