@@ -873,7 +873,7 @@ void UNavigationSystemV1::RegisterNavigationDataInstances()
 		ANavigationData* Nav = (*It);
 		if (Nav != NULL && Nav->IsPendingKill() == false && Nav->IsRegistered() == false)
 		{
-			RequestRegistration(Nav);
+			RequestRegistrationDeferred(*Nav);
 			bProcessRegistration = true;
 		}
 	}
@@ -1751,13 +1751,13 @@ void UNavigationSystemV1::ApplyWorldOffset(const FVector& InOffset, bool bWorldS
 //----------------------------------------------------------------------//
 // Bookkeeping 
 //----------------------------------------------------------------------//
-void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData)
+void UNavigationSystemV1::RequestRegistrationDeferred(ANavigationData& NavData)
 {
 	FScopeLock RegistrationLock(&NavDataRegistrationSection);
 
 	if (NavDataRegistrationQueue.Num() < REGISTRATION_QUEUE_SIZE)
 	{
-		NavDataRegistrationQueue.AddUnique(NavData);
+		NavDataRegistrationQueue.AddUnique(&NavData);
 	}
 	else
 	{
@@ -3107,7 +3107,7 @@ void UNavigationSystemV1::SpawnMissingNavigationData()
 				ANavigationData* Instance = CreateNavigationDataInstanceInLevel(NavConfig, nullptr);
 				if (Instance)
 				{
-					RequestRegistration(Instance);
+					RequestRegistrationDeferred(*Instance);
 				}
 				else
 				{
@@ -3336,7 +3336,7 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 					ANavigationData* NavData = *It;
 					if (NavData->GetLevel() == InLevel)
 					{
-						RequestRegistration(NavData);
+						RequestRegistrationDeferred(*NavData);
 					}
 				}
 			}
@@ -3383,7 +3383,7 @@ void UNavigationSystemV1::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWor
                                     const FNavDataConfig& TestConfig = NavData->GetConfig();
                                     if (!CurrentNavData->IsRegistered() && CurrentNavData->GetLevel() != InLevel && GetTypeHash(CurrentNavData->GetConfig()) == GetTypeHash(NavData->GetConfig()))
                                     {
-                                        RequestRegistration(CurrentNavData);
+                                        RequestRegistrationDeferred(*CurrentNavData);
 										break;
                                     }
                                 }
@@ -4053,6 +4053,14 @@ void UNavigationSystemV1::UnregisterNavigationInvoker(AActor* Invoker)
 //----------------------------------------------------------------------//
 // DEPRECATED
 //----------------------------------------------------------------------//
+void UNavigationSystemV1::RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing)
+{
+	if (NavData)
+	{
+		RequestRegistrationDeferred(*NavData);
+	}	
+}
+
 FVector UNavigationSystemV1::ProjectPointToNavigation(UObject* WorldContextObject, const FVector& Point, ANavigationData* NavData, TSubclassOf<UNavigationQueryFilter> FilterClass, const FVector QueryExtent)
 {
 	FNavLocation ProjectedPoint(Point);

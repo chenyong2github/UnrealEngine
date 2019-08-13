@@ -541,10 +541,10 @@ public:
 	// @todo document
 	virtual void UnregisterNavData(ANavigationData* NavData);
 
-	/** adds NavData to registration candidates queue - NavDataRegistrationQueue
-	 *	@return true if registration request was successful, false if given NavData 
-	 *	was deemed unsuitable for registration consideration */
-	virtual void RequestRegistration(ANavigationData* NavData);
+	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
+	virtual void RequestRegistrationDeferred(ANavigationData& NavData);
+	UE_DEPRECATED(4.24, "This version of RequestRegistration is deprecated. Please use the RequestRegistrationDeferred as the registration request is always queued now.")
+	virtual void RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing = true);
 
 protected:
 
