@@ -327,7 +327,10 @@ void FEngineSessionManager::Shutdown()
 	{
 		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
 
-		FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::WasShutdownStoreKey, SessionManagerDefs::TrueValueString);
+		if (!CurrentSessionSectionName.IsEmpty())
+		{
+			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::WasShutdownStoreKey, SessionManagerDefs::TrueValueString);
+		}
 	}
 
 	// Clear the session record for this session
