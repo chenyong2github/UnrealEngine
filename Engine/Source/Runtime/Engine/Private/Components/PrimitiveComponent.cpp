@@ -917,6 +917,18 @@ void UPrimitiveComponent::PostEditChangeProperty(FPropertyChangedEvent& Property
 		{
 			MarkRenderStateDirty();
 		}
+
+	}
+
+	if (UProperty* MemberPropertyThatChanged = PropertyChangedEvent.MemberProperty)
+	{
+		const FName MemberPropertyName = MemberPropertyThatChanged->GetFName();
+
+		// Reregister to get the custom primitive data to the proxy
+		if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UPrimitiveComponent, CustomPrimitiveData))
+		{
+			MarkRenderStateDirty();
+		}
 	}
 
 	if (LightmapType == ELightmapType::ForceSurface && GetStaticLightingType() == LMIT_None)

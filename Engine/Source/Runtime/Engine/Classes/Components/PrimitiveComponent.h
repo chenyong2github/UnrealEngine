@@ -546,7 +546,7 @@ public:
 
 private:
 	/** Custom data that can be read by a material through a material parameter expression. Set data using SetCustomPrimitiveData* functions */
-	UPROPERTY()
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category=Rendering)
 	FCustomPrimitiveData CustomPrimitiveData;
 
 public:
@@ -766,15 +766,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataFloat(int32 DataIndex, float Value);
 
-	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 2. */
+	/** Set custom primitive data, two floats at once, from index DataIndex to index DataIndex + 1. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector2(int32 DataIndex, FVector2D Value);
 
-	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 3. */
+	/** Set custom primitive data, three floats at once, from index DataIndex to index DataIndex + 2. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector3(int32 DataIndex, FVector Value);
 
-	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 4. */
+	/** Set custom primitive data, four floats at once, from index DataIndex to index DataIndex + 3. */
 	UFUNCTION(BlueprintCallable, Category="Rendering|Material")
 	void SetCustomPrimitiveDataVector4(int32 DataIndex, FVector4 Value);
 
