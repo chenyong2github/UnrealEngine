@@ -244,7 +244,6 @@ void TextureLoadVirtualPageTableInternal(inout VTPageTableResult OutResult,
 
 VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0,
 	float2 UV, float Level,
-	float2 SvPositionXY,
 	VTPageTableUniform PageTableUniform,
 	uint AddressU, uint AddressV)
 {
@@ -256,7 +255,6 @@ VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0,
 
 VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0, Texture2D<uint4> PageTable1,
 	float2 UV, float Level,
-	float2 SvPositionXY,
 	VTPageTableUniform PageTableUniform,
 	uint AddressU, uint AddressV)
 {
@@ -362,22 +360,40 @@ VTPageTableResult TextureLoadVirtualPageTableBias(Texture2D<uint4> PageTable0, T
 }
 
 VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0, VTPageTableUniform PageTableUniform,
-	float2 SvPositionXY, in out FVirtualTextureFeedbackParams Feedback, uint SampleIndex,
+	in out FVirtualTextureFeedbackParams Feedback, uint SampleIndex,
 	float2 UV, uint AddressU, uint AddressV,
 	MaterialFloat Level)
 {
-	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, UV, Level, SvPositionXY, PageTableUniform, AddressU, AddressV);
+	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, UV, Level, PageTableUniform, AddressU, AddressV);
+	StoreVirtualTextureFeedback(Feedback, SampleIndex, PageTableResult.PackedRequest);
+	return PageTableResult;
+}
+
+VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0, VTPageTableUniform PageTableUniform,
+	uint SampleIndex,
+	float2 UV, uint AddressU, uint AddressV,
+	MaterialFloat Level)
+{
+	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, UV, Level, PageTableUniform, AddressU, AddressV);
+	return PageTableResult;
+}
+
+VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0, Texture2D<uint4> PageTable1, VTPageTableUniform PageTableUniform,
+	in out FVirtualTextureFeedbackParams Feedback, uint SampleIndex,
+	float2 UV, uint AddressU, uint AddressV,
+	MaterialFloat Level)
+{
+	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, PageTable1, UV, Level, PageTableUniform, AddressU, AddressV);
 	StoreVirtualTextureFeedback(Feedback, SampleIndex, PageTableResult.PackedRequest);
 	return PageTableResult;
 }
 
 VTPageTableResult TextureLoadVirtualPageTableLevel(Texture2D<uint4> PageTable0, Texture2D<uint4> PageTable1, VTPageTableUniform PageTableUniform,
-	float2 SvPositionXY, in out FVirtualTextureFeedbackParams Feedback, uint SampleIndex,
+	uint SampleIndex,
 	float2 UV, uint AddressU, uint AddressV,
 	MaterialFloat Level)
 {
-	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, PageTable1, UV, Level, SvPositionXY, PageTableUniform, AddressU, AddressV);
-	StoreVirtualTextureFeedback(Feedback, SampleIndex, PageTableResult.PackedRequest);
+	VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(PageTable0, PageTable1, UV, Level, PageTableUniform, AddressU, AddressV);
 	return PageTableResult;
 }
 
