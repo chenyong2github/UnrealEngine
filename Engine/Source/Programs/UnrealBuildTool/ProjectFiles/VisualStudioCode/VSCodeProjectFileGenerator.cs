@@ -440,6 +440,8 @@ namespace UnrealBuildTool
 					foreach (string Definition in Project.IntelliSensePreprocessorDefinitions)
 					{
 						string Processed = Definition.Replace("\"", "\\\"");
+						// removing trailing spaces on preprocessor definitions as these can be added as empty defines confusing vscode
+						Processed = Processed.TrimEnd(' ');
 						if (!ProjectData.CombinedPreprocessorDefinitions.Contains(Processed))
 						{
 							ProjectData.CombinedPreprocessorDefinitions.Add(Processed);
