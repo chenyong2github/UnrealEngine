@@ -6,12 +6,14 @@
 using namespace Audio;
 
 FDynamicDelayAPF::FDynamicDelayAPF(float InG, int32 InMinDelay, int32 InMaxDelay, int32 InMaxNumInternalBufferSamples)
-:	G(InG)
-,	MinDelay(InMinDelay)
+:	MinDelay(InMinDelay)
 ,	MaxDelay(InMaxDelay)
 ,	NumDelaySamples(InMinDelay - 1)
 ,	NumInternalBufferSamples(InMaxNumInternalBufferSamples)
 {
+	G.SetValueInterrupt(0.0f);
+	G.Init(48000); // TODO: use actual sample rate (will warp ease time slightly right now)
+
 	checkf(NumDelaySamples >= 0, TEXT("Minimum delay must be atleast 1"));
 	// NumInternalBufferSamples must be less than the length of the delay to support buffer indexing logic.
 	int32 MaxBufferSamples = FMath::Min(NumDelaySamples, InMaxNumInternalBufferSamples);
@@ -102,13 +104,24 @@ void FDynamicDelayAPF::ProcessAudioBlock(const float* InSamples, const AlignedFl
 	// w[n] = x[n] + G * w[n - d]
 	DelayLineInput.Reset(InNum);
 	DelayLineInput.AddUninitialized(InNum);
-	BufferWeightedSumFast(WorkBufferB.GetData(), G, InSamples, DelayLineInput.GetData(), InNum);
-	
-	BufferUnderflowClampFast(DelayLineInput);
+
+
+//	BufferWeightedSumFast(WorkBufferB.GetData(), G, InSamples, DelayLineInput.GetData(), InNum);
+	const float LastG = G.GetValue();
+	const float CurrG = G.GetValue(InNum);
+
+	// WorkBufferA = G * WorkBufferB
+	FMemory::Memcpy(WorkBufferA.GetData(), WorkBufferB.GetData(), InNum * sizeof(float));
+	FadeBufferFast(WorkBufferA.GetData(), InNum, LastG, CurrG);
+	SumBuffers(InSamples, WorkBufferA.GetData(), DelayLineInput.GetData(), InNum);
+
+	BufferUnderflowClampFast(WorkBufferB.GetData(), InNum);
 
 	// y[n] = -G w[n] + w[n - d]
-	BufferWeightedSumFast(DelayLineInput.GetData(), -G, WorkBufferB.GetData(), OutSamples, InNum);
-	
+//	BufferWeightedSumFast(DelayLineInput.GetData(), -G, WorkBufferB.GetData(), OutSamples, InNum);
+	FadeBufferFast(DelayLineInput.GetData(), InNum, -LastG, -CurrG);
+	SumBuffers(DelayLineInput.GetData(), WorkBufferB.GetData(), OutSamples, InNum);
+
 	// Update delay line
 	IntegerDelayLine->RemoveSamples(InNum);
 	IntegerDelayLine->AddSamples(DelayLineInput.GetData(), InNum);
