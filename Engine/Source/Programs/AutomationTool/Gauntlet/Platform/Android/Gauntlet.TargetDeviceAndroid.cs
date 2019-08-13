@@ -965,7 +965,13 @@ namespace Gauntlet
 				// if != 0 then no folder exists
 				if (AdbResult.ExitCode == 0)
 				{
-					IEnumerable<string> CurrentRemoteFileList = AdbResult.Output.Replace("\r\n", "\n").Split('\n');
+					string[] Delimiters = { "\r\n", "\n" };
+					string[] CurrentRemoteFileList = AdbResult.Output.Split(Delimiters, StringSplitOptions.RemoveEmptyEntries);
+					for (int i = 0; i < CurrentRemoteFileList.Length; ++i)
+					{
+						CurrentRemoteFileList[i] = CurrentRemoteFileList[i].Trim();
+					}
+
 					IEnumerable<string> NewRemoteFileList = FilesToInstall.Values.Select(F => Path.GetFileName(F));
 
 					// delete any files that should not be there
