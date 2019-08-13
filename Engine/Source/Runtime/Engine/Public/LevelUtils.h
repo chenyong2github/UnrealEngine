@@ -140,13 +140,11 @@ public:
 	* Returns true if we are moving a level
 	*/
 	static bool IsMovingLevel();
-	static bool IsApplyingLevelTransform();
 
 private:
 
 	// Flag to mark if we are currently finalizing a level offset
 	static bool bMovingLevel;
-	static bool bApplyingLevelTransform;
 
 #endif // WITH_EDITOR
 };
