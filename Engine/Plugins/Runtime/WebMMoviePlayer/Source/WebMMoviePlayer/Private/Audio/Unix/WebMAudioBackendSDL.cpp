@@ -101,6 +101,15 @@ bool FWebMAudioBackendSDL::SendAudio(const uint8* Buffer, size_t BufferSize)
 	}
 }
 
+bool FWebMAudioBackendSDL::IsPaused() const
+{
+	return false;
+}
+
+void FWebMAudioBackendSDL::Tick(float DeltaTime)
+{
+}
+
 FString FWebMAudioBackendSDL::GetDefaultDeviceName()
 {
 	return {};
