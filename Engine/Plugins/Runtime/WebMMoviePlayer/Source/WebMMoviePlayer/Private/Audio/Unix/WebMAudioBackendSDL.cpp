@@ -56,7 +56,9 @@ bool FWebMAudioBackendSDL::StartStreaming(int32 SampleRate, int32 NumOfChannels)
 	AudioSpec.channels = NumOfChannels;
 	AudioSpec.samples = 4096;
 
-	AudioDevice = SDL_OpenAudioDevice(nullptr, 0, &AudioSpec, nullptr, 0);
+	FString DefaultDeivceName = GetDefaultDeviceName();
+
+	AudioDevice = SDL_OpenAudioDevice(TCHAR_TO_ANSI(*DefaultDeivceName), 0, &AudioSpec, nullptr, 0);
 
 	if (!AudioDevice)
 	{
@@ -91,4 +93,9 @@ bool FWebMAudioBackendSDL::SendAudio(const uint8* Buffer, size_t BufferSize)
 		SDL_PauseAudioDevice(AudioDevice, 0);
 		return true;
 	}
+}
+
+FString FWebMAudioBackendSDL::GetDefaultDeviceName()
+{
+	return {};
 }
