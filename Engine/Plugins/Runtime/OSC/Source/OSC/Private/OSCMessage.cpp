@@ -41,12 +41,12 @@ bool FOSCMessage::SetAddress(const FOSCAddress& InAddress)
 		return false;
 	}
 
-	Packet->SetAddress(InAddress);
+	StaticCastSharedPtr<FOSCMessagePacket>(Packet)->SetAddress(InAddress);
 	return true;
 }
 
 const FOSCAddress& FOSCMessage::GetAddress() const
 {
 	check(Packet.IsValid());
-	return Packet->GetAddress();
+	return StaticCastSharedPtr<FOSCMessagePacket>(Packet)->GetAddress();
 }
