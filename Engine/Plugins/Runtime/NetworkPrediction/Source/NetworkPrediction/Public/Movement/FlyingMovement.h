@@ -13,7 +13,7 @@
 #include "Components/SceneComponent.h"
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "FlyingMovement.generated.h"
@@ -110,8 +110,10 @@ namespace FlyingMovement
 		}
 	};
 
+	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
+
 	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, FInputCmd, FMoveState, FAuxState>
+	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes>
 	{
 	public:
 

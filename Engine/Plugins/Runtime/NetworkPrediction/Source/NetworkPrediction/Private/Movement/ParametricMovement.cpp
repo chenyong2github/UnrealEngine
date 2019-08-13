@@ -188,14 +188,26 @@ void UParametricMovementComponent::SetTransformForPosition(const float InPositio
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	TickSimulation(DeltaTime); // fixme
+}
+
+void UParametricMovementComponent::Reconcile()
+{
+
+}
+
+void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
+{
 	const ENetRole OwnerRole = GetOwnerRole();
+
+	PreTickSimulation(DeltaTimeSeconds); // Fixme
 
 	if (NetworkSim && OwnerRole != ROLE_None)
 	{
-		
 		if (OwnerRole == ROLE_Authority)
 		{
-			if (ParametricMovement::FInputCmd* NextCmd = NetworkSim->GetNextInputForWrite(DeltaTime))
+			if (ParametricMovement::FInputCmd* NextCmd = NetworkSim->GetNextInputForWrite(DeltaTimeSeconds))
 			{
 				NextCmd->PlayRate = PendingPlayRate;
 				PendingPlayRate.Reset();
@@ -204,7 +216,7 @@ void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTic
 
 		ParametricMovement::FMovementSystem::FTickParameters Parameters;
 		Parameters.Role = OwnerRole;
-		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		Parameters.LocalDeltaTimeSeconds = DeltaTimeSeconds;
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);
