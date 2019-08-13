@@ -1575,9 +1575,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 		else if (OuterSetProperty != NULL)
 		{
 			FScriptSetHelper SetHelper(OuterSetProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-
-			bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < SetHelper.Num();
-			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !bIsValidIndex)
+			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= SetHelper.Num()))
 			{
 				bDiffersFromDefaultForObject = true;
 			}
@@ -1585,9 +1583,7 @@ bool FPropertyNode::GetDiffersFromDefaultForObject( FPropertyItemValueDataTracke
 		else if (OuterMapProperty != NULL)
 		{
 			FScriptMapHelper MapHelper(OuterMapProperty, ValueTracker.GetPropertyDefaultBaseAddress());
-
-			bool bIsValidIndex = ArrayIndex >= 0 && ArrayIndex < MapHelper.Num();
-			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && !bIsValidIndex )
+			if ( ValueTracker.GetPropertyDefaultBaseAddress() != NULL && (ArrayIndex < 0 || ArrayIndex >= MapHelper.Num()))
 			{
 				bDiffersFromDefaultForObject = true;
 			}
