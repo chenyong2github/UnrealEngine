@@ -694,8 +694,14 @@ void FIOSPlatformMisc::SetMemoryWarningHandler(void (* InHandler)(const FGeneric
 	GMemoryWarningHandler = InHandler;
 }
 
+bool FIOSPlatformMisc::HasMemoryWarningHandler()
+{
+	return GMemoryWarningHandler != nullptr;
+}
+
 void FIOSPlatformMisc::HandleLowMemoryWarning()
 {
+	UE_LOG(LogInit, Log, TEXT("Low Memory Warning Triggered"));
 	UE_LOG(LogInit, Log, TEXT("Free Memory at Startup: %d MB"), GStartupFreeMemoryMB);
 	UE_LOG(LogInit, Log, TEXT("Free Memory Now       : %d MB"), GetFreeMemoryMB());
 
