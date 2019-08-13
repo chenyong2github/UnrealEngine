@@ -592,10 +592,6 @@ void ULandscapeComponent::PostEditUndo()
 		
 	if (GetLandscapeProxy()->HasLayersContent())
 	{
-		TArray<ULandscapeComponent*> SingleComponent;
-		SingleComponent.Add(this);
-		GetLandscapeProxy()->InvalidateGeneratedComponentData(SingleComponent);
-		
 		const bool bUpdateAll = true;
 		RequestHeightmapUpdate(bUpdateAll);
 		RequestWeightmapUpdate(bUpdateAll);
@@ -1331,8 +1327,8 @@ void ULandscapeComponent::UpdateCollisionLayerData(const FColor* const* const We
 		bool bExistingLayerMismatch = false;
 		int32 DataLayerIdx = INDEX_NONE;
 
-		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(true);
-		TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures(true);
+		TArray<FWeightmapLayerAllocationInfo>& ComponentWeightmapLayerAllocations = GetWeightmapLayerAllocations(false);
+		TArray<UTexture2D*>& ComponentWeightmapsTexture = GetWeightmapTextures(false);
 
 		// Find the layers we're interested in
 		for (int32 AllocIdx = 0; AllocIdx < ComponentWeightmapLayerAllocations.Num(); AllocIdx++)
@@ -3291,10 +3287,16 @@ bool ULandscapeInfo::GetLandscapeExtent(int32& MinX, int32& MinY, int32& MaxX, i
 
 LANDSCAPE_API void ULandscapeInfo::ForAllLandscapeComponents(TFunctionRef<void(ULandscapeComponent*)> Fn) const
 {
-	for (auto& XYComponentPair : XYtoComponentMap)
+	ForAllLandscapeProxies([&](ALandscapeProxy* Proxy)
 	{
-		Fn(XYComponentPair.Value);
-	}
+		for (ULandscapeComponent* Component : Proxy->LandscapeComponents)
+		{
+			if (Component->IsRegistered())
+			{
+				Fn(Component);
+			}
+		}
+	});
 }
 
 bool ULandscapeInfo::GetSelectedExtent(int32& MinX, int32& MinY, int32& MaxX, int32& MaxY) const
@@ -4150,12 +4152,15 @@ void ALandscapeProxy::PostEditChangeProperty(FPropertyChangedEvent& PropertyChan
 	}
 	if (bRemovedAnyLayers)
 	{
-		ALandscapeProxy::InvalidateGeneratedComponentData(LandscapeComponents);
 		ALandscape* LandscapeActor = GetLandscapeActor();
 
 		if(LandscapeActor != nullptr && LandscapeActor->HasLayersContent())
 		{
 			LandscapeActor->RequestLayersContentUpdate(ELandscapeLayerUpdateMode::Update_All);
+		}
+		else
+		{
+			ALandscapeProxy::InvalidateGeneratedComponentData(LandscapeComponents);
 		}
 	}
 
@@ -4783,10 +4788,11 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 		}
 	}
 
+	bool bMarkPackageDirty = DataInterface == nullptr ? true : DataInterface->GetShouldDirtyPackage();
 	if (InSaveToTransactionBuffer)
 	{
-		Modify();
-		TargetProxy->Modify();
+		Modify(bMarkPackageDirty);
+		TargetProxy->Modify(bMarkPackageDirty);
 	}
 
 	if (!InForceReallocate)
@@ -4848,7 +4854,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 
 						if (InSaveToTransactionBuffer)
 						{
-							Usage->Modify();
+							Usage->Modify(bMarkPackageDirty);
 						}
 						Usage->ChannelUsage[ChanIdx] = this;
 
@@ -4954,7 +4960,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 			CurrentWeightmapUsage = TargetProxy->WeightmapUsageMap.Add(CurrentWeightmapTexture, TargetProxy->CreateWeightmapUsage());
 			if (InSaveToTransactionBuffer)
 			{
-				CurrentWeightmapUsage->Modify();
+				CurrentWeightmapUsage->Modify(bMarkPackageDirty);
 			}
 
 			CurrentWeightmapUsage->LayerGuid = TargetLayerGuid;
@@ -4998,7 +5004,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 					ULandscapeWeightmapUsage* OldWeightmapUsage = ComponentWeightmapTexturesUsage[AllocInfo.WeightmapTextureIndex];
 					if (InSaveToTransactionBuffer)
 					{
-						OldWeightmapUsage->Modify();
+						OldWeightmapUsage->Modify(bMarkPackageDirty);
 					}
 					OldWeightmapUsage->ChannelUsage[AllocInfo.WeightmapTextureChannel] = nullptr;
 				}
@@ -5006,7 +5012,7 @@ void ULandscapeComponent::ReallocateWeightmaps(FLandscapeEditDataInterface* Data
 				// Assign the new allocation
 				if (InSaveToTransactionBuffer)
 				{
-					CurrentWeightmapUsage->Modify();
+					CurrentWeightmapUsage->Modify(bMarkPackageDirty);
 				}
 				CurrentWeightmapUsage->ChannelUsage[ChanIdx] = this;
 				AllocInfo.WeightmapTextureIndex = NewWeightmapTextures.Num() - 1;
@@ -5271,7 +5277,8 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 	{
 		UTexture2D* WeightmapTexture = WeightmapTextures[Idx];
 		{
-			FLandscapeTextureDataInfo WeightmapDataInfo(WeightmapTexture);
+			const bool bShouldDirtyPackage = true;
+			FLandscapeTextureDataInfo WeightmapDataInfo(WeightmapTexture, bShouldDirtyPackage);
 
 			int32 NumMips = WeightmapTexture->Source.GetNumMips();
 			TArray<FColor*> WeightmapTextureMipData;
@@ -5300,19 +5307,6 @@ void ULandscapeComponent::InitWeightmapData(TArray<ULandscapeLayerInfoObject*>& 
 
 #define MAX_LANDSCAPE_EXPORT_COMPONENTS_NUM		16
 #define MAX_LANDSCAPE_PROP_TEXT_LENGTH			1024*1024*16
-
-
-bool ALandscapeProxy::Modify(bool bAlwaysMarkDirty)
-{
-	for (auto& Pair : WeightmapUsageMap)
-	{
-		if (Pair.Value)
-		{
-			Pair.Value->Modify(bAlwaysMarkDirty);
-		}
-	}
-	return Super::Modify(bAlwaysMarkDirty);
-}
 
 bool ALandscapeProxy::ShouldExport()
 {
