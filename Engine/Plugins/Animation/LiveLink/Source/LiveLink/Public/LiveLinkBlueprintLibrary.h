@@ -94,7 +94,7 @@ class LIVELINK_API ULiveLinkBlueprintLibrary : public UBlueprintFunctionLibrary
 
 	// Requests the given LiveLink Source to shut down via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
-	static bool RequestShutdown(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
+	static bool RemoveSource(UPARAM(ref) FLiveLinkSourceHandle& SourceHandle);
 
 	// Get the text status of a LiveLink Source via its handle
 	UFUNCTION(BlueprintCallable, Category = "LiveLink")
