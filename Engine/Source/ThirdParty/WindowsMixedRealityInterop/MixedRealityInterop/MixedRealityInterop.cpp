@@ -1868,7 +1868,7 @@ namespace WindowsMixedReality
 			CurrentFrameResources->GetBackBufferTexture());
 
 		// Quad Layers
-		uint32_t maxQuadLayers = m_isHL1Remoting ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
+		uint32_t maxQuadLayers = (m_isHL1Remoting || (CameraResources.get() == nullptr) || (CameraResources->GetCamera() == nullptr)) ? 0 : CameraResources->GetCamera().MaxQuadLayerCount();
 		if (maxQuadLayers > 0)
 		{
 			if (quadLayers.size() > CameraResources->GetCamera().QuadLayers().Size())
@@ -1928,11 +1928,15 @@ namespace WindowsMixedReality
 			}
 		}
 
-#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
-		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction(HolographicFramePresentWaitBehavior::DoNotWaitForFrameToFinish);
-#else
-		HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
-#endif
+		//if hl1 or still a valid remoting session
+		if (m_isHL1Remoting || ((CameraResources.get() != nullptr) && (CameraResources->GetCamera() != nullptr)))
+		{
+	#if !PLATFORM_HOLOLENS || (PLATFORM_HOLOLENS && !_WIN64)
+			HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction(HolographicFramePresentWaitBehavior::DoNotWaitForFrameToFinish);
+	#else
+			HolographicFramePresentResult presentResult = currentFrame->Frame.PresentUsingCurrentPrediction();
+	#endif
+		}
 
 		// Reset the frame pointer to allow for a new frame to be created.
 		CurrentFrameResources = nullptr;
