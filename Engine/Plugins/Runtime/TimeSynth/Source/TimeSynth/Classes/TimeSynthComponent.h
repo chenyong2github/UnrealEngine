@@ -179,6 +179,12 @@ struct TIMESYNTH_API FTimeSynthTimeDef
 		: NumBars(1)
 		, NumBeats(0)
 	{}
+
+	FTimeSynthTimeDef(int32 InNumBars, int32 InNumBeats)
+		: NumBars(InNumBars)
+		, NumBeats(InNumBeats)
+	{
+	}
 };
 
 // Struct used to define a handle to a clip
