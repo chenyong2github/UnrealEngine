@@ -221,6 +221,6 @@ public:
 	friend class ULandscapeSplineSegment;
 #if WITH_EDITOR
 	// TODO - move this out of ULandscapeInfo
-	friend bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Landscape, TSet<ULandscapeComponent*>* OutModifiedComponents);
+	friend bool ULandscapeInfo::ApplySplinesInternal(bool bOnlySelected, ALandscapeProxy* Landscape, TSet<ULandscapeComponent*>* OutModifiedComponents, bool bMarkPackageDirty);
 #endif
 };
