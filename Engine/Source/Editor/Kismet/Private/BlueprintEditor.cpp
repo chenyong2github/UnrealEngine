@@ -551,7 +551,15 @@ const FSlateBrush* FBlueprintEditor::GetGlyphForGraph(const UEdGraph* Graph, boo
 				}
 				else
 				{
-					ReturnValue = FEditorStyle::GetBrush( bInLargeIcon ? TEXT("GraphEditor.Animation_24x") : TEXT("GraphEditor.Animation_16x") );
+					// If it has overriden an interface, show it as a function
+					if ( Graph->InterfaceGuid.IsValid() )
+					{ 
+						ReturnValue = FEditorStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Function_24x") : TEXT("GraphEditor.Function_16x"));
+					}
+					else
+					{
+						ReturnValue = FEditorStyle::GetBrush(bInLargeIcon ? TEXT("GraphEditor.Animation_24x") : TEXT("GraphEditor.Animation_16x"));	
+					}
 				}
 			}
 		}
