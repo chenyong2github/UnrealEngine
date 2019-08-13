@@ -130,8 +130,8 @@ protected:
 	void OnDuplicateKey();
 	bool IsKeySelectionValid() const;
 
-	void OnAddKey();
-	bool CanAddKey() const;
+	void OnAddKeyToSegment();
+	bool CanAddKeyToSegment() const;
 
 	void OnSnapToNearestSplinePoint(bool bAlign);
 	bool CanSnapToNearestSplinePoint() const;
@@ -156,6 +156,9 @@ protected:
 
 	void OnResetToDefault();
 	bool CanResetToDefault() const;
+
+	void OnSelectAllSplinePoints();
+	bool CanSelectAllSplinePoints() const;
 
 	/** Generate the submenu containing the available point types */
 	void GenerateSplinePointTypeSubMenu(FMenuBuilder& MenuBuilder) const;
