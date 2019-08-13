@@ -34,6 +34,8 @@ namespace Audio {
 
 	FPlateReverbFast::FPlateReverbFast(float InSampleRate, int32 InMaxInternalBufferSamples, const FPlateReverbFastSettings& InSettings)
 		: SampleRate(InSampleRate)
+		, LastWetness(0.0f)
+		, bProcessCallSinceWetnessChanged(false)
 		, EarlyReflections(InSampleRate, InMaxInternalBufferSamples)
 		, LateReflections(InSampleRate, InMaxInternalBufferSamples, InSettings.LateReflections)
 		, bEnableEarlyReflections(true)
@@ -48,6 +50,12 @@ namespace Audio {
 	void FPlateReverbFast::SetSettings(const FPlateReverbFastSettings& InSettings)
 	{
 		// Copy, clamp and apply settings
+		if (bProcessCallSinceWetnessChanged)
+		{
+			LastWetness = Settings.Wetness;
+			bProcessCallSinceWetnessChanged = false;
+		}
+
 		Settings = InSettings;
 		ClampSettings(Settings);
 		ApplySettings();
@@ -73,6 +81,24 @@ namespace Audio {
 	// Process a buffer of input audio samples.
 	void FPlateReverbFast::ProcessAudio(const AlignedFloatBuffer& InSamples, const int32 InNumChannels, AlignedFloatBuffer& OutSamples, const int32 OutNumChannels)
 	{
+		ScaledInputBuffer.Reset(InSamples.Num());
+		ScaledInputBuffer.AddUninitialized(InSamples.Num());
+		check(ScaledInputBuffer.Num() == InSamples.Num());
+
+		FMemory::Memcpy(ScaledInputBuffer.GetData(), InSamples.GetData(), InSamples.Num() * sizeof(float));
+
+		// Scale input by wetness (or fade to new wetness)
+		if (FMath::IsNearlyEqual(LastWetness, Settings.Wetness))
+		{
+			MultiplyBufferByConstantInPlace(ScaledInputBuffer.GetData(), InSamples.Num(), Settings.Wetness);
+		}
+		else
+		{
+			FadeBufferFast(ScaledInputBuffer, LastWetness, Settings.Wetness);
+			LastWetness = Settings.Wetness;
+		}
+
+
 		checkf((1 == InNumChannels) || (2 == InNumChannels), TEXT("FPlateReverbFast only supports 1 or 2 channel inputs."))
 		checkf(OutNumChannels >= 2, TEXT("FPlateReverbFast requires at least 2 output channels."))
 
@@ -102,12 +128,12 @@ namespace Audio {
 		if (bEnableEarlyReflections && !bEnableLateReflections)
 		{
 			// Only generate early reflections.
-			EarlyReflections.ProcessAudio(InSamples, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
+			EarlyReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
 		}
 		else if (!bEnableEarlyReflections && bEnableLateReflections)
 		{
 			// Only generate late reflections.
-			LateReflections.ProcessAudio(InSamples, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
+			LateReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftReverbSamples, FrontRightReverbSamples);
 		}
 		else if (bEnableEarlyReflections && bEnableLateReflections)
 		{
@@ -123,19 +149,17 @@ namespace Audio {
 			FrontRightEarlyReflectionsSamples.AddUninitialized(InNumFrames);
 
 			// Generate both early reflections and late reflections 
-			EarlyReflections.ProcessAudio(InSamples, InNumChannels, FrontLeftEarlyReflectionsSamples, FrontRightEarlyReflectionsSamples);
-			LateReflections.ProcessAudio(InSamples, InNumChannels, FrontLeftLateReflectionsSamples, FrontRightLateReflectionsSamples);
+			EarlyReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftEarlyReflectionsSamples, FrontRightEarlyReflectionsSamples);
+			LateReflections.ProcessAudio(ScaledInputBuffer, InNumChannels, FrontLeftLateReflectionsSamples, FrontRightLateReflectionsSamples);
 			// Add early and late reflections together.
 			SumBuffers(FrontLeftEarlyReflectionsSamples, FrontLeftLateReflectionsSamples, FrontLeftReverbSamples);
 			SumBuffers(FrontRightEarlyReflectionsSamples, FrontRightLateReflectionsSamples, FrontRightReverbSamples);
 		}
 
-		// Scale output by wetness
-		MultiplyBufferByConstantInPlace(FrontLeftReverbSamples, Settings.Wetness);
-		MultiplyBufferByConstantInPlace(FrontRightReverbSamples, Settings.Wetness);
 
 		// Interleave and upmix
 		InterleaveAndMixOutput(FrontLeftReverbSamples, FrontRightReverbSamples, OutSamples, OutNumChannels);
+		bProcessCallSinceWetnessChanged = true;
 	}
 
 	void FPlateReverbFast::ClampSettings(FPlateReverbFastSettings& InOutSettings)
