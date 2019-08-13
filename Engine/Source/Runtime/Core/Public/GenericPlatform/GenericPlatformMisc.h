@@ -585,6 +585,14 @@ struct CORE_API FGenericPlatformMisc
 	{
 	}
 
+	/**
+	 * Determines if a warning handler has been set
+	 */
+	static bool HasMemoryWarningHandler()
+	{
+		return false;
+	}
+	
 	FORCEINLINE static uint32 GetLastError()
 	{
 		return 0;
