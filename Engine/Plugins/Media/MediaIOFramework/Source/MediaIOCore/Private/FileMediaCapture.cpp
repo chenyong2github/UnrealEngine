@@ -20,7 +20,7 @@ void UFileMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& 
 
 	TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
 	ImageTask->Format = ImageFormat;
-	ImageTask->Filename = FString::Printf(TEXT("%s%5d"), *BaseFilePathName, InBaseData.SourceFrameNumberRenderThread);
+	ImageTask->Filename = FString::Printf(TEXT("%s%05d"), *BaseFilePathName, InBaseData.SourceFrameNumberRenderThread);
 	ImageTask->bOverwriteFile = bOverwriteFile;
 	ImageTask->CompressionQuality = CompressionQuality;
 	ImageTask->OnCompleted = OnCompleteWrapper;
