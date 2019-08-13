@@ -47,6 +47,7 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 , WarmupTickDelta(1.0f / 15.0f)
 , bHasSystemScriptDIsWithPerInstanceData(false)
 {
+	MaxPoolSize = 32;
 }
 
 void UNiagaraSystem::BeginDestroy()

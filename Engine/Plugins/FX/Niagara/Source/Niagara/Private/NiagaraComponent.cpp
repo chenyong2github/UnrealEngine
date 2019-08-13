@@ -417,6 +417,38 @@ void UNiagaraComponent::SetEmitterEnable(FName EmitterName, bool bNewEnableState
 		SystemInstance->SetEmitterEnable(EmitterName, bNewEnableState);
 	}
 }
+
+void UNiagaraComponent::ReleaseToPool()
+{
+	if (PoolingMethod != ENCPoolMethod::ManualRelease)
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Manually releasing a PSC to the pool that was not spawned with ENCPoolMethod::ManualRelease. Asset=%s Component=%s"),
+			Asset ? *Asset->GetPathName() : TEXT("NULL"), *GetPathName()
+		);
+		return;
+	}
+
+	if (!bIsActive)
+	{
+		//If we're already complete then release to the pool straight away.
+		UWorld* World = GetWorld();
+		check(World);
+		FNiagaraWorldManager::Get(World)->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else
+	{
+		//If we haven't completed, deactivate and defer release to pool.
+		PoolingMethod = ENCPoolMethod::ManualRelease_OnComplete;
+		Deactivate();
+	}
+}
+
+uint32 UNiagaraComponent::GetApproxMemoryUsage() const
+{
+	// TODO: implement memory usage for the component pool statistics
+	return 1;
+}
+
 /********* UFXSystemComponent *********/
 
 
@@ -823,7 +855,16 @@ void UNiagaraComponent::OnSystemComplete()
 	OnSystemFinished.Broadcast(this);
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: } %p - %s"), SystemInstance.Get(), *Asset->GetName());
 
-	if (bAutoDestroy)
+	if (PoolingMethod == ENCPoolMethod::AutoRelease)
+	{
+		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else if (PoolingMethod == ENCPoolMethod::ManualRelease_OnComplete)
+	{
+		PoolingMethod = ENCPoolMethod::ManualRelease;
+		FNiagaraWorldManager::Get(GetWorld())->GetComponentPool()->ReclaimWorldParticleSystem(this);
+	}
+	else if (bAutoDestroy)
 	{
 		//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete DestroyComponent();: { %p - %s"), SystemInstance.Get(), *Asset->GetName());
 		DestroyComponent();
@@ -1352,6 +1393,30 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
+void UNiagaraComponent::SetUserParametersToDefaultValues()
+{
+	OverrideParameters.Empty();
+	if (Asset == nullptr)
+	{		
+		return;
+	}
+
+	TArray<FNiagaraVariable> SourceVars;
+	Asset->GetExposedParameters().GetParameters(SourceVars);
+	for (FNiagaraVariable& Param : SourceVars)
+	{
+		OverrideParameters.AddParameter(Param, true);
+	}
+
+	TArray<FNiagaraVariable> ExistingVars;
+	OverrideParameters.GetUserParameters(ExistingVars);
+	for (FNiagaraVariable ExistingVar : ExistingVars)
+	{
+		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+	}
+
+	OverrideParameters.Rebind();
+}
 
 void UNiagaraComponent::SynchronizeWithSourceSystem()
 {

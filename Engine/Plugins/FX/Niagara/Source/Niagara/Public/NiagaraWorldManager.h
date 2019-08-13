@@ -12,11 +12,12 @@
 #include "NiagaraSystemInstance.h"
 #include "GlobalDistanceFieldParameters.h"
 #include "NiagaraDataInterfaceSkeletalMesh.h"
+#include "NiagaraComponentPool.h"
 
 class UWorld;
 class UNiagaraParameterCollection;
 class UNiagaraParameterCollectionInstance;
-
+class UNiagaraComponentPool;
 
 
 class FNiagaraViewDataMgr : public FRenderResource
@@ -90,6 +91,8 @@ public:
 	bool CachedPlayerViewLocationsValid() const { return bCachedPlayerViewLocationsValid; }
 	TArrayView<const FVector> GetCachedPlayerViewLocations() const { check(bCachedPlayerViewLocationsValid); return MakeArrayView(CachedPlayerViewLocations); }
 
+	UNiagaraComponentPool* GetComponentPool() { return ComponentPool; }
+
 private:
 	UWorld* World;
 
@@ -101,6 +104,8 @@ private:
 
 	bool bCachedPlayerViewLocationsValid = false;
 	TArray<FVector, TInlineAllocator<8> > CachedPlayerViewLocations;
+
+	UNiagaraComponentPool* ComponentPool;
 
 	/** Generated data used by data interfaces*/
 	FNDI_SkeletalMesh_GeneratedData SkeletalMeshGeneratedData;
