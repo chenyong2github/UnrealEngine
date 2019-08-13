@@ -221,6 +221,10 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 		OutDesc.LayerFormat[0] = bCompressTextures ? PF_DXT1 : PF_B8G8R8A8;
 		OutDesc.LayerFormat[1] = bCompressTextures ? PF_DXT5 : PF_B8G8R8A8;
 		break;
+	case ERuntimeVirtualTextureMaterialType::WorldHeight:
+		OutDesc.NumLayers = 1;
+		OutDesc.LayerFormat[0] = PF_G16;
+		break;
 	default:
 		checkf(0, TEXT("Invalid Runtime Virtual Texture setup: %s, %d"), *GetName(), MaterialType);
 		OutDesc.NumLayers = 1;
@@ -238,6 +242,8 @@ bool URuntimeVirtualTexture::IsLayerSRGB(int32 LayerIndex) const
 	case ERuntimeVirtualTextureMaterialType::BaseColor_Normal_Specular:
 		// Only BaseColor layer is sRGB
 		return LayerIndex == 0;
+	case ERuntimeVirtualTextureMaterialType::WorldHeight:
+		return false;
 	default:
 		// Implement logic for any missing material types
 		check(false);

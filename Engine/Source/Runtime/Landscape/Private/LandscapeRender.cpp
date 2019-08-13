@@ -4410,6 +4410,16 @@ public:
 			// Forward shading required
 			FName(TEXT("TBasePassPSFCachedPointIndirectLightingPolicySkylight")),
 			FName(TEXT("TBasePassPSFNoLightMapPolicySkylight")),
+
+			// Runtime virtual texture
+			FName(TEXT("TVirtualTextureVSBaseColor")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormal")),
+			FName(TEXT("TVirtualTextureVSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTextureVSWorldHeight")),
+			FName(TEXT("TVirtualTexturePSBaseColor")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormal")),
+			FName(TEXT("TVirtualTexturePSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTexturePSWorldHeight")),
 		};
 		return AllowedShaderTypes;
 	}
@@ -4580,9 +4590,11 @@ public:
 			FName(TEXT("TVirtualTextureVSBaseColor")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormal")),
 			FName(TEXT("TVirtualTextureVSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTextureVSWorldHeight")),
 			FName(TEXT("TVirtualTexturePSBaseColor")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormal")),
 			FName(TEXT("TVirtualTexturePSBaseColorNormalSpecular")),
+			FName(TEXT("TVirtualTexturePSWorldHeight")),
 		};
 		return ShaderTypes;
 	}

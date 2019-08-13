@@ -5067,9 +5067,9 @@ protected:
 				FString	SampleCode(TEXT("VirtualTextureUnpackNormalBC5(%s)"));
 				return AddCodeChunk(MCT_Float3, *SampleCode, *GetParameterCode(CodeIndex));
 			}
-			else if (UnpackType == EVirtualTextureUnpackType::HeightR8G8)
+			else if (UnpackType == EVirtualTextureUnpackType::HeightR16)
 			{
-				FString	SampleCode(TEXT("VirtualTextureUnpackHeightR8G8(%s)"));
+				FString	SampleCode(TEXT("VirtualTextureUnpackHeightR16(%s)"));
 				return AddCodeChunk(MCT_Float, *SampleCode, *GetParameterCode(CodeIndex));
 			}
 		}
