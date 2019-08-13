@@ -33,7 +33,8 @@ DEFINE_LOG_CATEGORY(OodleHandlerComponentLog);
 // @todo #JohnB: If you could unwrap the analytics data shared pointer, by guaranteeing its lifetime, that would be a good optimization,
 //					as the multithreaded version is presently a bit expensive
 
-#if HAS_OODLE_SDK
+#if HAS_OODLE_NET_SDK
+
 #define OODLE_INI_SECTION TEXT("OodleHandlerComponent")
 
 // @todo #JohnB: Remove after Oodle update, and after checking with Luigi
@@ -1065,7 +1066,7 @@ void OodleHandlerComponent::Outgoing(FBitWriter& Packet, FOutPacketTraits& Trait
 			uint32 UncompressedBits = Packet.GetNumBits();
 
 			bool bWithinBitBounds = UncompressedBits > 0 && ensure(UncompressedBits <= MaxAdjustedLengthBits) &&
-									ensure(OodleLZ_GetCompressedBufferSizeNeeded(UncompressedBytes) <= MAX_OODLE_BUFFER);
+				ensure(OodleNetwork1_CompressedBufferSizeNeeded(UncompressedBytes) <= MAX_OODLE_BUFFER);
 
 			if (bWithinBitBounds)
 			{
@@ -1574,27 +1575,20 @@ void FOodleComponentModuleInterface::StartupModule()
 	GOodleSaveDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::ProjectSavedDir(), TEXT("Oodle")));
 	GOodleContentDir = FPaths::ConvertRelativePathToFull(FPaths::Combine(*FPaths::ProjectContentDir(), TEXT("Oodle")));
 
-	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-	OodlePlugins_SetAssertion(&UEOodleDisplayAssert);
+// 	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
+// 	OodlePlugins_SetAssertion(&UEOodleDisplayAssert);
 }
 
 void FOodleComponentModuleInterface::ShutdownModule()
 {
-	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
-	OodlePlugins_SetAssertion(nullptr);
-
-#if PLATFORM_WINDOWS
-	if (OodleDllHandle != nullptr)
-	{
-		FPlatformProcess::FreeDllHandle(OodleDllHandle);
-		OodleDllHandle = nullptr;
-	}
-#endif
+// 	// @todo #JohnB: Remove after Oodle update, and after checking with Luigi
+// 	OodlePlugins_SetAssertion(nullptr);
 }
+
 #else
 TSharedPtr<HandlerComponent> FOodleComponentModuleInterface::CreateComponentInstance(FString& Options)
 {
-	UE_LOG(OodleHandlerComponentLog, Error, TEXT("Can't create OodleHandlerComponent instance - HAS_OODLE_SDK is false."));
+	UE_LOG(OodleHandlerComponentLog, Error, TEXT("Can't create OodleHandlerComponent instance - HAS_OODLE_NET_SDK is false."));
 
 	return TSharedPtr<HandlerComponent>(nullptr);
 }
