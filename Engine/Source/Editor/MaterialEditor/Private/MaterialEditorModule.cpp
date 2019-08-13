@@ -139,7 +139,7 @@ public:
 				GetMutableDefault<UMaterialEditorSettings>());
 		}
 
-		if(true)//!FEngineBuildSettings::IsInternalBuild() && !FEngineBuildSettings::IsSourceDistribution())
+		if(!FEngineBuildSettings::IsInternalBuild() && !FEngineBuildSettings::IsSourceDistribution())
 		{
 			TSharedPtr<IPlugin> SubstancePlugin = IPluginManager::Get().FindPlugin(TEXT("Substance"));
 			if (!SubstancePlugin.IsValid() )
