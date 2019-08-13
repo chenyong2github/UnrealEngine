@@ -2938,6 +2938,11 @@ int32 UAnimInstance::GetInstanceAssetPlayerIndex(FName MachineName, FName StateN
 	return GetProxyOnGameThread<FAnimInstanceProxy>().GetInstanceAssetPlayerIndex(MachineName, StateName, AssetName);
 }
 
+TArray<FAnimNode_AssetPlayerBase*> UAnimInstance::GetInstanceAssetPlayers(const FName& GraphName)
+{
+	return GetProxyOnGameThread<FAnimInstanceProxy>().GetInstanceAssetPlayers(GraphName);
+}
+
 FAnimNode_AssetPlayerBase* UAnimInstance::GetRelevantAssetPlayerFromState(int32 MachineIndex, int32 StateIndex)
 {
 	return GetProxyOnGameThread<FAnimInstanceProxy>().GetRelevantAssetPlayerFromState(MachineIndex, StateIndex);

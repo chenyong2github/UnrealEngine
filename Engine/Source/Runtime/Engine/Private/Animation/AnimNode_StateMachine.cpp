@@ -6,6 +6,8 @@
 #include "Animation/AnimNode_TransitionPoseEvaluator.h"
 #include "Animation/AnimNode_AssetPlayerBase.h"
 #include "Animation/BlendProfile.h"
+#include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimInstance.h"
 
 DECLARE_CYCLE_STAT(TEXT("StateMachine SetState"), Stat_StateMachineSetState, STATGROUP_Anim);
 
@@ -525,14 +527,39 @@ FAnimNode_AssetPlayerBase* FAnimNode_StateMachine::GetRelevantAssetPlayerFromSta
 {
 	FAnimNode_AssetPlayerBase* ResultPlayer = nullptr;
 	float MaxWeight = 0.0f;
+
+	auto EvaluatePlayerWeight = [&MaxWeight, &ResultPlayer](FAnimNode_AssetPlayerBase* Player)
+	{
+		if (!Player->bIgnoreForRelevancyTest && (Player->GetCachedBlendWeight() > MaxWeight))
+		{
+			MaxWeight = Player->GetCachedBlendWeight();
+			ResultPlayer = Player;
+		}
+	};
+
 	for (const int32& PlayerIdx : StateInfo.PlayerNodeIndices)
 	{
 		if (FAnimNode_AssetPlayerBase* Player = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_AssetPlayerBase>(PlayerIdx))
 		{
-			if (!Player->bIgnoreForRelevancyTest && (Player->GetCachedBlendWeight() > MaxWeight))
+			EvaluatePlayerWeight(Player);
+		}
+	}
+
+	// Get all layer node indices that are part of this state
+	for (const int32& LayerIdx : StateInfo.LayerNodeIndices)
+	{
+		// Try and retrieve the actual node object
+		if (FAnimNode_Layer* Layer = Context.AnimInstanceProxy->GetNodeFromIndex<FAnimNode_Layer>(LayerIdx))
+		{
+			// Retrieve the AnimInstance running for this layer
+			if (UAnimInstance* CurrentTarget = Layer->GetTargetInstance<UAnimInstance>())
 			{
-				MaxWeight = Player->GetCachedBlendWeight();
-				ResultPlayer = Player;
+				// Retrieve all asset player nodes from the corresponding Anim blueprint class and apply same logic to find highest weighted asset player 
+				TArray<FAnimNode_AssetPlayerBase*> PlayerNodesInLayer = CurrentTarget->GetInstanceAssetPlayers(Layer->Layer);
+				for (FAnimNode_AssetPlayerBase* Player : PlayerNodesInLayer)
+				{
+					EvaluatePlayerWeight(Player);
+				}
 			}
 		}
 	}
