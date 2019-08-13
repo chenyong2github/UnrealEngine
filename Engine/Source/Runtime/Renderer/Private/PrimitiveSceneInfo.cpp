@@ -507,7 +507,7 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	// Create an indirect lighting cache uniform buffer if we attaching a primitive that may require it, as it may be stored inside a cached mesh command.
 	if (IsIndirectLightingCacheAllowed(Scene->GetFeatureLevel())
 		&& Proxy->WillEverBeLit()
-		&& ((Proxy->HasStaticLighting() && Proxy->NeedsUnbuiltPreviewLighting()) || (Proxy->IsMovable() && Proxy->GetIndirectLightingCacheQuality() != ILCQ_Off)))
+		&& ((Proxy->HasStaticLighting() && Proxy->NeedsUnbuiltPreviewLighting()) || (Proxy->IsMovable() && Proxy->GetIndirectLightingCacheQuality() != ILCQ_Off) || Proxy->GetLightmapType() == ELightmapType::ForceVolumetric))
 	{
 		if (!IndirectLightingCacheUniformBuffer)
 		{
@@ -1006,7 +1006,7 @@ void FPrimitiveSceneInfo::UpdateIndirectLightingCacheBuffer()
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateIndirectLightingCacheBuffer);
 
-		if (!RHISupportsVolumeTextures(Scene->GetFeatureLevel())
+		if (Scene->GetFeatureLevel() < ERHIFeatureLevel::SM5
 			&& Scene->VolumetricLightmapSceneData.HasData()
 			&& (Proxy->IsMovable() || Proxy->NeedsUnbuiltPreviewLighting() || Proxy->GetLightmapType() == ELightmapType::ForceVolumetric)
 			&& Proxy->WillEverBeLit())

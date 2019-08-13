@@ -46,6 +46,7 @@
 #include "LightMapDensityRendering.h"
 #include "VolumetricFogShared.h"
 #include "DebugViewModeRendering.h"
+#include "PrecomputedVolumetricLightmap.h"
 #if RHI_RAYTRACING
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
@@ -1554,17 +1555,21 @@ class FVolumetricLightmapSceneData
 {
 public:
 
+	FVolumetricLightmapSceneData() { GlobalVolumetricLightmap.Data = &GlobalVolumetricLightmapData; }
 	bool HasData() const { return LevelVolumetricLightmaps.Num() > 0; }
-	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath);
+	void AddLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel);
 	void RemoveLevelVolume(const class FPrecomputedVolumetricLightmap* InVolume);
 	const FPrecomputedVolumetricLightmap* GetLevelVolumetricLightmap() const 
 	{ 
-		return LevelVolumetricLightmaps.Num() > 0 ? LevelVolumetricLightmaps.Last() : NULL; 
+		return &GlobalVolumetricLightmap;
 	}
 
 	TMap<FVector, FVolumetricLightmapInterpolation> CPUInterpolationCache;
 
+	FPrecomputedVolumetricLightmapData GlobalVolumetricLightmapData;
 private:
+	FPrecomputedVolumetricLightmap GlobalVolumetricLightmap;
+	const FPrecomputedVolumetricLightmap* PersistentLevelVolumetricLightmap = nullptr;
 	TArray<const FPrecomputedVolumetricLightmap*> LevelVolumetricLightmaps;
 };
 
@@ -2679,7 +2684,7 @@ public:
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const override;
-	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
+	virtual void AddPrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume, bool bIsPersistentLevel) override;
 	virtual void RemovePrecomputedVolumetricLightmap(const class FPrecomputedVolumetricLightmap* Volume) override;
 	virtual void AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;
 	virtual void RemoveRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component) override;

@@ -22,7 +22,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogVolumetricLightmapImport, Log, All);
 
 FVector GDebugVoxelPosition = FVector::ZeroVector;
 
-void CopyBrickToAtlasVolumeTexture(int32 FormatSize, FIntVector AtlasSize, FIntVector BrickMin, FIntVector BrickSize, const uint8* SourceData, uint8* DestData)
+void CopyBrickToAtlasVolumeTexture(int32 FormatSize, FIntVector AtlasSize, FIntVector BrickMin, FIntVector BrickSize, const uint8* RESTRICT SourceData, uint8* RESTRICT DestData)
 {
 	const int32 SourcePitch = BrickSize.X * FormatSize;
 	const int32 Pitch = AtlasSize.X * FormatSize;
@@ -43,6 +43,39 @@ void CopyBrickToAtlasVolumeTexture(int32 FormatSize, FIntVector AtlasSize, FIntV
 	}
 }
 
+void CopyBetweenAtlasVolumeTextures(
+	int32 FormatSize,
+	FIntVector BrickSize,
+	FIntVector SourceAtlasSize,
+	FIntVector SourceBrickMin,
+	const TArray<uint8>& SourceData,
+	FIntVector DestAtlasSize,
+	FIntVector DestBrickMin,
+	TArray<uint8>& DestData)
+{
+	const int32 DestPitch = DestAtlasSize.X * FormatSize;
+	const int32 DestDepthPitch = DestAtlasSize.X * DestAtlasSize.Y * FormatSize;
+	const int32 SourcePitch = SourceAtlasSize.X * FormatSize;
+	const int32 SourceDepthPitch = SourceAtlasSize.X * SourceAtlasSize.Y * FormatSize;
+
+	// Copy each row into the correct position in the global volume texture
+	for (int32 ZIndex = 0; ZIndex < BrickSize.Z; ZIndex++)
+	{
+		const int32 DestZIndex = (DestBrickMin.Z + ZIndex) * DestDepthPitch + DestBrickMin.X * FormatSize;
+		const int32 SourceZIndex = (SourceBrickMin.Z + ZIndex) * SourceDepthPitch + SourceBrickMin.X * FormatSize;
+
+		for (int32 YIndex = 0; YIndex < BrickSize.Y; YIndex++)
+		{
+			const int32 DestIndex = DestZIndex + (DestBrickMin.Y + YIndex) * DestPitch;
+			const int32 SourceIndex = SourceZIndex + (SourceBrickMin.Y + YIndex) * SourcePitch;
+			for (int32 XIndex = 0; XIndex < BrickSize.X * FormatSize; XIndex++)
+			{
+				FMemory::Memcpy((uint8*)&DestData[DestIndex], (const uint8*)&SourceData[SourceIndex], BrickSize.X * FormatSize);
+			}
+		}
+	}
+}
+
 int32 ComputeLinearVoxelIndex(FIntVector VoxelCoordinate, FIntVector VolumeDimensions)
 {
 	return (VoxelCoordinate.Z * VolumeDimensions.Y + VoxelCoordinate.Y) * VolumeDimensions.X + VoxelCoordinate.X;
@@ -50,6 +83,7 @@ int32 ComputeLinearVoxelIndex(FIntVector VoxelCoordinate, FIntVector VolumeDimen
 
 struct FImportedVolumetricLightmapBrick
 {
+	FGuid IntersectingLevelGuid;
 	FIntVector IndirectionTexturePosition;
 	int32 TreeDepth;
 	float AverageClosestGeometryDistance;
@@ -156,6 +190,7 @@ void FLightmassProcessor::ImportIrradianceTasks(bool& bGenerateSkyShadowing, TAr
 			{
 				NewTaskData.Bricks.AddDefaulted();
 				FImportedVolumetricLightmapBrick& NewBrick = NewTaskData.Bricks.Last();
+				Swarm.ReadChannel(Channel, &NewBrick.IntersectingLevelGuid, sizeof(NewBrick.IntersectingLevelGuid));
 				Swarm.ReadChannel(Channel, &NewBrick.IndirectionTexturePosition, sizeof(NewBrick.IndirectionTexturePosition));
 				Swarm.ReadChannel(Channel, &NewBrick.TreeDepth, sizeof(NewBrick.TreeDepth));
 				Swarm.ReadChannel(Channel, &NewBrick.AverageClosestGeometryDistance, sizeof(NewBrick.AverageClosestGeometryDistance));
@@ -857,9 +892,10 @@ int32 TrimBricksForMemoryLimit(
 	const int32 PaddedBrickSize = VolumetricLightmapSettings.BrickSize + 1;
 	TArray<const FImportedVolumetricLightmapBrick*>& HighestDensityBricks = BricksByDepth[VolumetricLightmapSettings.MaxRefinementLevels - 1];
 
-	const int32 BrickSizeBytes = VoxelSizeBytes * PaddedBrickSize * PaddedBrickSize * PaddedBrickSize;
-	const int32 MaxBrickBytes = MaximumBrickMemoryMb * 1024 * 1024;
-	const int32 NumBricksBudgeted = FMath::DivideAndRoundUp(MaxBrickBytes, BrickSizeBytes);
+	const uint64 BrickSizeBytes = VoxelSizeBytes * PaddedBrickSize * PaddedBrickSize * PaddedBrickSize;
+	const uint64 MaxBrickBytes = MaximumBrickMemoryMb * 1024 * 1024;
+	check(FMath::DivideAndRoundUp(MaxBrickBytes, BrickSizeBytes) <= 0x7FFFFFFFull);
+	const int32 NumBricksBudgeted = (int32)FMath::DivideAndRoundUp(MaxBrickBytes, BrickSizeBytes);
 	const int32 NumBricksToRemove = FMath::Clamp<int32>(NumBricksBeforeTrimming - NumBricksBudgeted, 0, HighestDensityBricks.Num());
 
 	if (NumBricksToRemove > 0)
@@ -886,11 +922,12 @@ void BuildIndirectionTexture(
 	int32 MaxBricksInLayoutOneDim,
 	FIntVector BrickLayoutDimensions,
 	int32 IndirectionTextureDataStride,
-	FPrecomputedVolumetricLightmapData& CurrentLevelData)
+	FPrecomputedVolumetricLightmapData& CurrentLevelData,
+	bool bOnlyBuildForPersistentLevel)
 {
 	const int32 BrickSizeLog2 = FMath::FloorLog2(VolumetricLightmapSettings.BrickSize);
 
-	int32 BrickStartAllocation = 0;
+	int32 BrickAllocation = 0;
 
 	for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
 	{
@@ -899,7 +936,19 @@ void BuildIndirectionTexture(
 		for (int32 BrickIndex = 0; BrickIndex < BricksAtCurrentDepth.Num(); BrickIndex++)
 		{
 			const FImportedVolumetricLightmapBrick& Brick = *BricksAtCurrentDepth[BrickIndex];
-			const FIntVector BrickLayoutPosition = ComputeBrickLayoutPosition(BrickStartAllocation + BrickIndex, BrickLayoutDimensions);
+
+			if (CurrentDepth == VolumetricLightmapSettings.MaxRefinementLevels - 1)
+			{
+				const FGuid PersistentLevelGuid = FGuid(0, 0, 0, 0);
+
+				// Skip non-intersecting, bottom detailed bricks for persistent level
+				if (bOnlyBuildForPersistentLevel && Brick.IntersectingLevelGuid != PersistentLevelGuid)
+				{
+					continue;
+				}
+			}
+
+			const FIntVector BrickLayoutPosition = ComputeBrickLayoutPosition(BrickAllocation, BrickLayoutDimensions);
 			check(BrickLayoutPosition.X < MaxBricksInLayoutOneDim && BrickLayoutPosition.Y < MaxBricksInLayoutOneDim && BrickLayoutPosition.Z < MaxBricksInLayoutOneDim);
 			checkSlow(IndirectionTextureDataStride == sizeof(uint8) * 4);
 
@@ -923,9 +972,9 @@ void BuildIndirectionTexture(
 					}
 				}
 			}
-		}
 
-		BrickStartAllocation += BricksAtCurrentDepth.Num();
+			BrickAllocation++;
+		}
 	}
 }
 
@@ -945,6 +994,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 	const int32 PaddedBrickSize = VolumetricLightmapSettings.BrickSize + 1;
 	const int32 MaxBricksInLayoutOneDim = 1 << 8;
 	const int32 MaxBrickTextureLayoutSize = PaddedBrickSize * MaxBricksInLayoutOneDim;
+	const FGuid PersistentLevelGuid = FGuid(0, 0, 0, 0);
 
 	TArray<FImportedVolumetricLightmapTaskData> TaskDataArray;
 	TaskDataArray.Empty(Exporter->VolumetricLightmapTaskGuids.Num());
@@ -972,7 +1022,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 
 	ULevel* StorageLevel = System.LightingScenario ? System.LightingScenario : System.GetWorld()->PersistentLevel;
 	UMapBuildDataRegistry* Registry = StorageLevel->GetOrCreateMapBuildData();
-	FPrecomputedVolumetricLightmapData& CurrentLevelData = Registry->AllocateLevelPrecomputedVolumetricLightmapBuildData(StorageLevel->LevelBuildDataId);
+	FPrecomputedVolumetricLightmapData CurrentLevelData;
 
 	{
 		CurrentLevelData.InitializeOnImport(FBox(VolumetricLightmapSettings.VolumeMin, VolumetricLightmapSettings.VolumeMin + VolumetricLightmapSettings.VolumeSize), BrickSize);
@@ -1024,7 +1074,7 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 		CurrentLevelData.IndirectionTexture.Resize(TotalIndirectionTextureSize * IndirectionTextureDataStride);
 	}
 
-	BuildIndirectionTexture(BricksByDepth, VolumetricLightmapSettings, MaxBricksInLayoutOneDim, BrickLayoutDimensions, IndirectionTextureDataStride, CurrentLevelData);
+	BuildIndirectionTexture(BricksByDepth, VolumetricLightmapSettings, MaxBricksInLayoutOneDim, BrickLayoutDimensions, IndirectionTextureDataStride, CurrentLevelData, false);
 
 	TArray<Lightmass::FIrradianceVoxelImportProcessingData> VoxelImportProcessingData;
 
@@ -1047,11 +1097,9 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 			CurrentLevelData.BrickData.SHCoefficients[i].Resize(TotalBrickDataSize * Stride);
 		}
 
-		CurrentLevelData.BrickData.LQLightColor.Data.Empty(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightColor.Format].BlockBytes);
-		CurrentLevelData.BrickData.LQLightColor.Data.AddZeroed(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightColor.Format].BlockBytes);
+		CurrentLevelData.BrickData.LQLightColor.Resize(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightColor.Format].BlockBytes);
 
-		CurrentLevelData.BrickData.LQLightDirection.Data.Empty(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightDirection.Format].BlockBytes);
-		CurrentLevelData.BrickData.LQLightDirection.Data.AddZeroed(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightDirection.Format].BlockBytes);
+		CurrentLevelData.BrickData.LQLightDirection.Resize(TotalBrickDataSize * GPixelFormats[CurrentLevelData.BrickData.LQLightDirection.Format].BlockBytes);
 
 		VoxelImportProcessingData.Empty(TotalBrickDataSize);
 		VoxelImportProcessingData.AddZeroed(TotalBrickDataSize);
@@ -1216,72 +1264,361 @@ void FLightmassProcessor::ImportVolumetricLightmap()
 		BrickStartAllocation += BricksAtCurrentDepth.Num();
 	}
 
-	CurrentLevelData.FinalizeImport();
+	TMap<FGuid, int32> SubLevelTotalBricks;
+	TMap<FGuid, int32> SubLevelBrickAllocator;
+	TMap<FGuid, FIntVector> SubLevelBrickLayoutDimensions;
 
-	float ImportTime = FPlatformTime::Seconds() - StartTime;
-	UE_LOG(LogVolumetricLightmapImport, Log,  TEXT("Imported Volumetric Lightmap in %.3fs"), ImportTime);
-	UE_LOG(LogVolumetricLightmapImport, Log,  TEXT("     Indirection Texture %ux%ux%u = %.1fMb"), 
-		CurrentLevelData.IndirectionTextureDimensions.X,
-		CurrentLevelData.IndirectionTextureDimensions.Y,
-		CurrentLevelData.IndirectionTextureDimensions.Z,
-		CurrentLevelData.IndirectionTexture.Data.Num() / 1024.0f / 1024.0f);
-
-	int32 BrickDataSize = CurrentLevelData.BrickData.AmbientVector.Data.Num() + CurrentLevelData.BrickData.SkyBentNormal.Data.Num() + CurrentLevelData.BrickData.DirectionalLightShadowing.Data.Num()
-			+ CurrentLevelData.BrickData.LQLightColor.Data.Num() + CurrentLevelData.BrickData.LQLightColor.Data.Num();
-
-	for (int32 i = 0; i < ARRAY_COUNT(CurrentLevelData.BrickData.SHCoefficients); i++)
 	{
-		BrickDataSize += CurrentLevelData.BrickData.SHCoefficients[i].Data.Num();
+		for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
+		{
+			const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
+
+			for (int32 BrickIndex = 0; BrickIndex < BricksAtCurrentDepth.Num(); BrickIndex++)
+			{
+				const FImportedVolumetricLightmapBrick& Brick = *BricksAtCurrentDepth[BrickIndex];
+
+				FGuid LevelGuid;
+
+				if (CurrentDepth == VolumetricLightmapSettings.MaxRefinementLevels - 1)
+				{
+					LevelGuid = Brick.IntersectingLevelGuid;
+				}
+				else
+				{
+					// Top level bricks are put into persistent level
+					LevelGuid = PersistentLevelGuid;
+				}
+
+				if (!SubLevelTotalBricks.Contains(LevelGuid))
+				{
+					SubLevelTotalBricks.Add(LevelGuid, 0);
+					SubLevelBrickAllocator.Add(LevelGuid, 0);
+					SubLevelBrickLayoutDimensions.Add(LevelGuid, FIntVector(0));
+				}
+
+				SubLevelTotalBricks[LevelGuid]++;
+			}
+		}
+
+		for (auto Pair : SubLevelTotalBricks)
+		{
+			bool bPersistentLevel = Pair.Key == FGuid();
+
+			FIntVector& SubLevelBrickLayoutDimension = SubLevelBrickLayoutDimensions[Pair.Key];
+			int32 SubLevelBrickTextureLinearAllocator = SubLevelTotalBricks[Pair.Key];
+			SubLevelBrickLayoutDimension.X = FMath::Min(SubLevelBrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+			SubLevelBrickTextureLinearAllocator = FMath::DivideAndRoundUp(SubLevelBrickTextureLinearAllocator, SubLevelBrickLayoutDimension.X);
+			SubLevelBrickLayoutDimension.Y = FMath::Min(SubLevelBrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+			SubLevelBrickTextureLinearAllocator = FMath::DivideAndRoundUp(SubLevelBrickTextureLinearAllocator, SubLevelBrickLayoutDimension.Y);
+			SubLevelBrickLayoutDimension.Z = FMath::Min(SubLevelBrickTextureLinearAllocator, MaxBricksInLayoutOneDim);
+
+			{
+				ULevel* SubLevelStorageLevel = System.LightingScenario ? System.LightingScenario : FindLevel(Pair.Key);
+				UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
+				FPrecomputedVolumetricLightmapData& SubLevelData = SubLevelRegistry->AllocateLevelPrecomputedVolumetricLightmapBuildData(FindLevel(Pair.Key)->LevelBuildDataId);
+
+				SubLevelData.InitializeOnImport(FBox(VolumetricLightmapSettings.VolumeMin, VolumetricLightmapSettings.VolumeMin + VolumetricLightmapSettings.VolumeSize), BrickSize);
+				{
+					SubLevelData.BrickData.AmbientVector.Format = PF_FloatR11G11B10;
+					SubLevelData.BrickData.SkyBentNormal.Format = PF_B8G8R8A8;
+					SubLevelData.BrickData.DirectionalLightShadowing.Format = PF_G8;
+
+					for (int32 i = 0; i < ARRAY_COUNT(SubLevelData.BrickData.SHCoefficients); i++)
+					{
+						SubLevelData.BrickData.SHCoefficients[i].Format = PF_B8G8R8A8;
+					}
+
+					SubLevelData.BrickData.LQLightColor.Format = PF_FloatR11G11B10;
+					SubLevelData.BrickData.LQLightDirection.Format = PF_B8G8R8A8;
+				}
+
+				SubLevelData.BrickDataDimensions = SubLevelBrickLayoutDimension * PaddedBrickSize;
+				const int32 TotalBrickDataSize = SubLevelData.BrickDataDimensions.X * SubLevelData.BrickDataDimensions.Y * SubLevelData.BrickDataDimensions.Z;
+
+				SubLevelData.BrickData.AmbientVector.Resize(TotalBrickDataSize * GPixelFormats[SubLevelData.BrickData.AmbientVector.Format].BlockBytes);
+
+				if (bGenerateSkyShadowing)
+				{
+					SubLevelData.BrickData.SkyBentNormal.Resize(TotalBrickDataSize * GPixelFormats[SubLevelData.BrickData.SkyBentNormal.Format].BlockBytes);
+				}
+
+				SubLevelData.BrickData.DirectionalLightShadowing.Resize(TotalBrickDataSize * GPixelFormats[SubLevelData.BrickData.DirectionalLightShadowing.Format].BlockBytes);
+
+				for (int32 i = 0; i < ARRAY_COUNT(SubLevelData.BrickData.SHCoefficients); i++)
+				{
+					const int32 Stride = GPixelFormats[SubLevelData.BrickData.SHCoefficients[i].Format].BlockBytes;
+					SubLevelData.BrickData.SHCoefficients[i].Resize(TotalBrickDataSize * Stride);
+				}
+
+				SubLevelData.BrickData.LQLightColor.Resize(TotalBrickDataSize * GPixelFormats[SubLevelData.BrickData.LQLightColor.Format].BlockBytes);
+
+				SubLevelData.BrickData.LQLightDirection.Resize(TotalBrickDataSize * GPixelFormats[SubLevelData.BrickData.LQLightDirection.Format].BlockBytes);
+			}
+		}
+
+		BrickStartAllocation = 0;
+
+		for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
+		{
+			const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
+
+			for (int32 BrickIndex = 0; BrickIndex < BricksAtCurrentDepth.Num(); BrickIndex++)
+			{
+				const FImportedVolumetricLightmapBrick& Brick = *BricksAtCurrentDepth[BrickIndex];
+
+				FGuid LevelGuid;
+
+				if (CurrentDepth == VolumetricLightmapSettings.MaxRefinementLevels - 1)
+				{
+					LevelGuid = Brick.IntersectingLevelGuid;
+				}
+				else
+				{
+					// Top level bricks are put into persistent level
+					LevelGuid = PersistentLevelGuid;
+				}
+
+				ULevel* SubLevelStorageLevel = System.LightingScenario ? System.LightingScenario : FindLevel(LevelGuid);
+				UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
+				FPrecomputedVolumetricLightmapData& SubLevelData = *SubLevelRegistry->GetLevelPrecomputedVolumetricLightmapBuildData(FindLevel(LevelGuid)->LevelBuildDataId);
+
+				const FIntVector BrickLayoutPosition = ComputeBrickLayoutPosition(BrickStartAllocation + BrickIndex, BrickLayoutDimensions) * PaddedBrickSize;
+				const FIntVector SubLevelBrickLayoutPosition = ComputeBrickLayoutPosition(SubLevelBrickAllocator[LevelGuid], SubLevelBrickLayoutDimensions[LevelGuid]) * PaddedBrickSize;
+
+				CopyBetweenAtlasVolumeTextures(
+					GPixelFormats[CurrentLevelData.BrickData.AmbientVector.Format].BlockBytes,
+					FIntVector(PaddedBrickSize),
+					CurrentLevelData.BrickDataDimensions,
+					BrickLayoutPosition,
+					CurrentLevelData.BrickData.AmbientVector.Data,
+					SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+					SubLevelBrickLayoutPosition,
+					SubLevelData.BrickData.AmbientVector.Data);
+
+				for (int32 i = 0; i < ARRAY_COUNT(Brick.SHCoefficients); i++)
+				{
+					CopyBetweenAtlasVolumeTextures(
+						GPixelFormats[CurrentLevelData.BrickData.SHCoefficients[i].Format].BlockBytes,
+						FIntVector(PaddedBrickSize),
+						CurrentLevelData.BrickDataDimensions,
+						BrickLayoutPosition,
+						CurrentLevelData.BrickData.SHCoefficients[i].Data,
+						SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+						SubLevelBrickLayoutPosition,
+						SubLevelData.BrickData.SHCoefficients[i].Data);
+				}
+
+				CopyBetweenAtlasVolumeTextures(
+					GPixelFormats[CurrentLevelData.BrickData.LQLightColor.Format].BlockBytes,
+					FIntVector(PaddedBrickSize),
+					CurrentLevelData.BrickDataDimensions,
+					BrickLayoutPosition,
+					CurrentLevelData.BrickData.LQLightColor.Data,
+					SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+					SubLevelBrickLayoutPosition,
+					SubLevelData.BrickData.LQLightColor.Data);
+
+				CopyBetweenAtlasVolumeTextures(
+					GPixelFormats[CurrentLevelData.BrickData.LQLightDirection.Format].BlockBytes,
+					FIntVector(PaddedBrickSize),
+					CurrentLevelData.BrickDataDimensions,
+					BrickLayoutPosition,
+					CurrentLevelData.BrickData.LQLightDirection.Data,
+					SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+					SubLevelBrickLayoutPosition,
+					SubLevelData.BrickData.LQLightDirection.Data);
+
+				if (bGenerateSkyShadowing)
+				{
+					CopyBetweenAtlasVolumeTextures(
+						GPixelFormats[CurrentLevelData.BrickData.SkyBentNormal.Format].BlockBytes,
+						FIntVector(PaddedBrickSize),
+						CurrentLevelData.BrickDataDimensions,
+						BrickLayoutPosition,
+						CurrentLevelData.BrickData.SkyBentNormal.Data,
+						SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+						SubLevelBrickLayoutPosition,
+						SubLevelData.BrickData.SkyBentNormal.Data);
+				}
+
+				CopyBetweenAtlasVolumeTextures(
+					GPixelFormats[CurrentLevelData.BrickData.DirectionalLightShadowing.Format].BlockBytes,
+					FIntVector(PaddedBrickSize),
+					CurrentLevelData.BrickDataDimensions,
+					BrickLayoutPosition,
+					CurrentLevelData.BrickData.DirectionalLightShadowing.Data,
+					SubLevelBrickLayoutDimensions[LevelGuid] * PaddedBrickSize,
+					SubLevelBrickLayoutPosition,
+					SubLevelData.BrickData.DirectionalLightShadowing.Data);
+
+				SubLevelBrickAllocator[LevelGuid]++;
+
+				if (LevelGuid != PersistentLevelGuid)
+				{
+					SubLevelData.SubLevelBrickPositions.Add(Brick.IndirectionTexturePosition);
+					check(SubLevelData.SubLevelBrickPositions.Num() == SubLevelBrickAllocator[LevelGuid]);
+				}
+			}
+
+			BrickStartAllocation += BricksAtCurrentDepth.Num();
+		}
+
+		{
+			const int32 TotalIndirectionTextureSize = CurrentLevelData.IndirectionTextureDimensions.X * CurrentLevelData.IndirectionTextureDimensions.Y * CurrentLevelData.IndirectionTextureDimensions.Z;
+			CurrentLevelData.IndirectionTexture.Resize(TotalIndirectionTextureSize * IndirectionTextureDataStride);
+			BuildIndirectionTexture(BricksByDepth, VolumetricLightmapSettings, MaxBricksInLayoutOneDim, SubLevelBrickLayoutDimensions[FGuid()], IndirectionTextureDataStride, CurrentLevelData, true);
+
+			ULevel* SubLevelStorageLevel = System.LightingScenario ? System.LightingScenario : FindLevel(PersistentLevelGuid);
+			UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
+			FPrecomputedVolumetricLightmapData& PersistentLevelData = *SubLevelRegistry->GetLevelPrecomputedVolumetricLightmapBuildData(FindLevel(PersistentLevelGuid)->LevelBuildDataId);
+
+			PersistentLevelData.InitializeOnImport(FBox(VolumetricLightmapSettings.VolumeMin, VolumetricLightmapSettings.VolumeMin + VolumetricLightmapSettings.VolumeSize), BrickSize);
+			PersistentLevelData.IndirectionTexture = CurrentLevelData.IndirectionTexture;
+			PersistentLevelData.IndirectionTextureDimensions = CurrentLevelData.IndirectionTextureDimensions;
+		}
+
+		{
+			for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
+			{
+				const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
+
+				for (int32 BrickIndex = 0; BrickIndex < BricksAtCurrentDepth.Num(); BrickIndex++)
+				{
+					const FImportedVolumetricLightmapBrick& Brick = *BricksAtCurrentDepth[BrickIndex];
+
+					FGuid LevelGuid;
+
+					if (CurrentDepth == VolumetricLightmapSettings.MaxRefinementLevels - 1)
+					{
+						LevelGuid = Brick.IntersectingLevelGuid;
+					}
+					else
+					{
+						// Top level bricks are put into persistent level
+						LevelGuid = PersistentLevelGuid;
+					}
+
+					if (LevelGuid != PersistentLevelGuid)
+					{
+						ULevel* SubLevelStorageLevel = System.LightingScenario ? System.LightingScenario : FindLevel(LevelGuid);
+						UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
+						FPrecomputedVolumetricLightmapData& SubLevelData = *SubLevelRegistry->GetLevelPrecomputedVolumetricLightmapBuildData(FindLevel(LevelGuid)->LevelBuildDataId);
+
+						FIntVector IndirectionBrickOffset;
+						int32 IndirectionBrickSize;
+						const FVector IndirectionDataSourceCoordinate = FVector(Brick.IndirectionTexturePosition) + FVector(0.5f, 0.5f, 0.5f);
+						SampleIndirectionTexture(IndirectionDataSourceCoordinate, CurrentLevelData.IndirectionTextureDimensions, CurrentLevelData.IndirectionTexture.Data.GetData(), IndirectionBrickOffset, IndirectionBrickSize);
+
+						SubLevelData.IndirectionTextureOriginalValues.Add(FColor((uint8)IndirectionBrickOffset.X, (uint8)IndirectionBrickOffset.Y, (uint8)IndirectionBrickOffset.Z, (uint8)IndirectionBrickSize));
+					}
+				}
+			}
+
+		}
 	}
 
-	int32 TotalNumBricks = 0;
-
-	for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
 	{
-		const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
-		TotalNumBricks += BricksAtCurrentDepth.Num();
-	}
+		/**
+		 * Statistics
+		 */
 
-	const int32 ActualBrickSizeBytes = BrickDataSize / TotalNumBricks;
+		float ImportTime = FPlatformTime::Seconds() - StartTime;
+		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("Imported Volumetric Lightmap in %.3fs"), ImportTime);
+		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("     Indirection Texture %ux%ux%u = %.1fMb"),
+			CurrentLevelData.IndirectionTextureDimensions.X,
+			CurrentLevelData.IndirectionTextureDimensions.Y,
+			CurrentLevelData.IndirectionTextureDimensions.Z,
+			CurrentLevelData.IndirectionTexture.Data.Num() / 1024.0f / 1024.0f);
 
-	FString TrimmedString;
-	
-	if (NumBottomLevelBricksTrimmedByInterpolationError > 0)
-	{
-		TrimmedString += FString::Printf(TEXT(" (trimmed %.1fMb due to %f MinBrickError)"),
-			NumBottomLevelBricksTrimmedByInterpolationError * ActualBrickSizeBytes / 1024.0f / 1024.0f,
-			VolumetricLightmapSettings.MinBrickError);
-	}
+		uint64 BrickDataSize = 0;
 
-	if (NumBottomLevelBricksTrimmedForMemoryLimit > 0)
-	{
-		TrimmedString += FString::Printf(TEXT(" (trimmed %.1fMb due to %.1fMb MaximumBrickMemoryMb)"),
-			NumBottomLevelBricksTrimmedForMemoryLimit * ActualBrickSizeBytes / 1024.0f / 1024.0f,
-			MaximumBrickMemoryMb);
-	}
+		for (auto Pair : SubLevelTotalBricks)
+		{
+			ULevel* SubLevelStorageLevel = System.LightingScenario ? System.LightingScenario : FindLevel(Pair.Key);
+			UMapBuildDataRegistry* SubLevelRegistry = SubLevelStorageLevel->GetOrCreateMapBuildData();
+			FPrecomputedVolumetricLightmapData& SubLevelData = *SubLevelRegistry->GetLevelPrecomputedVolumetricLightmapBuildData(FindLevel(Pair.Key)->LevelBuildDataId);
 
-	UE_LOG(LogVolumetricLightmapImport, Log,  TEXT("     BrickData %ux%ux%u = %.1fMb%s"), 
-		CurrentLevelData.BrickDataDimensions.X,
-		CurrentLevelData.BrickDataDimensions.Y,
-		CurrentLevelData.BrickDataDimensions.Z,
-		BrickDataSize / 1024.0f / 1024.0f,
-		*TrimmedString);
+			SubLevelData.FinalizeImport();
 
-	UE_LOG(LogVolumetricLightmapImport, Log, TEXT("     Bricks at Level"));
+			check(SubLevelData.IndirectionTextureOriginalValues.Num() == SubLevelData.SubLevelBrickPositions.Num());
 
-	const float TotalVolume = VolumetricLightmapSettings.VolumeSize.X * VolumetricLightmapSettings.VolumeSize.Y * VolumetricLightmapSettings.VolumeSize.Z;
+			BrickDataSize += 
+				SubLevelData.BrickData.AmbientVector.Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[0].Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[1].Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[2].Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[3].Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[4].Data.Num() + 
+				SubLevelData.BrickData.SHCoefficients[5].Data.Num() + 
+				SubLevelData.BrickData.SkyBentNormal.Data.Num() + 
+				SubLevelData.BrickData.DirectionalLightShadowing.Data.Num() +
+				SubLevelData.BrickData.LQLightColor.Data.Num() +
+				SubLevelData.BrickData.LQLightDirection.Data.Num() +
+				SubLevelData.SubLevelBrickPositions.Num() * SubLevelData.SubLevelBrickPositions.GetTypeSize() +
+				SubLevelData.IndirectionTextureOriginalValues.Num() * SubLevelData.IndirectionTextureOriginalValues.GetTypeSize();
+		}
 
-	for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
-	{
-		const int32 DetailCellsPerCurrentLevelBrick = 1 << ((VolumetricLightmapSettings.MaxRefinementLevels - CurrentDepth) * BrickSizeLog2);
-		const FVector CurrentDepthBrickSize = DetailCellSize * DetailCellsPerCurrentLevelBrick;
-		const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
-		const float CurrentDepthBrickVolume = CurrentDepthBrickSize.X * CurrentDepthBrickSize.Y * CurrentDepthBrickSize.Z;
+		int32 TotalNumBricks = 0;
 
-		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("         %u: %.1f%% covering %.1f%% of volume"), 
-			CurrentDepth, 
-			100.0f * BricksAtCurrentDepth.Num() / TotalNumBricks,
-			100.0f * BricksAtCurrentDepth.Num() * CurrentDepthBrickVolume / TotalVolume);
+		for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
+		{
+			const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
+			TotalNumBricks += BricksAtCurrentDepth.Num();
+		}
+
+		const int32 ActualBrickSizeBytes = BrickDataSize / TotalNumBricks;
+
+		FString TrimmedString;
+
+		if (NumBottomLevelBricksTrimmedByInterpolationError > 0)
+		{
+			TrimmedString += FString::Printf(TEXT(" (trimmed %.1fMb due to %f MinBrickError)"),
+				NumBottomLevelBricksTrimmedByInterpolationError * ActualBrickSizeBytes / 1024.0f / 1024.0f,
+				VolumetricLightmapSettings.MinBrickError);
+		}
+
+		if (NumBottomLevelBricksTrimmedForMemoryLimit > 0)
+		{
+			TrimmedString += FString::Printf(TEXT(" (trimmed %.1fMb due to %.1fMb MaximumBrickMemoryMb)"),
+				NumBottomLevelBricksTrimmedForMemoryLimit * ActualBrickSizeBytes / 1024.0f / 1024.0f,
+				MaximumBrickMemoryMb);
+		}
+
+		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("     BrickData (all levels) %.1fMb%s"),
+			BrickDataSize / 1024.0f / 1024.0f,
+			*TrimmedString);
+
+		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("     Bricks at depth"));
+
+		const float TotalVolume = VolumetricLightmapSettings.VolumeSize.X * VolumetricLightmapSettings.VolumeSize.Y * VolumetricLightmapSettings.VolumeSize.Z;
+
+		for (int32 CurrentDepth = 0; CurrentDepth < VolumetricLightmapSettings.MaxRefinementLevels; CurrentDepth++)
+		{
+			const int32 DetailCellsPerCurrentLevelBrick = 1 << ((VolumetricLightmapSettings.MaxRefinementLevels - CurrentDepth) * BrickSizeLog2);
+			const FVector CurrentDepthBrickSize = DetailCellSize * DetailCellsPerCurrentLevelBrick;
+			const TArray<const FImportedVolumetricLightmapBrick*>& BricksAtCurrentDepth = BricksByDepth[CurrentDepth];
+			const float CurrentDepthBrickVolume = CurrentDepthBrickSize.X * CurrentDepthBrickSize.Y * CurrentDepthBrickSize.Z;
+
+			UE_LOG(LogVolumetricLightmapImport, Log, TEXT("         %u: %.1f%% covering %.1f%% of volume"),
+				CurrentDepth,
+				100.0f * BricksAtCurrentDepth.Num() / TotalNumBricks,
+				100.0f * BricksAtCurrentDepth.Num() * CurrentDepthBrickVolume / TotalVolume);
+		}
+
+		UE_LOG(LogVolumetricLightmapImport, Log, TEXT("     Bricks in each level"));
+
+		for (auto Pair : SubLevelTotalBricks)
+		{
+			FString LevelName = FindLevel(Pair.Key)->GetOuter()->GetName();
+			if (FindLevel(Pair.Key)->IsPersistentLevel())
+			{
+				UE_LOG(LogVolumetricLightmapImport, Log, TEXT("         %s \t\t\t %d bricks \t %.1f%% (Persistent Level)"), *LevelName, Pair.Value, 100.0f * Pair.Value / TotalNumBricks);
+			}
+			else
+			{
+				UE_LOG(LogVolumetricLightmapImport, Log, TEXT("         %s \t\t\t %d bricks \t %.1f%%"), *LevelName, Pair.Value, 100.0f * Pair.Value / TotalNumBricks);
+			}
+		}
 	}
 }
 

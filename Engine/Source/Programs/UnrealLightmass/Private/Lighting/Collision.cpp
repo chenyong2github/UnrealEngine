@@ -520,14 +520,25 @@ bool FDefaultAggregateMesh::IntersectLightRay(
 	return ClosestIntersection.bIntersects;
 }
 
-bool FDefaultAggregateMesh::IntersectBox(const FBox Box)  const
+const FStaticLightingMesh* FDefaultAggregateMesh::IntersectBox(const FBox Box)  const
 {
 	FLightRay UnusedRay;
 	FStaticLightingAggregateMeshDataProvider kDOPDataProvider(this, UnusedRay);
 	TkDOPBoxCollisionCheck<const FStaticLightingAggregateMeshDataProvider, uint32> kDOPCheck(
 		Box,
 		kDOPDataProvider);
-	return kDopTree.BoxCheck(kDOPCheck);
+
+	kDopTree.BoxCheck(kDOPCheck);
+
+	if (kDOPCheck.Item != -1)
+	{
+		const FTriangleSOAPayload& Payload = TrianglePayloads[kDOPCheck.Item];
+		return Payload.MeshInfo->Mesh;
+	}
+	else
+	{
+		return nullptr;
+	}
 }
 
 } //namespace Lightmass

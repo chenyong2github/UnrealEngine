@@ -92,6 +92,8 @@ struct CORE_API FRenderingObjectVersion
 
 		SkyAtmosphereStaticLightingVersioning,
 
+		VolumetricLightmapStreaming,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

@@ -1007,7 +1007,10 @@ struct TkDOPNode
 				Triangle.Vertices[2].Z = LmVectorGetComponent(TriangleSOA.Positions[2].Z, SubIndex);
 
 				if (BoxTriangleIntersectionInternal::IntersectTriangleAndAABB(Triangle, Check.Box))
+				{
+					Check.Item = TriangleSOA.Payload[SubIndex];
 					return true;
+				}
 			}
 		}
 
@@ -1552,12 +1555,14 @@ template <typename COLL_DATA_PROVIDER, typename KDOP_IDX_TYPE> struct TkDOPBoxCo
 	public TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>
 {
 	const FBox Box;
+	int32 Item;
 
 	TkDOPBoxCollisionCheck(
 		const FBox& InBox,
 		const COLL_DATA_PROVIDER& InCollDataProvider) :
 		TkDOPCollisionCheck<COLL_DATA_PROVIDER, KDOP_IDX_TYPE>(InCollDataProvider),
-		Box(InBox)
+		Box(InBox),
+		Item(-1)
 	{}
 };
 

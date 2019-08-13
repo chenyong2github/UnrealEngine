@@ -1776,7 +1776,7 @@ void ULevel::InitializeRenderingResources()
 
 		if (!PrecomputedVolumetricLightmap->IsAddedToScene())
 		{
-			PrecomputedVolumetricLightmap->AddToScene(OwningWorld->Scene, EffectiveMapBuildData, LevelBuildDataId);
+			PrecomputedVolumetricLightmap->AddToScene(OwningWorld->Scene, EffectiveMapBuildData, LevelBuildDataId, IsPersistentLevel());
 		}
 
 		if (OwningWorld->Scene && EffectiveMapBuildData)

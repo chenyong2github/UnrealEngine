@@ -248,7 +248,7 @@ public:
 		class FCoherentRayCache& CoherentRayCache,
 		FLightRayIntersection& Intersection) const override;
 
-	bool IntersectBox(const FBox Box) const;
+	const FStaticLightingMesh* IntersectBox(const FBox Box) const;
 
 private:
 

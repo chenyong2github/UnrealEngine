@@ -171,18 +171,21 @@ void InterpolateVolumetricLightmap(
 	SCOPE_CYCLE_COUNTER(STAT_InterpolateVolumetricLightmapOnCPU);
 
 	checkSlow(VolumetricLightmapSceneData.HasData());
-	const FPrecomputedVolumetricLightmapData& VolumetricLightmapData = *VolumetricLightmapSceneData.GetLevelVolumetricLightmap()->Data;
+	const FPrecomputedVolumetricLightmapData& GlobalVolumetricLightmapData = *VolumetricLightmapSceneData.GetLevelVolumetricLightmap()->Data;
 	
-	const FVector IndirectionDataSourceCoordinate = ComputeIndirectionCoordinate(LookupPosition, VolumetricLightmapData.GetBounds(), VolumetricLightmapData.IndirectionTextureDimensions);
+	const FVector IndirectionDataSourceCoordinate = ComputeIndirectionCoordinate(LookupPosition, GlobalVolumetricLightmapData.GetBounds(), GlobalVolumetricLightmapData.IndirectionTextureDimensions);
 
-	check(VolumetricLightmapData.IndirectionTexture.Data.Num() > 0);
-	checkSlow(GPixelFormats[VolumetricLightmapData.IndirectionTexture.Format].BlockBytes == sizeof(uint8) * 4);
-	const int32 NumIndirectionTexels = VolumetricLightmapData.IndirectionTextureDimensions.X * VolumetricLightmapData.IndirectionTextureDimensions.Y * VolumetricLightmapData.IndirectionTextureDimensions.Z;
-	check(VolumetricLightmapData.IndirectionTexture.Data.Num() * VolumetricLightmapData.IndirectionTexture.Data.GetTypeSize() == NumIndirectionTexels * sizeof(uint8) * 4);
+	check(GlobalVolumetricLightmapData.IndirectionTexture.Data.Num() > 0);
+	checkSlow(GPixelFormats[GlobalVolumetricLightmapData.IndirectionTexture.Format].BlockBytes == sizeof(uint8) * 4);
+	const int32 NumIndirectionTexels = GlobalVolumetricLightmapData.IndirectionTextureDimensions.X * GlobalVolumetricLightmapData.IndirectionTextureDimensions.Y * GlobalVolumetricLightmapData.IndirectionTextureDimensions.Z;
+	check(GlobalVolumetricLightmapData.IndirectionTexture.Data.Num() * GlobalVolumetricLightmapData.IndirectionTexture.Data.GetTypeSize() == NumIndirectionTexels * sizeof(uint8) * 4);
 	
 	FIntVector IndirectionBrickOffset;
 	int32 IndirectionBrickSize;
-	SampleIndirectionTexture(IndirectionDataSourceCoordinate, VolumetricLightmapData.IndirectionTextureDimensions, VolumetricLightmapData.IndirectionTexture.Data.GetData(), IndirectionBrickOffset, IndirectionBrickSize);
+	int32 SubLevelIndex;
+	SampleIndirectionTextureWithSubLevel(IndirectionDataSourceCoordinate, GlobalVolumetricLightmapData.IndirectionTextureDimensions, GlobalVolumetricLightmapData.IndirectionTexture.Data.GetData(), GlobalVolumetricLightmapData.CPUSubLevelIndirectionTable, IndirectionBrickOffset, IndirectionBrickSize, SubLevelIndex);
+
+	const FPrecomputedVolumetricLightmapData& VolumetricLightmapData = *GlobalVolumetricLightmapData.CPUSubLevelBrickDataList[SubLevelIndex];
 
 	const FVector BrickTextureCoordinate = ComputeBrickTextureCoordinate(IndirectionDataSourceCoordinate, IndirectionBrickOffset, IndirectionBrickSize, VolumetricLightmapData.BrickSize);
 

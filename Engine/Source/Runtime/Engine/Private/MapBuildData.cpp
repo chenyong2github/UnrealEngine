@@ -60,6 +60,17 @@ ULevel* UWorld::GetActiveLightingScenario() const
 
 void UWorld::PropagateLightingScenarioChange()
 {
+	for (ULevel* Level : GetLevels())
+	{
+		Level->ReleaseRenderingResources();
+		Level->InitializeRenderingResources();
+
+		for (UModelComponent* ModelComponent : Level->ModelComponents)
+		{
+			ModelComponent->PropagateLightingScenarioChange();
+		}
+	}
+
 	for (FActorIterator It(this); It; ++It)
 	{
 		TInlineComponentArray<USceneComponent*> Components;
@@ -69,17 +80,6 @@ void UWorld::PropagateLightingScenarioChange()
 		{
 			USceneComponent* CurrentComponent = Components[ComponentIndex];
 			CurrentComponent->PropagateLightingScenarioChange();
-		}
-	}
-
-	for (ULevel* Level : GetLevels())
-	{
-		Level->ReleaseRenderingResources();
-		Level->InitializeRenderingResources();
-
-		for (UModelComponent* ModelComponent : Level->ModelComponents)
-		{
-			ModelComponent->PropagateLightingScenarioChange();
 		}
 	}
 

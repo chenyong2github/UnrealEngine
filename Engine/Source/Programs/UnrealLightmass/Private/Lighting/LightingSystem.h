@@ -1348,6 +1348,8 @@ struct FPrecomputedVisibilityData
 
 struct FIrradianceBrickData
 {
+	FGuid IntersectingLevelGuid;
+
 	/** Position in the global indirection texture.  Used for mapping brick positions back to world space. */
 	FIntVector IndirectionTexturePosition;
 
@@ -2222,6 +2224,7 @@ private:
 		bool bCoveringDebugPosition,
 		const FBox& TopLevelCellBounds, 
 		const TArray<FVector>& VoxelTestPositions,
+		const FGuid& IntersectingLevelGuid,
 		TArray<struct FIrradianceBrickBuildData>& OutBrickBuildData);
 
 	void ProcessVolumetricLightmapBrickTask(class FVolumetricLightmapBrickTaskDescription* Task);
@@ -2232,9 +2235,9 @@ private:
 
 	void CalculateAdaptiveVolumetricLightmap(int32 TaskIndex);
 
-	bool DoesVoxelIntersectSceneGeometry(const FBox& CellBounds) const;
+	bool DoesVoxelIntersectSceneGeometry(const FBox& CellBounds, FGuid& OutIntersectingLevelGuid) const;
 
-	bool ShouldRefineVoxel(int32 TreeDepth, const FBox& AABB, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel) const;
+	bool ShouldRefineVoxel(int32 TreeDepth, const FBox& AABB, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel, FGuid& OutIntersectingLevelGuid) const;
 
 	/** Computes a shadow depth map for a stationary light. */
 	void CalculateStaticShadowDepthMap(FGuid LightGuid);

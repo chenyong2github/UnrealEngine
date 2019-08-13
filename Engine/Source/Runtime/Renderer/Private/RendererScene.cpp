@@ -1312,7 +1312,7 @@ void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHI
 	PrimitiveSceneProxy->SetTransform(LocalToWorld, WorldBounds, LocalBounds, AttachmentRootPosition);
 	PrimitiveTransforms[PrimitiveSceneInfo->PackedIndex] = LocalToWorld;
 
-	if (!RHISupportsVolumeTextures(GetFeatureLevel())
+	if (GetFeatureLevel() < ERHIFeatureLevel::SM5
 		&& (PrimitiveSceneProxy->IsMovable() || PrimitiveSceneProxy->NeedsUnbuiltPreviewLighting() || PrimitiveSceneProxy->GetLightmapType() == ELightmapType::ForceVolumetric))
 	{
 		PrimitiveSceneInfo->MarkIndirectLightingCacheBufferDirty();
@@ -2398,14 +2398,28 @@ void FScene::RemovePrecomputedLightVolume(const FPrecomputedLightVolume* Volume)
 		});
 }
 
-void FVolumetricLightmapSceneData::AddLevelVolume(const FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath)
+void FVolumetricLightmapSceneData::AddLevelVolume(const FPrecomputedVolumetricLightmap* InVolume, EShadingPath ShadingPath, bool bIsPersistentLevel)
 {
 	LevelVolumetricLightmaps.Add(InVolume);
+
+	if (bIsPersistentLevel)
+	{
+		PersistentLevelVolumetricLightmap = InVolume;
+	}
+
+	InVolume->Data->AddToSceneData(&GlobalVolumetricLightmapData);
 }
 
 void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetricLightmap* InVolume)
 {
 	LevelVolumetricLightmaps.Remove(InVolume);
+
+	InVolume->Data->RemoveFromSceneData(&GlobalVolumetricLightmapData, PersistentLevelVolumetricLightmap ? PersistentLevelVolumetricLightmap->Data->BrickDataBaseOffsetInAtlas : 0);
+
+	if (PersistentLevelVolumetricLightmap == InVolume)
+	{
+		PersistentLevelVolumetricLightmap = nullptr;
+	}
 }
 
 bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
@@ -2413,12 +2427,12 @@ bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
 	return VolumetricLightmapSceneData.HasData();
 }
 
-void FScene::AddPrecomputedVolumetricLightmap(const FPrecomputedVolumetricLightmap* Volume)
+void FScene::AddPrecomputedVolumetricLightmap(const FPrecomputedVolumetricLightmap* Volume, bool bIsPersistentLevel)
 {
 	FScene* Scene = this;
 
 	ENQUEUE_RENDER_COMMAND(AddVolumeCommand)
-		([Scene, Volume](FRHICommandListImmediate& RHICmdList) 
+		([Scene, Volume, bIsPersistentLevel](FRHICommandListImmediate& RHICmdList)
 		{
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 			if (Volume && Scene->GetShadingPath() == EShadingPath::Mobile)
@@ -2430,7 +2444,7 @@ void FScene::AddPrecomputedVolumetricLightmap(const FPrecomputedVolumetricLightm
 				}
 			}
 #endif
-		Scene->VolumetricLightmapSceneData.AddLevelVolume(Volume, Scene->GetShadingPath());
+		Scene->VolumetricLightmapSceneData.AddLevelVolume(Volume, Scene->GetShadingPath(), bIsPersistentLevel);
 		});
 }
 

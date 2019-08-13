@@ -14,6 +14,8 @@
 #include "Math/PackedVector.h"
 #include "RHI.h"
 #include "RenderResource.h"
+#include "ShaderParameterStruct.h"
+#include "GlobalShader.h"
 
 class FSceneInterface;
 
@@ -23,7 +25,8 @@ public:
 
 	FVolumetricLightmapDataLayer() :
 		DataSize(0),
-		Format(PF_Unknown)
+		Format(PF_Unknown),
+		bNeedsCPUAccess(false)
 	{}
 
 	friend FArchive& operator<<(FArchive& Ar, FVolumetricLightmapDataLayer& Volume);
@@ -40,8 +43,7 @@ public:
 
 	virtual void Discard() override
 	{
-		//temporarily remove until the semantics around lighting scenarios are fixed.
-		if (!GIsEditor)
+		if (!bNeedsCPUAccess)
 		{
 			Data.Empty();
 		}
@@ -50,17 +52,22 @@ public:
 	void Resize(int32 NewSize)
 	{
 		Data.Empty(NewSize);
-		Data.AddUninitialized(NewSize);
+		Data.AddZeroed(NewSize);
 		DataSize = NewSize;
 	}
 
 	ENGINE_API void CreateTexture(FIntVector Dimensions);
+	ENGINE_API void CreateTargetTexture(FIntVector Dimensions);
+	ENGINE_API void CreateUAV();
 
 	TArray<uint8> Data;
 	// Stored redundantly for stats after Data has been discarded
 	int32 DataSize;
 	EPixelFormat Format;
 	FTexture3DRHIRef Texture;
+	FUnorderedAccessViewRHIRef UAV;
+
+	bool bNeedsCPUAccess;
 };
 
 class FVolumetricLightmapBrickData
@@ -76,6 +83,29 @@ public:
 
 	ENGINE_API int32 GetMinimumVoxelSize() const;
 
+	ENGINE_API void ReleaseRHI()
+	{
+		AmbientVector.Texture.SafeRelease();
+
+		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].Texture.SafeRelease();
+		}
+
+		SkyBentNormal.Texture.SafeRelease();
+		DirectionalLightShadowing.Texture.SafeRelease();
+
+		AmbientVector.UAV.SafeRelease();
+
+		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].UAV.SafeRelease();
+		}
+
+		SkyBentNormal.UAV.SafeRelease();
+		DirectionalLightShadowing.UAV.SafeRelease();
+	}
+
 	SIZE_T GetAllocatedBytes() const
 	{
 		SIZE_T NumBytes = AmbientVector.DataSize + SkyBentNormal.DataSize + DirectionalLightShadowing.DataSize;
@@ -87,6 +117,19 @@ public:
 		}
 
 		return NumBytes;
+	}
+
+	void SetNeedsCPUAccess(bool InAccess)
+	{
+		AmbientVector.bNeedsCPUAccess = InAccess;
+
+		for (int32 i = 0; i < ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].bNeedsCPUAccess = InAccess;
+		}
+
+		SkyBentNormal.bNeedsCPUAccess = InAccess;
+		DirectionalLightShadowing.bNeedsCPUAccess = InAccess;
 	}
 
 	// discard the layers used for low quality lightmap (LQ includes direct lighting from stationary lights).
@@ -106,7 +149,7 @@ class FPrecomputedVolumetricLightmapData : public FRenderResource
 public:
 
 	ENGINE_API FPrecomputedVolumetricLightmapData();
-	virtual ~FPrecomputedVolumetricLightmapData();
+	ENGINE_API virtual ~FPrecomputedVolumetricLightmapData();
 
 	friend FArchive& operator<<(FArchive& Ar, FPrecomputedVolumetricLightmapData& Volume);
 	friend FArchive& operator<<(FArchive& Ar, FPrecomputedVolumetricLightmapData*& Volume);
@@ -117,6 +160,13 @@ public:
 	ENGINE_API virtual void InitRHI() override;
 	ENGINE_API virtual void ReleaseRHI() override;
 
+	ENGINE_API void InitRHIForSubLevelResources();
+	ENGINE_API void ReleaseRHIForSubLevelResources();
+
+	ENGINE_API void HandleDataMovementInAtlas(int32 OldOffset, int32 NewOffset);
+	ENGINE_API void AddToSceneData(FPrecomputedVolumetricLightmapData* SceneData);
+	ENGINE_API void RemoveFromSceneData(FPrecomputedVolumetricLightmapData* SceneData, int32 PersistentLevelBrickDataBaseOffset);
+
 	SIZE_T GetAllocatedBytes() const;
 
 	const FBox& GetBounds() const
@@ -126,12 +176,37 @@ public:
 
 	FBox Bounds;
 
+	bool bTransient;
+
 	FIntVector IndirectionTextureDimensions;
 	FVolumetricLightmapDataLayer IndirectionTexture;
 
 	int32 BrickSize;
 	FIntVector BrickDataDimensions;
 	FVolumetricLightmapBrickData BrickData;
+
+	/**
+	 * Position data for sub level streaming
+	 */
+	// Brick positions in the persistent level's indirection texture
+	TResourceArray<FIntVector> SubLevelBrickPositions;
+	TResourceArray<FColor> IndirectionTextureOriginalValues;
+
+	/**
+	 * Runtime data for sub level streaming
+	 */
+	FVertexBufferRHIRef SubLevelBrickPositionsBuffer;
+	FShaderResourceViewRHIRef SubLevelBrickPositionsSRV;
+
+	FVertexBufferRHIRef IndirectionTextureOriginalValuesBuffer;
+	FShaderResourceViewRHIRef IndirectionTextureOriginalValuesSRV;
+
+	int32 BrickDataBaseOffsetInAtlas;
+	TArray<FPrecomputedVolumetricLightmapData*> SceneDataAdded;
+
+	// CPU indirection table for mobile path
+	TArray<uint8> CPUSubLevelIndirectionTable;
+	TArray<FPrecomputedVolumetricLightmapData*> CPUSubLevelBrickDataList;
 
 private:
 
@@ -147,9 +222,9 @@ class FPrecomputedVolumetricLightmap
 public:
 
 	ENGINE_API FPrecomputedVolumetricLightmap();
-	~FPrecomputedVolumetricLightmap();
+	ENGINE_API ~FPrecomputedVolumetricLightmap();
 
-	ENGINE_API void AddToScene(class FSceneInterface* Scene, class UMapBuildDataRegistry* Registry, FGuid LevelBuildDataId);
+	ENGINE_API void AddToScene(class FSceneInterface* Scene, class UMapBuildDataRegistry* Registry, FGuid LevelBuildDataId, bool bIsPersistentLevel);
 
 	ENGINE_API void RemoveFromScene(FSceneInterface* Scene);
 	
@@ -318,8 +393,126 @@ extern ENGINE_API void SampleIndirectionTexture(
 	FIntVector& OutIndirectionBrickOffset,
 	int32& OutIndirectionBrickSize);
 
+extern ENGINE_API void SampleIndirectionTextureWithSubLevel(
+	FVector IndirectionDataSourceCoordinate,
+	FIntVector IndirectionTextureDimensions,
+	const uint8* IndirectionTextureData,
+	const TArray<uint8>& CPUSubLevelIndirectionTable,
+	FIntVector& OutIndirectionBrickOffset,
+	int32& OutIndirectionBrickSize,
+	int32& OutSubLevelIndex);
+
 extern ENGINE_API FVector ComputeBrickTextureCoordinate(
 	FVector IndirectionDataSourceCoordinate,
 	FIntVector IndirectionBrickOffset,
 	int32 IndirectionBrickSize,
 	int32 BrickSize);
+
+class FRemoveSubLevelBricksCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FRemoveSubLevelBricksCS);
+	SHADER_USE_PARAMETER_STRUCT(FRemoveSubLevelBricksCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && AllowStaticLightingVar->GetValueOnAnyThread() != 0;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumBricks)
+		SHADER_PARAMETER(uint32, PersistentLevelBrickDataBaseOffset)
+		SHADER_PARAMETER_SRV(Buffer<uint>, SubLevelBrickPositions)
+		SHADER_PARAMETER_SRV(Buffer<uint4>, IndirectionTextureOriginalValues)
+		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FCopyResidentBricksCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyResidentBricksCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyResidentBricksCS, FGlobalShader);
+
+	class FHasSkyBentNormal : SHADER_PERMUTATION_BOOL("HAS_SKY_BENT_NORMAL");
+	using FPermutationDomain = TShaderPermutationDomain<FHasSkyBentNormal>;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && AllowStaticLightingVar->GetValueOnAnyThread() != 0;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, StartPosInOldVolume)
+		SHADER_PARAMETER(uint32, StartPosInNewVolume)
+		SHADER_PARAMETER_TEXTURE(Texture3D, AmbientVector)
+		SHADER_PARAMETER_TEXTURE(Texture3D, SkyBentNormal)
+		SHADER_PARAMETER_TEXTURE(Texture3D, DirectionalLightShadowing)
+
+		SHADER_PARAMETER_UAV(RWTexture3D<float3>, OutAmbientVector)
+		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSkyBentNormal)
+		SHADER_PARAMETER_UAV(RWTexture3D<float>, OutDirectionalLightShadowing)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FCopyResidentBrickSHCoefficientsCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FCopyResidentBrickSHCoefficientsCS);
+	SHADER_USE_PARAMETER_STRUCT(FCopyResidentBrickSHCoefficientsCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && AllowStaticLightingVar->GetValueOnAnyThread() != 0;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, StartPosInOldVolume)
+		SHADER_PARAMETER(uint32, StartPosInNewVolume)
+		SHADER_PARAMETER_TEXTURE(Texture3D, SHCoefficients)
+		SHADER_PARAMETER_UAV(RWTexture3D<float4>, OutSHCoefficients)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FPatchIndirectionTextureCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FPatchIndirectionTextureCS);
+	SHADER_USE_PARAMETER_STRUCT(FPatchIndirectionTextureCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && AllowStaticLightingVar->GetValueOnAnyThread() != 0;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumBricks)
+		SHADER_PARAMETER(uint32, StartPosInNewVolume)
+		SHADER_PARAMETER_SRV(Buffer<uint>, SubLevelBrickPositions)
+		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};
+
+class FMoveWholeIndirectionTextureCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FMoveWholeIndirectionTextureCS);
+	SHADER_USE_PARAMETER_STRUCT(FMoveWholeIndirectionTextureCS, FGlobalShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && AllowStaticLightingVar->GetValueOnAnyThread() != 0;
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(uint32, NumBricks)
+		SHADER_PARAMETER(uint32, StartPosInOldVolume)
+		SHADER_PARAMETER(uint32, StartPosInNewVolume)
+		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
+	END_SHADER_PARAMETER_STRUCT()
+};

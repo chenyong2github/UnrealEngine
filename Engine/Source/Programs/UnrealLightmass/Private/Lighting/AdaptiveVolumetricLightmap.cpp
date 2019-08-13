@@ -119,7 +119,7 @@ bool PointUnderTriangle(FVector Point, FTriangle Triangle)
 	return BaryCentricCoordinate.X >= 0 && BaryCentricCoordinate.Y >= 0 && BaryCentricCoordinate.Z >= 0 && PointOnTriangleZ > Point.Z;
 }
 
-bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBounds) const
+bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBounds, FGuid& OutIntersectingLevelGuid) const
 {
 	const float Child2dTriangleArea = .5f * CellBounds.GetSize().X * CellBounds.GetSize().Y / (VolumetricLightmapSettings.BrickSize * VolumetricLightmapSettings.BrickSize);
 	const float SurfaceLightmapDensityThreshold = .5f * VolumetricLightmapSettings.SurfaceLightmapMinTexelsPerVoxelAxis * VolumetricLightmapSettings.SurfaceLightmapMinTexelsPerVoxelAxis / Child2dTriangleArea;
@@ -129,8 +129,18 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 
 	if (Scene.GeneralSettings.bUseFastVoxelization)
 	{
-		if (VoxelizationSurfaceAggregateMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry) || VoxelizationVolumeAggregateMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry))
+		const FStaticLightingMesh* Mesh = nullptr;
+		Mesh = VoxelizationSurfaceAggregateMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry);
+		if (Mesh != nullptr)
 		{
+			OutIntersectingLevelGuid = Mesh->LevelGuid;
+			return true;
+		}
+
+		Mesh = VoxelizationVolumeAggregateMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry);
+		if (Mesh != nullptr)
+		{
+			OutIntersectingLevelGuid = Mesh->LevelGuid;
 			return true;
 		}
 
@@ -140,17 +150,28 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 
 			if (MeshInstance->StaticMesh->VoxelizationMesh != nullptr)
 			{
+				auto TransformBox = [](const FBox& Box, const FMatrix& Transform) -> const FBox {
+					FVector TransformedCorners[8];
+					for (int32 Corner = 0; Corner < 8; Corner++)
+					{
+						TransformedCorners[Corner] = Transform.TransformPosition(Box.GetExtrema(Corner));
+					}
+					return FBox(TransformedCorners, ARRAY_COUNT(TransformedCorners));
+				};
+
 				if (MeshInstance->Mapping->GetVolumeMapping() == nullptr)
 				{
-					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry.TransformBy(MeshInstance->WorldToLocal)))
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsSurfaceGeometry.TransformBy(MeshInstance->WorldToLocal)) != nullptr)
 					{
+						OutIntersectingLevelGuid = MeshInstance->LevelGuid;
 						return true;
 					}
 				}
 				else
 				{
-					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry.TransformBy(MeshInstance->WorldToLocal)))
+					if (MeshInstance->StaticMesh->VoxelizationMesh->IntersectBox(ExpandedCellBoundsVolumeGeometry.TransformBy(MeshInstance->WorldToLocal)) != nullptr)
 					{
+						OutIntersectingLevelGuid = MeshInstance->LevelGuid;
 						return true;
 					}
 				}
@@ -222,6 +243,7 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 
 								if (IntersectTriangleAndAABB(Triangle, ExpandedCellBounds))
 								{
+									OutIntersectingLevelGuid = CurrentMesh->LevelGuid;
 									return true;
 								}
 							}
@@ -235,7 +257,7 @@ bool FStaticLightingSystem::DoesVoxelIntersectSceneGeometry(const FBox& CellBoun
 	}
 }
 
-bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellBounds, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel) const
+bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellBounds, const TArray<FVector>& VoxelTestPositions, bool bDebugThisVoxel, FGuid& OutIntersectingLevelGuid) const
 {
 	const bool bCellInsideImportanceVolume = Scene.IsBoxInImportanceVolume(CellBounds);
 
@@ -282,7 +304,7 @@ bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellB
 		return true;
 	}
 
-	bool bVoxelIntersectsScene = DoesVoxelIntersectSceneGeometry(CellBounds);
+	bool bVoxelIntersectsScene = DoesVoxelIntersectSceneGeometry(CellBounds, OutIntersectingLevelGuid);
 	
 	if (!bVoxelIntersectsScene)
 	{
@@ -405,6 +427,7 @@ bool FStaticLightingSystem::ShouldRefineVoxel(int32 TreeDepth, const FBox& CellB
 
 struct FIrradianceBrickBuildData
 {
+	FGuid IntersectingLevelGuid;
 	FIntVector LocalCellCoordinate;
 	int32 TreeDepth;
 	bool bHasChildren;
@@ -423,11 +446,13 @@ void FStaticLightingSystem::RecursivelyBuildBrickTree(
 	bool bCoveringDebugPosition,
 	const FBox& TopLevelCellBounds, 
 	const TArray<FVector>& VoxelTestPositions,
+	const FGuid& IntersectingLevelGuid,
 	TArray<FIrradianceBrickBuildData>& OutBrickBuildData)
 {
 	if (StartCellIndex == 0)
 	{
 		FIrradianceBrickBuildData NewBuildData;
+		NewBuildData.IntersectingLevelGuid = IntersectingLevelGuid;
 		NewBuildData.LocalCellCoordinate = LocalCellCoordinate;
 		NewBuildData.TreeDepth = TreeDepth;
 		NewBuildData.bDebugBrick = bCoveringDebugPosition;
@@ -466,7 +491,8 @@ void FStaticLightingSystem::RecursivelyBuildBrickTree(
 						const FBox CellBounds(ChildCellPosition, ChildCellPosition + WorldChildCellSize);
 
 						const bool bChildCoveringDebugPosition = bDebugVolumetricLightmapCell && CellBounds.IsInside(DebugWorldPosition);
-						const bool bSubdivideCell = ShouldRefineVoxel(TreeDepth + 1, CellBounds, VoxelTestPositions, bChildCoveringDebugPosition);
+						FGuid ChildIntersectingLevelGuid;
+						const bool bSubdivideCell = ShouldRefineVoxel(TreeDepth + 1, CellBounds, VoxelTestPositions, bChildCoveringDebugPosition, ChildIntersectingLevelGuid);
 
 						if (bSubdivideCell)
 						{
@@ -477,7 +503,7 @@ void FStaticLightingSystem::RecursivelyBuildBrickTree(
 								Y * DetailCellsPerChildLevelBrick, 
 								Z * DetailCellsPerChildLevelBrick);
 
-							RecursivelyBuildBrickTree(0, NumCellsPerBrick, LocalCellCoordinate + LocalChildCellCoordinate, TreeDepth + 1, bChildCoveringDebugPosition, TopLevelCellBounds, VoxelTestPositions, OutBrickBuildData);
+							RecursivelyBuildBrickTree(0, NumCellsPerBrick, LocalCellCoordinate + LocalChildCellCoordinate, TreeDepth + 1, bChildCoveringDebugPosition, TopLevelCellBounds, VoxelTestPositions, ChildIntersectingLevelGuid, OutBrickBuildData);
 						}
 					}
 				}
@@ -782,7 +808,7 @@ void FStaticLightingSystem::CalculateAdaptiveVolumetricLightmap(int32 TaskIndex)
 	GenerateVoxelTestPositions(VoxelTestPositions);
 
 	TArray<FIrradianceBrickBuildData> BrickBuildData;
-	RecursivelyBuildBrickTree(StartCellIndex, NumCells, FIntVector::ZeroValue, 0, bCoveringDebugPosition, TopLevelBounds, VoxelTestPositions, BrickBuildData);
+	RecursivelyBuildBrickTree(StartCellIndex, NumCells, FIntVector::ZeroValue, 0, bCoveringDebugPosition, TopLevelBounds, VoxelTestPositions, FGuid(), BrickBuildData);
 
 	MappingContext.Stats.VolumetricLightmapVoxelizationTime += FPlatformTime::Seconds() - StartTime;
 
@@ -795,6 +821,11 @@ void FStaticLightingSystem::CalculateAdaptiveVolumetricLightmap(int32 TaskIndex)
 
 		DataLink->Element.BrickData.Empty(BrickBuildData.Num());
 		DataLink->Element.BrickData.AddDefaulted(BrickBuildData.Num());
+
+		for (int32 BrickIndex = 0; BrickIndex < BrickBuildData.Num(); BrickIndex++)
+		{
+			DataLink->Element.BrickData[BrickIndex].IntersectingLevelGuid = BrickBuildData[BrickIndex].IntersectingLevelGuid;
+		}
 
 		// Calculate lighting for all bricks
 		for (int32 BrickIndex = 0; BrickIndex < BrickBuildData.Num(); BrickIndex++)
