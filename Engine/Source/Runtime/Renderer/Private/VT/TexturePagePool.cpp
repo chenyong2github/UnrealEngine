@@ -88,6 +88,40 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 	}
 }
 
+void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, TArray<union FVirtualTextureLocalTile>& OutLocked)
+{
+	//todo[vt]: 
+	// Simple linear iteration of all physical pages here. Can we do better?
+	// We should test if it's faster to store a physical page list sorted by Morton code and find upper and lower bounds in that.
+	for (uint32 i = 0; i < NumPages; ++i)
+	{
+		if (Pages[i].PackedProducerHandle == ProducerHandle.PackedValue)
+		{
+			const uint32 vAddress = Pages[i].Local_vAddress;
+			const uint32 vLevel = Pages[i].Local_vLevel;
+
+			const int32 TileSize = Desc.TileSize << vLevel;
+			const int32 X = FMath::ReverseMortonCode2(vAddress) * TileSize;
+			const int32 Y = FMath::ReverseMortonCode2(vAddress >> 1) * TileSize;
+			const int32 TileBorderSize = Desc.TileBorderSize << vLevel;
+			const FIntRect PageRect(X - TileBorderSize, Y - TileBorderSize, X + TileSize + TileBorderSize, Y + TileSize + TileBorderSize);
+
+			if (!(PageRect.Min.X > TextureRegion.Max.X) && !(TextureRegion.Min.X > PageRect.Max.X) && !(PageRect.Min.Y > TextureRegion.Max.Y) && !(TextureRegion.Min.Y > PageRect.Max.Y))
+			{
+				if (FreeHeap.IsPresent(i))
+				{
+					OutLocked.Add(FVirtualTextureLocalTile(ProducerHandle, vAddress, vLevel));
+				}
+				else
+				{
+					UnmapAllPages(System, i);
+					FreeHeap.Update(0, i);
+				}
+			}
+		}
+	}
+}
+
 void FTexturePagePool::GetAllLockedPages(FVirtualTextureSystem* System, TSet<FVirtualTextureLocalTile>& OutPages)
 {
 

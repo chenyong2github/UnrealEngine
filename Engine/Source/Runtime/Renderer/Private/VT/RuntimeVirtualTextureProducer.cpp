@@ -5,6 +5,8 @@
 #include "RendererInterface.h"
 #include "RuntimeVirtualTextureRender.h"
 #include "ScenePrivate.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
+
 
 FRuntimeVirtualTextureFinalizer::FRuntimeVirtualTextureFinalizer(FVTProducerDescription const& InDesc, uint32 InProducerId, ERuntimeVirtualTextureMaterialType InMaterialType, FSceneInterface* InScene, FTransform const& InUVToWorld)
 	: Desc(InDesc)
@@ -25,6 +27,30 @@ bool FRuntimeVirtualTextureFinalizer::IsReady()
 	return Scene != nullptr && Scene->GetRenderScene() != nullptr && Scene->GetRenderScene()->GetFrameNumber() > 1;
 }
 
+void FRuntimeVirtualTextureFinalizer::InitProducer(const FVirtualTextureProducerHandle& ProducerHandle)
+{
+	if (RuntimeVirtualTextureMask == 0)
+	{
+		FScene* RenderScene = Scene->GetRenderScene();
+
+		// Initialize the RuntimeVirtualTextureMask by matching this producer with those registered in the scene's runtime virtual textures.
+		// We only need to do this once. If the associated scene proxy is removed this finalizer will also be destroyed.
+		const uint32 VirtualTextureSceneIndex = RenderScene->GetRuntimeVirtualTextureSceneIndex(ProducerId);
+		RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
+
+		// Store the ProducerHandle in the FRuntimeVirtualTextureSceneProxy object.
+		// This is a bit of a hack: the proxy needs to know the producer handle but can't know it on proxy creation because the producer registration is deferred to the render thread.
+		check(ProducerHandle.PackedValue != 0);
+		RenderScene->RuntimeVirtualTextures[VirtualTextureSceneIndex]->ProducerHandle = ProducerHandle;
+
+		//todo[vt]: 
+		// Add a slow render path inside RenderPage() when this check fails. 
+		// It will need to iterate the virtual textures on each primitive instead of using the RuntimeVirtualTextureMask.
+		// Currently nothing will render for this finalizer when the check fails.
+		checkSlow(VirtualTextureSceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount);
+	}
+}
+
 void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 {
 	Tiles.Add(Tile);
@@ -32,20 +58,6 @@ void FRuntimeVirtualTextureFinalizer::AddTile(FTileEntry& Tile)
 
 void FRuntimeVirtualTextureFinalizer::Finalize(FRHICommandListImmediate& RHICmdList)
 {
-	if (RuntimeVirtualTextureMask == 0)
-	{
-		// Initialize the RuntimeVirtualTextureMask by matching this producer with those registered in the scene's runtime virtual textures.
-		// We only need to do this once. If the associated scene proxy is removed this finalizer will also be destroyed.
-		const uint32 VirtualTextureSceneIndex = Scene->GetRenderScene()->GetRuntimeVirtualTextureSceneIndex(ProducerId);
-		RuntimeVirtualTextureMask = 1 << VirtualTextureSceneIndex;
-	
-		//todo[vt]: 
-		// Add a slow render path inside RenderPage() when this check fails. 
-		// It will need to iterate the virtual textures on each primitive instead of using the RuntimeVirtualTextureMask.
-		// Currently nothing will render for this finalizer when the check fails.
-		checkSlow(VirtualTextureSceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount);
-	}
-
 	for (auto Entry : Tiles)
 	{
 		const int32 TileSize = Desc.TileSize + 2 * Desc.TileBorderSize;
@@ -142,6 +154,7 @@ IVirtualTextureFinalizer* FRuntimeVirtualTextureProducer::ProducePageData(
 		Tile.DestY1 = TargetLayers[1].pPageLocation.Y;
 	}
 
+	Finalizer.InitProducer(ProducerHandle);
 	Finalizer.AddTile(Tile);
 
 	return &Finalizer;
