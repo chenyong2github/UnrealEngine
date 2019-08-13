@@ -17,7 +17,6 @@ uint4 EyeAdaptionSrcRect;
 // in float Slope 
 float ComputeWeightedTextureAverageAlpha(Texture2D InBuffer, in uint4 ROI, in float Slope)
 {
-	
 	// The inverse of the Region of Interest size.
 	const float InvXMax = 1.f / float(ROI.z - ROI.x);
 	const float InvYMax = 1.f / float(ROI.w - ROI.y);
@@ -85,36 +84,31 @@ float ComputeEyeAdaptation(float OldExposure, float TargetExposure, float FrameT
 {
 	float Diff = TargetExposure - OldExposure;
 
-	const float EyeAdaptionSpeedUp   = EyeAdaptationParams[1].z;
-	const float EyeAdaptionSpeedDown = EyeAdaptationParams[1].w;
+	float AdaptionSpeed = (Diff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
 
-    float AdaptionSpeed = (Diff > 0) ? EyeAdaptionSpeedUp : EyeAdaptionSpeedDown;
+	float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
 
-    float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
-
-	return clamp(OldExposure + Diff * Factor, EyeAdaptationParams[0].z, EyeAdaptationParams[0].w);
+	return clamp(OldExposure + Diff * Factor, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 }
 
 float4 MainEyeAdaptationCommon()
 {
 	float4 OutColor = 0;
 
-	const float ExposureOffsetMultipler = EyeAdaptationParams[1].x;
 	const float AverageSceneLuminance = ComputeEyeAdaptationExposure(PostprocessInput0);
-	const float TargetExposure = clamp(AverageSceneLuminance, EyeAdaptationParams[0].z, EyeAdaptationParams[0].w);
+	const float TargetExposure = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 
 	float OldExposureScale = PostprocessInput0.Load(int3(0, 1, 0)).x;
-	float OldExposure = ExposureOffsetMultipler / ( OldExposureScale != 0 ? OldExposureScale : 1.0f );
-	float FrameTime = EyeAdaptationParams[1].y;
+	float OldExposure = EyeAdaptation_ExposureCompensation / ( OldExposureScale != 0 ? OldExposureScale : 1.0f );
 
 	// eye adaptation changes over time
-	float SmoothedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, FrameTime);
+	float SmoothedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, EyeAdaptation_DeltaWorldTime);
 
 	float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedExposure);
 	float TargetExposureScale =   1.0f / max(0.0001f, TargetExposure);
 
-	OutColor.x = ExposureOffsetMultipler * SmoothedExposureScale;
-	OutColor.y = ExposureOffsetMultipler * TargetExposureScale;
+	OutColor.x = EyeAdaptation_ExposureCompensation * SmoothedExposureScale;
+	OutColor.y = EyeAdaptation_ExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
 
@@ -148,12 +142,11 @@ void MainBasicEyeAdaptationSetupPS(
 	float2 UV = UVAndScreenPos.xy;
 	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
 
-	// Use max to insure intensity is never zero (so the following log is well behaved)
-	// NB: log2( EyeAdaptationParams[2].z)  =  -EyeAdaptationParams[2].y / EyeAdaptationParams[2].x
-	float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptationParams[2].z);
+	// Use max to ensure intensity is never zero (so the following log is well behaved)
+	float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptation_LuminanceMin);
 
 	// Store log intensity in the alpha channel: scale to 0,1 range.
-	OutColor.w = EyeAdaptationParams[2].x * log2(Intensity) + EyeAdaptationParams[2].y; 
+	OutColor.w = EyeAdaptation_HistogramScale * log2(Intensity) + EyeAdaptation_HistogramBias; 
 }
 
 
@@ -185,18 +178,13 @@ groupshared float2 SubRectValueWeight[TGSIZE*TGSIZE];
 RWTexture2D<float4> RWOutputComputeTex;
 
 [numthreads(TGSIZE, TGSIZE, 1)]
-void MainLogLuminance2ExposureScaleCS(uint GIndex : SV_GroupIndex, 
-	uint2 GTId : SV_GroupThreadID
-	)
+void MainLogLuminance2ExposureScaleCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThreadID)
 {
 	float4 OutColor=0;
 
 #else
 
-void MainLogLuminance2ExposureScalePS( 
-	in float4 UVAndScreenPos : TEXCOORD0, 
-	out float4 OutColor : SV_Target0
-	)
+void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
 
 #endif
@@ -212,7 +200,7 @@ void MainLogLuminance2ExposureScalePS(
 	// WeightSlope: 0 is uniform weighting.
 	//              1 decays to the edges.
 	//              >1 focuses more in the center of the screen.
-	float WeightSlope = EyeAdaptationParams[2].w;
+	float WeightSlope = EyeAdaptation_WeightSlope;
 	
 	// Compute scaled Log Luminance Average
 #if COMPUTESHADER
@@ -259,33 +247,28 @@ void MainLogLuminance2ExposureScalePS(
 #endif
 
 	// Correct for [0,1] scaling
-	LogLumAve = (LogLumAve - EyeAdaptationParams[2].y) / EyeAdaptationParams[2].x;
+	LogLumAve = (LogLumAve - EyeAdaptation_HistogramBias) / EyeAdaptation_HistogramScale;
 	
 	// Convert LogLuminanceAverage to Average Intensity
 	const float AverageSceneLuminance = OneOverPreExposure * exp2(LogLumAve);
-	const float LumAve = AverageSceneLuminance * AverageLuminanceScale;
+	const float LumAve = AverageSceneLuminance * EyeAdaptation_CalibrationConstantInverse;
 
-	const float ClampedLumAve = clamp(LumAve, EyeAdaptationParams[0].z, EyeAdaptationParams[0].w );
+	const float ClampedLumAve = clamp(LumAve, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 	
-	// NB: this param value differs by a factor from the value used in the histogram-based alogrithm 
-	const float ExposureOffsetMultipler = EyeAdaptationParams[1].x;
-
 	// The Exposure Scale (and thus intensity) used in the previous frame
 	float ExposureScaleOld = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
-	float LuminanceAveOld = ExposureOffsetMultipler / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
+	float LuminanceAveOld = EyeAdaptation_ExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
 
 	// Time-based expoential blend of the intensity to allow the eye adaptation to ramp up over a few frames.
-	// NB: This also clamps the SmoothedIn
-	float FrameTime = EyeAdaptationParams[1].y;
-	float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, FrameTime);
+	float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
 
 	float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedLuminance);
 	float TargetExposureScale   = 1.0f / max(0.0001f, ClampedLumAve);
 	
 	// Output the number that will rescale the image intensity
-	OutColor.x = ExposureOffsetMultipler * SmoothedExposureScale;
+	OutColor.x = EyeAdaptation_ExposureCompensation * SmoothedExposureScale;
 	// Output the target value
-	OutColor.y = ExposureOffsetMultipler * TargetExposureScale;
+	OutColor.y = EyeAdaptation_ExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
 		

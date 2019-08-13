@@ -21,6 +21,10 @@
 
 extern FIntPoint GetHistogramTexelsPerGroup();
 
+extern float GetBasicAutoExposureFocus();
+
+extern bool IsExtendLuminanceRangeEnabled();
+
 /** Encapsulates the post processing eye adaptation pixel shader. */
 class FPostProcessVisualizeHDRPS : public FGlobalShader
 {
@@ -38,13 +42,16 @@ class FPostProcessVisualizeHDRPS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("USE_SHADOW_TINT"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_CONTRAST"), 1);
 		OutEnvironment.SetDefine(TEXT("USE_APPROXIMATE_SRGB"), (uint32)0);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	/** Default constructor. */
 	FPostProcessVisualizeHDRPS() {}
 
 public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
+
 	FPostProcessPassParameters PostprocessParameter;
 	FShaderParameter EyeAdaptationParams;
 	FShaderResourceParameter MiniFontTexture;
@@ -67,6 +74,8 @@ public:
 	FPostProcessVisualizeHDRPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
+
 		PostprocessParameter.Bind(Initializer.ParameterMap);
 		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 		MiniFontTexture.Bind(Initializer.ParameterMap, TEXT("MiniFontTexture"));
@@ -99,19 +108,9 @@ public:
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-
-			FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(Context.View, Temp);
-			if (GetAutoExposureMethod(Context.View) == EAutoExposureMethod::AEM_Basic)
-			{
-				Temp[2].W = GetBasicAutoExposureFocus();
-			}
-			else
-			{
-				Temp[2].W = 0.0f;
-			}
-
-			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View);
+			SetShaderParameters(RHICmdList, this, ShaderRHI, PassParameters);
 		}
 
 		SetTextureParameter(RHICmdList, ShaderRHI, MiniFontTexture, GEngine->MiniFontTexture ? GEngine->MiniFontTexture->Resource->TextureRHI : GSystemTextures.WhiteDummy->GetRenderTargetItem().TargetableTexture);
@@ -209,8 +208,7 @@ void FRCPassPostProcessVisualizeHDR::Process(FRenderingCompositePassContext& Con
 		return;
 	}
 
-	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
-	const bool bExtendedLuminanceRange = VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
+	const bool bExtendedLuminanceRange = IsExtendLuminanceRangeEnabled();
 
 	const FViewInfo& View = Context.View;
 	const FViewInfo& ViewInfo = Context.View;

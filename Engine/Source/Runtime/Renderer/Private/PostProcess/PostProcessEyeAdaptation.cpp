@@ -16,7 +16,8 @@
 
 RENDERCORE_API bool UsePreExposure(EShaderPlatform Platform);
 
-// Initialize the static CVar
+namespace
+{
 TAutoConsoleVariable<float> CVarEyeAdaptationPreExposureOverride(
 	TEXT("r.EyeAdaptation.PreExposureOverride"),
 	0,
@@ -25,11 +26,10 @@ TAutoConsoleVariable<float> CVarEyeAdaptationPreExposureOverride(
 	TEXT("> 0 : Override PreExposure\n"),
 	ECVF_RenderThreadSafe);
 
-// Initialize the static CVar
 TAutoConsoleVariable<int32> CVarEyeAdaptationMethodOverride(
-	TEXT("r.EyeAdaptation.MethodOveride"),
+	TEXT("r.EyeAdaptation.MethodOverride"),
 	-1,
-	TEXT("Overide the camera metering method set in post processing volumes\n")
+	TEXT("Override the camera metering method set in post processing volumes\n")
 	TEXT("-2: override with custom settings (for testing Basic Mode)\n")
 	TEXT("-1: no override\n")
 	TEXT(" 1: Auto Histogram-based\n")
@@ -37,7 +37,6 @@ TAutoConsoleVariable<int32> CVarEyeAdaptationMethodOverride(
 	TEXT(" 3: Manual"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
-// Initialize the static CVar used in computing the weighting focus in basic eye-adaptation
 TAutoConsoleVariable<float> CVarEyeAdaptationFocus(
 	TEXT("r.EyeAdaptation.Focus"),
 	1.0f,
@@ -53,65 +52,146 @@ TAutoConsoleVariable<int32> CVarEyeAdaptationBasicCompute(
 	TEXT("= 0 : Pixel Shader\n")
 	TEXT("> 0 : Compute Shader (default) \n"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
+}
 
-/**
- *   Shared functionality used in computing the eye-adaptation parameters
- *   Compute the parameters used for eye-adaptation.  These will default to values
- *   that disable eye-adaptation if the hardware doesn't support the minimum feature level
- */
-void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFeatureLevel, const FViewInfo& View, FVector4 Out[EYE_ADAPTATION_PARAMS_SIZE])
+bool IsAutoExposureMethodSupported(ERHIFeatureLevel::Type FeatureLevel, EAutoExposureMethod AutoExposureMethodId)
+{
+	switch (AutoExposureMethodId)
+	{
+	case EAutoExposureMethod::AEM_Histogram:
+		return FeatureLevel >= ERHIFeatureLevel::SM5;
+	case EAutoExposureMethod::AEM_Basic:
+	case EAutoExposureMethod::AEM_Manual:
+		return FeatureLevel >= ERHIFeatureLevel::ES3_1;
+	}
+	return false;
+}
+
+// Query the view for the auto exposure method, and allow for CVar override.
+EAutoExposureMethod GetAutoExposureMethod(const FViewInfo& View)
+{
+	EAutoExposureMethod AutoExposureMethodId = View.FinalPostProcessSettings.AutoExposureMethod;
+
+	const int32 EyeOverride = CVarEyeAdaptationMethodOverride.GetValueOnRenderThread();
+
+	if (EyeOverride >= 0)
+	{
+		// Additional branching for override.
+		switch (EyeOverride)
+		{
+		case 1:
+		{
+			// Only override if the platform supports it.
+			if (View.GetFeatureLevel() >= ERHIFeatureLevel::SM5)
+			{
+				AutoExposureMethodId = EAutoExposureMethod::AEM_Histogram;
+			}
+			break;
+		}
+		case 2:
+		{
+			AutoExposureMethodId = EAutoExposureMethod::AEM_Basic;
+			break;
+		}
+		case 3:
+		{
+			AutoExposureMethodId = EAutoExposureMethod::AEM_Manual;
+			break;
+		}
+		}
+	}
+
+	// If auto exposure is disabled, revert to manual mode which will clamp to a reasonable default.
+	if (!View.Family->EngineShowFlags.EyeAdaptation)
+	{
+		AutoExposureMethodId = AEM_Manual;
+	}
+
+	// We should have a valid exposure method at this stage.
+	check(IsAutoExposureMethodSupported(View.GetFeatureLevel(), AutoExposureMethodId));
+
+	return AutoExposureMethodId;
+}
+
+bool IsExtendLuminanceRangeEnabled()
 {
 	static const auto VarDefaultAutoExposureExtendDefaultLuminanceRange = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DefaultFeature.AutoExposure.ExtendDefaultLuminanceRange"));
-	const bool bExtendedLuminanceRange = VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
 
+	return VarDefaultAutoExposureExtendDefaultLuminanceRange->GetValueOnRenderThread() == 1;
+}
+
+float GetLuminanceRangeValue(float EV100Value)
+{
+	return IsExtendLuminanceRangeEnabled() ? EV100ToLuminance(EV100Value) : EV100Value;
+}
+
+float GetBasicAutoExposureFocus()
+{
+	const float FocusMax = 10.f;
+	const float FocusValue = CVarEyeAdaptationFocus.GetValueOnRenderThread();
+	return FMath::Max(FMath::Min(FocusValue, FocusMax), 0.0f);
+}
+
+float GetAutoExposureCompensation(const FViewInfo& View)
+{
 	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
 	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
 
-	// ----------
+	// Skip the exposure bias when any of these flags are set.
+	const bool bSkipExposureBias =
+		View.Family->ExposureSettings.bFixed ||
+		View.Family->UseDebugViewPS() ||
+		!EngineShowFlags.Lighting ||
+		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
+		EngineShowFlags.RayTracingDebug ||
+		EngineShowFlags.VisualizeDistanceFieldAO ||
+		EngineShowFlags.VisualizeGlobalDistanceField;
 
-	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
+	if (bSkipExposureBias)
+	{
+		return 1.0f;
+	}
 
-	// Histogram related values.
-	float LowPercent = FMath::Clamp(Settings.AutoExposureLowPercent, 1.0f, 99.0f) * 0.01f;
-	float HighPercent = FMath::Clamp(Settings.AutoExposureHighPercent, 1.0f, 99.0f) * 0.01f;
-	float HistogramLogMin = bExtendedLuminanceRange ? EV100ToLog2(Settings.HistogramLogMin) : Settings.HistogramLogMin;
-	float HistogramLogMax = bExtendedLuminanceRange ? EV100ToLog2(Settings.HistogramLogMax) : Settings.HistogramLogMax;
-	HistogramLogMin = FMath::Min<float>(HistogramLogMin, HistogramLogMax - 1);
-
-	// ----------
-
-	// Those clamps the average luminance computed from the scene color.
-	float MinAverageLuminance = 1;
-	float MaxAverageLuminance = 1;
 	// This scales the average luminance AFTER it gets clamped, affecting the exposure value directly.
 	float AutoExposureBias = Settings.AutoExposureBias;
+
 	if (Settings.AutoExposureBiasCurve)
 	{
-		float AverageSceneLuminance = View.GetLastAverageSceneLuminance();
+		const float AverageSceneLuminance = View.GetLastAverageSceneLuminance();
+
 		if (AverageSceneLuminance > 0)
 		{
 			AutoExposureBias += Settings.AutoExposureBiasCurve->GetFloatValue(LuminanceToEV100(AverageSceneLuminance));
 		}
 	}
 
-	float LocalExposureMultipler = FMath::Pow(2.0f, AutoExposureBias);
-	// This scales the average luminance BEFORE it gets clamped, used to implement the calibration constant for AEM_Basic.
-	float AverageLuminanceScale = 1.f;
+	return FMath::Pow(2.0f, AutoExposureBias);
+}
 
-	// When any of those flags are set, make sure the tonemapper uses an exposure of 1.
-	if (!EngineShowFlags.Lighting 
-		|| (EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) 
-		|| View.Family->UseDebugViewPS() 
-		|| EngineShowFlags.RayTracingDebug 
-		|| EngineShowFlags.VisualizeDistanceFieldAO
-		|| EngineShowFlags.VisualizeGlobalDistanceField)
+FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& View, ERHIFeatureLevel::Type MinFeatureLevel)
+{
+	const FPostProcessSettings& Settings = View.FinalPostProcessSettings;
+
+	const FEngineShowFlags& EngineShowFlags = View.Family->EngineShowFlags;
+
+	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
+
+	const float PercentToScale = 0.01f;
+
+	const float ExposureHighPercent = FMath::Clamp(Settings.AutoExposureHighPercent, 1.0f, 99.0f) * PercentToScale;
+	const float ExposureLowPercent = FMath::Min(FMath::Clamp(Settings.AutoExposureLowPercent, 1.0f, 99.0f) * PercentToScale, ExposureHighPercent);
+
+	const float HistogramLogMax = GetLuminanceRangeValue(Settings.HistogramLogMax);
+	const float HistogramLogMin = FMath::Min(GetLuminanceRangeValue(Settings.HistogramLogMin), HistogramLogMax - 1);
+
+	// These clamp the average luminance computed from the scene color.
+	float MinAverageLuminance = 1.0f;
+	float MaxAverageLuminance = 1.0f;
+
+	// Fixed exposure override in effect.
+	if (View.Family->ExposureSettings.bFixed)
 	{
-		LocalExposureMultipler = 1.f;
-	}
-	// Otherwise handle the viewport override settings.
-	else if (View.Family->ExposureSettings.bFixed)
-	{
-		LocalExposureMultipler = 1.f;
 		MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(View.Family->ExposureSettings.FixedEV100);
 	}
 	// When !EngineShowFlags.EyeAdaptation (from "r.EyeAdaptationQuality 0") or the feature level doesn't support eye adaptation, only Settings.AutoExposureBias controls exposure.
@@ -122,51 +202,44 @@ void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFeatureLevel, co
 			const float FixedEV100 = FMath::Log2(FMath::Square(Settings.DepthOfFieldFstop) * Settings.CameraShutterSpeed * 100 / FMath::Max(1.f, Settings.CameraISO));
 			MinAverageLuminance = MaxAverageLuminance = EV100ToLuminance(FixedEV100);
 		}
-		else if (bExtendedLuminanceRange)
-		{
-			MinAverageLuminance = EV100ToLuminance(Settings.AutoExposureMinBrightness);
-			MaxAverageLuminance = EV100ToLuminance(Settings.AutoExposureMaxBrightness);
-		}
 		else
 		{
-			MinAverageLuminance = Settings.AutoExposureMinBrightness;
-			MaxAverageLuminance = Settings.AutoExposureMaxBrightness;
-		}
-
-		// Note that AEM_Histogram implements the calibration constant through LowPercent and HiPercent.
-		if (AutoExposureMethod == EAutoExposureMethod::AEM_Basic)
-		{
-			const float CalibrationConstant = FMath::Clamp<float>(Settings.AutoExposureCalibrationConstant, 1.f, 100.f) * 0.01f;
-			AverageLuminanceScale = 1.f / CalibrationConstant;
+			MinAverageLuminance = GetLuminanceRangeValue(Settings.AutoExposureMinBrightness);
+			MaxAverageLuminance = GetLuminanceRangeValue(Settings.AutoExposureMaxBrightness);
 		}
 	}
 
-	// ----------
+	// This scales the average luminance BEFORE it gets clamped. Note that AEM_Histogram implements the calibration constant through ExposureLowPercent and ExposureHighPercent.
+	const float CalibrationConstant = FMath::Clamp(Settings.AutoExposureCalibrationConstant, 1.0f, 100.0f) * PercentToScale;
 
-	LowPercent = FMath::Min<float>(LowPercent, HighPercent);
-	MinAverageLuminance = FMath::Min<float>(MinAverageLuminance, MaxAverageLuminance);
+	const float ExposureCompensation = GetAutoExposureCompensation(View);
 
-	Out[0] = FVector4(LowPercent, HighPercent, MinAverageLuminance, MaxAverageLuminance);
+	const float WeightSlope = (AutoExposureMethod == EAutoExposureMethod::AEM_Basic) ? GetBasicAutoExposureFocus() : 0.0f;
 
-	// ----------
+	const float HistogramLogDelta = HistogramLogMax - HistogramLogMin;
+	const float HistogramScale = 1.0f / HistogramLogDelta;
+	const float HistogramBias = -HistogramLogMin * HistogramScale;
+	const float LuminanceMin = FMath::Exp2(HistogramLogMin);
 
-	Out[1] = FVector4(LocalExposureMultipler, View.Family->DeltaWorldTime, Settings.AutoExposureSpeedUp, Settings.AutoExposureSpeedDown);
-
-	// ----------
-
-	float DeltaLog = HistogramLogMax - HistogramLogMin;
-	float Multiply = 1.0f / DeltaLog;
-	float Add = -HistogramLogMin * Multiply;
-	float MinIntensity = FMath::Exp2(HistogramLogMin);
-	Out[2] = FVector4(Multiply, Add, MinIntensity, 0);
-
-	// ----------
-
-	Out[3] = FVector4(0, AverageLuminanceScale, 0, 0);
+	FEyeAdaptationParameters Parameters;
+	Parameters.ExposureLowPercent = ExposureLowPercent;
+	Parameters.ExposureHighPercent = ExposureHighPercent;
+	Parameters.MinAverageLuminance = MinAverageLuminance;
+	Parameters.MaxAverageLuminance = MaxAverageLuminance;
+	Parameters.ExposureCompensation = ExposureCompensation;
+	Parameters.DeltaWorldTime = View.Family->DeltaWorldTime;
+	Parameters.ExposureSpeedUp = Settings.AutoExposureSpeedUp;
+	Parameters.ExposureSpeedDown = Settings.AutoExposureSpeedDown;
+	Parameters.HistogramScale = HistogramScale;
+	Parameters.HistogramBias = HistogramBias;
+	Parameters.LuminanceMin = LuminanceMin;
+	Parameters.CalibrationConstantInverse = 1.0f / CalibrationConstant;
+	Parameters.WeightSlope = WeightSlope;
+	return Parameters;
 }
 
 // Basic AutoExposure requires at least ES3_1
-static ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
+const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
 
 /** Encapsulates the histogram-based post processing eye adaptation pixel shader. */
 class FPostProcessEyeAdaptationPS : public FGlobalShader
@@ -182,13 +255,16 @@ class FPostProcessEyeAdaptationPS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment( Parameters, OutEnvironment );
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	/** Default constructor. */
 	FPostProcessEyeAdaptationPS() {}
 
 public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
+
 	FPostProcessPassParameters PostprocessParameter;
 	FShaderParameter EyeAdaptationParams;
 	FShaderResourceParameter EyeAdaptationTexture;
@@ -197,8 +273,9 @@ public:
 	FPostProcessEyeAdaptationPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
+
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 		EyeAdaptationTexture.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationTexture"));
 	}
 
@@ -221,9 +298,9 @@ public:
 		}
 
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-			FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(Context.View, Temp);
-			SetShaderValueArray(RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View);
+			SetShaderParameters(Context.RHICmdList, this, ShaderRHI, PassParameters);
 		}
 	}
 
@@ -252,13 +329,16 @@ class FPostProcessEyeAdaptationCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	/** Default constructor. */
 	FPostProcessEyeAdaptationCS() {}
 
 public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
+
 	FPostProcessPassParameters PostprocessParameter;
 	FRWShaderParameter OutComputeTex;
 	FShaderParameter EyeAdaptationParams;
@@ -267,9 +347,9 @@ public:
 	FPostProcessEyeAdaptationCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
 		PostprocessParameter.Bind(Initializer.ParameterMap);
 		OutComputeTex.Bind(Initializer.ParameterMap, TEXT("OutComputeTex"));
-		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 	}
 
 	template <typename TRHICmdList>
@@ -281,11 +361,10 @@ public:
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		PostprocessParameter.SetCS(ShaderRHI, Context, RHICmdList, TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
 		OutComputeTex.SetTexture(RHICmdList, ShaderRHI, nullptr, DestUAV);		
-		
-		// PS params
-		FVector4 EyeAdaptationParamValues[EYE_ADAPTATION_PARAMS_SIZE];
-		FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(Context.View, EyeAdaptationParamValues);
-		SetShaderValueArray(RHICmdList, ShaderRHI, EyeAdaptationParams, EyeAdaptationParamValues, EYE_ADAPTATION_PARAMS_SIZE);
+
+		FParameters PassParameters;
+		PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View);
+		SetShaderParameters(RHICmdList, this, ShaderRHI, PassParameters);
 	}
 
 	template <typename TRHICmdList>
@@ -429,22 +508,15 @@ void FRCPassPostProcessEyeAdaptation::DispatchCS(TRHICmdList& RHICmdList, FRende
 	ComputeShader->UnsetParameters(RHICmdList);
 }
 
-void FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(const FViewInfo& View, FVector4 Out[EYE_ADAPTATION_PARAMS_SIZE])
-{
-	ComputeEyeAdaptationValues(ERHIFeatureLevel::SM5, View, Out);
-}
-
 float FRCPassPostProcessEyeAdaptation::GetFixedExposure(const FViewInfo& View)
 {
-	FVector4 EyeAdaptationParams[EYE_ADAPTATION_PARAMS_SIZE];
-	FRCPassPostProcessEyeAdaptation::ComputeEyeAdaptationParamsValue(View, EyeAdaptationParams);
+	const FEyeAdaptationParameters Parameters = GetEyeAdaptationParameters(View);
 	
-	// like in PostProcessEyeAdaptation.usf (EyeAdaptationParams[0].ZW : Min/Max Intensity)
-	const float Exposure = (EyeAdaptationParams[0].Z + EyeAdaptationParams[0].W) * 0.5f;
-	const float ExposureOffsetMultipler = EyeAdaptationParams[1].X;
+	const float Exposure = (Parameters.MinAverageLuminance + Parameters.MaxAverageLuminance) * 0.5f;
 
 	const float ExposureScale = 1.0f / FMath::Max(0.0001f, Exposure);
-	return ExposureScale * ExposureOffsetMultipler;
+
+	return ExposureScale * Parameters.ExposureCompensation;
 }
 
 void FSceneViewState::UpdatePreExposure(FViewInfo& View)
@@ -530,6 +602,10 @@ class FPostProcessBasicEyeAdaptationSetupPS : public FGlobalShader
 {
 	DECLARE_SHADER_TYPE(FPostProcessBasicEyeAdaptationSetupPS, Global);
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, BasicEyeAdaptationMinFeatureLevel);
@@ -538,7 +614,6 @@ class FPostProcessBasicEyeAdaptationSetupPS : public FGlobalShader
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	/** Default constructor. */
@@ -552,8 +627,8 @@ public:
 	FPostProcessBasicEyeAdaptationSetupPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 	}
 
 	void SetPS(const FRenderingCompositePassContext& Context)
@@ -564,9 +639,9 @@ public:
 		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-			ComputeEyeAdaptationValues(BasicEyeAdaptationMinFeatureLevel, Context.View, Temp);
-			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View, BasicEyeAdaptationMinFeatureLevel);
+			SetShaderParameters(Context.RHICmdList, this, ShaderRHI, PassParameters);
 		}
 	}
 
@@ -666,15 +741,19 @@ FPooledRenderTargetDesc FRCPassPostProcessBasicEyeAdaptationSetUp::ComputeOutput
 class FPostProcessLogLuminance2ExposureScaleBase: public FGlobalShader
 {
 public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+	END_SHADER_PARAMETER_STRUCT()
 
 	FPostProcessLogLuminance2ExposureScaleBase() {}
 
 	FPostProcessLogLuminance2ExposureScaleBase(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
+		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
+
 		PostprocessParameter.Bind(Initializer.ParameterMap);
 		EyeAdaptationTexture.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationTexture"));
-		EyeAdaptationParams.Bind(Initializer.ParameterMap, TEXT("EyeAdaptationParams"));
 		EyeAdaptationSrcRect.Bind(Initializer.ParameterMap, TEXT("EyeAdaptionSrcRect"));
 	}
 
@@ -683,7 +762,6 @@ public:
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetRenderTargetOutputFormat(0, PF_A32B32G32R32F);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 	}
 
 	// FShader interface.
@@ -750,15 +828,9 @@ public:
 
 		// Pack the eye adaptation parameters for the shader
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-			// static computation function
-			ComputeEyeAdaptationValues(BasicEyeAdaptationMinFeatureLevel, Context.View, Temp);
-			// Log-based computation of the exposure scale has a built in scaling.
-			//Temp[1].X *= 0.16;  
-			//Encode the eye-focus slope
-			// Get the focus value for the eye-focus weighting
-			Temp[2].W = GetBasicAutoExposureFocus();
-			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View, BasicEyeAdaptationMinFeatureLevel);
+			SetShaderParameters(Context.RHICmdList, this, ShaderRHI, PassParameters);
 		}
 
 		// Set the src extent for the shader
@@ -770,10 +842,8 @@ IMPLEMENT_SHADER_TYPE(, FPostProcessLogLuminance2ExposureScalePS, TEXT("/Engine/
 
 class FPostProcessLogLuminance2ExposureScaleCS : public FPostProcessLogLuminance2ExposureScaleBase
 {
-	DECLARE_SHADER_TYPE(FPostProcessLogLuminance2ExposureScaleCS, Global);
-
-
 public:
+	DECLARE_SHADER_TYPE(FPostProcessLogLuminance2ExposureScaleCS, Global);
 
 	/** Default constructor. */
 	FPostProcessLogLuminance2ExposureScaleCS()
@@ -828,15 +898,9 @@ public:
 
 		// Pack the eye adaptation parameters for the shader
 		{
-			FVector4 Temp[EYE_ADAPTATION_PARAMS_SIZE];
-			// static computation function
-			ComputeEyeAdaptationValues(BasicEyeAdaptationMinFeatureLevel, Context.View, Temp);
-			// Log-based computation of the exposure scale has a built in scaling.
-			//Temp[1].X *= 0.16;  
-			//Encode the eye-focus slope
-			// Get the focus value for the eye-focus weighting
-			Temp[2].W = GetBasicAutoExposureFocus();
-			SetShaderValueArray(Context.RHICmdList, ShaderRHI, EyeAdaptationParams, Temp, EYE_ADAPTATION_PARAMS_SIZE);
+			FParameters PassParameters;
+			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View, BasicEyeAdaptationMinFeatureLevel);
+			SetShaderParameters(Context.RHICmdList, this, ShaderRHI, PassParameters);
 		}
 
 		// Set the src extent for the shader

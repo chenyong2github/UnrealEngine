@@ -32,9 +32,9 @@ public:
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, Input)
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HistogramRWTexture)
-		SHADER_PARAMETER_ARRAY(FVector4, EyeAdaptationParams, [EYE_ADAPTATION_PARAMS_SIZE])
 		SHADER_PARAMETER(FIntPoint, ThreadGroupCount)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -51,7 +51,6 @@ public:
 		OutEnvironment.SetDefine(TEXT("LOOP_SIZEX"), LoopCountX);
 		OutEnvironment.SetDefine(TEXT("LOOP_SIZEY"), LoopCountY);
 		OutEnvironment.SetDefine(TEXT("HISTOGRAM_SIZE"), HistogramSize);
-		OutEnvironment.SetDefine(TEXT("EYE_ADAPTATION_PARAMS_SIZE"), (uint32)EYE_ADAPTATION_PARAMS_SIZE);
 		OutEnvironment.CompilerFlags.Add( CFLAG_StandardOptimization );
 	}
 
@@ -136,7 +135,7 @@ FRDGTextureRef AddHistogramPass(
 		PassParameters->InputTexture = SceneColorTexture;
 		PassParameters->HistogramRWTexture = GraphBuilder.CreateUAV(HistogramTexture);
 		PassParameters->ThreadGroupCount = HistogramThreadGroupCount;
-		ComputeEyeAdaptationValues(ERHIFeatureLevel::SM5, ScreenPassView.View, &PassParameters->EyeAdaptationParams[0]);
+		PassParameters->EyeAdaptation = GetEyeAdaptationParameters(ScreenPassView.View);
 
 		TShaderMapRef<FHistogramCS> ComputeShader(ScreenPassView.View.ShaderMap);
 
