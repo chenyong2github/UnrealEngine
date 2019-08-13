@@ -532,7 +532,10 @@ bool FWidgetBlueprintEditorUtils::ReplaceNamedSlotHostContent(UWidget* WidgetTem
 		{
 			if (SlotContent == WidgetTemplate)
 			{
-				NewContentWidget->Modify();
+				if (NewContentWidget)
+				{
+					NewContentWidget->Modify();
+				}
 				NamedSlotHost.GetObject()->Modify();
 				NamedSlotHost->SetContentForSlot(SlotName, NewContentWidget);
 				return true;
