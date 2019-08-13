@@ -163,6 +163,11 @@ public:
 		return true;
 	}
 
+	virtual void Reset() override
+	{
+		Texture = nullptr;
+	}
+	
 private:
 
 	/** Width and height of the texture sample. */
