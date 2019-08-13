@@ -210,6 +210,10 @@ class ENGINE_API UAnimBlueprintGeneratedClass : public UBlueprintGeneratedClass,
 	UPROPERTY()
 	TArray<FExposedValueHandler> EvaluateGraphExposedInputs;
 
+	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
+	UPROPERTY()
+	TMap<FName, FGraphAssetPlayerInformation> GraphAssetPlayerInformation;
+
 public:
 
 	virtual const TArray<FBakedAnimationStateMachine>& GetBakedStateMachines() const override { return BakedStateMachines; }
@@ -223,6 +227,7 @@ public:
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
 	virtual const TArray<FAnimBlueprintFunction>& GetAnimBlueprintFunctions() const override { return AnimBlueprintFunctions; }
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const override { return GraphAssetPlayerInformation; }
 	
 public:
 #if WITH_EDITORONLY_DATA

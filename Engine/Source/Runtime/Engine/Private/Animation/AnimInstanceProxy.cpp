@@ -23,6 +23,7 @@
 #define DO_ANIMSTAT_PROCESSING(StatName) DEFINE_STAT(STAT_ ## StatName ## _WorkerThread)
 #include "Animation/AnimMTStats.h"
 #include "Animation/AnimNode_Root.h"
+#include "Animation/AnimNode_Layer.h"
 #undef DO_ANIMSTAT_PROCESSING
 
 #define LOCTEXT_NAMESPACE "AnimInstance"
@@ -2317,6 +2318,29 @@ void FAnimInstanceProxy::ResetDynamics(ETeleportType InTeleportType)
 void FAnimInstanceProxy::ResetDynamics()
 {
 	ResetDynamics(ETeleportType::ResetPhysics);
+}
+
+TArray<FAnimNode_AssetPlayerBase*> FAnimInstanceProxy::GetInstanceAssetPlayers(const FName& GraphName)
+{
+	TArray<FAnimNode_AssetPlayerBase*> Nodes;
+
+	// Retrieve all asset player nodes from the (named) Animation Layer Graph	
+	if (AnimClassInterface)
+	{
+		const TMap<FName, FGraphAssetPlayerInformation>& GrapInformationMap = AnimClassInterface->GetGraphAssetPlayerInformation();
+		if (const FGraphAssetPlayerInformation* Information = GrapInformationMap.Find(GraphName))
+		{
+			for (const int32& NodeIndex : Information->PlayerNodeIndices)
+			{
+				if (FAnimNode_AssetPlayerBase* Node = GetNodeFromIndex<FAnimNode_AssetPlayerBase>(NodeIndex))
+				{
+					Nodes.Add(Node);
+				}
+			}
+		}
+	}
+
+	return Nodes;
 }
 
 #if WITH_EDITOR

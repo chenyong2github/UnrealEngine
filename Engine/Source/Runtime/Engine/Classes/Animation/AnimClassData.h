@@ -50,6 +50,10 @@ public:
 	UPROPERTY()
 	TArray<UStructProperty*> LayerNodeProperties;
 
+	// Indices for any Asset Player found within a specific (named) Anim Layer Graph, or implemented Anim Interface Graph
+	UPROPERTY()
+	TMap<FName, FGraphAssetPlayerInformation> GraphNameAssetPlayers;
+
 	// Array of sync group names in the order that they are requested during compile
 	UPROPERTY()
 	TArray<FName> SyncGroupNames;
@@ -71,6 +75,7 @@ public:
 	virtual const TArray<FName>& GetSyncGroupNames() const override { return SyncGroupNames; }
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const override { return SyncGroupNames.IndexOfByKey(SyncGroupName); }
 	virtual const TArray<FExposedValueHandler>& GetExposedValueHandlers() const { return EvaluateGraphExposedInputs; }
+	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const { return GraphNameAssetPlayers; }
 
 #if WITH_EDITOR
 	void CopyFrom(IAnimClassInterface* AnimClass)
@@ -86,6 +91,7 @@ public:
 		LayerNodeProperties = AnimClass->GetLayerNodeProperties();
 		SyncGroupNames = AnimClass->GetSyncGroupNames();
 		EvaluateGraphExposedInputs = AnimClass->GetExposedValueHandlers();
+		GraphNameAssetPlayers = AnimClass->GetGraphAssetPlayerInformation();
 	}
 #endif // WITH_EDITOR
 };
