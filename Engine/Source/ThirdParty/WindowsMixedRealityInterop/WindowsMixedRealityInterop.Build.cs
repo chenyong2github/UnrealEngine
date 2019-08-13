@@ -44,7 +44,6 @@ public class WindowsMixedRealityInterop : ModuleRules
             string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");
             if (File.Exists(SceneUnderstandingPath))
             {
-                PublicDelayLoadDLLs.Add("Microsoft.MixedReality.SceneUnderstanding.dll");
                 RuntimeDependencies.Add(SceneUnderstandingPath);
                 PublicDefinitions.Add("WITH_SCENE_UNDERSTANDING=1");
             }
