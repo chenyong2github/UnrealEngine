@@ -24,8 +24,6 @@ public:
 private:
 	FReply DeleteClicked();
 
-	TSharedRef<SWidget> OnGetAvailableHandleMenu();
-
 	TSharedRef<SWidget> ConstructValueStructWidget();
 
 	void OnInputValueChanged();
