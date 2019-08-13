@@ -3,6 +3,10 @@
 #pragma once
 
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
+#include "Delegates/DelegateCombinations.h"
+
+class SEditableTextBox;
 
 /** An editable text block which validates input with a delegate. */
 class SEditableTextBoxWithVerification : public SCompoundWidget
