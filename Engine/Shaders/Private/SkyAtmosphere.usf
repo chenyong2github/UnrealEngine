@@ -340,7 +340,7 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 		float3 LightDiskLuminance = GetLightDiskLuminance(
 			WorldPos, WorldDir, Atmosphere.BottomRadius, Atmosphere.TopRadius,
 			TransmittanceLutTexture, TransmittanceLutTextureSampler,
-			View.AtmosphereLightDirection[LightIndex].xyz, View.AtmosphereLightDiscCosHalfApexAngle[LightIndex], View.AtmosphereLightDiscLuminance[LightIndex].xyz);
+			View.AtmosphereLightDirection[LightIndex].xyz, View.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x, View.AtmosphereLightDiscLuminance[LightIndex].xyz);
 
 		// Clamp to avoid crazy high values (and exposed 64000.0f luminance is already crazy high, solar system sun is 1.6x10^9). Also this removes +inf float and helps TAA.
 		const float3 MaxLightLuminance = 64000.0f;
@@ -349,7 +349,7 @@ float3 GetLightDiskLuminance(float3 WorldPos, float3 WorldDir, uint LightIndex)
 
 #if 1
 		const float ViewDotLight = dot(WorldDir, View.AtmosphereLightDirection[LightIndex].xyz);
-		const float CosHalfApex = View.AtmosphereLightDiscCosHalfApexAngle[LightIndex];
+		const float CosHalfApex = View.AtmosphereLightDiscCosHalfApexAngle[LightIndex].x;
 		const float HalfCosHalfApex = CosHalfApex + (1.0f - CosHalfApex) * 0.25; // Start fading when at 75% distance from light disk center (in cosine space)
 
 		// Apply smooth fading at edge. This is currently an eye balled fade out that works well in many cases.

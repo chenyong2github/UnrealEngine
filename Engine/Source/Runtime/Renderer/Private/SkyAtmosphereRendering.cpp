@@ -205,16 +205,16 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
 	SHADER_PARAMETER(float, FastSkyDistanceToSampleCountMaxInv)
 
 	SHADER_PARAMETER(FVector4, CameraAerialPerspectiveVolumeSizeAndInvSize)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolution)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolutionInv)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLength)
-	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLengthInv)
+	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolution)		// Also on View UB
+	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthResolutionInv)	// Also on View UB
+	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLength)		// Also on View UB
+	SHADER_PARAMETER(float, CameraAerialPerspectiveVolumeDepthSliceLengthInv)	// Also on View UB
 	SHADER_PARAMETER(float, CameraAerialPerspectiveSampleCountPerSlice)
 	SHADER_PARAMETER(float, AerialPerspectiveStartDepth)
 
 	SHADER_PARAMETER(FVector4, TransmittanceLutSizeAndInvSize)
 	SHADER_PARAMETER(FVector4, MultiScatteredLuminanceLutSizeAndInvSize)
-	SHADER_PARAMETER(FVector4, SkyViewLutSizeAndInvSize)
+	SHADER_PARAMETER(FVector4, SkyViewLutSizeAndInvSize)						// Also on View UB
 
 	SHADER_PARAMETER(float, TransmittanceSampleCount)
 	SHADER_PARAMETER(float, MultiScatteringSampleCount)

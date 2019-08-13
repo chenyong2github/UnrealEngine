@@ -543,7 +543,7 @@ float3 GetSunColor(float3 X, float T, float3 V, float3 S, float Radius, float Mu
     }
 	else 
 	{
-		float SunDiskMask = step(View.AtmosphereLightDiscCosHalfApexAngle[0], dot(V, S));
+		float SunDiskMask = step(View.AtmosphereLightDiscCosHalfApexAngle[0].x, dot(V, S));
         return TransmittanceValue * SunDiskMask * View.AtmosphereLightDiscLuminance[0].rgb; // Eq (9)
     }
 }
