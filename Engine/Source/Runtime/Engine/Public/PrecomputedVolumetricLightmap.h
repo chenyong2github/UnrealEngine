@@ -9,14 +9,13 @@
 #include "CoreMinimal.h"
 #include "Misc/Guid.h"
 #include "Math/SHMath.h"
-#include "Containers/ResourceArray.h"
+#include "Containers/DynamicRHIResourceArray.h"
 #include "PixelFormat.h"
 #include "Math/PackedVector.h"
 #include "RHI.h"
 #include "RenderResource.h"
 #include "ShaderParameterStruct.h"
 #include "GlobalShader.h"
-#include "Containers/DynamicRHIResourceArray.h"
 
 class FSceneInterface;
 

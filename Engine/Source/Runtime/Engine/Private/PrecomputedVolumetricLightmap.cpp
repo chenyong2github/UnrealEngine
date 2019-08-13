@@ -13,7 +13,6 @@
 #include "Engine/MapBuildDataRegistry.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/MobileObjectVersion.h"
-#include "Containers/DynamicRHIResourceArray.h"
 #include "RenderGraphUtils.h"
 
 DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData,STATGROUP_MapBuildData);
