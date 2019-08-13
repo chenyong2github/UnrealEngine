@@ -3502,6 +3502,34 @@ namespace WindowsMixedReality
 		StopMeshObserver();
 	}
 
+	void MixedRealityInterop::StartSceneUnderstanding(
+		bool bGeneratePlanes,
+		bool bGenerateSceneMeshes,
+		float InVolumeSize,
+		void(*StartFunctionPointer)(),
+		void(*AddPlaneFunctionPointer)(PlaneUpdate*),
+		void(*RemovePlaneFunctionPointer)(PlaneUpdate*),
+		void(*AllocMeshFunctionPointer)(MeshUpdate*),
+		void(*RemoveMeshFunctionPointer)(MeshUpdate*),
+		void(*FinishFunctionPointer)()
+	)
+	{
+		StartSceneUnderstandingObserver(bGeneratePlanes,
+			bGenerateSceneMeshes,
+			InVolumeSize,
+			StartFunctionPointer,
+			AddPlaneFunctionPointer,
+			RemovePlaneFunctionPointer,
+			AllocMeshFunctionPointer,
+			RemoveMeshFunctionPointer,
+			FinishFunctionPointer);
+	}
+
+	void MixedRealityInterop::StopSceneUnderstanding()
+	{
+		StopSceneUnderstandingObserver();
+	}
+
 	void MixedRealityInterop::StartQRCodeTracking(void(*AddedFunctionPointer)(QRCodeData*), void(*UpdatedFunctionPointer)(QRCodeData*), void(*RemovedFunctionPointer)(QRCodeData*))
 	{
 		StartQRCodeObserver(AddedFunctionPointer, UpdatedFunctionPointer, RemovedFunctionPointer);
