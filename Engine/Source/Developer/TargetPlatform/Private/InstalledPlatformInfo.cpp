@@ -58,11 +58,7 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 
 	FString ConfigurationName;
 	EBuildConfiguration Configuration = EBuildConfiguration::Unknown;
-	if (FParse::Value(*PlatformConfiguration, TEXT("Configuration="), ConfigurationName))
-	{
-		LexFromString(Configuration, *ConfigurationName);
-	}
-	if (Configuration == EBuildConfiguration::Unknown)
+	if (!FParse::Value(*PlatformConfiguration, TEXT("Configuration="), ConfigurationName) || !LexTryParseString(Configuration, *ConfigurationName) || Configuration == EBuildConfiguration::Unknown)
 	{
 		UE_LOG(LogInstalledPlatforms, Warning, TEXT("Unable to read configuration from %s"), *PlatformConfiguration);
 		bCanCreateEntry = false;
@@ -76,10 +72,10 @@ void FInstalledPlatformInfo::ParsePlatformConfiguration(FString PlatformConfigur
 	}
 
 	FString PlatformTypeName;
-	EBuildTargetType PlatformType = EBuildTargetType::Game;
-	if (FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName))
+	EBuildTargetType PlatformType;
+	if (!FParse::Value(*PlatformConfiguration, TEXT("PlatformType="), PlatformTypeName) || !LexTryParseString(PlatformType, *PlatformTypeName))
 	{
-		LexFromString(PlatformType, *PlatformTypeName);
+		PlatformType = EBuildTargetType::Game;
 	}
 
 	FString Architecture;

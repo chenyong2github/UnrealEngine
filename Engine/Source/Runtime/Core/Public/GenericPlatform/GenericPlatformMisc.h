@@ -56,7 +56,7 @@ enum class EBuildConfiguration : uint8
  * @param Configuration The string to get the EBuildConfiguration for.
  * @return An EBuildConfiguration value.
  */
-CORE_API void LexFromString( EBuildConfiguration& OutConfiguration, const TCHAR* Configuration );
+CORE_API bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Configuration);
 
 /**
  * Returns the string representation of the specified EBuildConfiguration value.
@@ -64,7 +64,7 @@ CORE_API void LexFromString( EBuildConfiguration& OutConfiguration, const TCHAR*
  * @param Configuration The value to get the string for.
  * @return The string representation.
  */
-CORE_API const TCHAR* LexToString( EBuildConfiguration Configuration );
+CORE_API const TCHAR* LexToString(EBuildConfiguration Configuration);
 
 namespace EBuildConfigurations
 {
@@ -147,7 +147,7 @@ enum class EBuildTargetType : uint8
  * @param Text The text to parse.
  * @return The string representation.
  */
-CORE_API void LexFromString(EBuildTargetType& OutType, const TCHAR* Text);
+CORE_API bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Text);
 
 /**
  * Returns the string representation of the specified EBuildTargetType value.

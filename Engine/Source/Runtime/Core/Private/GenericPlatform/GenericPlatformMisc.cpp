@@ -52,31 +52,42 @@ CORE_API void (*ClipboardPasteShim)(FString& Dest) = nullptr;
 /* EBuildConfigurations interface
  *****************************************************************************/
 
-void LexFromString( EBuildConfiguration& OutConfiguration, const TCHAR* Configuration )
+bool LexTryParseString(EBuildConfiguration& OutConfiguration, const TCHAR* Configuration)
 {
 	if (FCString::Stricmp(Configuration, TEXT("Debug")) == 0)
 	{
 		OutConfiguration = EBuildConfiguration::Debug;
+		return true;
 	}
 	else if (FCString::Stricmp(Configuration, TEXT("DebugGame")) == 0)
 	{
 		OutConfiguration = EBuildConfiguration::DebugGame;
+		return true;
 	}
 	else if (FCString::Stricmp(Configuration, TEXT("Development")) == 0)
 	{
 		OutConfiguration = EBuildConfiguration::Development;
+		return true;
 	}
 	else if (FCString::Stricmp(Configuration, TEXT("Shipping")) == 0)
 	{
 		OutConfiguration = EBuildConfiguration::Shipping;
+		return true;
 	}
 	else if(FCString::Stricmp(Configuration, TEXT("Test")) == 0)
 	{
 		OutConfiguration = EBuildConfiguration::Test;
+		return true;
+	}
+	else if(FCString::Stricmp(Configuration, TEXT("Unknown")) == 0)
+	{
+		OutConfiguration = EBuildConfiguration::Unknown;
+		return true;
 	}
 	else
 	{
 		OutConfiguration = EBuildConfiguration::Unknown;
+		return false;
 	}
 }
 
@@ -104,7 +115,7 @@ namespace EBuildConfigurations
 	EBuildConfiguration FromString( const FString& Configuration )
 	{
 		EBuildConfiguration Result;
-		LexFromString(Result, *Configuration);
+		LexTryParseString(Result, *Configuration);
 		return Result;
 	}
 
@@ -142,31 +153,42 @@ namespace EBuildConfigurations
 /* EBuildTargetType functions
  *****************************************************************************/
 
-void LexFromString(EBuildTargetType& OutType, const TCHAR* Type)
+bool LexTryParseString(EBuildTargetType& OutType, const TCHAR* Type)
 {
 	if (FCString::Strcmp(Type, TEXT("Editor")) == 0)
 	{
 		OutType = EBuildTargetType::Editor;
+		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Game")) == 0)
 	{
 		OutType = EBuildTargetType::Game;
+		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Server")) == 0)
 	{
 		OutType = EBuildTargetType::Server;
+		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Client")) == 0)
 	{
 		OutType = EBuildTargetType::Client;
+		return true;
 	}
 	else if (FCString::Strcmp(Type, TEXT("Program")) == 0)
 	{
 		OutType = EBuildTargetType::Program;
+		return true;
+	}
+	else if (FCString::Strcmp(Type, TEXT("Unknown")) == 0)
+	{
+		OutType = EBuildTargetType::Unknown;
+		return true;
 	}
 	else
 	{
 		OutType = EBuildTargetType::Unknown;
+		return false;
 	}
 }
 
@@ -192,7 +214,7 @@ const TCHAR* LexToString(EBuildTargetType Type)
 EBuildTargetType EBuildTargets::FromString(const FString& Target)
 {
 	EBuildTargetType Type;
-	LexFromString(Type, *Target);
+	LexTryParseString(Type, *Target);
 	return Type;
 }
 

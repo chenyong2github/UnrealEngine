@@ -1426,10 +1426,7 @@ bool FDesktopPlatformBase::ReadTargetInfo(const FString& FileName, TArray<FTarge
 		{
 			return false;
 		}
-
-		LexFromString(Targets[Idx].Type, *Type);
-
-		if (Targets[Idx].Type == EBuildTargetType::Unknown)
+		if(!LexTryParseString(Targets[Idx].Type, *Type) || Targets[Idx].Type == EBuildTargetType::Unknown)
 		{
 			return false;
 		}
