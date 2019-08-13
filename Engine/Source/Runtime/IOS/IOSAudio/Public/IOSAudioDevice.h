@@ -12,6 +12,7 @@
 #include "Sound/SoundWave.h"
 #include "DSP/ParamInterpolator.h"
 #include "DSP/OnePole.h"
+#include "AudioDecompress.h"
 
 /*------------------------------------------------------------------------------------
 	Audio Framework system headers
@@ -93,7 +94,7 @@ public:
 	uint32 BufferSize;
 	
 	/** Wrapper to assist in the bookkeeping of uncompressed data when streaming */
-	class FADPCMAudioInfo*		DecompressionState;
+	ICompressedAudioInfo* DecompressionState;
 	bool	bStreaming;
 	bool    bIsProcedural;
 };
