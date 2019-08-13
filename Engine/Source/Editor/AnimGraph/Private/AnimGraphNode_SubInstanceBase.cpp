@@ -227,6 +227,35 @@ void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& Deta
 {
 	Super::CustomizeDetails(DetailBuilder);
 
+	GenerateExposedPinsDetails(DetailBuilder);
+
+	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
+
+	// Customize InstanceClass
+	{
+		TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
+		ClassHandle->MarkHiddenByCustomization();
+
+		FDetailWidgetRow& ClassWidgetRow = CategoryBuilder.AddCustomRow(LOCTEXT("FilterStringInstanceClass", "Instance Class"));
+		ClassWidgetRow.NameContent()
+		[
+			ClassHandle->CreatePropertyNameWidget()
+		]
+		.ValueContent()
+		.MinDesiredWidth(250.0f)
+		[
+			SNew(SObjectPropertyEntryBox)
+			.ObjectPath_UObject(this, &UAnimGraphNode_SubInstanceBase::GetCurrentInstanceBlueprintPath)
+			.AllowedClass(UAnimBlueprint::StaticClass())
+			.NewAssetFactories(TArray<UFactory*>())
+			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint))
+			.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint, &DetailBuilder))
+		];
+	}
+}
+
+void UAnimGraphNode_SubInstanceBase::GenerateExposedPinsDetails(IDetailLayoutBuilder &DetailBuilder)
+{
 	// We dont allow multi-select here
 	if(DetailBuilder.GetSelectedObjects().Num() > 1)
 	{
@@ -322,30 +351,6 @@ void UAnimGraphNode_SubInstanceBase::CustomizeDetails(IDetailLayoutBuilder& Deta
 				]
 			];
 		}
-	}
-
-	IDetailCategoryBuilder& CategoryBuilder = DetailBuilder.EditCategory(FName(TEXT("Settings")));
-
-	// Customize InstanceClass
-	{
-		TSharedRef<IPropertyHandle> ClassHandle = DetailBuilder.GetProperty(TEXT("Node.InstanceClass"), GetClass());
-		ClassHandle->MarkHiddenByCustomization();
-
-		FDetailWidgetRow& ClassWidgetRow = CategoryBuilder.AddCustomRow(LOCTEXT("FilterStringInstanceClass", "Instance Class"));
-		ClassWidgetRow.NameContent()
-		[
-			ClassHandle->CreatePropertyNameWidget()
-		]
-		.ValueContent()
-		.MinDesiredWidth(250.0f)
-		[
-			SNew(SObjectPropertyEntryBox)
-			.ObjectPath_UObject(this, &UAnimGraphNode_SubInstanceBase::GetCurrentInstanceBlueprintPath)
-			.AllowedClass(UAnimBlueprint::StaticClass())
-			.NewAssetFactories(TArray<UFactory*>())
-			.OnShouldFilterAsset(FOnShouldFilterAsset::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnShouldFilterInstanceBlueprint))
-			.OnObjectChanged(FOnSetObject::CreateUObject(this, &UAnimGraphNode_SubInstanceBase::OnSetInstanceBlueprint, &DetailBuilder))
-		];
 	}
 }
 
