@@ -751,6 +751,17 @@ void FAudioDeviceManager::UpdateSourceEffectChain(const uint32 SourceEffectChain
 	}
 }
 
+void FAudioDeviceManager::UpdateSubmix(USoundSubmix* SoundSubmix)
+{
+	for (FAudioDevice* AudioDevice : Devices)
+	{
+		if (AudioDevice)
+		{
+			AudioDevice->UpdateSubmixProperties(SoundSubmix);
+		}
+	}
+}
+
 void FAudioDeviceManager::SetActiveDevice(uint32 InAudioDeviceHandle)
 {
 	// Only change the active device if there are no solo'd audio devices

@@ -912,6 +912,50 @@ namespace Audio
 		SourceManager.UpdateSourceEffectChain(SourceEffectChainId, SourceEffectChain, bPlayEffectChainTails);
 	}
 
+	void FMixerDevice::UpdateSubmixProperties(USoundSubmix* InSoundSubmix)
+	{
+		check(InSoundSubmix);
+
+#if WITH_EDITOR
+		check(IsInAudioThread());
+
+		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
+		if (MixerSubmix)
+		{
+			float NewVolume = InSoundSubmix->OutputVolume;
+			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
+			{
+				(*MixerSubmix)->SetOutputVolume(NewVolume);
+			});
+		}
+#endif // WITH_EDITOR
+	}
+
+	void FMixerDevice::SetSubmixOutputVolume(USoundSubmix* InSoundSubmix, float NewVolume)
+	{
+		if (!IsInAudioThread())
+		{
+			DECLARE_CYCLE_STAT(TEXT("FAudioThreadTask.SetSubmixOutputVolume"), STAT_AudioSetSubmixOutputVolume, STATGROUP_AudioThreadCommands);
+
+			FMixerDevice* MixerDevice = this;
+			FAudioThread::RunCommandOnAudioThread([MixerDevice, InSoundSubmix, NewVolume]()
+			{
+				CSV_SCOPED_TIMING_STAT(Audio, SetSubmixOutputVolume);
+				MixerDevice->SetSubmixOutputVolume(InSoundSubmix, NewVolume);
+			}, GET_STATID(STAT_AudioSetSubmixOutputVolume));
+			return;
+		}
+
+		FMixerSubmixPtr* MixerSubmix = Submixes.Find(InSoundSubmix);
+		if (MixerSubmix)
+		{
+			AudioRenderThreadCommand([MixerSubmix, NewVolume]()
+			{
+				(*MixerSubmix)->SetDynamicOutputVolume(NewVolume);
+			});
+		}
+	}
+
 	bool FMixerDevice::GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries)
 	{
 		TArray<FSourceEffectChainEntry>* ExistingOverride = SourceEffectChainOverrides.Find(SourceEffectChainId);
