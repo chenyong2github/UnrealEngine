@@ -15,14 +15,8 @@ class FNiagaraObjectSelection;
 struct FNiagaraGraphViewSettings;
 
 /** A view model for editing a niagara system in a graph editor. */
-class FNiagaraOverviewGraphViewModel : public TSharedFromThis<FNiagaraOverviewGraphViewModel>
+class FNiagaraOverviewGraphViewModel : public TSharedFromThis<FNiagaraOverviewGraphViewModel>, public FEditorUndoClient
 {
-public:
-	/** A multicast delegate which is called when nodes are pasted in the graph which supplies the pasted nodes. */
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodesPasted, const TSet<UEdGraphNode*>&);
-
-	DECLARE_MULTICAST_DELEGATE(FOnGraphChanged);
-
 public:
 	/** Create a new view model with the supplied system editor data and graph widget. */
 	FNiagaraOverviewGraphViewModel();
@@ -51,8 +45,9 @@ public:
 
 	NIAGARAEDITOR_API void SetViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings);
 
-	/** Gets a multicast delegate which is called any time nodes are pasted in the graph. */
-	FOnNodesPasted& OnNodesPasted();
+	//~ FEditorUndoClient interface.
+	virtual void PostUndo(bool bSuccess) override;
+	virtual void PostRedo(bool bSuccess) override { PostUndo(bSuccess); }
 	
 private:
 	void SetupCommands();
@@ -90,12 +85,6 @@ private:
 
 	/** The set of nodes objects currently selected in the graph. */
 	TSharedRef<FNiagaraObjectSelection> NodeSelection;
-
-	/** A multicast delegate which is called whenever nodes are pasted into the graph. */
-	FOnNodesPasted OnNodesPastedDelegate;
-
-	/** A multicast delegate which is called whenever the graph object is changed to a different graph. */
-	FOnGraphChanged OnGraphChangedDelegate;
 
 	bool bUpdatingSystemSelectionFromGraph;
 
