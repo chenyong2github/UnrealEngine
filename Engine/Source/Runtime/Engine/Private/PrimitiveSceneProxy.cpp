@@ -219,7 +219,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
 	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
 
-	// Setup the runtime virtual texture information and flush the virtual texture if necessary
+	// Setup the runtime virtual texture information
 	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
 	{
 		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
@@ -228,10 +228,6 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
 				RuntimeVirtualTextureMaterialTypes.AddUnique(VirtualTexture->GetMaterialType());
-			
-				//todo[vt]: Only flush this specific virtual texture
-				//todo[vt]: Only flush primitive bounds 
-				GetRendererModule().FlushVirtualTextureCache();
 			}
 		}
 	}
@@ -264,13 +260,6 @@ void FPrimitiveSceneProxy::SetUsedMaterialForVerification(const TArray<UMaterial
 FPrimitiveSceneProxy::~FPrimitiveSceneProxy()
 {
 	check(IsInRenderingThread());
-
-	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
-	{
-		//todo[vt]: Only flush Bounds 
-		//todo[vt]: Only flush specific virtual textures
-		GetRendererModule().FlushVirtualTextureCache();
-	}
 }
 
 HHitProxy* FPrimitiveSceneProxy::CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)

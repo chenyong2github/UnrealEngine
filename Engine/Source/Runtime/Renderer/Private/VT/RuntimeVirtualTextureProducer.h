@@ -33,6 +33,9 @@ public:
 	/** Returns false if we don't yet have everything we need to render a VT page. */
 	bool IsReady();
 
+	/** Does some one time work at the first call to set up the Producer */
+	void InitProducer(const FVirtualTextureProducerHandle& ProducerHandle);
+
 	/** Add a tile to the finalize queue. */
 	void AddTile(FTileEntry& Tile);
 

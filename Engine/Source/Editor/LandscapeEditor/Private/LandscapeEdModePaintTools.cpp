@@ -259,14 +259,17 @@ public:
 		this->Cache.SetCachedData(X1, Y1, X2, Y2, Data, UISettings->PaintingRestriction);
 		this->Cache.Flush();
 		
+		// If we render to a runtime virtual texture then we mark touched components as dirty to trigger updates
+		//todo[vt]: Would be more efficient to update VT in a single flush instead of one flush per component. Also dirtying all render state is a bit heavyweight.
 		ALandscape* Landscape = LandscapeInfo->LandscapeActor.Get();
-
-		// If we render to a runtime virtual texture then we need to flush here
 		if (Landscape != nullptr && Landscape->RuntimeVirtualTextures.Num() > 0)
 		{
-			//todo[vt]: Only flush Bounds 
-			//todo[vt]: Only flush specific virtual textures
-			GetRendererModule().FlushVirtualTextureCache();
+			TSet<ULandscapeComponent*> Components;
+			LandscapeInfo->GetComponentsInRegion(X1 + 1, Y1 + 1, X2 - 1, Y2 - 1, Components);
+			for (ULandscapeComponent* Component : Components)
+			{
+				Component->MarkRenderStateDirty();
+			}
 		}
 	}
 };
