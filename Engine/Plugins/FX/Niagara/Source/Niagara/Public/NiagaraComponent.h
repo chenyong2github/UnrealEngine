@@ -10,6 +10,7 @@
 #include "Particles/ParticleSystemComponent.h"
 #include "NiagaraUserRedirectionParameterStore.h"
 #include "NiagaraSystemInstance.h"
+#include "NiagaraComponentPool.h"
 
 #include "NiagaraComponent.generated.h"
 
@@ -49,6 +50,8 @@ public:
 	void SetActorParameter(FName ParameterName, class AActor* Param) override;
 	virtual UFXSystemAsset* GetFXSystemAsset() const override { return Asset; };
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
+	void ReleaseToPool() override;
+	uint32 GetApproxMemoryUsage() const override;
 	/********* UFXSystemComponent *********/
 
 private:
@@ -122,6 +125,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Attachment)
 	uint32 bAutoManageAttachment : 1;
 
+	/** How to handle pooling for this component instance. */
+	ENCPoolMethod PoolingMethod;
 
 	virtual void Activate(bool bReset = false)override;
 	virtual void Deactivate()override;
@@ -368,8 +373,11 @@ public:
 	UPROPERTY(BlueprintAssignable)
 	FOnNiagaraSystemFinished OnSystemFinished;
 
+	/** Removes all local overrides and replaces them with the values from the source System - note: this also removes the editor overrides from the component as it is used by the pooling mechanism to prevent values leaking between different instances. */
+	void SetUserParametersToDefaultValues();
+
 private:
-	/** Compare local overrides with the source System. Remove any that have mismatched types or no longer exist on the System. Returns whether or not any changes occurred.*/
+	/** Compare local overrides with the source System. Remove any that have mismatched types or no longer exist on the System.*/
 	void SynchronizeWithSourceSystem();
 
 	void AssetExposedParametersChanged();
