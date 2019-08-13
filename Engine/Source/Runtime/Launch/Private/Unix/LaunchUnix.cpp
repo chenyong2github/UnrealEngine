@@ -17,8 +17,3 @@ void LaunchUnix_FEngineLoop_AppExit()
 {
 	return FEngineLoop::AppExit();
 }
-
-int main(int argc, char *argv[])
-{
-	return CommonUnixMain(argc, argv, &GuardedMain, &LaunchUnix_FEngineLoop_AppExit);
-}
