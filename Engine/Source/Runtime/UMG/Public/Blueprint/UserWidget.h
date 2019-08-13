@@ -139,10 +139,6 @@ public:
 	int32 MaxLayer;
 };
 
-/**
-* The state passed into OnPaint that we can expose as a single painting structure to blueprints to
-* allow script code to override OnPaint behavior.
-*/
 USTRUCT()
 struct UMG_API FNamedSlotBinding
 {

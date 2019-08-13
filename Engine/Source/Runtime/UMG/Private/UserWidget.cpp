@@ -374,12 +374,16 @@ bool UUserWidget::Initialize()
 
 void UUserWidget::InitializeNamedSlots(bool bReparentToWidgetTree)
 {
-	for ( FNamedSlotBinding& Binding : NamedSlotBindings )
+	for (const FNamedSlotBinding& Binding : NamedSlotBindings )
 	{
 		if ( UWidget* BindingContent = Binding.Content )
 		{
 			UObjectPropertyBase* NamedSlotProperty = FindField<UObjectPropertyBase>(GetClass(), Binding.Name);
-			if ( ensure(NamedSlotProperty) )
+#if !WITH_EDITOR
+			// In editor, renaming a NamedSlot widget will cause this ensure in UpdatePreviewWidget of widget that use that namedslot
+			ensure(NamedSlotProperty);
+#endif
+			if ( NamedSlotProperty ) 
 			{
 				UNamedSlot* NamedSlot = Cast<UNamedSlot>(NamedSlotProperty->GetObjectPropertyValue_InContainer(this));
 				if ( ensure(NamedSlot) )
@@ -961,12 +965,14 @@ void UUserWidget::GetSlotNames(TArray<FName>& SlotNames) const
 	else // For non-blueprint widget blueprints we have to go through the widget tree to locate the named slots dynamically.
 	{
 		TArray<FName> NamedSlots;
-		WidgetTree->ForEachWidget([&] (UWidget* Widget) {
+		WidgetTree->ForEachWidget([&NamedSlots] (UWidget* Widget) {
 			if ( Widget && Widget->IsA<UNamedSlot>() )
 			{
 				NamedSlots.Add(Widget->GetFName());
 			}
 		});
+
+		SlotNames.Append(NamedSlots);
 	}
 }
 
