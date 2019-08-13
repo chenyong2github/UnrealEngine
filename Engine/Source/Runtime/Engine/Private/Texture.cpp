@@ -31,7 +31,7 @@
 
 static TAutoConsoleVariable<int32> CVarVirtualTextures(
 	TEXT("r.VirtualTextures"),
-	1,
+	0,
 	TEXT("Is virtual texture streaming enabled?"),
 	ECVF_RenderThreadSafe | ECVF_ReadOnly);
 

@@ -37,7 +37,7 @@
 
 static TAutoConsoleVariable<int32> CVarVTCompressCrunch(
 	TEXT("r.VT.EnableCompressCrunch"),
-	1,
+	0,
 	TEXT("Enable Crunch compression for virtual textures, for supported formats")
 );
 
