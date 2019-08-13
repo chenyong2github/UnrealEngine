@@ -2391,7 +2391,7 @@ static FBox ComputeParticleBounds(
 		FRHIResourceCreateInfo CreateInfo;
 		FVertexBufferRHIRef BoundsVertexBufferRHI = RHICreateVertexBuffer(
 			BufferSize,
-			BUF_Static | BUF_UnorderedAccess,
+			BUF_Static | BUF_UnorderedAccess | BUF_KeepCPUAccessible,
 			CreateInfo);
 		FUnorderedAccessViewRHIRef BoundsVertexBufferUAV = RHICreateUnorderedAccessView(
 			BoundsVertexBufferRHI,
