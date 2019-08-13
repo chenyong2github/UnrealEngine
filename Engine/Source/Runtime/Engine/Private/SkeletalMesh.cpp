@@ -2181,6 +2181,16 @@ void USkeletalMesh::InitMorphTargetsAndRebuildRenderData()
 	MarkPackageDirty();
 	// need to refresh the map
 	InitMorphTargets();
+
+	// reset all morphtarget for all components
+	for (TObjectIterator<USkeletalMeshComponent> It; It; ++It)
+	{
+		if (It->SkeletalMesh == this)
+		{
+			It->RefreshMorphTargets();
+		}
+	}
+
 	// invalidate render data
 	InvalidateRenderData();
 }
