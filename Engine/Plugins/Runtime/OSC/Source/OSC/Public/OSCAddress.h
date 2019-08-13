@@ -11,10 +11,8 @@
 
 namespace OSC
 {
-	const FString		BundleTag		= TEXT("#bundle");
-	const FString		PathSeparator	= TEXT("/");
-	const TArray<TCHAR>	InvalidChars	= { ' ', '#', };
-	const TArray<TCHAR>	PatternChars	= { ',', '*', '/', '?', '[', ']', '{', '}' };
+	extern const FString	BundleTag;
+	extern const FString	PathSeparator;
 } // namespace OSC
 
 USTRUCT(BlueprintType)
@@ -36,8 +34,7 @@ private:
 	bool bIsValidPath;
 	uint32 Hash;
 
-	static bool IsValidPattern(const TArray<FString>& InContainers, const FString& InMethod);
-	static bool IsValidPath(const FString& Path, bool bInvalidateSeparator);
+	void CacheAggregates();
 
 public:
 	FOSCAddress();
@@ -49,17 +46,19 @@ public:
 	/** Returns whether address is valid path */
 	bool IsValidPath() const;
 
-	/** Returns whether this address matches the passed address */
-	bool Matches(const FOSCAddress& Address) const;
+	/** Returns if this address is a pattern that matches InAddress' path.
+	  * If passed address is not a valid path, returns false.
+	  */
+	bool Matches(const FOSCAddress& InAddress) const;
 
 	/** Pushes container onto address' ordered array of containers */
-	void PushContainer(const FString& Container);
+	void PushContainer(const FString& InContainer);
 
 	/** Pops container from ordered array of containers */
 	FString PopContainer();
 
 	/** Clears ordered array of containers */
-	void ClearContainers(const FString& Container);
+	void ClearContainers(const FString& InContainer);
 
 	/** Get method name of address */
 	const FString& GetMethod() const;
@@ -86,6 +85,6 @@ public:
 
 	friend uint32 GetTypeHash(const FOSCAddress& InAddress)
 	{
-		return GetTypeHash(InAddress.Hash);
+		return InAddress.Hash;
 	}
 };

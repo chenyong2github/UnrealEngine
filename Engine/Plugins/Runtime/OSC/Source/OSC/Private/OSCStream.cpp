@@ -9,7 +9,7 @@ FOSCStream::FOSCStream()
 {
 }
 
-FOSCStream::FOSCStream(const uint8* InData, int32 InSize) 
+FOSCStream::FOSCStream(const uint8* InData, int32 InSize)
 	: Data(InData, InSize)
 	, Position(0)
 {
@@ -346,8 +346,9 @@ void FOSCStream::WriteFloat(float Value)
 FString FOSCStream::ReadString()
 {
 	const int32 DataSize = Data.Num();
-	
 	const int32 InitPosition = Position;
+	check(Position < DataSize);
+
 	const ANSICHAR* StrStart = (ANSICHAR*)(&Data[InitPosition]);
 
 	int32 i = InitPosition;
@@ -376,14 +377,19 @@ FString FOSCStream::ReadString()
 void FOSCStream::WriteString(const FString& InString)
 {
 	const TArray<TCHAR>& CharArr = InString.GetCharArray();
-
 	const int32 Count = CharArr.Num();
-	for (int32 i = 0; i < Count; i++)
-	{
-		Data[Position + i] = CharArr[i];
-	}
 
-	Position += Count;
+	if (Count == 0)
+	{
+		WriteChar('\0');
+	}
+	else
+	{
+		for (int32 i = 0; i < Count; i++)
+		{
+			WriteChar(CharArr[i]);
+		}
+	}
 
 	// Increment & pad string with null terminator
 	const int32 NumPaddingZeros = ((Count + 3) / 4) * 4;
