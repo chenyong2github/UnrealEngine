@@ -22,41 +22,29 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 
-FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModel* InParent)
-	: FNiagaraScriptViewModel(InSystem.GetSystemSpawnScript(), NSLOCTEXT("SystemScriptViewModel", "GraphName", "System"), ENiagaraParameterEditMode::EditAll)
-	, Parent(InParent)
-	, System(InSystem)
+FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel()
+	: FNiagaraScriptViewModel(NSLOCTEXT("SystemScriptViewModel", "GraphName", "System"), ENiagaraParameterEditMode::EditAll)
 {
-	Scripts.Add(InSystem.GetSystemUpdateScript());
+}
 
-	if (GetGraphViewModel()->GetGraph())
-	{
-		OnGraphChangedHandle = GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemScriptViewModel::OnGraphChanged));
-
-		OnRecompileHandle = GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemScriptViewModel::OnGraphChanged));
-		
-		GetGraphViewModel()->SetErrorTextToolTip("");
-	}
-
-	System.OnSystemCompiled().AddRaw(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
+void FNiagaraSystemScriptViewModel::Initialize(UNiagaraSystem& InSystem)
+{
+	System = &InSystem;
+	SetScript(System->GetSystemSpawnScript());
+	System->OnSystemCompiled().AddSP(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
 }
 
 FNiagaraSystemScriptViewModel::~FNiagaraSystemScriptViewModel()
 {
-	System.OnSystemCompiled().RemoveAll(this);
-	if (GetGraphViewModel()->GetGraph())
+	if (System.IsValid())
 	{
-		GetGraphViewModel()->GetGraph()->RemoveOnGraphChangedHandler(OnGraphChangedHandle);
-		GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnRecompileHandle);
-		
+		System->OnSystemCompiled().RemoveAll(this);
 	}
 }
 
 void FNiagaraSystemScriptViewModel::OnSystemVMCompiled(UNiagaraSystem* InSystem)
 {
-	if (InSystem != &System)
+	if (InSystem != System.Get())
 	{
 		return;
 	}
@@ -70,21 +58,56 @@ void FNiagaraSystemScriptViewModel::OnSystemVMCompiled(UNiagaraSystem* InSystem)
 	FString AggregateErrors;
 
 	TArray<UNiagaraScript*> SystemScripts;
+	TArray<bool> ScriptsEnabled;
 	SystemScripts.Add(InSystem->GetSystemSpawnScript());
 	SystemScripts.Add(InSystem->GetSystemUpdateScript());
+	ScriptsEnabled.Add(true);
+	ScriptsEnabled.Add(true);
+
+	
 	for (const FNiagaraEmitterHandle& Handle : InSystem->GetEmitterHandles())
 	{
+		int32 NumScripts = SystemScripts.Num();
 		Handle.GetInstance()->GetScripts(SystemScripts, true);
+		for (; NumScripts < SystemScripts.Num(); NumScripts++)
+		{
+			if (Handle.GetIsEnabled())
+			{
+				ScriptsEnabled.Add(true);
+			}
+			else
+			{
+				ScriptsEnabled.Add(false);
+			}
+		}
 	}
+
+	check(ScriptsEnabled.Num() == SystemScripts.Num());
 
 	int32 EventsFound = 0;
 	for (int32 i = 0; i < SystemScripts.Num(); i++)
 	{
 		UNiagaraScript* Script = SystemScripts[i];
-		if (Script != nullptr && Script->GetVMExecutableData().IsValid())
+		if (Script != nullptr && Script->GetVMExecutableData().IsValid() && ScriptsEnabled[i])
 		{
 			InCompileStatuses.Add(Script->GetVMExecutableData().LastCompileStatus);
 			InCompileErrors.Add(Script->GetVMExecutableData().ErrorMsg);
+			InCompilePaths.Add(Script->GetPathName());
+
+			if (Script->GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
+			{
+				InUsages.Add(TPair<ENiagaraScriptUsage, int32>(Script->GetUsage(), EventsFound));
+				EventsFound++;
+			}
+			else
+			{
+				InUsages.Add(TPair<ENiagaraScriptUsage, int32>(Script->GetUsage(), 0));
+			}
+		}
+		else if (Script != nullptr && ScriptsEnabled[i] == false)
+		{
+			InCompileStatuses.Add(ENiagaraScriptCompileStatus::NCS_UpToDate);
+			InCompileErrors.Add(FString());
 			InCompilePaths.Add(Script->GetPathName());
 
 			if (Script->GetUsage() == ENiagaraScriptUsage::ParticleEventScript)
@@ -130,13 +153,42 @@ FNiagaraSystemScriptViewModel::FOnSystemCompiled& FNiagaraSystemScriptViewModel:
 
 void FNiagaraSystemScriptViewModel::CompileSystem(bool bForce)
 {
-	System.RequestCompile(bForce);
+	System->RequestCompile(bForce);
 }
 
-void FNiagaraSystemScriptViewModel::OnGraphChanged(const struct FEdGraphEditAction& InAction)
+ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatus()
 {
-	if (InAction.Action == GRAPHACTION_SelectNode)
+	TArray<UNiagaraScript*> SystemScripts;
+	SystemScripts.Add(System->GetSystemSpawnScript());
+	SystemScripts.Add(System->GetSystemUpdateScript());
+
+	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
 	{
-		return;
+		if (Handle.GetIsEnabled())
+		{
+			Handle.GetInstance()->GetScripts(SystemScripts, true);
+		}
 	}
+
+	bool bDirty = false;
+	for (int32 i = 0; i < SystemScripts.Num(); i++)
+	{
+		if (!SystemScripts[i])
+		{
+			continue;
+		}
+
+		if (SystemScripts[i]->IsCompilable() && !SystemScripts[i]->AreScriptAndSourceSynchronized())
+		{
+			bDirty = true;
+			break;
+		}
+	}
+
+	if (bDirty)
+	{
+		return ENiagaraScriptCompileStatus::NCS_Dirty;
+	}
+	return LastCompileStatus;
 }
+

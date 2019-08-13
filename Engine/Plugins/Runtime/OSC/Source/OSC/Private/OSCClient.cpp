@@ -4,107 +4,43 @@
 #include "Common/UdpSocketBuilder.h"
 #include "Sockets.h"
 
-#include "OSCStream.h"
 #include "OSCBundle.h"
+#include "OSCClientProxy.h"
 #include "OSCLog.h"
-#include "OSCMessagePacket.h"
+#include "OSCMessage.h"
 #include "OSCPacket.h"
-
-
-namespace
-{
-	static const int32 OUTPUT_BUFFER_SIZE = 1024;
-} // namespace <>
+#include "OSCStream.h"
 
 
 UOSCClient::UOSCClient(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, Socket(FUdpSocketBuilder(*GetName()).Build())
+	, ClientProxy(nullptr)
 {
 }
 
-bool UOSCClient::SetSendIPAddress(const FString& InIPAddress, const int32 Port)
+void UOSCClient::Connect()
 {
-	IPAddress = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->CreateInternetAddr();
-
-	bool bIsValidAddress = true;
-	IPAddress->SetIp(*InIPAddress, bIsValidAddress);
-	IPAddress->SetPort(Port);
-
-	if (bIsValidAddress)
-	{
-		UE_LOG(LogOSC, Verbose, TEXT("OSCClient '%s' SetSendIpAddress: %s:%d"), *GetName(), *InIPAddress, Port);
-	}
-	else
-	{
-		UE_LOG(LogOSC, Warning, TEXT("OSCClient '%s' SetSendIpAddress Failed for input: %s:%d"), *GetName(), *InIPAddress, Port);
-	}
-
-	return bIsValidAddress;
+	check(!ClientProxy.IsValid());
+	ClientProxy.Reset(new FOSCClientProxy(GetName()));
 }
 
 void UOSCClient::GetSendIPAddress(FString& InIPAddress, int32& Port)
 {
-	const bool bAppendPort = false;
-	InIPAddress = IPAddress->ToString(bAppendPort);
-	Port = IPAddress->GetPort();
+	check(ClientProxy.IsValid());
+	ClientProxy->GetSendIPAddress(InIPAddress, Port);
 }
 
-void UOSCClient::SendPacket(IOSCPacket& Packet)
+bool UOSCClient::SetSendIPAddress(const FString& InIPAddress, const int32 Port)
 {
-	if (!Socket)
-	{
-		UE_LOG(LogOSC, Error, TEXT("Socket has been closed. OSCClient '%s' failed to send msg"), *GetName());
-		return;
-	}
-
-	const FOSCAddress* OSCAddress = nullptr;
-	if (Packet.IsMessage())
-	{
-		const FOSCMessagePacket& MessagePacket = static_cast<FOSCMessagePacket&>(Packet);
-		OSCAddress = &MessagePacket.GetAddress();
-		if (!OSCAddress->IsValidPath())
-		{
-			UE_LOG(LogOSC, Warning, TEXT("Failed to write packet data. Invalid OSCAddress '%s'"), *OSCAddress->GetFullPath());
-			return;
-		}
-	}
-
-	if (IPAddress)
-	{
-		FOSCStream Stream = FOSCStream(OUTPUT_BUFFER_SIZE);
-		const uint8* DataPtr = Stream.GetData();
-		Packet.WriteData(Stream);
-
-		int32 BytesSent = 0;
-
-		const int32 AttemptedLength = Stream.GetPosition();
-		int32 Length = AttemptedLength;
-		while (Length > 0)
-		{
-			const bool bSuccess = Socket->SendTo(DataPtr, Length, BytesSent, *IPAddress);
-			if (!bSuccess || BytesSent <= 0)
-			{
-				UE_LOG(LogOSC, Verbose, TEXT("OSC Packet failed: Client '%s', OSC Identifier '%s', Send IPAddress %s, Attempted Bytes = %d"),
-					*GetName(), OSCAddress ? *OSCAddress->GetFullPath() : *OSC::BundleTag, *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
-				return;
-			}
-
-			Length -= BytesSent;
-			DataPtr += BytesSent;
-		}
-
-		UE_LOG(LogOSC, Verbose, TEXT("OSC Packet sent: Client '%s', OSC Identifier '%s', Send IPAddress %s, Bytes Sent = %d"),
-			*GetName(), OSCAddress ? *OSCAddress->GetFullPath() : *OSC::BundleTag, *IPAddress->ToString(true /*bAppendPort*/), AttemptedLength);
-	}
+	check(ClientProxy.IsValid());
+	return ClientProxy->SetSendIPAddress(InIPAddress, Port);
 }
 
 void UOSCClient::Stop()
 {
-	if (Socket)
+	if (ClientProxy.IsValid())
 	{
-		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
-		Socket = nullptr;
+		ClientProxy->Stop();
 	}
 }
 
@@ -116,14 +52,12 @@ void UOSCClient::BeginDestroy()
 
 void UOSCClient::SendOSCMessage(FOSCMessage& Message)
 {
-	const TSharedPtr<IOSCPacket>& Packet = Message.GetPacket();
-	check(Packet.IsValid());
-	SendPacket(*Packet.Get());
+	check(ClientProxy.IsValid());
+	ClientProxy->SendMessage(Message);
 }
 
 void UOSCClient::SendOSCBundle(FOSCBundle& Bundle)
 {
-	const TSharedPtr<IOSCPacket>& Packet = Bundle.GetPacket();
-	check(Packet.IsValid());
-	SendPacket(*Packet.Get());
+	check(ClientProxy.IsValid());
+	ClientProxy->SendBundle(Bundle);
 }

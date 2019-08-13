@@ -15,6 +15,7 @@
 #include "EngineModule.h"
 #include "NiagaraStats.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "NiagaraComponentPool.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Tick [GT]"), STAT_NiagaraWorldManTick, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Niagara Manager Wait On Render [GT]"), STAT_NiagaraWorldManWaitOnRender, STATGROUP_Niagara);
@@ -60,19 +61,20 @@ FNiagaraWorldManager::FNiagaraWorldManager(UWorld* InWorld)
 	: World(InWorld)
 	, CachedEffectsQuality(INDEX_NONE)
 {
+	ComponentPool = NewObject<UNiagaraComponentPool>();
 }
 
 FNiagaraWorldManager* FNiagaraWorldManager::Get(UWorld* World)
 {
-	//INiagaraModule& NiagaraModule = FModuleManager::LoadModuleChecked<INiagaraModule>("Niagara");
 	return INiagaraModule::GetWorldManager(World);
 }
 
 void FNiagaraWorldManager::AddReferencedObjects(FReferenceCollector& Collector)
 {
-	// World doesn't need to be added to the reference list. It will be handle via OnWorldInit & OnWorldCleanup & OnPreWorldFinishDestroy in INiagaraModule
+	// World doesn't need to be added to the reference list. It will be handled via OnWorldInit & OnWorldCleanup & OnPreWorldFinishDestroy in INiagaraModule
 
 	Collector.AddReferencedObjects(ParameterCollections);
+	Collector.AddReferencedObject(ComponentPool);
 }
 
 FString FNiagaraWorldManager::GetReferencerName() const
@@ -200,6 +202,8 @@ void FNiagaraWorldManager::OnBatcherDestroyed(NiagaraEmitterInstanceBatcher* InB
 
 void FNiagaraWorldManager::OnWorldCleanup(bool bSessionEnded, bool bCleanupResources)
 {
+	ComponentPool->Cleanup();
+
 	for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations)
 	{
 		SimPair.Value->Destroy();

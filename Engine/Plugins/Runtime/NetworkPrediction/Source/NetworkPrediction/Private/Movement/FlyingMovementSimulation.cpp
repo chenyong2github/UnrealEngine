@@ -152,7 +152,7 @@ namespace FlyingMovement
 		return 0.f;
 	}
 
-	void FMovementSystem::Update(IMovementDriver* Driver, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSystem::Update(IMovementDriver* Driver, const TSimTime& DeltaTimeMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
 	{
 		// ----------------------------------
 		// AuxState todo
@@ -163,7 +163,7 @@ namespace FlyingMovement
 
 		// ----------------------------------------------------------------
 
-		const float DeltaSeconds = InputCmd.FrameDeltaTime;
+		const float DeltaSeconds = DeltaTimeMS.ToRealTimeSeconds();
 		OutputState = InputState;
 
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
@@ -175,7 +175,7 @@ namespace FlyingMovement
 		//	In this simulation, the rotation update isn't allowed to "fail". We don't expect the collision query to be able to fail the rotational update.
 		// --------------------------------------------------------------
 
-		OutputState.Rotation += (InputCmd.RotationInput * InputCmd.FrameDeltaTime);
+		OutputState.Rotation += (InputCmd.RotationInput * DeltaSeconds);
 		OutputState.Rotation.Normalize();
 
 		const FQuat OutputQuat = OutputState.Rotation.Quaternion();

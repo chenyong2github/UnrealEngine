@@ -1,6 +1,5 @@
 // Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
-
 #include "NetworkPredictionComponent.h"
 #include "Net/UnrealNetwork.h"
 #include "GameFramework/Actor.h"
@@ -96,10 +95,6 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 void UNetworkPredictionComponent::PreTickSimulation(float DeltaTime)
 {
 	CheckOwnerRoleChange();
-	if (PreTickLocallyControlledSim.IsBound() && IsLocallyControlled())
-	{
-		PreTickLocallyControlledSim.Execute(DeltaTime);
-	}
 }
 
 void UNetworkPredictionComponent::CheckOwnerRoleChange()

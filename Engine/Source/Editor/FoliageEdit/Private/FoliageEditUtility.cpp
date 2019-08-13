@@ -120,7 +120,7 @@ void FFoliageEditUtility::ReplaceFoliageTypeObject(UWorld* InWorld, UFoliageType
 }
 
 
-void FFoliageEditUtility::MoveActorFoliageInstancesToLevel(ULevel* InTargetLevel)
+void FFoliageEditUtility::MoveActorFoliageInstancesToLevel(ULevel* InTargetLevel, AActor* InIFA)
 {
 	// Can't move into a locked level
 	if (FLevelUtils::IsLevelLocked(InTargetLevel))
@@ -148,6 +148,10 @@ void FFoliageEditUtility::MoveActorFoliageInstancesToLevel(ULevel* InTargetLevel
 			AInstancedFoliageActor* IFA = AInstancedFoliageActor::GetInstancedFoliageActorForLevel(Level, /*bCreateIfNone*/ false);
 			
 			if (IFA == nullptr)
+			{
+				continue;
+			}
+			if (InIFA && IFA != InIFA)
 			{
 				continue;
 			}
@@ -195,6 +199,11 @@ void FFoliageEditUtility::MoveActorFoliageInstancesToLevel(ULevel* InTargetLevel
 				ensure(IFA != nullptr);
 
 				IFA->MoveAllInstancesToLevel(InTargetLevel);
+			}
+
+			if (InIFA)
+			{
+				return;
 			}
 		}
 	}

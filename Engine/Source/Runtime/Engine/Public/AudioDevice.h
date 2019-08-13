@@ -1014,6 +1014,9 @@ public:
 	static int32 FindClosestListenerIndex(const FTransform& SoundTransform, const TArray<FListener>& InListeners);
 	int32 FindClosestListenerIndex(const FTransform& SoundTransform) const;
 
+	/** Disables ActiveSound from responding to calls from its associated AudioComponent. */
+	void UnlinkActiveSoundFromComponent(const FActiveSound& InActiveSound);
+
 	/** Return the audio stream time */
 	virtual double GetAudioTime() const
 	{
@@ -1139,6 +1142,18 @@ public:
 
 	/** Returns the current source effect chain entries set dynamically from BP or elsewhere. */
 	virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) { return false; }
+
+	/** Updates the submix properties of any playing submix instances. Allows editor to make changes to submix properties and hear them propagate live.*/
+	virtual void UpdateSubmixProperties(USoundSubmix* InSubmix)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
+
+	/** Sets the dynamic volume of the given submix. */
+	virtual void SetSubmixOutputVolume(USoundSubmix* InSubmix, float NewVolume)
+	{
+		UE_LOG(LogAudio, Error, TEXT("Submixes are only supported in audio mixer."));
+	}
 
 	/** This is called by a USoundSubmix to start recording a submix instance on this device. */
 	virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration)

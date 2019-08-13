@@ -351,11 +351,9 @@ FString FOSCStream::ReadString()
 
 	const ANSICHAR* StrStart = (ANSICHAR*)(&Data[InitPosition]);
 
-	int32 i = InitPosition;
-	for (; i < DataSize; i++)
+	for (; Position < DataSize; Position++)
 	{
-		Position++;
-		if (Data[i] == '\0')
+		if (Data[Position] == '\0')
 		{
 			break;
 		}
@@ -367,8 +365,10 @@ FString FOSCStream::ReadString()
 		return FString();
 	}
 
-	// Pad position before returning
+	// Note end for string copy, increment to next read
+	// location, and pad position.
 	const int32 EndPosition = Position;
+	Position++;
 	Position = ((Position + 3) / 4) * 4;
 
 	return FString(EndPosition - InitPosition, StrStart);

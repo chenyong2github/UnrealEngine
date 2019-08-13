@@ -35,7 +35,8 @@ void UEditorValidatorBase::AssetFails(UObject* InAsset, const FText& InMessage, 
 	FFormatNamedArguments Arguments;
 	if (InAsset)
 	{
-		Arguments.Add(TEXT("AssetName"), FText::FromName(InAsset->GetFName()));	
+		FString PackageName = InAsset->GetOutermost()->GetName();
+		Arguments.Add(TEXT("AssetName"), FText::FromString(FPackageName::GetLongPackageAssetName(PackageName)));
 	}
 	Arguments.Add(TEXT("CustomMessage"), InMessage);
 	Arguments.Add(TEXT("ValidatorName"), FText::FromString(GetClass()->GetName()));

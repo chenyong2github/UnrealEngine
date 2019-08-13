@@ -32,7 +32,7 @@ public:
 
 	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
 	{
-		if (TargetPlatforms.Num() == 0)
+		if (TargetPlatforms.Num() == 0 && FLuminTargetPlatform::IsUsable())
 		{
 			TargetPlatforms.Add(new FLuminTargetPlatform(false));
 			TargetPlatforms.Add(new FLuminTargetPlatform(true));

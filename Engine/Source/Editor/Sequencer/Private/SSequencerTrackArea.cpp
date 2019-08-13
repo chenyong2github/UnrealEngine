@@ -86,7 +86,7 @@ void SSequencerTrackArea::OnArrangeChildren( const FGeometry& AllottedGeometry, 
 		const FTrackAreaSlot& CurChild = Children[ChildIndex];
 
 		const EVisibility ChildVisibility = CurChild.GetWidget()->GetVisibility();
-		if (!ArrangedChildren.Accepts(ChildVisibility))
+		if (!PinnedTrackLane.IsValid() || !ArrangedChildren.Accepts(ChildVisibility))
 		{
 			continue;
 		}

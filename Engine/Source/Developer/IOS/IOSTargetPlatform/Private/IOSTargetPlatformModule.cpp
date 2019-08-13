@@ -26,7 +26,7 @@ public:
 
 	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
 	{
-		if (TargetPlatforms.Num() == 0)
+		if (TargetPlatforms.Num() == 0 && FIOSTargetPlatform::IsUsable())
 		{
 			TargetPlatforms.Add(new FIOSTargetPlatform(false, true));
 			TargetPlatforms.Add(new FIOSTargetPlatform(false, false));

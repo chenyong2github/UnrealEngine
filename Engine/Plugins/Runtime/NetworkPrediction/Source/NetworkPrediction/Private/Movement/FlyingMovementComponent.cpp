@@ -114,8 +114,9 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		}
 
 		FlyingMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		Parameters.Role = OwnerRole;
+		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IFlyingMovementDriver*)this, Parameters);
@@ -131,24 +132,6 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 			ServerRecieveClientInput(ProxyParameter);
 		}
 	}
-}
-
-FlyingMovement::FInputCmd* UFlyingMovementComponent::GetNextClientInputCmdForWrite(float DeltaTime)
-{
-	// This is unfortunate but we must check here to initialize the InputCmdBuffer.
-	// -Tick alone is not appropriate since the PC may tick first and generate new user cmds (before our first tick)
-	// -Startup functions (BeginPlay, PostInitializeComponent etc) are not appropriate because Net Role is not known.
-	// -PostNetReceive could work but would be inefficient since we would be checking each simulated proxy too, ever PostNetReceive.
-	//
-	// This works out best because its only the locally controlled actor that will call into this.
-	// Its just unfortunate it will only pass the first time but we must keep checking.
-	CheckOwnerRoleChange();
-
-	if (NetworkSim.IsValid())
-	{
-		return NetworkSim->GetNextInputForWrite(DeltaTime);
-	}
-	return nullptr;
 }
 
 // ----------------------------------------------------------------------------------------------------------
@@ -178,6 +161,12 @@ void UFlyingMovementComponent::PreSimSync(const FlyingMovement::FMoveState& Sync
 
 		UpdatedComponent->ComponentVelocity = SyncState.Velocity;
 	}
+}
+
+void UFlyingMovementComponent::ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd)
+{
+	// This isn't ideal. It probably makes sense for the component to do all the input binding rather.
+	ProduceInputDelegate.ExecuteIfBound(SimFrameTime, Cmd);
 }
 
 void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)

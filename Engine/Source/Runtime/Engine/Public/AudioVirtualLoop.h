@@ -13,6 +13,7 @@ struct ENGINE_API FAudioVirtualLoop
 {
 private:
 	float TimeSinceLastUpdate;
+	float TimeVirtualized;
 	float UpdateInterval;
 
 	FActiveSound* ActiveSound;
@@ -48,9 +49,14 @@ public:
 	FActiveSound& GetActiveSound();
 
 	/**
+	 * Returns the time the sound has been virtualized
+	 */
+	float GetTimeVirtualized() const;
+
+	/**
 	 * Returns the wait interval being observed before next update
 	 */
-	float GetUpdateInterval() const { return UpdateInterval; }
+	float GetUpdateInterval() const;
 
 	/**
 	 */
@@ -71,5 +77,5 @@ public:
 	  * Updates the loop and checks if ready to play (or 'realize').
 	  * Returns whether or not the sound is ready to be realized.
 	  */
-	bool CanRealize(float DeltaTime, bool bForceUpdate);
+	bool Update(float DeltaTime, bool bForceUpdate);
 };

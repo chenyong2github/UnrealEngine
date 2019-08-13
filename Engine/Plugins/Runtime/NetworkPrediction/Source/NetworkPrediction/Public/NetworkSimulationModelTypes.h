@@ -17,6 +17,37 @@ enum ENetworkSimBufferTypeId
 	Debug
 };
 
+// Helper needed to specialize TNetworkSimBufferTypes::Get (must be done outside of templated struct)
+template<typename TBufferTypes, ENetworkSimBufferTypeId BufferId> 
+struct TSelectTypeHelper
+{
+	using type = void;
+};
+
+template<typename TBufferTypes>
+struct TSelectTypeHelper<TBufferTypes, Input>
+{
+	using type = typename TBufferTypes::TInputCmd;
+};
+
+template<typename TBufferTypes>
+struct TSelectTypeHelper<TBufferTypes, Sync>
+{
+	using type = typename TBufferTypes::TSyncState;
+};
+
+template<typename TBufferTypes>
+struct TSelectTypeHelper<TBufferTypes, Aux>
+{
+	using type = typename TBufferTypes::TAuxState;
+};
+
+template<typename TBufferTypes>
+struct TSelectTypeHelper<TBufferTypes, Debug>
+{
+	using type = typename TBufferTypes::TDebugState;
+};
+
 // A collection of the system's buffer types. This allows us to collapse the 4 types into a single type to use a template argument elsewhere.
 template<typename InInputCmd, typename InSyncState, typename InAuxState, typename InDebugState = FNetSimProcessedFrameDebugInfo>
 struct TNetworkSimBufferTypes
@@ -28,120 +59,61 @@ struct TNetworkSimBufferTypes
 	using TDebugState = InDebugState;
 
 	// Template access via ENetworkSimBufferTypeId when "which buffer" is parameterized
-	template<ENetworkSimBufferTypeId>
+	template<ENetworkSimBufferTypeId Id>
 	struct select_type
 	{
-		using type = void;
-	};
-
-	template<>
-	struct select_type<ENetworkSimBufferTypeId::Input>
-	{
-		using type = TInputCmd;
-	};
-
-	template<>
-	struct select_type<ENetworkSimBufferTypeId::Sync>
-	{
-		using type = TSyncState;
-	};
-
-	template<>
-	struct select_type<ENetworkSimBufferTypeId::Aux>
-	{
-		using type = TAuxState;
-	};
-
-	template<>
-	struct select_type<ENetworkSimBufferTypeId::Debug>
-	{
-		using type = TDebugState;
+		using type = typename TSelectTypeHelper< TNetworkSimBufferTypes<TInputCmd, TSyncState, TAuxState, TDebugState>, Id >::type;
 	};
 };
-
-// ---------------------------------------------------------------------------------------------------------------------
-//	Ticking and Input processing helpers. We want to support fixed tick systems (but variable is most important).
-//	Whether your system is fixed or not depends on your input cmd type.
-// ---------------------------------------------------------------------------------------------------------------------
-
-// Basic struct trait for whether the input cmd is fixed or not. By default you are not fixed, you must specialize this template for your type and set value=true
-template<typename T>
-struct TNetworkSimInput_is_fixedtick
-{
-	static const bool value = false;
-};
-
-// Variable tick simulation time. For now this is a double.
-template<bool IsFixedTick=false>
-struct TSimulationTime
-{
-	TSimulationTime(double InTime=0.f) : Time(InTime) { }
-
-	template<typename T>
-	void AccumulateTimeFromInputCmd(const T& InputCmd)
-	{
-		Time += InputCmd.FrameDeltaTime;
-	}
-	
-	void NetSerialize(const FNetSerializeParams& P)
-	{
-		// Temp: we can devise a system like keyframe replication to make this more efficient
-		P.Ar << Time;
-	}
-
-	double Time = 0.f;
-};
-
-// Fixed tick simulation time. Just a frame counter.
-template<>
-struct TSimulationTime<true>
-{
-	TSimulationTime(int32 InTime=0) : Time(InTime) { }
-
-	template<typename T>
-	void AccumulateTimeFromInputCmd(const T& InputCmd)
-	{
-		Time++;
-	}
-
-	void NetSerialize(const FNetSerializeParams& P)
-	{
-		// Temp: we can devise a system like keyframe replication to make this more efficient
-		P.Ar << Time;
-	}
-
-	int32 Time = 0;
-};
-
-// Actual struct to use to track time. Parameterized by your NetworkSimBufferTypes and uses the input cmd to determine if you are fixed or not.
-template<typename TBufferTypes, typename TParent = TSimulationTime< TNetworkSimInput_is_fixedtick<typename TBufferTypes::TInputCmd>::value >>
-struct TSimulationTimeKeeper : public TParent
-{
-	using T = TSimulationTimeKeeper<TBufferTypes>;
-	using TParent::TParent;
-
-	FString ToString() const { return LexToString(this->Time); }
-
-	T& operator+= (const T &rhs) { this->Time += rhs.Time; return(*this); }
-	T& operator-= (const T &rhs) { this->Time -= rhs.Time; return(*this); }
-	
-	T operator+ (const T &rhs) { return T(this->Time - rhs.Time); }
-	T operator- (const T &rhs) { return T(this->Time - rhs.Time); }
-
-	bool operator<  (const T &rhs) const { return(this->Time < rhs.Time); }
-	bool operator<= (const T &rhs) const { return(this->Time <= rhs.Time); }
-	bool operator>  (const T &rhs) const { return(this->Time > rhs.Time); }
-	bool operator>= (const T &rhs) const { return(this->Time >= rhs.Time); }
-	bool operator== (const T &rhs) const { return(this->Time == rhs.Time); }
-	bool operator!= (const T &rhs) const { return(this->Time != rhs.Time); }
-};
-
 
 // ---------------------------------------------------------------------------------------------------------------------
 //	TNetworkSimBufferContainer
 //	Container for the actual replicated buffers that the system uses.
 //	Has compile time accessors for retrieving the buffers based on templated enum value.
 // ---------------------------------------------------------------------------------------------------------------------
+
+// Helper struct for enum-based access. This has to be done in an outside struct because we cant specialize inside TNetworkSimBufferContainer on all compilers
+template<typename TContainer, ENetworkSimBufferTypeId BufferId>
+struct TBufferGetterHelper
+{
+	static typename TContainer::template select_buffer_type<BufferId>::type& Get(TContainer& Container)
+	{
+		static_assert(!BufferId, "Failed to find specialized Get for your BufferId");
+	}
+};
+
+template<typename TContainer>
+struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Input>
+{
+	static typename TContainer::TInputBuffer& Get(TContainer& Container)
+	{
+		return Container.Input;
+	}
+};
+template<typename TContainer>
+struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Sync>
+{
+	static typename TContainer::TSyncBuffer& Get(TContainer& Container)
+	{
+		return Container.Sync;
+	}
+};
+template<typename TContainer>
+struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Aux>
+{
+	static typename TContainer::TAuxBuffer& Get(TContainer& Container)
+	{
+		return Container.Aux;
+	}
+};
+template<typename TContainer>
+struct TBufferGetterHelper<TContainer, ENetworkSimBufferTypeId::Debug>
+{
+	static typename TContainer::TDebugBuffer& Get(TContainer& Container)
+	{
+		return Container.Debug;
+	}
+};
 
 template<typename T>
 struct TNetworkSimBufferContainer
@@ -176,65 +148,205 @@ struct TNetworkSimBufferContainer
 	template<ENetworkSimBufferTypeId BufferId>
 	typename select_buffer_type<BufferId>::type& Get()
 	{
-		static_assert(!BufferId, "Failed to find specialized Get for your BufferId");
-	}
-
-	template<>
-	TInputBuffer& Get<ENetworkSimBufferTypeId::Input>()
-	{
-		return Input;
-	}
-
-	template<>
-	TSyncBuffer& Get<ENetworkSimBufferTypeId::Sync>()
-	{
-		return Sync;
-	}
-
-	template<>
-	TAuxBuffer& Get<ENetworkSimBufferTypeId::Aux>()
-	{
-		return Aux;
-	}
-
-	template<>
-	TDebugBuffer& Get<ENetworkSimBufferTypeId::Debug>()
-	{
-		return Debug;
+		return TBufferGetterHelper<TNetworkSimBufferContainer<T>, BufferId>::Get(*this);
 	}
 };
 
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//
+// ----------------------------------------------------------------------------------------------------------------------------------------------
 
-// ---------------------------------------------------------------------------------------------------------------------
-//	TSimulationTicker
-//	This holds the data for where we are in ticking the sim. Such as how much time we've ticked it, how much we are allowed to tick it.
-//	It also holds input processing info: the last keyframe of the input buffer we processed and the last GFrameNumber we accepted input.
-// ---------------------------------------------------------------------------------------------------------------------
-
-template<typename TBufferTypes>
-struct TSimulationTickInfo
+// Holds all settings for a network sim related to ticking
+template<uint32 InFixedStepMS=0, uint32 InMaxStepMS=0, typename TUnderlyingSimTimeType=uint32, typename TUnderlyingRealTimeType=float, int32 InRealToSimFactor=1000>
+struct TNetworkSimTickSettings
 {
-	using FSimulationTime = TSimulationTimeKeeper<TBufferTypes>;
+	using TUnderlingSimTime = TUnderlyingSimTimeType;	// Underlying type of time. This type shouldn't be used directly (use TNetworkSimTime)
+	using TRealTime = TUnderlyingRealTimeType;	// This is the "final" real time type. We do not wrap it in anything else.
 
-	int32 LastProcessedInputKeyframe;	// Tracks input keyframe that we last processed
+	static_assert(!(InFixedStepMS!=0 && InMaxStepMS != 0), "MaxStepMS is only applicable when using variable step (FixedStepMS == 0)");
+
+	enum 
+	{
+		MaxStepMS = InMaxStepMS,				// Max step. Only applicable to variable time step.
+		FixedStepMS = InFixedStepMS,			// Fixed step. If 0, then we are "variable time step"
+		RealToSimFactor = InRealToSimFactor		// Factor to go from RealTime (always seconds) to SimTime (MSec by default with factor of 1000)
+	};
+
+	// Typed accessors
+	static constexpr TUnderlingSimTime GetMaxStepMS() { return static_cast<TUnderlingSimTime>(InMaxStepMS); }
+	static constexpr TUnderlingSimTime GetFixedStepMS() { return static_cast<TUnderlingSimTime>(InFixedStepMS); }
+	static constexpr TRealTime GetRealToSimFactor() { return static_cast<TRealTime>(InRealToSimFactor); }
+	static constexpr TRealTime GetSimToRealFactor() { return static_cast<TRealTime>(1.f / InRealToSimFactor); }
+};
+
+// Actual time value. This by default will store time in MSec (ultimately determined by TickSettings::RealToSimFactor)
+template<typename TickSettings>
+struct TNetworkSimTime
+{
+	using TTime = typename TickSettings::TUnderlingSimTime;
+	using TRealTime = typename TickSettings::TRealTime;
+
+	TNetworkSimTime() { }
+
+	// Things get confusing with templated types and overloaded functions. To avoid that, use these funcs to construct from either msec or real time
+	static inline TNetworkSimTime FromMSec(const TTime& InTime) { return TNetworkSimTime(InTime); } 
+	static inline TNetworkSimTime FromRealTimeSeconds(const TRealTime& InRealTime) { return TNetworkSimTime( static_cast<TTime>(InRealTime * TickSettings::GetRealToSimFactor())); } 
+	
+	TRealTime ToRealTimeSeconds() const { return (Time * TickSettings::GetSimToRealFactor()); }
+	FString ToString() const { return LexToString(this->Time); }
+
+	// FIXME
+	void NetSerialize(FArchive& Ar) { Ar << Time; }
+
+	using T = TNetworkSimTime;
+	T& operator+= (const T &rhs) { this->Time += rhs.Time; return(*this); }
+	T& operator-= (const T &rhs) { this->Time -= rhs.Time; return(*this); }
+	
+	T operator+ (const T &rhs) const { return T(this->Time + rhs.Time); }
+	T operator- (const T &rhs) const { return T(this->Time - rhs.Time); }
+
+	bool operator<  (const T &rhs) const { return(this->Time < rhs.Time); }
+	bool operator<= (const T &rhs) const { return(this->Time <= rhs.Time); }
+	bool operator>  (const T &rhs) const { return(this->Time > rhs.Time); }
+	bool operator>= (const T &rhs) const { return(this->Time >= rhs.Time); }
+	bool operator== (const T &rhs) const { return(this->Time == rhs.Time); }
+	bool operator!= (const T &rhs) const { return(this->Time != rhs.Time); }
+
+	TTime Time = 0;
+
+private:
+	TNetworkSimTime(const TTime& InTime) { Time = InTime; }
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Helper for accumulating real time into sim time based on TickSettings
+template<typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
+struct TRealTimeAccumulator
+{
+	using TRealTime = typename TickSettings::TRealTime;
+	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
+	{
+		// Non fixed step: just accumulate the time directly
+		// Note that MaxStepMS enforcement does NOT belong here. Dropping time due to MaxStepMS would just make the sim run slower. MaxStepMS is used at the input processing level.
+		// (wondering: does converting down to MSec make sense in variable rates? We aren't really gaining anything here. Specializing to avoid the multiply probably not worth the complexity though)
+		NetworkSimTime += TNetworkSimTime<TickSettings>::FromRealTimeSeconds(RealTimeSeconds);
+	}
+};
+
+// Specialized version of FixedTicking. This accumulates real time that spills over into NetworkSimTime as it crosses the FixStep threshold
+template<typename TickSettings>
+struct TRealTimeAccumulator<TickSettings, true>
+{
+	using TRealTime = typename TickSettings::TRealTime;
+	const TRealTime RealTimeFixedStep = static_cast<TRealTime>(TickSettings::GetFixedStepMS() * TickSettings::GetSimToRealFactor());
+
+	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
+	{
+		AccumulatedTime += RealTimeSeconds;
+		if (AccumulatedTime > RealTimeFixedStep)
+		{
+			const int32 NumFrames = AccumulatedTime / RealTimeFixedStep;
+			AccumulatedTime -= NumFrames * RealTimeFixedStep;
+				
+			if (FMath::Abs<TRealTime>(AccumulatedTime) < SMALL_NUMBER)
+			{
+				AccumulatedTime = TRealTime(0.f);
+			}
+
+			NetworkSimTime += TNetworkSimTime<TickSettings>::FromMSec(NumFrames * TickSettings::FixedStepMS);
+		}
+	}
+	TRealTime AccumulatedTime;
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Holds active state for simulation ticking: what inputs we have processed, how time we have simulated, how much we are allowed to, etc.
+template<typename TickSettings=TNetworkSimTickSettings<>>
+struct TSimulationTickState
+{
+	using TSettings = TickSettings;
+
+	int32 LastProcessedInputKeyframe;	// The last input keyframe that we processed
+	int32 MaxAllowedInputKeyframe;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
+
 	uint32 LastLocalInputGFrameNumber;	// Tracks the last time we accepted local input via GetNextInputForWrite. Used to guard against accidental input latency due to ordering of input/sim ticking.
 
-	FSimulationTime MaxSimulationTime;			// Total max time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
-	FSimulationTime ProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
-
-	using TInputCmd = typename TBufferTypes::TInputCmd;
-	TInputCmd* GetNextInputForWrite(TNetworkSimBufferContainer<TBufferTypes>& Buffers)
+	TNetworkSimTime<TSettings> TotalAllowedSimulationTime;	// Total time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
+	TNetworkSimTime<TSettings> TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
+	
+	template<typename TBufferTypes>
+	typename TBufferTypes::TInputCmd* GetNextInputForWrite(TNetworkSimBufferContainer<TBufferTypes>& Buffers)
 	{
+		// Not really necessary anymore since input command is requested by the sim now instead of pushed into it
 		ensure(LastLocalInputGFrameNumber != GFrameNumber);
 		LastLocalInputGFrameNumber = GFrameNumber;
 
-		TInputCmd* Next = nullptr;
+		typename TBufferTypes::TInputCmd* Next = nullptr;
 		if (Buffers.Input.GetHeadKeyframe() == LastProcessedInputKeyframe)
 		{
 			// Only return a cmd if we have processed the last one. This is a bit heavy handed but is a good practice to start with. We want buffering of input to be very explicit, never something that accidentally happens.
 			Next = Buffers.Input.GetWriteNext();
-			*Next = TInputCmd();
+			*Next = typename TBufferTypes::TInputCmd();
 		}
 		return Next;
 	}
+
+	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
+	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.
+	void GiveSimulationTime(float RealTimeSeconds)
+	{
+		RealtimeAccumulator.Accumulate(TotalAllowedSimulationTime, RealTimeSeconds);
+	}
+
+	TNetworkSimTime<TSettings> GetRemaningAllowedSimulationTime() const
+	{
+		return TotalAllowedSimulationTime - TotalProcessedSimulationTime;
+	}
+
+private:
+
+	TRealTimeAccumulator<TSettings>	RealtimeAccumulator;
+};
+
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+//
+// ----------------------------------------------------------------------------------------------------------------------------------------------
+
+// Wraps an input command (BaseType) in a NetworkSimulation time. 
+template<typename BaseCmdType, typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
+struct TFrameCmd : public BaseCmdType
+{
+	TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return FrameDeltaTime; }
+	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { FrameDeltaTime = InTime; }
+
+private:
+	TNetworkSimTime<TickSettings> FrameDeltaTime;
+};
+
+// Fixed tick specialization
+template<typename BaseCmdType, typename TickSettings>
+struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
+{
+	constexpr TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return TNetworkSimTime<TickSettings>::FromMSec(TickSettings::GetFixedStepMS()); }
+	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { }
+};
+
+// Helper to turn user supplied buffer types into the "real" buffer types: the InputCmd struct is wrapped in TFrameCmd
+template<typename TUserBufferTypes, typename TTickSettings>
+struct TInternalBufferTypes : TNetworkSimBufferTypes< 
+	
+	// InputCmds are wrapped in TFrameCmd, which will store an explicit sim delta time if we are not a fixed tick sim
+	TFrameCmd< typename TUserBufferTypes::TInputCmd , TTickSettings>,
+
+	typename TUserBufferTypes::TSyncState,	// SyncState Passes through
+	typename TUserBufferTypes::TAuxState,	// Auxstate passes through
+	typename TUserBufferTypes::TDebugState	// Debugstate passes through
+>
+{
 };

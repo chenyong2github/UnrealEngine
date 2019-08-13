@@ -102,7 +102,9 @@ inline static void ComputeEyeAdaptationValues(const ERHIFeatureLevel::Type MinFe
 		|| View.Family->UseDebugViewPS() 
 		|| EngineShowFlags.RayTracingDebug 
 		|| EngineShowFlags.VisualizeDistanceFieldAO
-		|| EngineShowFlags.VisualizeGlobalDistanceField)
+		|| EngineShowFlags.VisualizeGlobalDistanceField
+		|| EngineShowFlags.CollisionVisibility
+		|| EngineShowFlags.CollisionPawn)
 	{
 		LocalExposureMultipler = 1.f;
 	}

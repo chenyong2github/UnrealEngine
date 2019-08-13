@@ -20,6 +20,9 @@
 #include "NiagaraShaderModule.h"
 #include "UObject/CoreRedirects.h"
 #include "NiagaraEmitterInstanceBatcher.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "DeviceProfiles/DeviceProfile.h"
 
 IMPLEMENT_MODULE(INiagaraModule, Niagara);
 
@@ -62,6 +65,13 @@ static TAutoConsoleVariable<float> CVarDetailLevel(
 	TEXT("\n")
 	TEXT("Default = 4"),
 	ECVF_Scalability);
+
+static TAutoConsoleVariable<float> CVarPruneEmittersOnCookByDetailLevel(
+	TEXT("fx.NiagaraPruneEmittersOnCookByDetailLevel"),
+	0,
+	TEXT("Whether to eliminate all emitters that don't match the detail level.\n")
+	TEXT("This will only work if scalability settings affecting detail level can not be changed at runtime (depends on platform).\n"),
+	ECVF_ReadOnly);
 
 static FAutoConsoleVariableRef CVarNiaraGlobalSpawnCountScale(
 	TEXT("fx.NiagaraGlobalSpawnCountScale"),
@@ -454,6 +464,34 @@ void INiagaraModule::UnregisterPrecompiler(FDelegateHandle DelegateHandle)
 }
 
 #endif
+
+
+bool INiagaraModule::IsTargetPlatformIncludedInLevelRangeForCook(const ITargetPlatform* InTargetPlatform, const UNiagaraEmitter* InEmitter)
+{
+#if WITH_EDITORONLY_DATA
+	if (UDeviceProfile* DeviceProfile = UDeviceProfileManager::Get().FindProfile(InTargetPlatform->IniPlatformName()))
+	{
+		// get local scalability CVars that could cull this actor
+		int32 CVarCullBasedOnDetailLevel;
+		if (DeviceProfile->GetConsolidatedCVarValue(TEXT("fx.NiagaraPruneEmittersOnCookByDetailLevel"), CVarCullBasedOnDetailLevel) && CVarCullBasedOnDetailLevel == 1)
+		{
+			int32 CVarDetailLevelFoundValue;
+			if (InEmitter && DeviceProfile->GetConsolidatedCVarValue(TEXT("r.DetailLevel"), CVarDetailLevelFoundValue))
+			{
+				// Check emitter's detail level range contains the platform's level
+				// If e.g. the emitter's detail level range is between 0 and 2  and the platform detail is 3 only,
+				// then we should cull it.
+				if (InEmitter->IsAllowedByDetailLevel(CVarDetailLevelFoundValue))
+				{
+					return true;
+				}
+				return false;
+			}
+		}
+	}
+#endif
+	return true;
+}
 
 void INiagaraModule::OnChangeDetailLevel(class IConsoleVariable* CVar)
 {

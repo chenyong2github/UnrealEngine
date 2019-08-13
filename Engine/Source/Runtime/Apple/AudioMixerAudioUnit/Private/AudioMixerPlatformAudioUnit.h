@@ -40,9 +40,9 @@ namespace Audio
 		virtual ICompressedAudioInfo* CreateCompressedAudioInfo(USoundWave* InSoundWave) override;
 		virtual FString GetDefaultDeviceName() override;
 		virtual FAudioPlatformSettings GetPlatformSettings() const override;
-        virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
-        virtual void ResumeContext() override;
-        virtual void SuspendContext() override;
+		virtual int32 GetNumFrames(const int32 InNumReqestedFrames) override;
+		virtual void ResumeContext() override;
+		virtual void SuspendContext() override;
 		
 		/** Whether or not the platform supports realtime decompression. */
 		virtual bool SupportsRealtimeDecompression() const override { return true; }
@@ -50,8 +50,8 @@ namespace Audio
 		/** Whether or not the platform disables caching of decompressed PCM data (i.e. to save memory on fixed memory platforms) */
 		virtual bool DisablePCMAudioCaching() const override { return true; }
 		
-      //~ End IAudioMixerPlatformInterface
-        
+	  //~ End IAudioMixerPlatformInterface
+		
 	private:
 		AudioStreamBasicDescription OutputFormat;
 
@@ -66,13 +66,13 @@ namespace Audio
 		AUGraph     AudioUnitGraph;
 		AUNode      OutputNode;
 		AudioUnit	OutputUnit;
-        uint8*      SubmittedBufferPtr;
-        int32 SubmittedBytes = 0;
+		uint8*      SubmittedBufferPtr;
+		int32 SubmittedBytes = 0;
 
-        int32       RemainingBytesInCurrentSubmittedBuffer;
-        int32       BytesPerSubmittedBuffer;
-        
-        double GraphSampleRate;
+		int32       RemainingBytesInCurrentSubmittedBuffer;
+		int32       BytesPerSubmittedBuffer;
+		
+		double GraphSampleRate;
 
 		// We may have to grow the circular buffer capacity since Audio Unit callback size is not guaranteed to be constant
 		// Currently, this just zero's-out and reallocates, so it will pop. (We always keep largest capacity)
@@ -84,9 +84,9 @@ namespace Audio
 
 		int32 NumSamplesPerRenderCallback;
 		int32 NumSamplesPerDeviceCallback;
-        mutable bool bInternalPlatformSettingsInitialized{ false };
-        mutable FAudioPlatformSettings InternalPlatformSettings;
-        
+		mutable bool bInternalPlatformSettingsInitialized{ false };
+		mutable FAudioPlatformSettings InternalPlatformSettings;
+		
 		bool PerformCallback(AudioBufferList* OutputBufferData);
 		void HandleError(const TCHAR* InLogOutput, bool bTeardown = true);
 		static OSStatus AudioRenderCallback(void* RefCon, AudioUnitRenderActionFlags* ActionFlags,

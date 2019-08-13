@@ -59,9 +59,9 @@ static FAutoConsoleVariableRef CVarBindAutomatically(TEXT("mns.BindAutomatically
 // ============================================================================================
 
 static bool ForceMispredict = false;
-void FMockNetworkSimulation::Update(IMockNetworkSimulationDriver* Driver, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
+void FMockNetworkSimulation::Update(IMockNetworkSimulationDriver* Driver, const TSimTime& DeltaTimeMS, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState)
 {
-	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * InputCmd.FrameDeltaTime);
+	OutputState.Total = InputState.Total + (InputCmd.InputValue * AuxState.Multiplier * DeltaTimeMS.ToRealTimeSeconds());
 
 	// Dev hack to force mispredict
 	if (ForceMispredict)
@@ -150,27 +150,7 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 	CheckOwnerRoleChange();
 
 	const ENetRole OwnerRole = GetOwnerRole();
-
-	// -------------------------------------------------------
-	//	Local Input
-	//		-For the mock sim, just create the input here.
-	//		-Real implementation, the input will probably be set outside of tick, from a PC, InputComponent, etc.
-	// -------------------------------------------------------
-	if (OwnerRole == ROLE_AutonomousProxy)
-	{
-		if (FMockInputCmd* Input = NetworkSim->GetNextInputForWrite(DeltaTime))
-		{
-			if (MockNetworkSimCVars::DoLocalInput)
-			{
-				Input->InputValue = FMath::FRand() * 10.f;
-			}
-			else
-			{
-				Input->InputValue = 0.f;
-			}
-		}
-	}
-
+	
 	// -------------------------------------
 	// Tick the network sim
 	// -------------------------------------
@@ -184,10 +164,11 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 			ForceMispredict = true;
 			MockNetworkSimCVars::RequestMispredict = 0;
 		}
-
+		
 		FMockNetworkSimulation::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		Parameters.Role = OwnerRole;
+		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IMockNetworkSimulationDriver*)this, Parameters);
@@ -202,6 +183,18 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 	
 	// Mock example of displaying
 	DrawDebugString( GetWorld(), GetOwner()->GetActorLocation() + FVector(0.f,0.f,100.f), *LexToString(MockValue), nullptr, FColor::White, 0.00001f );
+}
+
+void UMockNetworkSimulationComponent::ProduceInput(const FMockNetworkSimulation::TSimTime& SimFrameTime, FMockInputCmd& Cmd)
+{
+	if (MockNetworkSimCVars::DoLocalInput)
+	{
+		Cmd.InputValue = FMath::FRand() * 10.f;
+	}
+	else
+	{
+		Cmd.InputValue = 0.f;
+	}
 }
 
 void UMockNetworkSimulationComponent::InitSyncState(FMockSyncState& OutSyncState) const

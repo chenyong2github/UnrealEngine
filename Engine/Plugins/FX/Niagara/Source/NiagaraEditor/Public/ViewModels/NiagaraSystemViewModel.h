@@ -299,6 +299,9 @@ private:
 	/** Sets up the preview component and System instance. */
 	void SetupPreviewComponentAndInstance();
 
+	/** Resets the emitter handle view models and tracks to remove data from them.  This must be called before modifying the emitter handle collection to prevent accessing invalid data. */
+	void ResetEmitterHandleViewModelsAndTracks();
+
 	/** Rebuilds the emitter handle view models. */
 	void RefreshEmitterHandleViewModels();
 

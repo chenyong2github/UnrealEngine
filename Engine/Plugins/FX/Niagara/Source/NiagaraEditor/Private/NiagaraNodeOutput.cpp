@@ -59,7 +59,7 @@ FText UNiagaraNodeOutput::GetPinNameText(UEdGraphPin* Pin) const
 	return FText::FromName(Pin->PinName);
 }
 
-bool UNiagaraNodeOutput::VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin)
+bool UNiagaraNodeOutput::VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin) const
 {
 	return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*this, Pin->PinName, *InText.ToString(), OutErrorMessage);
 }

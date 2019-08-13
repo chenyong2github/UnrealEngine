@@ -19,6 +19,7 @@
 #include "Misc/CString.h"
 #include "ClearQuad.h"
 #include "XRThreadUtils.h"
+#include "RenderUtils.h"
 #include "PipelineStateCache.h"
 #include "Slate/SceneViewport.h"
 #include "Engine/GameEngine.h"
@@ -27,6 +28,14 @@
 #if WITH_EDITOR
 #include "Editor/UnrealEd/Classes/Editor/EditorEngine.h"
 #endif
+
+static TAutoConsoleVariable<int32> CVarEnableOpenXRValidationLayer(
+	TEXT("xr.EnableOpenXRValidationLayer"),
+	0,
+	TEXT("If true, enables the OpenXR validation layer, which will provide extended validation of\nOpenXR API calls. This should only be used for debugging purposes.\n")
+	TEXT("Changes will only take effect in new game/editor instances - can't be changed at runtime.\n"),
+	ECVF_Default);		// @todo: Should we specify ECVF_Cheat here so this doesn't show up in release builds?
+
 
 namespace {
 	/** Helper function for acquiring the appropriate FSceneViewport */
@@ -113,16 +122,19 @@ public:
 	virtual bool IsHMDConnected() override { return true; }
 
 	bool HasExtension(const char* Name) const { return AvailableExtensions.Contains(Name); }
+	bool HasLayer(const char* Name) const { return AvailableLayers.Contains(Name); }
 
 private:
 	void *LoaderHandle;
 	XrInstance Instance;
 	XrSystemId System;
 	TSet<FString> AvailableExtensions;
+	TSet<FString> AvailableLayers;
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
 	TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > VulkanExtensions;
 
 	bool EnumerateExtensions();
+	bool EnumerateLayers();
 	bool InitRenderBridge();
 };
 
@@ -138,11 +150,12 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDPlugin::Cre
 		}
 	}
 
-	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, System, RenderBridge);
+	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, System, RenderBridge, HasExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME));
 	if( OpenXRHMD->IsInitialized() )
 	{
 		return OpenXRHMD;
 	}
+
 	return nullptr;
 }
 
@@ -197,6 +210,40 @@ bool FOpenXRHMDPlugin::EnumerateExtensions()
 		}
 		return true;
 	}
+	return false;
+}
+
+bool FOpenXRHMDPlugin::EnumerateLayers()
+{
+	uint32 LayerPropertyCount = 0;
+	if (XR_FAILED(xrEnumerateApiLayerProperties(0, &LayerPropertyCount, nullptr)))
+	{
+		// As per EnumerateExtensions - a failure here means no runtime installed.
+		return false;
+	}
+
+	if (!LayerPropertyCount)
+	{
+		// It's still legit if we have no layers, so early out here (and return success) if so.
+		return true;
+	}
+
+	TArray<XrApiLayerProperties> LayerProperties;
+	LayerProperties.SetNum(LayerPropertyCount);
+	for (auto& Prop : LayerProperties)
+	{
+		Prop = XrApiLayerProperties{ XR_TYPE_API_LAYER_PROPERTIES };
+	}
+
+	if (XR_ENSURE(xrEnumerateApiLayerProperties(LayerPropertyCount, &LayerPropertyCount, LayerProperties.GetData())))
+	{
+		for (const auto& Prop : LayerProperties)
+		{
+			AvailableLayers.Add(Prop.layerName);
+		}
+		return true;
+	}
+
 	return false;
 }
 
@@ -270,7 +317,13 @@ bool FOpenXRHMDPlugin::PreInit()
 	TArray<const char*> Extensions;
 	if (!EnumerateExtensions())
 	{
-		UE_LOG(LogHMD, Log, TEXT("Failed to enumerate extensions. Please check if you have an OpenXR runtime installed."));
+		UE_LOG(LogHMD, Log, TEXT("Failed to enumerate extensions. Please check that you have a valid OpenXR runtime installed."));
+		return false;
+	}
+
+	if (!EnumerateLayers())
+	{
+		UE_LOG(LogHMD, Log, TEXT("Failed to enumerate API layers. Please check that you have a valid OpenXR runtime installed."));
 		return false;
 	}
 
@@ -299,16 +352,22 @@ bool FOpenXRHMDPlugin::PreInit()
 	}
 #endif
 
-#if 0
 	if (HasExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME))
 	{
 		Extensions.Add(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
 	}
-#endif
 
 	if (HasExtension(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME))
 	{
 		Extensions.Add(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME);
+	}
+
+	// Enable layers, if specified by CVar
+	const bool bEnableOpenXRValidationLayer = CVarEnableOpenXRValidationLayer.GetValueOnAnyThread() != 0;
+	TArray<const char*> Layers;
+	if (bEnableOpenXRValidationLayer && HasLayer("XR_APILAYER_LUNARG_core_validation"))
+	{
+		Layers.Add("XR_APILAYER_LUNARG_core_validation");
 	}
 
 	// Engine registration can be disabled via console var.
@@ -335,10 +394,13 @@ bool FOpenXRHMDPlugin::PreInit()
 	FTCHARToUTF8_Convert::Convert(Info.applicationInfo.engineName, XR_MAX_ENGINE_NAME_SIZE, *EngineName, EngineName.Len() + 1);
 	Info.applicationInfo.engineVersion = (uint32)(FEngineVersion::Current().GetMinor() << 16 | FEngineVersion::Current().GetPatch());
 	Info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
-	Info.enabledApiLayerCount = 0;
-	Info.enabledApiLayerNames = nullptr;
+
+	Info.enabledApiLayerCount = Layers.Num();
+	Info.enabledApiLayerNames = Layers.GetData();
+
 	Info.enabledExtensionCount = Extensions.Num();
 	Info.enabledExtensionNames = Extensions.GetData();
+
 	XrResult rs = xrCreateInstance(&Info, &Instance);
 	if (XR_FAILED(rs))
 	{
@@ -740,7 +802,7 @@ bool FOpenXRHMD::IsActiveThisFrame(class FViewport* InViewport) const
 	return GEngine && GEngine->IsStereoscopic3D(InViewport);
 }
 
-FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge)
+FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, bool InDepthExtensionSupported)
 	: FHeadMountedDisplayBase(nullptr)
 	, FSceneViewExtensionBase(AutoRegister)
 	, bStereoEnabled(false)
@@ -748,6 +810,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsReady(false)
 	, bIsRendering(false)
 	, bRunRequested(false)
+	, bDepthExtensionSupported(InDepthExtensionSupported)
+	, bNeedReAllocatedDepth(InDepthExtensionSupported)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, Instance(InInstance)
 	, System(InSystem)
@@ -968,21 +1032,24 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	
 	// Grab the presentation texture out of the swapchain.
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
-#if 0
-	// Allocate the depth buffer swapchain while we're here.
-	DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, NumMips, NumSamples, 0, TexCreate_DepthStencilTargetable);
-	if (!DepthSwapchain)
+
+	if (bDepthExtensionSupported)
 	{
-		return false;
+		// Allocate the depth buffer swapchain while we're here.
+		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, NumMips, NumSamples, 0, TexCreate_DepthStencilTargetable);
+		if (!DepthSwapchain)
+		{
+			return false;
+		}
+		bNeedReAllocatedDepth = false;
 	}
-#endif
+
 	return true;
 }
 
-#if 0
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
-	if (!DepthSwapchain || DepthSwapchain->GetTexture2D()->GetSizeX() != SizeX || DepthSwapchain->GetTexture2D()->GetSizeY() != SizeY)
+	if (!DepthSwapchain.IsValid())
 	{
 		return false;
 	}
@@ -991,7 +1058,6 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 
 	return true;
 }
-#endif
 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
@@ -1000,13 +1066,29 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		XrFrameBeginInfo BeginInfo;
 		BeginInfo.type = XR_TYPE_FRAME_BEGIN_INFO;
 		BeginInfo.next = nullptr;
-		xrBeginFrame(Session, &BeginInfo);
-		bIsRendering = true;
+		XrResult Result = xrBeginFrame(Session, &BeginInfo);
+		if (XR_SUCCEEDED(Result))
+		{
+			bIsRendering = true;
 
-		Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#if 0
-		DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#endif
+			Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
+			if (bDepthExtensionSupported)
+			{
+				ensure(DepthSwapchain != nullptr);
+				DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
+			}
+		}
+		else
+		{
+			static bool bLoggedBeginFrameFailure = false;
+			if (!bLoggedBeginFrameFailure)
+			{
+				char Error[XR_MAX_RESULT_STRING_SIZE] = { '\0' };
+				xrResultToString(XR_NULL_HANDLE, Result, Error);
+				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), Error);
+				bLoggedBeginFrameFailure = true;
+			}
+		}
 	}
 
 	FrameStateRHI = FrameState;
@@ -1046,17 +1128,18 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		};
 
-#if 0
-		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
-		DepthLayer.next = nullptr;
-		DepthLayer.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle();
-		DepthLayer.subImage.imageArrayIndex = 0;
-		DepthLayer.subImage.imageRect = Projection.subImage.imageRect;
-		DepthLayer.minDepth = 1.0f;
-		DepthLayer.maxDepth = 0.0f;
-		DepthLayer.nearZ = NearZ;
-		DepthLayer.farZ = FLT_MAX;
-#endif
+		if (bDepthExtensionSupported)
+		{
+			DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
+			DepthLayer.next = nullptr;
+			DepthLayer.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle();
+			DepthLayer.subImage.imageArrayIndex = 0;
+			DepthLayer.subImage.imageRect = Projection.subImage.imageRect;
+			DepthLayer.minDepth = 1.0f;
+			DepthLayer.maxDepth = 0.0f;
+			DepthLayer.nearZ = NearZ;
+			DepthLayer.farZ = FLT_MAX;
+		}
 
 		OffsetX += Config.recommendedImageRectWidth;
 	}
@@ -1244,9 +1327,11 @@ void FOpenXRHMD::FinishRendering()
 	if (bIsRendering)
 	{
 		Swapchain->ReleaseCurrentImage_RHIThread();
-#if 0
-		DepthSwapchain->ReleaseCurrentImage_RHIThread();
-#endif
+
+		if (bDepthExtensionSupported)
+		{
+			DepthSwapchain->ReleaseCurrentImage_RHIThread();
+		}
 
 		XrFrameEndInfo EndInfo;
 		XrCompositionLayerBaseHeader* Headers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&Layer) };
@@ -1260,6 +1345,8 @@ void FOpenXRHMD::FinishRendering()
 
 		// Ignore invalid call order for now, we will recover on the next frame
 		ensure(XR_SUCCEEDED(Result) || Result == XR_ERROR_CALL_ORDER_INVALID);
+
+		bIsRendering = false;
 	}
 }
 
@@ -1276,6 +1363,11 @@ FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 		Size.X += (int)Config.recommendedImageRectWidth;
 		Size.Y = FMath::Max(Size.Y, (int)Config.recommendedImageRectHeight);
 	}
+
+	// We always prefer the nearest multiple of 4 for our buffer sizes. Make sure we round up here,
+	// so we're consistent with the rest of the engine in creating our buffers.
+	QuantizeSceneBufferSize(Size, Size);
+
 	return Size;
 }
 
