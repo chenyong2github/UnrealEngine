@@ -57,13 +57,13 @@ namespace
 
 UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveIPAddress, int32 Port, bool bMulticastLoopback, bool bStartListening)
 {
-	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
-
 	if (GetLocalHostAddress(ReceiveIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCServer ReceiveAddress not specified. Using LocalHost IP: '%s'"), *ReceiveIPAddress);
 	}
 
+	UOSCServer* NewOSCServer = NewObject<UOSCServer>();
+	NewOSCServer->Connect();
 	NewOSCServer->SetMulticastLoopback(bMulticastLoopback);
 	if (NewOSCServer->SetAddress(ReceiveIPAddress, Port))
 	{
@@ -82,13 +82,13 @@ UOSCServer* UOSCManager::CreateOSCServer(FString ReceiveIPAddress, int32 Port, b
 
 UOSCClient* UOSCManager::CreateOSCClient(FString SendIPAddress, int32 Port)
 {
-	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
-
 	if (GetLocalHostAddress(SendIPAddress))
 	{
 		UE_LOG(LogOSC, Display, TEXT("OSCClient SendAddress not specified. Using LocalHost IP: '%s'"), *SendIPAddress);
 	}
 
+	UOSCClient* NewOSCClient = NewObject<UOSCClient>();
+	NewOSCClient->Connect();
 	if (!NewOSCClient->SetSendIPAddress(SendIPAddress, Port))
 	{
 		UE_LOG(LogOSC, Warning, TEXT("Failed to parse SendAddress '%s' for OSCClient. Client unable to send new messages."), *SendIPAddress);
