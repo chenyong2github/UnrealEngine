@@ -437,7 +437,7 @@ protected:
 		if (Settings && CommandLine)
 		{
 			// Parse value overrides (if present)
-			FParse::Bool(CommandLine, TEXT("-UDPMESSAGING_ENABLE_TRANSPORT="), Settings->EnableTransport);
+			FParse::Bool(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_ENABLE="), Settings->EnableTransport);
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_UNICAST="), Settings->UnicastEndpoint);
 			FParse::Value(CommandLine, TEXT("-UDPMESSAGING_TRANSPORT_MULTICAST="), Settings->MulticastEndpoint);
 		}
