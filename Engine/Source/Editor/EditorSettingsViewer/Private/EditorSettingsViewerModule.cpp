@@ -264,7 +264,7 @@ protected:
 			);
 
 		// Crash reports
-		SettingsModule.RegisterSettings("Editor", "Privacy", "Analitics",
+		SettingsModule.RegisterSettings("Editor", "Privacy", "Analytics",
 			LOCTEXT("PrivacyBugReportsSettingsName", "Bug Reports"),
 			LOCTEXT("PrivacyBugReportsSettingsDescription", "Configure the way your bug reports information is handled."),
 			GetMutableDefault<UCrashReportsPrivacySettings>()
