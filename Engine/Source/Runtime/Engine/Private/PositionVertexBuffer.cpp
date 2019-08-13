@@ -235,7 +235,7 @@ void FPositionVertexBuffer::InitRHI()
 		bSRV |= (VertexData && VertexData->GetAllowCPUAccess());
 		if(bSRV)
 		{
-			PositionComponentSRV = RHICreateShaderResourceView(VertexBufferRHI, 4, PF_R32_FLOAT);
+			PositionComponentSRV = RHICreateShaderResourceView(VertexData ? VertexBufferRHI : nullptr, 4, PF_R32_FLOAT);
 		}
 	}
 }
