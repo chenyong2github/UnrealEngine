@@ -107,6 +107,7 @@ private:
 		// This allows every call to AddOrTouchChunk to report how far down the cache
 		// it was when it was needed, or INDEX_NONE if it wasn't in the cache when it was needed.
 		TArray<int32> PreviousLocationsBeforeBeingTouched;
+		FCriticalSection PreviousLocationsLock;
 
 		FCacheElementDebugInfo()
 			: NumTotalChunks(0)
@@ -114,6 +115,16 @@ private:
 			, TimeLoadStarted(0.0)
 			, TimeToLoad(0.0)
 		{
+		}
+
+		void Reset()
+		{
+			NumTotalChunks = 0;
+			NumTimesTouched = 0;
+			TimeLoadStarted = 0;
+
+			FScopeLock ScopeLock(&PreviousLocationsLock);
+			PreviousLocationsBeforeBeingTouched.Empty();
 		}
 	};
 #endif
