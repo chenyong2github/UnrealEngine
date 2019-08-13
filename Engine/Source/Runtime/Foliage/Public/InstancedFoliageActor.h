@@ -251,6 +251,7 @@ private:
 	void ClearSelection();
 	void OnLevelActorMoved(AActor* InActor);
 	void OnLevelActorDeleted(AActor* InActor);
+	void OnApplyLevelTransform(const FTransform& InTransform);
 	void OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift);
 
 	// Move instances to a foliage actor in target level
@@ -261,6 +262,7 @@ private:
 	FDelegateHandle OnLevelActorMovedDelegateHandle;
 	FDelegateHandle OnLevelActorDeletedDelegateHandle;
 	FDelegateHandle OnPostApplyLevelOffsetDelegateHandle;
+	FDelegateHandle OnApplyLevelTransformDelegateHandle;
 
 	FOnFoliageTypeMeshChanged OnFoliageTypeMeshChangedEvent;
 #endif
