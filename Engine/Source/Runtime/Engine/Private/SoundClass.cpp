@@ -222,15 +222,6 @@ void USoundClass::Serialize( FArchive& Ar )
 		TMap<USoundClass*, FSoundClassEditorData>	EditorData_DEPRECATED;
 		Ar << EditorData_DEPRECATED;
 	}
-
-	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
-	const int32 ReleaseObjectVersion = Ar.CustomVer(FReleaseObjectVersion::GUID);
-
-	if (ReleaseObjectVersion < FReleaseObjectVersion::SoundClass2DReverbSend)
-	{
-		const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-		Properties.Default2DReverbSendAmount = AudioSettings->DefaultReverbSendLevel_DEPRECATED;
-	}
 }
 
 void USoundClass::BeginDestroy()
