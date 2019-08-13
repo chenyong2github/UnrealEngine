@@ -248,7 +248,10 @@ bool FLiveLinkMessageBusSource::RequestSourceShutdown()
 	HeartbeatEmitter.StopHeartbeat(ConnectionAddress, MessageEndpoint);
 
 	// Disable the Endpoint message handling since the message could keep it alive a bit.
-	MessageEndpoint->Disable();
+	if (MessageEndpoint.IsValid())
+	{
+		MessageEndpoint->Disable();
+	}
 	MessageEndpoint.Reset();
 
 	return true;
