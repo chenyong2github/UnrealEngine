@@ -106,7 +106,12 @@ FNavLinkRenderingProxy::FNavLinkRenderingProxy(const UPrimitiveComponent* InComp
 	: FPrimitiveSceneProxy(InComponent)
 {
 	LinkOwnerActor = InComponent->GetOwner();
-	LinkOwnerHost = Cast<INavLinkHostInterface>(InComponent->GetOwner());
+	LinkOwnerHost = Cast<INavLinkHostInterface>((UPrimitiveComponent*)InComponent);
+
+	if (LinkOwnerHost == nullptr)
+	{
+		LinkOwnerHost = Cast<INavLinkHostInterface>(LinkOwnerActor);
+	}
 
 	if (LinkOwnerActor != NULL && LinkOwnerHost != NULL)
 	{
