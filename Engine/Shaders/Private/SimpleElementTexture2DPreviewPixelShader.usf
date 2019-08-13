@@ -59,7 +59,7 @@ void Main(
 	if( MipLevel >= 0.0f )
 	{
 #if SAMPLE_VIRTUAL_TEXTURE
-		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, MipLevel, InPosition.xy, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, MipLevel, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
 		Sample = TextureVirtualSampleLevel( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
 
 
@@ -77,7 +77,7 @@ void Main(
 	{
 #if SAMPLE_VIRTUAL_TEXTURE
 
-		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, 0.0f, InPosition.xy, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
+		VTPageTableResult PageTableResult = TextureLoadVirtualPageTableLevel(InPageTableTexture0, InPageTableTexture1, TextureCoordinate, 0.0f, VTPageTableUniform_Unpack(VTPackedPageTableUniform[0], VTPackedPageTableUniform[1]), VTADDRESSMODE_CLAMP, VTADDRESSMODE_CLAMP);
 		Sample = TextureVirtualSample( InTexture, InTextureSampler, PageTableResult, LayerIndex, VTUniform_Unpack(VTPackedUniform));
 
 		/*Sample = TextureVirtualSample(	InTexture, InTextureSampler, InPageTableTexture,
