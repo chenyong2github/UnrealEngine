@@ -269,26 +269,14 @@ void FNiagaraScriptOutputCollectionViewModel::OnGraphChanged(const struct FEdGra
 
 void FNiagaraScriptOutputCollectionViewModel::OnParameterNameChanged(FName OldName, FName NewName, FNiagaraVariable* ParameterVariable)
 {
-	TSet<FName> CurrentNames;
+	FScopedTransaction ScopedTransaction(LOCTEXT("EditOutputName", "Edit output name"));
 
 	if (OutputNode.IsValid() == false)
 	{
 		return;
 	}
 
-	for (FNiagaraVariable& OutputVariable : OutputNode->Outputs)
-	{
-		if (&OutputVariable != ParameterVariable)
-		{
-			CurrentNames.Add(OutputVariable.GetName());
-		}
-	}
-
-	// If the new name matches a current output name, rename it to something unique.
-	if (CurrentNames.Contains(ParameterVariable->GetName()))
-	{
-		ParameterVariable->SetName(FNiagaraUtilities::GetUniqueName(ParameterVariable->GetName(), CurrentNames));
-	}
+	ParameterVariable->SetName(NewName);
 
 	// Make sure to edit the pin name so that when we regenerate the node the 
 	// links are preserved.

@@ -83,16 +83,14 @@ void FNiagaraScriptParameterViewModel::NameTextComitted(const FText& Name, EText
 	FName OldName = GraphVariable->GetName();
 	if (!OldName.IsEqual(NewName, ENameCase::CaseSensitive))
 	{
-		FScopedTransaction ScopedTransaction(LOCTEXT("EditInputName", "Edit input name"));
-		GraphVariableOwner->Modify();
-		GraphVariable->SetName(NewName);
 		OnNameChangedDelegate.Broadcast(OldName, NewName);
 	}
 }
 
 bool FNiagaraScriptParameterViewModel::VerifyNodeNameTextChanged(const FText& NewText, FText& OutErrorMessage)
 {
-	return UNiagaraNodeInput::VerifyNodeRenameTextCommit(NewText, Cast<UNiagaraNode>(GraphVariableOwner.Get()), OutErrorMessage);
+	UNiagaraNode* OwningNode = Cast<UNiagaraNode>(GraphVariableOwner);
+	return OwningNode == nullptr || FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*OwningNode, GraphVariable->GetName(), *NewText.ToString(), OutErrorMessage);
 }
 
 TSharedPtr<FNiagaraTypeDefinition> FNiagaraScriptParameterViewModel::GetType() const
