@@ -150,8 +150,7 @@ void SetupLightParameters(
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
 			LightParameters->dPdu[LightParameters->Count] = FVector::CrossProduct(LightShaderParameters.Direction, LightShaderParameters.Tangent);
 			LightParameters->dPdv[LightParameters->Count] = LightShaderParameters.Tangent;
-			// #dxr_todo: UE-72556 define these differences from Lit..
-			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color / 4.0;
+			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
 			LightParameters->Dimensions[LightParameters->Count] = FVector(2.0f * LightShaderParameters.SourceRadius, 2.0f * LightShaderParameters.SourceLength, 0.0f);
 			LightParameters->Attenuation[LightParameters->Count] = 1.0 / LightShaderParameters.InvRadius;
 			break;
