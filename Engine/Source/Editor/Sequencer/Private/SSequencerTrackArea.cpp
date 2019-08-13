@@ -94,7 +94,7 @@ void SSequencerTrackArea::OnArrangeChildren( const FGeometry& AllottedGeometry, 
 		}
 
 		TSharedPtr<SSequencerTrackLane> PinnedTrackLane = CurChild.TrackLane.Pin();
-		if (PinnedTrackLane->IsPinned() != bShowPinnedNodes)
+		if (!PinnedTrackLane.IsValid() || PinnedTrackLane->IsPinned() != bShowPinnedNodes)
 		{
 			continue;
 		}
