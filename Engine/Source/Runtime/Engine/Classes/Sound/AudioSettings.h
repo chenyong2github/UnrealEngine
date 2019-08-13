@@ -139,8 +139,8 @@ class ENGINE_API UAudioSettings : public UDeveloperSettings
 	float VoipBufferingDelay;
 
 	/** The amount of audio to send to reverb submixes if no reverb send is setup for the source through attenuation settings. Only used in audio mixer. */
-	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
-	float DefaultReverbSendLevel;
+	UPROPERTY()
+	float DefaultReverbSendLevel_DEPRECATED;
 
 	/** Enables legacy version of reverb. The legacy reverb runs more slowly, but by most other measures is functionally equivalent. It has a slight perceptual difference. */
 	UPROPERTY(config, EditAnywhere, Category = "Audio", AdvancedDisplay)
