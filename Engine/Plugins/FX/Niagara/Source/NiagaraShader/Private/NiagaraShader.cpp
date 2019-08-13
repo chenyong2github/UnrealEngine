@@ -1164,13 +1164,7 @@ void FNiagaraShaderMap::Serialize(FArchive& Ar, bool bInlineShaderResources)
 
 	Ar << DebugDescription;
 
-	if (Ar.IsSaving())
-	{
-		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, false);
-		RegisterSerializedShaders(false);
-	}
-
-	if (Ar.IsLoading())
+	if (Ar.IsSaving() || Ar.IsLoading())
 	{
 		TShaderMap<FNiagaraShaderType>::SerializeInline(Ar, bInlineShaderResources, false, false);
 	}
