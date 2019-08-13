@@ -206,8 +206,9 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 	if (NetworkSim && OwnerRole != ROLE_None)
 	{
 		ParametricMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTimeSeconds;
+		Parameters.Role = OwnerRole;
+		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);
