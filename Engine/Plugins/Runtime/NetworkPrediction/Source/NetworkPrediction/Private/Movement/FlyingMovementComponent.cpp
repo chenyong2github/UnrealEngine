@@ -104,6 +104,8 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 	// -------------------------------------
 	if (NetworkSim)
 	{
+		PreTickSimulation(DeltaTime); // Fixme
+
 		// Check if we should trip a mispredict. (Note how its not possible to do this inside the Update function!)
 		if (OwnerRole == ROLE_Authority && FlyingMovementCVars::RequestMispredict)
 		{

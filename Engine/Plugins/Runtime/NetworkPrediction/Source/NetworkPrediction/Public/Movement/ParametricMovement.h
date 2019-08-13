@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "BaseMovementComponent.h"
 
 #include "ParametricMovement.generated.h"
@@ -91,8 +91,10 @@ namespace ParametricMovement
 		}
 	};
 
+	using TMovementBufferTypes = TNetworkSimBufferTypes<FInputCmd, FMoveState, FAuxState>;
+
 	// Actual definition of our network simulation.
-	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, FInputCmd, FMoveState, FAuxState>
+	class FMovementSystem : public TNetworkedSimulationModel<FMovementSystem, TMovementBufferTypes>
 	{
 	public:
 
@@ -143,6 +145,9 @@ class NETWORKPREDICTION_API UParametricMovementComponent : public UBaseMovementC
 
 	virtual void BeginPlay() override;
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+	virtual void Reconcile() override;
+	virtual void TickSimulation(float DeltaTimeSeconds) override;
 
 	// Base TNetworkModelSimulation driver
 	void InitSyncState(ParametricMovement::FMoveState& OutSyncState) const override;

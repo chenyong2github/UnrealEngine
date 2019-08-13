@@ -93,7 +93,7 @@ bool UNetworkPredictionComponent::IsLocallyControlled()
 	return bIsLocallyControlled;
 }
 
-void UNetworkPredictionComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
+void UNetworkPredictionComponent::PreTickSimulation(float DeltaTime)
 {
 	CheckOwnerRoleChange();
 	if (PreTickLocallyControlledSim.IsBound() && IsLocallyControlled())
