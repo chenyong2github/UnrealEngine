@@ -1252,6 +1252,11 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 		return false;
 	}
 
+	if (!IsSeletedActorsInEditorWorld())
+	{
+		return false;
+	}
+
 	if (IsGeometryCollectionSelected())
 	{
 		return IsLeafBoneSelected();
@@ -1261,7 +1266,7 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 	{
 		return false;
 	}
-
+	
 	return false;
 }
 
@@ -1764,10 +1769,25 @@ bool FFractureEditorModeToolkit::IsStaticMeshSelected()
 		}
 	}
 	return false;
-
 }
 
-
+bool FFractureEditorModeToolkit::IsSeletedActorsInEditorWorld()
+{
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = Cast<AActor>(*Iter);
+		if (Actor)
+		{
+			check(Actor->GetWorld());
+			if (Actor->GetWorld()->WorldType != EWorldType::Editor)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {
