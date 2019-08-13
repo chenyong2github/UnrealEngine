@@ -4,6 +4,7 @@
 
 #include "HAL/CriticalSection.h"
 #include "Templates/SharedPointer.h"
+
 #include "IMediaTextureSample.h"
 
 #import <AVFoundation/AVFoundation.h>
@@ -41,6 +42,8 @@ public:
 
 	void ProcessFrame(CVPixelBufferRef Frame, FTimespan SampleTime, FTimespan SampleDuration);
 
+	void Reset();
+	
 protected:
 
 	virtual void ProcessOutputSample(const TSharedRef<IMediaTextureSample, ESPMode::ThreadSafe>& Sample);
