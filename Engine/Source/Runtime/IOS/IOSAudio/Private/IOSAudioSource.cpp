@@ -336,6 +336,8 @@ void FIOSAudioSoundSource::Stop(void)
 		if(IOSBuffer != NULL)
 		{
 			IOSBuffer->DecompressionState->SeekToTime(0.0f);
+			delete IOSBuffer;
+			IOSBuffer = NULL;
 		}
 	}
 
