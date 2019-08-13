@@ -199,12 +199,22 @@ void FFoliageActor::OnHiddenEditorViewMaskChanged(uint64 InHiddenEditorViews)
 	}
 }
 
-void FFoliageActor::PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
+void FFoliageActor::UpdateActorTransforms(const TArray<FFoliageInstance>& Instances)
 {
 	for (int32 i = 0; i < Instances.Num(); ++i)
 	{
 		SetInstanceWorldTransform(i, Instances[i].GetInstanceWorldTransform(), true);
 	}
+}
+
+void FFoliageActor::PostApplyLevelTransform(const FTransform& InTransform, const TArray<FFoliageInstance>& Instances)
+{
+	UpdateActorTransforms(Instances);
+}
+
+void FFoliageActor::PostEditUndo(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices)
+{
+	UpdateActorTransforms(Instances);
 }
 
 void FFoliageActor::NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, const TSet<int32>& SelectedIndices, bool bSourceChanged)
@@ -216,10 +226,10 @@ void FFoliageActor::NotifyFoliageTypeChanged(AInstancedFoliageActor* IFA, UFolia
 	}
 }
 
-void FFoliageActor::Reapply(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances)
+void FFoliageActor::Reapply(AInstancedFoliageActor* IFA, const UFoliageType* FoliageType, const TArray<FFoliageInstance>& Instances, bool bPostLoad)
 {
 	IFA->Modify();
-	DestroyActors(false);
+	DestroyActors(bPostLoad);
 	
 	if (IsInitialized())
 	{
