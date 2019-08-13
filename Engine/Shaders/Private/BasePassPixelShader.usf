@@ -1033,7 +1033,8 @@ ShadingModel);
 			float3 V = MaterialParameters.CameraVector;
 			float3 L = normalize( V - N * dot(V,N) );
 			DiffuseDir = L;
-			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0) );
+			bool bEvalMultiScatter = true;
+			DiffuseColorForIndirect = 2*PI * HairShading( GBuffer, L, V, N, 1, 0, 0.2, uint2(0,0), bEvalMultiScatter );
 		}
 		#endif
 

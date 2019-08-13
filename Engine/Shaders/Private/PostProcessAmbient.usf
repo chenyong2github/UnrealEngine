@@ -309,7 +309,8 @@ float3 ImageBasedLightingHair( FGBufferData GBuffer, float3 V, float3 N, uint2 R
 			float Weight = rcp( InvWeight );
 
 			float3 Shading = 0;
-			Shading = HairShading( GBuffer, L, V, N, 1, 0, 0, Random );
+			bool bEvalMultiScatter = true;
+			Shading = HairShading( GBuffer, L, V, N, 1, 0, 0, Random, bEvalMultiScatter );
 			
 			Lighting += SampleColor * Shading * Weight;
 		}
@@ -424,7 +425,8 @@ void MainPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPositio
 		float3 FakeNormal = normalize( V - N * dot(V,N) );
 		FakeNormal = normalize( FakeNormal + 0 * float3(0,0,1) );
 		SpecularContribution = TextureCubeSampleLevel(AmbientCubemap, AmbientCubemapSampler, FakeNormal, AbsoluteDiffuseMip).rgb;
-		SpecularContribution *= PI * HairShading( GBuffer, FakeNormal, V, N, 1, 0, 0.2, Random );
+		bool bEvalMultiScatter = true;
+		SpecularContribution *= PI * HairShading( GBuffer, FakeNormal, V, N, 1, 0, 0.2, Random, bEvalMultiScatter );
 		NonSpecularContribution = 0;
 	}
 

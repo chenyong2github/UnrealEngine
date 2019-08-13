@@ -47,7 +47,14 @@ static float GRayTracingSkyLightMaxRayDistance = 1.0e7;
 static FAutoConsoleVariableRef CVarRayTracingSkyLightMaxRayDistance(
 	TEXT("r.RayTracing.SkyLight.MaxRayDistance"),
 	GRayTracingSkyLightMaxRayDistance,
-	TEXT("Sets the samples-per-pixel for ray tracing SkyLight (default = 1.0e7)")
+	TEXT("Sets the max ray distance for ray tracing SkyLight (default = 1.0e7)")
+);
+
+static float GRayTracingSkyLightMaxShadowThickness = 1.0e3;
+static FAutoConsoleVariableRef CVarRayTracingSkyLightMaxShadowThickness(
+	TEXT("r.RayTracing.SkyLight.MaxShadowThickness"),
+	GRayTracingSkyLightMaxShadowThickness,
+	TEXT("Sets the max shadow thickness for translucent materials for ray tracing SkyLight (default = 1.0e3)")
 );
 
 static int32 GRayTracingSkyLightSamplingStopLevel = 0;
@@ -859,6 +866,7 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 	uint32 SamplesPerPixel = GRayTracingSkyLightSamplesPerPixel >= 0 ? GRayTracingSkyLightSamplesPerPixel : Scene->SkyLight->SamplesPerPixel;
 	SkyLightData.SamplesPerPixel = SamplesPerPixel;
 	SkyLightData.MaxRayDistance = GRayTracingSkyLightMaxRayDistance;
+	SkyLightData.MaxShadowThickness = GRayTracingSkyLightMaxShadowThickness;
 	SkyLightData.SamplingStopLevel = GRayTracingSkyLightSamplingStopLevel;
 
 	// Sampling state
