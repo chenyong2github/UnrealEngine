@@ -9,7 +9,7 @@ FNavigationConfig::FNavigationConfig()
 	: bTabNavigation(true)
 	, bKeyNavigation(true)
 	, bAnalogNavigation(true)
-	, AnalogNavigationHorizontalThreshold(0.40f)
+	, AnalogNavigationHorizontalThreshold(0.50f)
 	, AnalogNavigationVerticalThreshold(0.50f)
 {
 	AnalogHorizontalKey = EKeys::Gamepad_LeftX;
