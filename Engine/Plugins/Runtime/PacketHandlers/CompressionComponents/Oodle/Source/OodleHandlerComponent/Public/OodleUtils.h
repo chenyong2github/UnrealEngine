@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#if HAS_OODLE_NET_SDK
+#if HAS_OODLE_SDK
 
 namespace OodleUtils
 {
