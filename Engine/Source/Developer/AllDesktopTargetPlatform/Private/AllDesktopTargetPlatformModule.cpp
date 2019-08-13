@@ -33,7 +33,7 @@ public:
 
 	virtual ITargetPlatform* GetTargetPlatform() override
 	{
-		if (Singleton == NULL)
+		if (Singleton == NULL && FAllDesktopTargetPlatform::IsUsable())
 		{
 			Singleton = new FAllDesktopTargetPlatform();
 		}
