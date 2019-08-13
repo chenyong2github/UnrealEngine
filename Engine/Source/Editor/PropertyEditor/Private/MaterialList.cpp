@@ -140,7 +140,7 @@ public:
 			];
 	}
 
-	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool )
+	TSharedRef<SWidget> CreateValueContent( const TSharedPtr<FAssetThumbnailPool>& ThumbnailPool, TSharedPtr<IPropertyHandle> InHandle)
 	{
 		FIntPoint ThumbnailSize(64, 64);
 
@@ -171,6 +171,7 @@ public:
 						.ThumbnailPool(ThumbnailPool)
 						.DisplayCompactSize(bDisplayCompactSize)
 						.CustomResetToDefault(ResetToDefaultOverride)
+						.PropertyHandle(InHandle)
 						.CustomContentSlot()
 						[
 							SNew( SBox )
@@ -354,13 +355,14 @@ private:
 };
 
 
-FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, bool bInAllowCollapse, bool bInShowUsedTextures, bool bInDisplayCompactSize)
+FMaterialList::FMaterialList(IDetailLayoutBuilder& InDetailLayoutBuilder, FMaterialListDelegates& InMaterialListDelegates, bool bInAllowCollapse, bool bInShowUsedTextures, bool bInDisplayCompactSize, TSharedPtr<class IPropertyHandle> InHandle)
 	: MaterialListDelegates( InMaterialListDelegates )
 	, DetailLayoutBuilder( InDetailLayoutBuilder )
 	, MaterialListBuilder( new FMaterialListBuilder )
 	, bAllowCollpase(bInAllowCollapse)
 	, bShowUsedTextures(bInShowUsedTextures)
 	, bDisplayCompactSize(bInDisplayCompactSize)
+	, MeshChildHandle(InHandle)
 {
 }
 
@@ -566,6 +568,11 @@ void FMaterialList::OnPasteMaterialList()
 	}
 }
 
+TSharedPtr<IPropertyHandle> FMaterialList::GetPropertyHandle() const
+{
+	return MeshChildHandle.IsValid() ? MeshChildHandle : nullptr;
+}
+
 bool FMaterialList::OnCanCopyMaterialItem(int32 CurrentSlot) const
 {
 	if (MaterialListDelegates.OnCanCopyMaterialItem.IsBound())
@@ -618,7 +625,7 @@ void FMaterialList::AddMaterialItem( FDetailWidgetRow& Row, int32 CurrentSlot, c
 	}
 	else
 	{
-		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool() );
+		RightSideContent = NewView->CreateValueContent( DetailLayoutBuilder.GetThumbnailPool(), GetPropertyHandle() );
 		ViewedMaterials.Add( NewView );
 	}
 
