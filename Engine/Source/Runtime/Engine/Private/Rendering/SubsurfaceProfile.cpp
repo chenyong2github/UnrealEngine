@@ -127,9 +127,9 @@ static float GetNextSmallerPositiveFloat(float x)
 // NOTE: Changing offsets below requires updating all instances of #SSSS_CONSTANTS
 // TODO: This needs to be defined in a single place and shared between C++ and shaders!
 #define SSSS_SUBSURFACE_COLOR_OFFSET			0
-#define SSS__SURFACEALBEDO_OFFSET                (SSSS_SUBSURFACE_COLOR_OFFSET+1)
-#define SSS__DMFP_OFFSET                        (SSS__SURFACEALBEDO_OFFSET+1)
-#define SSSS_TRANSMISSION_OFFSET				(SSS__DMFP_OFFSET+1)
+#define BSSS_SURFACEALBEDO_OFFSET                (SSSS_SUBSURFACE_COLOR_OFFSET+1)
+#define BSSS_DMFP_OFFSET                        (BSSS_SURFACEALBEDO_OFFSET+1)
+#define SSSS_TRANSMISSION_OFFSET				(BSSS_DMFP_OFFSET+1)
 #define SSSS_BOUNDARY_COLOR_BLEED_OFFSET		(SSSS_TRANSMISSION_OFFSET+1)
 #define SSSS_DUAL_SPECULAR_OFFSET				(SSSS_BOUNDARY_COLOR_BLEED_OFFSET+1)
 #define SSSS_KERNEL0_OFFSET						(SSSS_DUAL_SPECULAR_OFFSET+1)
@@ -141,14 +141,16 @@ static float GetNextSmallerPositiveFloat(float x)
 #define SSSS_KERNEL_TOTAL_SIZE					(SSSS_KERNEL0_SIZE + SSSS_KERNEL1_SIZE + SSSS_KERNEL2_SIZE)
 #define SSSS_TRANSMISSION_PROFILE_OFFSET		(SSSS_KERNEL0_OFFSET + SSSS_KERNEL_TOTAL_SIZE)
 #define SSSS_TRANSMISSION_PROFILE_SIZE			32
+#define BSSS_TRANSMISSION_PROFILE_OFFSET        (SSSS_TRANSMISSION_PROFILE_OFFSET + SSSS_TRANSMISSION_PROFILE_SIZE)
+#define BSSS_TRANSMISSION_PROFILE_SIZE			SSSS_TRANSMISSION_PROFILE_SIZE
 #define	SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE	5.0f // See MaxTransmissionProfileDistance in ComputeTransmissionProfile(), SeparableSSS.cpp
 #define	SSSS_MAX_DUAL_SPECULAR_ROUGHNESS		2.0f
 
 //------------------------------------------------------------------------------------------
 // Consistent in BurleyNormalizedSSSCommon.ush and SubsurfaceProfile.cpp
 
-#define SSS_TYPE_SSSS		1.0f
-#define SSS_TYPE_BURLEY	    0.0f
+#define SSS_TYPE_BURLEY	    0
+#define SSS_TYPE_SSSS		1
 
 //make sure UIMax|ClampMax of WorldScale * ENC_WORLDSCALE_TO_UNIT <= 1
 #define ENC_WORLDSCALE_IN_CM_TO_UNIT 0.02f
@@ -213,7 +215,7 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	const bool b16Bit = true;
 
 	// Each row of the texture contains SSS parameters, followed by 3 precomputed kernels. Texture must be wide enough to fit all data.
-	const uint32 Width = SSSS_TRANSMISSION_PROFILE_OFFSET + SSSS_TRANSMISSION_PROFILE_SIZE;
+	const uint32 Width = BSSS_TRANSMISSION_PROFILE_OFFSET + BSSS_TRANSMISSION_PROFILE_SIZE;
 
 	// at minimum 64 lines (less reallocations)
 	FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(Width, FMath::Max(Height, (uint32)64)), PF_B8G8R8A8, FClearValueBinding::None, 0, TexCreate_None, false));
@@ -234,14 +236,6 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 	const float FloatScale = GetNextSmallerPositiveFloat(0x10000);
 	check((int32)GetNextSmallerPositiveFloat(0x10000) == 0xffff);
 
-	const auto CVarSSSType = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SubsurfaceScattering.Type"));
-	check(CVarSSSType);
-	const bool bBurleyIsTurnedOn = CVarSSSType->GetValueOnAnyThread() == 1;
-
-	const auto CVarPassType = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.SSS.Burley.PassType"));
-	check(CVarPassType);
-	const bool bSinglePass = CVarPassType->GetValueOnAnyThread() == 1;
-
 	for (uint32 y = 0; y < Height; ++y)
 	{
 		FSubsurfaceProfileStruct Data = SubsurfaceProfileEntries[y].Settings;
@@ -261,13 +255,12 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		
 		FLinearColor DifffuseMeanFreePath = Data.MeanFreePathColor*Data.MeanFreePathDistance*10.0f; // convert cm to mm.
 		SetupSurfaceAlbedoAndDiffuseMeanFreePath(Data.SurfaceAlbedo, DifffuseMeanFreePath);
-		TextureRow[SSS__SURFACEALBEDO_OFFSET] = Data.SurfaceAlbedo;
-		TextureRow[SSS__DMFP_OFFSET] = EncodeDiffuseMeanFreePath(DifffuseMeanFreePath);
+		TextureRow[BSSS_SURFACEALBEDO_OFFSET] = Data.SurfaceAlbedo;
+		TextureRow[BSSS_DMFP_OFFSET] = EncodeDiffuseMeanFreePath(DifffuseMeanFreePath);
 
 		TextureRow[SSSS_BOUNDARY_COLOR_BLEED_OFFSET] = Data.BoundaryColorBleed;
 
-		bool bUseBurley = bSinglePass ? bBurleyIsTurnedOn : (bBurleyIsTurnedOn && Data.bEnableBurley);
-		TextureRow[SSSS_BOUNDARY_COLOR_BLEED_OFFSET].A = bUseBurley ? SSS_TYPE_BURLEY : SSS_TYPE_SSSS;
+		TextureRow[SSSS_BOUNDARY_COLOR_BLEED_OFFSET].A = Data.bEnableBurley ? SSS_TYPE_BURLEY : SSS_TYPE_SSSS;
 
 		float MaterialRoughnessToAverage = Data.Roughness0 * (1.0f - Data.LobeMix) + Data.Roughness1 * Data.LobeMix;
 		float AverageToRoughness0 = Data.Roughness0 / MaterialRoughnessToAverage;
@@ -288,15 +281,11 @@ void FSubsurfaceProfileTexture::CreateTexture(FRHICommandListImmediate& RHICmdLi
 		ComputeMirroredSSSKernel(&TextureRow[SSSS_KERNEL1_OFFSET], SSSS_KERNEL1_SIZE, Data.SubsurfaceColor, Data.FalloffColor);
 		ComputeMirroredSSSKernel(&TextureRow[SSSS_KERNEL2_OFFSET], SSSS_KERNEL2_SIZE, Data.SubsurfaceColor, Data.FalloffColor);
 
-		if (bUseBurley)
-		{
-			ComputeTransmissionProfileBurley(&TextureRow[SSSS_TRANSMISSION_PROFILE_OFFSET], SSSS_TRANSMISSION_PROFILE_SIZE, 
-				Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale,Data.SurfaceAlbedo, DifffuseMeanFreePath);
-		}
-		else
-		{
-			ComputeTransmissionProfile(&TextureRow[SSSS_TRANSMISSION_PROFILE_OFFSET], SSSS_TRANSMISSION_PROFILE_SIZE, Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale);
-		}
+		ComputeTransmissionProfile(&TextureRow[SSSS_TRANSMISSION_PROFILE_OFFSET], SSSS_TRANSMISSION_PROFILE_SIZE, Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale);
+
+		ComputeTransmissionProfileBurley(&TextureRow[BSSS_TRANSMISSION_PROFILE_OFFSET], BSSS_TRANSMISSION_PROFILE_SIZE,
+			Data.SubsurfaceColor, Data.FalloffColor, Data.ExtinctionScale, Data.SurfaceAlbedo, DifffuseMeanFreePath);
+
 		// could be lower than 1 (but higher than 0) to range compress for better quality (for 8 bit)
 		const float TableMaxRGB = 1.0f;
 		const float TableMaxA = 3.0f;
@@ -499,6 +488,6 @@ void USubsurfaceProfile::PostLoad()
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.R, Settings.SurfaceAlbedo.R, Settings.MeanFreePathColor.R);
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.G, Settings.SurfaceAlbedo.G, Settings.MeanFreePathColor.G);
 		MapFallOffColor2SurfaceAlbedoAndDiffuseMeanFreePath(Settings.FalloffColor.B, Settings.SurfaceAlbedo.B, Settings.MeanFreePathColor.B);
-		Settings.WorldScale = Settings.ScatterRadius;
+		Settings.WorldScale = Settings.ScatterRadius * 0.63; // Experimental value
 	}
 }

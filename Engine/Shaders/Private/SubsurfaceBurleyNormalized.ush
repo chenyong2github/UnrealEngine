@@ -1,0 +1,765 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	SubsurfaceBurleyNormalized.ush: Screenspace Burley subsurface scattering implementation.
+=============================================================================*/
+
+#include "Random.ush"
+#include "BurleyNormalizedSSSCommon.ush"
+
+// Setup the max number of Burley samples
+#define BURLEY_NUM_SAMPLES	64
+#define BURLEY_INV_NUM_SAMPLES (1.0f/BURLEY_NUM_SAMPLES)
+
+struct FBurleyParameter
+{
+	float4 SurfaceAlbedo;
+	float4 DiffuseMeanFreePath;
+	float  WorldScale;
+};
+
+//Surface albedo and mean free path length
+float4 GetSubsurfaceProfileSurfaceAlbedo(FGBufferData GBufferData)
+{
+	// 0..255, which SubSurface profile to pick
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+
+	return ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0));
+}
+
+float4 GetSubsurfaceProfileDiffuseMeanFreePath(FGBufferData GBufferData)
+{
+	// 0..255, which SubSurface profile to pick
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+
+	return ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0));
+}
+
+float GetSubsurfaceProfileWorldScale(FGBufferData GBufferData)
+{
+	// 0..255, which SubSurface profile to pick
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
+
+	return ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt, 0)).a;
+}
+
+float SampleDepthTexture(float2 ScreenUV)
+{
+
+#if SUBSURFACE_HALF_RES && !defined(SUBSURFACE_SINGLE_PASS)
+	ConvertToDeviceZ(Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, ScreenUV).g);
+#else
+	float2 FullScreenUV = ScreenUV;
+#endif
+	
+	return Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, ScreenUV, 0).r;
+}
+
+// fetch surface albedo and diffuse mean free path
+// The diffuse mean free path is modulated by world scale and a custom term passed in
+// which is the opacity texture.
+FBurleyParameter GetBurleyParameters(FGBufferData GBuffer)
+{
+	FBurleyParameter BurleyParameter;
+
+	BurleyParameter.SurfaceAlbedo = GetSubsurfaceProfileSurfaceAlbedo(GBuffer);
+	float4 DiffuseMeanFreePath = GetSubsurfaceProfileDiffuseMeanFreePath(GBuffer);
+	BurleyParameter.DiffuseMeanFreePath = DecodeDiffuseMeanFreePath(DiffuseMeanFreePath);
+	float WorldScale = DecodeWorldScale(GetSubsurfaceProfileWorldScale(GBuffer))*BURLEY_CM_2_MM;
+	BurleyParameter.WorldScale = WorldScale;
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
+	{
+		// scale with opacity stored in CustomData.a
+		BurleyParameter.DiffuseMeanFreePath *= GBuffer.CustomData.a;
+	}
+	else if (GBuffer.ShadingModelID == SHADINGMODELID_EYE)
+	{
+		//eye 
+	}
+	return BurleyParameter;
+}
+
+float2 Generate2DRandomNumber(int3 Seed)
+{
+	return float2(Rand3DPCG16(Seed).xy) / 0x10000;
+}
+
+float GetCDF(float D, float X, float XI)
+{
+	return 1 - 0.25*exp(-X / D) - 0.75*exp(-X / (3 * D)) - XI;
+}
+float GetCDFDeriv1(float D, float X)
+{
+	return 0.25 / D * (exp(-X / D) + exp(-X / (3 * D)));
+}
+
+float GetCDFDeriv2(float D, float X)
+{
+	return exp(-X / D)*(-0.0833333*exp(2 * X / (3 * D)) - 0.25) / (D*D);
+}
+
+// Without clamp, the result will be zero which will lead to infinity for R/pdf. and Nan for the weighted sum.
+// We need to clamp pdf to a very small value. this clamp is based on value below
+#define CLAMP_PDF 0.00001
+
+// Given D and a random number, use root finding method to calculate the radius
+// in meters
+float RadiusRootFinding(float D, float RandomNumber, float X0)
+{
+	// Make the distribution correct.
+	// r=cdf^(-1)(p)     if p<1-CLAMP_PDF
+	//  =cdf^(-1)(1-ClAMP_PDF) P>=1-CLAMP_PDF
+	// RandomNumber = clamp(RandomNumber,0,1-CLAMP_PDF);
+ 
+	const int NumOfIteration = 3;
+	float Xn = X0;
+
+	UNROLL for (int i = 0; i < NumOfIteration; ++i)
+	{
+		float Fx = GetCDF(D, Xn, RandomNumber);
+		float DFx = GetCDFDeriv1(D, Xn);
+		float DFxx = GetCDFDeriv2(D, Xn);
+		Xn = Xn - 2 * Fx*DFx / (2 * DFx*DFx - Fx * DFxx);
+	}
+
+	return Xn;
+}
+
+// Brian's approximation.
+float RadiusRootFindByApproximation(float D, float RandomNumber)
+{
+	return D * ((2 - 2.6)*RandomNumber - 2)*log(1 - RandomNumber);
+}
+
+// Get the probability to sample a disk.
+float GetPdf(float Radius, float L, float S)
+{
+	//without clamp, the result will be zero which will lead to infinity for R/pdf. and Nan for the weighted sum.
+	//we need to clamp this to a very small pdf.
+
+	float Pdf = GetCDFDeriv1(L / S, Radius);
+	return  max(Pdf, CLAMP_PDF);
+}
+
+struct FBurleySampleInfo
+{
+	float Radius;
+	float Theta;
+	float Pdf;
+};
+
+FBurleySampleInfo GenerateSampleInfo(float2 Rand0T1, float DiffuseMeanFreePathForSample, float SpectralForSample, uint SequenceId)
+{
+	FBurleySampleInfo BurleySampleInfo;
+
+#define SAMPLE_ANGLE_FIBONACCI
+#define ROOT_APROXIMATE
+
+	// Sample radius
+#ifdef ROOT_FINDING
+	float FoundRoot = RadiusRootFinding(DiffuseMeanFreePathForSample / SpectralForSample, Rand0T1.x, DiffuseMeanFreePathForSample);
+#elif defined(ROOT_APROXIMATE)
+	//Approximation
+	float FoundRoot = RadiusRootFindByApproximation(DiffuseMeanFreePathForSample / SpectralForSample, Rand0T1.x);
+#endif
+
+	BurleySampleInfo.Radius = max(FoundRoot, 0.00001f);//in mm
+	
+	// Sample angle
+#ifdef SAMPLE_ANGLE_RANDOM
+	BurleySampleInfo.Theta = Rand0T1.y * 2 * PI;
+#elif defined(SAMPLE_ANGLE_FIBONACCI)
+	//Less variance
+	BurleySampleInfo.Theta = (((SequenceId + 0.5 + Rand0T1.y))*(1 + sqrt(5))*0.5) * 2 * PI;//Fibonacci sequence for angle.
+#endif
+
+	// Estimate Pdf
+	BurleySampleInfo.Pdf = GetPdf(BurleySampleInfo.Radius, DiffuseMeanFreePathForSample, SpectralForSample); //
+
+	return BurleySampleInfo;
+}
+
+float GetProfileMask(float2 BufferUV)
+{
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	float Ret = 0;
+	BRANCH if (UseSubsurfaceProfile(ScreenSpaceData.GBuffer.ShadingModelID))
+	{
+		Ret = 1.0f;
+	}
+
+	return Ret;
+}
+
+float GetProfileEdgeMask(float2 BufferUV)
+{
+#ifdef SUBSURFACE_HALF_RES
+	#define PIXELOFFSET_UVDELTA 0.5f
+#else
+	#define PIXELOFFSET_UVDELTA 1.0f
+#endif
+
+	float P11 = GetProfileMask((BufferUV + float2(0.0f, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P00 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P01 = GetProfileMask((BufferUV + float2(0.0f, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P02 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, -PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P10 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P12 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, 0.0f) * SubsurfaceInput0_ExtentInverse));
+	float P20 = GetProfileMask((BufferUV + float2(-PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P21 = GetProfileMask((BufferUV + float2(0.0f, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+	float P22 = GetProfileMask((BufferUV + float2(PIXELOFFSET_UVDELTA, PIXELOFFSET_UVDELTA) * SubsurfaceInput0_ExtentInverse));
+
+	return (P00 + P01 + P02 + P10 + P11 + P12 + P20 + P21 + P22) / 9.0f;
+}
+
+float RadiusRootFindingCM(float D, float RandomNumber, float X0)
+{
+	return RadiusRootFinding(D*0.01, RandomNumber, X0*0.01)*100.0f;
+}
+
+float GetPdfInCM(float Radius, float L, float S)
+{
+	return GetPdf(Radius *0.01f, L*0.01f, S);
+}
+
+int GetNumOfSamplesBasedOnQuality(float2 UV)
+{
+
+	float4 QualityMatrix = Texture2DSample(SubsurfaceInput1_Texture, SharedSubsurfaceSampler1, UV);
+	float VariableVar = QualityMatrix.b;
+
+	#define VARIANCE_LEVEL 0.0001
+	#define HIGH_LUMA_SAMPLE_COUNT 8
+	#define LOW_LUMA_SAMPLE_COUNT 16
+	#define PROFILE_EDGE_SAMPLE_COUNT 32
+
+	//1. Estimate the number of samples required to reach the target variance level
+	float NumOfSamples = clamp((VariableVar / VARIANCE_LEVEL), 8, BURLEY_NUM_SAMPLES);//View.GeneralPurposeTweak
+
+	//1.1 If the luminance is too low, we should increase several number of samples to oberse the world for high lighting condition
+	NumOfSamples = lerp(NumOfSamples, max(LOW_LUMA_SAMPLE_COUNT, NumOfSamples), step(0.5, QualityMatrix.a));
+
+	//2. Clamp down the number of samples when the gamma corrected luminance is too large
+	//   because it does not help to improve the quality, but degrade the performance.
+	NumOfSamples = lerp(NumOfSamples, HIGH_LUMA_SAMPLE_COUNT, step(1.5, QualityMatrix.a)); // 1.5 is an experimental value
+
+	//3. Reduce the number of samples at the edge due to TAA (Flickering)
+	float Mask = Texture2DSample(SubsurfaceInput2_Texture, SharedSubsurfaceSampler2, UV).r;
+	NumOfSamples = lerp(NumOfSamples, PROFILE_EDGE_SAMPLE_COUNT, step(Mask, 0.99));
+
+	return NumOfSamples;
+}
+
+// Texture local cash does not help on 2080TI with regular layout
+#define TEXTURE_CACHE_DISABLED
+
+#ifdef SUBSURFACE_BURLEY_COMPUTE
+
+// Configurations for each small thread
+#define THREAD_SIZE_1D 8
+#define THREAD_SIZE_X THREAD_SIZE_1D
+#define THREAD_SIZE_Y THREAD_SIZE_X
+#define THREAD_TOTAL_SZIE (THREAD_SIZE_X*THREAD_SIZE_Y)
+
+#define THREAD_TEXTURE_BOARDER 1
+#define THREAD_TEXTURE_DIFFUSE_REGION_SIZE   THREAD_SIZE_X
+#define THREAD_TEXTURE_DIMENSION_SIZE (THREAD_TEXTURE_DIFFUSE_REGION_SIZE + 2*THREAD_TEXTURE_BOARDER)
+#define THREADGROUP_TEXTURE_SHARE_TOTALSIZE (THREAD_TEXTURE_DIMENSION_SIZE*THREAD_TEXTURE_DIMENSION_SIZE)
+
+// Configuration of group threads
+#ifndef SUBSURFACE_GROUP_SIZE
+#define SUBSURFACE_GROUP_SIZE 8
+#endif
+
+#define LARGE_GROUP_TOTAL_SIZE (SUBSURFACE_GROUP_SIZE*SUBSURFACE_GROUP_SIZE)
+#define LARGE_GROUP_DIFFUSE_REGION_SIZE SUBSURFACE_GROUP_SIZE
+#define LARGE_GROUP_TEXTURE_DIMENSION_SIZE (LARGE_GROUP_DIFFUSE_REGION_SIZE+2*THREAD_TEXTURE_BOARDER)
+#define LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE (LARGE_GROUP_TEXTURE_DIMENSION_SIZE*LARGE_GROUP_TEXTURE_DIMENSION_SIZE)
+
+#define NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE ((LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE+THREAD_TOTAL_SZIE-1)/THREAD_TOTAL_SZIE)
+
+#define LOCALGROUP_RATIO (SUBSURFACE_GROUP_SIZE/THREAD_SIZE_1D)
+
+#ifndef TEXTURE_CACHE_DISABLED 
+groupshared float4 SharedSubsurfaceDiffuseLighting[LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE];
+groupshared uint NotHaveSubsurface = 0;
+#endif
+
+// Ref: https://www.shadertoy.com/view/4sscDn
+static int Masks[] =
+{
+	0x55555555, 0x33333333, 0x0F0F0F0F, 0x00FF00FF, 0x0000FFFF
+};
+
+// Ref: https://github.com/Forceflow/libmorton/blob/master/libmorton/include/morton2D_LUTs.h
+static uint MortonLUTX[] =
+{
+	0,1,0,1,2,3,2,3,0,1,0,1,2,3,2,3,
+	4,5,4,5,6,7,6,7,4,5,4,5,6,7,6,7,
+	0,1,0,1,2,3,2,3,0,1,0,1,2,3,2,3,
+	4,5,4,5,6,7,6,7,4,5,4,5,6,7,6,7
+};
+
+static uint MortonLUTY[] =
+{
+	0,0,1,1,0,0,1,1,2,2,3,3,2,2,3,3,
+	0,0,1,1,0,0,1,1,2,2,3,3,2,2,3,3,
+	4,4,5,5,4,4,5,5,6,6,7,7,6,6,7,7,
+	4,4,5,5,4,4,5,5,6,6,7,7,6,6,7,7
+};
+
+//#define MORTON_USE_LUT
+
+// We can move this to cache instead of computing
+uint2 ConvertGroupIndexTo2DUsingMoltonCode(uint GroupIndex, uint2 StartOffset)
+{
+#ifdef MORTON_USE_LUT
+	return uint2(MortonLUTX[GroupIndex], MortonLUTY[GroupIndex]) + StartOffset;
+#else
+	int n = 1;
+	uint2 I = uint2(GroupIndex, GroupIndex >> 1) & Masks[0];
+	UNROLL for (int i = 1; i <= 4; ++i)
+	{
+		I = (I | (I >> n)) & Masks[i];
+		n *= 2;
+	}
+	return I + StartOffset;
+#endif
+}
+
+uint2 ConvertGroupIndexToNormal2DGrid(uint LocalGroupIndex, uint2 StartOffset)
+{
+	return uint2(LocalGroupIndex % THREAD_SIZE_1D,
+		LocalGroupIndex / THREAD_SIZE_1D) + StartOffset;
+}
+
+// BufferUV
+float2 ConvertGridPos2UV(uint2 GridPosition)
+{
+	float2 GripPositionF = float2(GridPosition);
+	return SubsurfaceInput0_ExtentInverse * (GripPositionF + 0.5f);
+}
+// Convert UV to groupThreadIds
+float2 ConvertUVOffset2GTIDOffsetForInput0(float2 UVOffset)
+{
+	return UVOffset * SubsurfaceInput0_Extent;
+}
+
+bool IsIDInsideLocalShared(float2 GroupThreadId)
+{
+	return GroupThreadId.x >= -THREAD_TEXTURE_BOARDER &&
+		(GroupThreadId.x < (LARGE_GROUP_TEXTURE_DIMENSION_SIZE - THREAD_TEXTURE_BOARDER)) &&
+		GroupThreadId.y >= -THREAD_TEXTURE_BOARDER &&
+		(GroupThreadId.y < (LARGE_GROUP_TEXTURE_DIMENSION_SIZE - THREAD_TEXTURE_BOARDER));
+}
+
+#ifndef TEXTURE_CACHE_DISABLED
+float4 SampleSharedDiffuse(float2 SampleGroupThreadId)
+{
+#if NONSUBSURFACE_SAMPLE_STRATEGY == 0
+#define SAMPLDE_POINT
+#elif NONSUBSURFACE_SAMPLE_STRATEGY == 1
+#define SAMPLE_BILINEAR
+#endif
+
+#ifdef SAMPLDE_POINT
+	// We use point sampling by now
+	int2 Id = SampleGroupThreadId + THREAD_TEXTURE_BOARDER;
+	return SharedSubsurfaceDiffuseLighting[Id.x + Id.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+#elif defined(SAMPLE_BILINEAR)
+
+	//ref: https://en.wikipedia.org/wiki/Bilinear_interpolation
+	int2 Id00 = floor(SampleGroupThreadId) + THREAD_TEXTURE_BOARDER;
+	int2 Id11 = ceil(SampleGroupThreadId) + THREAD_TEXTURE_BOARDER;
+	int2 Id01 = int2(Id00.x, Id11.y);
+	int2 Id10 = int2(Id11.x, Id00.y);
+	float4 Q00 = SharedSubsurfaceDiffuseLighting[Id00.x + Id00.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+	float4 Q01 = SharedSubsurfaceDiffuseLighting[Id01.x + Id01.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+	float4 Q10 = SharedSubsurfaceDiffuseLighting[Id10.x + Id10.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+	float4 Q11 = SharedSubsurfaceDiffuseLighting[Id11.x + Id11.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
+	float x = SampleGroupThreadId.x + THREAD_TEXTURE_BOARDER - Id00.x;
+	float y = SampleGroupThreadId.y + THREAD_TEXTURE_BOARDER - Id11.y;
+	return Q00 * (1 - x)*(1 - y) + Q10 * x*(1 - y) + Q01 * (1 - x)*y + Q11 * x*y;
+#endif
+}
+#endif
+
+#endif
+
+float4 SampleSSSColorConsideringLocalShared(float2 CenterUV, float2 UVOffset, uint2 CenterGroupThreadID, float MipLevel)
+{
+
+#ifdef SUBSURFACE_BURLEY_COMPUTE
+
+#ifdef TEXTURE_CACHE_DISABLED 
+	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+#else
+	float2 SampleGroupThreadId = ConvertUVOffset2GTIDOffsetForInput0(UVOffset) + CenterGroupThreadID; // Subtract 0.5 is to make sampling match. (0,0), samples at 1/w*0.5;
+	bool bUseLocalShared = MipLevel == 0 && IsIDInsideLocalShared(SampleGroupThreadId);// We will have artifacts if we do not limit the miplevel
+
+	BRANCH
+		if (bUseLocalShared)
+		{
+			return SampleSharedDiffuse(SampleGroupThreadId);
+		}
+		else
+		{
+			return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+		}
+#endif
+
+#else
+	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+#endif
+}
+
+// If it is in half resolution, we get the buffer from cached location.
+FScreenSpaceData GetScreenSpaceDataFromCache(float2 BufferUV)
+{
+#if SUBSURFACE_HALF_RES && !defined(SUBSURFACE_SINGLE_PASS)
+	float2 FullScreenUV = Texture2DSample(SubsurfaceInput2_Texture, SubsurfaceSampler2, BufferUV).zw;
+#else
+	float2 FullScreenUV = BufferUV;
+#endif
+	return GetScreenSpaceData(FullScreenUV);
+}
+
+uint GetSubsurfaceProfileIdFromCache(float2 BufferUV)
+{
+#if SUBSURFACE_HALF_RES && !defined(SUBSURFACE_SINGLE_PASS)
+	float2 FullScreenUV = Texture2DSample(SubsurfaceInput2_Texture, SubsurfaceSampler2, BufferUV).zw;
+#else
+	float2 FullScreenUV = BufferUV;
+#endif
+	return GetSubsurfaceProfileId(FullScreenUV);
+}
+
+float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
+{
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceDataFromCache(BufferUV);
+
+#ifdef SUBSURFACE_SINGLE_PASS
+	float DepthAtDiscCenter = CalcSceneDepth(BufferUV);
+	uint ReconstructMethod = (SUBSURFACE_RECOMBINE_QUALITY == SUBSURFACE_RECOMBINE_QUALITY_HIGH) ? 3 : 1;
+#else
+	float DepthAtDiscCenter = SampleSSSColorConsideringLocalShared(BufferUV, 0, GroupThreadID, 0).w;
+#endif
+
+	float4 OutColor = 0;
+
+	BRANCH if (DepthAtDiscCenter <= 0)
+	{
+		return OutColor;
+	}
+
+	FBurleyParameter BurleyParameter = GetBurleyParameters(ScreenSpaceData.GBuffer);
+	float DiffuseMeanFreePathForSampling = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
+	float A = GetComponentForScalingFactorEstimation(BurleyParameter.SurfaceAlbedo);
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(ScreenSpaceData.GBuffer).xyz;
+
+#define LIGHT_PERPENDICULAR_DIFFUSE_SURFACE
+
+#ifdef LIGHT_PERPENDICULAR
+	float S = GetPerpendicularScalingFactor(A);
+	float3 S3D = GetPerpendicularScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+#elif defined(LIGHT_DIFFUSESURFACE)
+	float S = GetDiffuseSurfaceScalingFactor(A);
+	float3 S3D = GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+#elif defined(LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
+	float S = GetSearchLightDiffuseScalingFactor(A);
+	float3 S3D = GetSearchLightDiffuseScalingFactor(BurleyParameter.SurfaceAlbedo.rgb);
+#endif
+
+	int SeedStart = View.FrameNumber;
+	float3 WeightingFactor = 0.0f;
+	float4 RadianceAccumulated = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	float Mask = 1.0f;
+
+#ifdef SUBSURFACE_SINGLE_PASS
+	int NumOfSamples = BURLEY_NUM_SAMPLES;
+	float InvNumOfSamples = BURLEY_INV_NUM_SAMPLES;
+#else
+	int NumOfSamples = GetNumOfSamplesBasedOnQuality(BufferUV);
+	float InvNumOfSamples = 1.0f / NumOfSamples;
+#endif
+
+	LOOP for (int i = 0; i < NumOfSamples; ++i)
+	{
+		// Step 1: sample generation
+		// Create an 2d disk sampling pattern (we can load from the disk as a texture or buffer).
+		int3  Seed3D = int3(BufferUV*SubsurfaceInput0_Extent, SeedStart++);
+		float2 Random0T1 = Generate2DRandomNumber(Seed3D);
+		FBurleySampleInfo BurleySampleInfo = GenerateSampleInfo(Random0T1, DiffuseMeanFreePathForSampling, S, i);
+
+		// Step 2: get the light radiance and depth at the offset
+		// and estimate the scale from the random disk sampling space to sceen space.
+		float YScale = BURLEY_MM_2_CM / DepthAtDiscCenter; //from mm to cm, and from world to screen
+		float XScale = YScale * SubsurfaceInput0_ExtentInverse.x*SubsurfaceInput0_Extent.y;
+
+		// World unit to screen space unit, we use world scale to control
+		// the scaling of the radius unit when mean free path is fixed.
+		float2 UVOffset = float2(XScale, YScale)*BurleySampleInfo.Radius*BurleyParameter.WorldScale;
+		UVOffset.x *= cos(BurleySampleInfo.Theta);
+		UVOffset.y *= sin(BurleySampleInfo.Theta);
+
+		// Sampling
+		{
+			float2 SampledDiscUV = BufferUV + UVOffset;
+
+#ifdef SUBSURFACE_SINGLE_PASS
+			SDiffuseAndSpecular SampledDiffuseAndSpecular = ReconstructLighting(SampledDiscUV, ReconstructMethod);
+			float4 SampledRadianceAndDepth = float4(SampledDiffuseAndSpecular.Diffuse, CalcSceneDepth(SampledDiscUV));
+#else
+
+			// Determine the miplevel with the expected number of samples at the pixel.
+			float MipLevel = 0.5*max(-log(BurleySampleInfo.Pdf*NumOfSamples / (BurleyParameter.WorldScale*BurleyParameter.WorldScale)), 0);
+
+			// If we are using half resolution,we should shift the mip level by -1
+#if SUBSURFACE_HALF_RES
+			MipLevel -= 1;
+#endif
+			MipLevel = clamp(MipLevel, 0, 5);
+
+			float4 SampledRadianceAndDepth = SampleSSSColorConsideringLocalShared(BufferUV, UVOffset, GroupThreadID, MipLevel);
+#endif
+
+			// Step 3: create the bilateral filtering weighted Distance between entry and exit.
+#define USE_BILATERAL_FILTERING
+
+#ifdef USE_BILATERAL_FILTERING
+			// 10.0/depth is the depth in world unit (cm) ???
+			float DeltaDepth = min(abs(10.0f / SampledRadianceAndDepth.w - 10.0f / DepthAtDiscCenter), 60000)*BURLEY_CM_2_MM;//in mm
+#ifdef SUBSURFACE_HALF_RES
+
+#endif
+			float RadiusSampled = sqrt(BurleySampleInfo.Radius * BurleySampleInfo.Radius + DeltaDepth * DeltaDepth); //mm.
+//#define RESAMPLE_PDF
+#ifdef RESAMPLE_PDF
+			BurleySampleInfo.Pdf = GetPdf(RadiusSampled, DiffuseMeanFreePathForSample, S);
+#endif
+#else
+			float RadiusSampled = BurleySampleInfo.Radius;
+#endif				
+
+			// Determine the tint color, if the sampling pixel is not subsurface, we use tint color
+			// to mask out the sampling. Unless we specifically want the shadowing region.
+			uint LocalProfileInt = GetSubsurfaceProfileIdFromCache(SampledDiscUV);
+			float3 TintColor = (LocalProfileInt == SubsurfaceProfileInt) ? 1.0f : BoundaryColorBleed;
+			Mask = UseSubsurfaceProfile(GetScreenSpaceDataFromCache(SampledDiscUV).GBuffer.ShadingModelID) ? 1 : 0;
+
+			// 1 considers the non subsurface neighbor (0,0,0) to add shadow.
+#if NONSUBSURFACE_SAMPLE_STRATEGY == 1
+			// The bilinear filtering in Separable looks better. So I added this to simulate the look
+			// With out this, the hair does not have shadow at the edge. 2 is an experimental value
+			RadiusSampled = (Mask == 0) ? BurleySampleInfo.Radius * 2 : RadiusSampled;
+			Mask = 1;
+#endif
+
+			// Step 4: accumulate radiance from the diffusion profile rR(r)
+			// make sure the DiffuseMeanFreePath is not zero and in m.
+			float3 DiffusionProfile = GetDiffuseReflectProfileWithDiffuseMeanFreePath(BurleyParameter.SurfaceAlbedo.xyz, BurleyParameter.DiffuseMeanFreePath.xyz, S3D.xyz, RadiusSampled);
+			RadianceAccumulated.xyz += (DiffusionProfile / BurleySampleInfo.Pdf) * (SampledRadianceAndDepth.xyz*TintColor*Mask);
+
+			// Use Normal and variance to the bilaterial filter.
+
+
+#ifdef USE_BILATERAL_FILTERING
+			WeightingFactor += (DiffusionProfile / BurleySampleInfo.Pdf)*Mask;
+#endif	
+		}
+
+	}
+
+	// 0.99995f is a compensitation to make it energe conservation.
+	const float EnergyNormalization = 1.0f / 0.99995f;
+
+#if defined(RADIUS_SAMPLE_UNIFORM_DISK)
+	RadianceAccumulated.xyz *= (InvSampleCount*0.5 * 2 * PI);
+#elif !defined(USE_BILATERAL_FILTERING)
+	RadianceAccumulated.xyz *= (InvNumOfSamples*0.5 * 2 * PI) * EnergyNormalization;
+#else
+	// The added epsilon is used to avoid divid by zero.
+	RadianceAccumulated.xyz *= 1.0f / (WeightingFactor + 0.000001f)*EnergyNormalization;
+#endif
+
+	OutColor.xyz = RadianceAccumulated.xyz;
+	OutColor.w = NumOfSamples;
+	return OutColor;
+}
+
+
+#define EXPONENTIAL_WEIGHT 0.2f
+float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
+{
+	float Weight = EXPONENTIAL_WEIGHT;
+	float WeightFinal = Weight;
+	float4 NewHistory = 0;
+	float2 VelocityOffset = float2(0.0, 0.0);
+	float2 NearestBufferUV = BufferUV;
+	float2 ViewportUV = (BufferUV - SubsurfaceInput0_UVViewportMin.xy)*SubsurfaceInput0_UVViewportSizeInverse.xy;
+
+	//	Get the history with reprojection
+	//  Implement a simplified version of temporal AA
+#define REPROJECTION
+#ifdef REPROJECTION
+
+	// Code adapted from temporal AA
+	float3 PosN;
+	PosN.xy = ViewportUVToScreenPos(ViewportUV);
+	PosN.z = SampleDepthTexture(BufferUV);// Direct sample without converting to world space;
+	float4 ThisClip = float4(PosN.xy, PosN.z, 1.0f);
+	float4 PrevClip = mul(ThisClip, View.ClipToPrevClip);
+	float2 PrevScreen = PrevClip.xy / PrevClip.w;
+	float2 BackN = PosN.xy - PrevScreen;
+
+	// Sample the velocity texture
+	float Velocity = 0;
+
+	float2 BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
+
+#if defined(ENABLE_VELOCITY)
+	{
+		float2 VelocityN;
+		VelocityN = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0).xy;
+		
+		bool DynamicN = VelocityN.x > 0.0;
+
+		if (DynamicN)
+		{
+			BackN = DecodeVelocityFromTexture(VelocityN);
+		}
+
+		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;
+	}
+#endif
+
+	// Update velocity
+	Velocity = sqrt(dot(BackTemp, BackTemp));
+
+	float2 HistoryScreenPosition = (PosN.xy - BackN);
+
+	// Detect if HistoryBufferUV would be outside of the viewport.
+	bool OffScreen = max(abs(HistoryScreenPosition.x), abs(HistoryScreenPosition.y)) >= 1.0;
+
+	float4 History = 0;
+
+	WeightFinal = lerp(Weight, 0.2, saturate(Velocity / 40));
+
+	BRANCH if (!OffScreen)
+	{
+		// ScreenPos to bufferUV
+		float2 HistoryUV = ScreenPosToViewportUV(HistoryScreenPosition);
+		// Convert history uv in viewport to buffer uv
+		float2 HistoryBufferUV = HistoryUV * SubsurfaceInput0_UVViewportSize.xy + SubsurfaceInput0_UVViewportMin.xy;
+		History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, HistoryBufferUV);
+	}
+	else
+	{
+		WeightFinal = 1;
+	}
+
+#else
+	float4 History = Texture2DSample(SubsurfaceInput1_Texture, SubsurfaceSampler1, BufferUV);
+#endif
+
+	// Calculate the illuminance
+	float NewSurfaceLuminance = Luminance(pow(SubsurfaceColor.rgb, 1 / 2.2));
+
+	NewHistory.a = (1 - WeightFinal) * History.a + WeightFinal * NewSurfaceLuminance;
+
+	float LumDelta = NewSurfaceLuminance - History.a;
+	NewHistory.b = (1 - WeightFinal)*History.b + WeightFinal * (1 - WeightFinal)*LumDelta*LumDelta;
+
+	// Update the random variable variance
+	NewHistory.g = History.b*SubsurfaceColor.a;
+
+	// Update the average number of samples used at each pixel (only for visualization purpose)
+	NewHistory.r = (1 - WeightFinal) * History.r + WeightFinal * SubsurfaceColor.a / BURLEY_NUM_SAMPLES;
+
+	BRANCH if (SubsurfaceColor.a <= 0)
+	{
+		NewHistory = 0;
+	}
+
+	return NewHistory;
+}
+
+
+#ifdef SUBSURFACE_BURLEY_COMPUTE
+
+// Compute shader common data and functions
+
+RWTexture2D<float4> SSSColorUAV;
+RWTexture2D<float4> HistoryUAV;
+
+void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
+{
+
+	int2 TopLeftCorner = G_ID * SUBSURFACE_GROUP_SIZE - THREAD_TEXTURE_BOARDER + SubsurfaceInput0_ViewportMin;
+
+	// Step 1: Read the diffuse lighting into the local share. 64+64+16, three cycles
+#if SUBSURFACE_PASS == SUBSURFACE_PASS_ONE
+
+#ifndef TEXTURE_CACHE_DISABLED
+
+	// We do not need to use unroll if we have a fixed number of thread dimension.
+	UNROLL for (uint i = 0; i < NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE; i++)
+	{
+		// Calculate the sample uv for the current thread
+		uint LocalSharedIndex = GI * NUM_OF_PASS_REQUIRED_FILL_SHARED_DIFFUSE_TEXTURE + i;
+		BRANCH if (LocalSharedIndex >= LARGE_GROUP_TEXTURE_SHARE_TOTALSIZE)
+		{
+			break;
+		}
+
+		float2 SampleUV = SubsurfaceInput0_ExtentInverse * (TopLeftCorner + float2(LocalSharedIndex % LARGE_GROUP_TEXTURE_DIMENSION_SIZE,
+			LocalSharedIndex / LARGE_GROUP_TEXTURE_DIMENSION_SIZE) + 0.5f);
+		SampleUV = clamp(SampleUV, 0, 1);
+
+		float4 SubsurfaceColorWithSSSIndicator = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, SampleUV);
+		SharedSubsurfaceDiffuseLighting[LocalSharedIndex] = SubsurfaceColorWithSSSIndicator;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	// need to perform burley normalized subsurface scattering if it's burley
+	// this would unroll to just 1 sequence.
+	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
+			{
+				uint2 Pos = ConvertGroupIndexTo2DUsingMoltonCode(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
+				float2 LBufferUV = ConvertGridPos2UV(Pos);
+				SSSColorUAV[Pos] = BurleyNormalizedSS(LBufferUV, Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
+			}
+
+#else
+	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
+			{
+
+				uint2 Pos = ConvertGroupIndexToNormal2DGrid(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
+				float2 LBufferUV = ConvertGridPos2UV(Pos);
+				SSSColorUAV[Pos] = BurleyNormalizedSS(ConvertGridPos2UV(Pos), Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
+			}
+#endif
+#else
+
+	uint2 Pos = DT_ID.xy*SUBSURFACE_GROUP_SIZE / THREAD_SIZE_1D + SubsurfaceInput0_ViewportMin;
+
+	//we only update the variance if the subsurface is burley
+	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
+			{
+				uint2 TargetGridPos = Pos + uint2(i, j);
+				float2 LBufferUV = ConvertGridPos2UV(TargetGridPos);
+				// We perform quality variance thread-wise in the second pass
+				float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
+				HistoryUAV[TargetGridPos] = UpdateQualityVariance(SurfaceColor, LBufferUV);
+				// Direct sample the color
+				SSSColorUAV[TargetGridPos] = float4(SurfaceColor.rgb, 1.0f);
+			}
+#endif
+}
+
+#endif

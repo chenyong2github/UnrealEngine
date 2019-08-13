@@ -13,8 +13,8 @@
 //------------------------------------------------------------------------------------------
 // Consistent in BurleyNormalizedSSSCommon.ush and SubsurfaceProfile.cpp
 
-#define SSS_TYPE_SSSS		1.0f
-#define SSS_TYPE_BURLEY	    0.0f
+#define SSS_TYPE_BURLEY	    0
+#define SSS_TYPE_SSSS		1
 
 //make sure UIMax|ClampMax of WorldScale * ENC_WORLDSCALE_TO_UNIT <= 1
 #define ENC_WORLDSCALE_IN_CM_TO_UNIT 0.02f
@@ -49,6 +49,28 @@ bool GetSubsurfaceProfileUseBurley(uint SubsurfaceProfileInt)
 	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
 
 	return abs(Type - SSS_TYPE_BURLEY) < 0.01f;
+}
+
+bool GetSubsurfaceProfileUseBurley(float2 BufferUV)
+{
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	return GetSubsurfaceProfileUseBurley(SubsurfaceProfileInt);
+}
+
+bool GetSubsurfaceProfileUseSeparable(uint SubsurfaceProfileInt)
+{
+	// 0..255, which SubSurface profile to pick
+	float Type = ActualSSProfilesTexture.Load(int3(SSSS_BOUNDARY_COLOR_BLEED_OFFSET, SubsurfaceProfileInt, 0)).a;
+
+	return abs(Type - SSS_TYPE_SSSS) < 0.01f;
+}
+
+bool GetSubsurfaceProfileUseSeparable(float2 BufferUV)
+{
+	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
+	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+	return GetSubsurfaceProfileUseSeparable(SubsurfaceProfileInt);
 }
 
 inline float3 Burley_Profile(float Radius, float3 Albedo, float3 S3D, float L)
@@ -140,7 +162,7 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
 	float WorldScale = DecodeWorldScale(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)).a)*10.0f; //in cm. we do not multiply by 100.0f as we did in the subsurface shader.
 	float3 MeanFreePath = DecodeDiffuseMeanFreePath(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)));
-	float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(SSS__SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
+	float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
 	bool  UseBurleyTransmittance = GetSubsurfaceTransmittanceProfileUseBurley(SubsurfaceProfileInt);
 
 	//this is slow.

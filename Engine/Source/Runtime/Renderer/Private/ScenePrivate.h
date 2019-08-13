@@ -872,6 +872,9 @@ public:
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor0;
 	TRefCountPtr<IPooledRenderTarget> MobileAaColor1;
 
+	// Burley Subsurface scattering variance texture from the last frame.
+	TRefCountPtr<IPooledRenderTarget> SubsurfaceScatteringQualityHistoryRT;
+
 	// Pre-computed filter in spectral (i.e. FFT) domain along with data to determine if we need to up date it
 	struct {
 		/// @cond DOXYGEN_WARNINGS

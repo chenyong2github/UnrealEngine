@@ -5,6 +5,7 @@
 =========================================================================*/
 
 #include "SubsurfaceProfileCommon.ush"
+#include "BurleyNormalizedSSSCommon.ush"
 
 SamplerState TransmissionProfilesLinearSampler;
 
@@ -40,7 +41,8 @@ float4 GetTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(GBufferData);
 	float3 TextureSize;
 	ActualSSProfilesTexture.GetDimensions(0, TextureSize.x, TextureSize.y,TextureSize.z); // TODO: it's slightly faster to pass texture dimensions through a constant buffer
-	float2 uv = float2((SSSS_TRANSMISSION_PROFILE_OFFSET + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE-1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
+	float ProfileOffset = GetSubsurfaceTransmittanceProfileUseBurley(SubsurfaceProfileInt)? BSSS_TRANSMISSION_PROFILE_OFFSET: SSSS_TRANSMISSION_PROFILE_OFFSET;
+	float2 uv = float2((ProfileOffset + Thickness / SSSS_MAX_TRANSMISSION_PROFILE_DISTANCE * (SSSS_TRANSMISSION_PROFILE_SIZE-1) + 0.5f), SubsurfaceProfileInt + 0.5f) / (TextureSize.xy);
 	return Texture2DSampleLevel(ActualSSProfilesTexture, TransmissionProfilesLinearSampler, uv, 0);
 }
 

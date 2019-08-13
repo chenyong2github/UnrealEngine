@@ -167,3 +167,51 @@ void FGenerateMips::Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* I
 		}
 	}
 }
+
+void FGenerateMips::Execute(FRDGBuilder* GraphBuilder, FRDGTextureRef InGraphTexture, FRHISamplerState* InSampler)
+{
+	check(IsInRenderingThread());
+	check(GraphBuilder);
+	check(InGraphTexture);
+	check(InSampler);
+
+	TShaderMapRef<FGenerateMipsCS> ComputeShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+	
+	//Loop through each level of the mips that require creation and add a dispatch pass per level,.
+	for (uint8 MipLevel = 1; MipLevel < InGraphTexture->Desc.NumMips; MipLevel++)
+	{
+		int DestTextureSizeX = InGraphTexture->Desc.Extent.X >> MipLevel;
+		int DestTextureSizeY = InGraphTexture->Desc.Extent.Y >> MipLevel;
+
+		//Create the RDG viewable SRV, of a complete Mip, to read from
+		FRDGTextureSRVDesc SRVDesc = FRDGTextureSRVDesc::CreateForMipLevel(InGraphTexture, MipLevel - 1);
+		//Create the RDG writeable UAV for the next mip level to be written to.
+		FRDGTextureUAVDesc UAVDesc(InGraphTexture, MipLevel);
+
+		FGenerateMipsCS::FParameters* PassParameters = GraphBuilder->AllocParameters<FGenerateMipsCS::FParameters>();
+		//Texel size is 1/the total length of a side.
+		PassParameters->TexelSize = FVector2D(1.0f / DestTextureSizeX, 1.0f / DestTextureSizeY);
+		PassParameters->MipInSRV = GraphBuilder->CreateSRV(SRVDesc);
+		PassParameters->MipOutUAV = GraphBuilder->CreateUAV(UAVDesc);
+		PassParameters->MipSampler = InSampler;
+
+		//Dispatch count is the destination's mip texture dimensions, so only the number required is executed.
+		FIntVector GenMipsGroupCount(
+			FMath::Max((DestTextureSizeX + MIPSSHADER_NUMTHREADS -1)/ MIPSSHADER_NUMTHREADS, 1),
+			FMath::Max((DestTextureSizeY + MIPSSHADER_NUMTHREADS -1)/ MIPSSHADER_NUMTHREADS, 1),
+			1);
+		
+		//Pass added per mip level to be written.
+		ClearUnusedGraphResources(*ComputeShader, PassParameters);
+
+		GraphBuilder->AddPass(
+			RDG_EVENT_NAME("Generate2DTextureMips DestMipLevel=%d", MipLevel),
+			PassParameters,
+			ERDGPassFlags::Compute | ERDGPassFlags::GenerateMips,
+			[PassParameters, ComputeShader, GenMipsGroupCount](FRHICommandList& RHICmdList)
+		{
+			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, *PassParameters, GenMipsGroupCount);
+		});
+
+	}
+}

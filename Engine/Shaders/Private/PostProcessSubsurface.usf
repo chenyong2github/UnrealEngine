@@ -19,23 +19,31 @@ float4 SubsurfaceParams;
 
 Texture2D SubsurfaceInput0_Texture;
 Texture2D SubsurfaceInput1_Texture;
+Texture2D SubsurfaceInput2_Texture;
 
 SamplerState SubsurfaceSampler0;
 SamplerState SubsurfaceSampler1;
+SamplerState SubsurfaceSampler2;
 
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SharedSubsurfaceSampler0 SubsurfaceSampler0
 	#define SharedSubsurfaceSampler1 SubsurfaceSampler0
+	#define SharedSubsurfaceSampler2 SubsurfaceSampler0
 #else
 	#define SharedSubsurfaceSampler0 SubsurfaceSampler0
 	#define SharedSubsurfaceSampler1 SubsurfaceSampler1
+	#define SharedSubsurfaceSampler2 SubsurfaceSampler2
 #endif
 
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput0)
 SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput1)
+SCREEN_PASS_TEXTURE_VIEWPORT(SubsurfaceInput2)
 
-#define SUBSURFACE_DIRECTION_HORIZONTAL 0
-#define SUBSURFACE_DIRECTION_VERTICAL 1
+#define SUBSURFACE_PASS_ONE 0
+#define SUBSURFACE_PASS_TWO 1
+
+#define SUBSURFACE_DIRECTION_HORIZONTAL SUBSURFACE_PASS_ONE
+#define SUBSURFACE_DIRECTION_VERTICAL SUBSURFACE_PASS_TWO
 
 // Controls the quality (number of samples) of the blur kernel.
 #define SUBSURFACE_QUALITY_LOW 0
@@ -380,18 +388,141 @@ float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
 	return Ret;
 }
 
+// Ref: https://graphics.pixar.com/library/ApproxBSSRDF/paper.pdf
+#include "SubsurfaceBurleyNormalized.ush"
 
-void SetupPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
+#ifdef SUBSURFACE_BURLEY_COMPUTE
+//-----------------------------------------------------------------------------------
+// Indirect pass
+
+// Indirect dispatch parameters
+struct SubsurfaceGroupItem
 {
-	float2 BufferUV = UVAndScreenPos.xy;
+	float2 GroupXY; // Which tile
+	int Count;		// The first element is used as the counter.
+	int Dummy;		// Alignment
+};
 
+RWStructuredBuffer<SubsurfaceGroupItem> RWSeparableGroupBuffer;
+RWStructuredBuffer<SubsurfaceGroupItem> RWBurleyGroupBuffer;
+RWBuffer<uint> RWIndirectDispatchArgsBuffer;
+StructuredBuffer<SubsurfaceGroupItem> GroupBuffer;
+
+
+[numthreads(1, 1, 1)]
+void InitValueBufferCS()
+{
+	// Clear the first buffer element which is used as the buffer counter.
+	RWSeparableGroupBuffer[0].Count = 0;
+	RWBurleyGroupBuffer[0].Count = 0;
+}
+
+// fixed to 64 by now
+[numthreads(1, 1, 1)]
+void BuildIndirectDispatchArgsCS()
+{
+	uint ValueCount = min(SubsurfaceUniformParameters.MaxGroupCount, GroupBuffer[0].Count);
+	RWIndirectDispatchArgsBuffer[0] = ValueCount;// (ValueCount + (THREAD_SIZE_1D*THREAD_SIZE_1D) - 1) / (THREAD_SIZE_1D*THREAD_SIZE_1D);
+	RWIndirectDispatchArgsBuffer[1] = 1;
+	RWIndirectDispatchArgsBuffer[2] = 1;
+}
+
+#define TYPE_SEPARABLE 0x1
+#define TYPE_BURLEY    0x2
+
+// 0, no subsurface
+// 1, Separable
+// 2, Burley
+// 3, Both
+groupshared uint SubsurfaceTypeFlag = 0;
+
+uint GetSubsurfaceType(uint ProfileId)
+{
+	return GetSubsurfaceProfileUseBurley(ProfileId) ? TYPE_BURLEY : TYPE_SEPARABLE;
+}
+
+bool GetSubsurfaceProfileUseBurleyFromCache(float2 BufferUV)
+{
+#if SUBSURFACE_HALF_RES && !defined(SUBSURFACE_SINGLE_PASS)
+	uint Type = Texture2DSample(SubsurfaceInput2_Texture, SubsurfaceSampler2, BufferUV).g;
+	return Type == TYPE_BURLEY;
+#else
+	return GetSubsurfaceProfileUseBurley(BufferUV);
+#endif
+}
+
+void AddSeparableGroup(uint2 GroupXY)
+{
+	//buffer counter is stored in the .Count in the first element.
+	int IndexToStore = 0;
+
+	InterlockedAdd(RWSeparableGroupBuffer[0].Count, 1, IndexToStore);
+
+	if (IndexToStore >= SubsurfaceUniformParameters.MaxGroupCount)
+	{
+		return;
+	}
+
+	RWSeparableGroupBuffer[IndexToStore + 1].GroupXY = GroupXY;
+}
+
+void AddBurleyGroup(uint2 GroupXY)
+{
+	//buffer counter is stored in the .Count in the first element.
+	int IndexToStore = 0;
+
+	InterlockedAdd(RWBurleyGroupBuffer[0].Count, 1, IndexToStore);
+
+	if (IndexToStore >= SubsurfaceUniformParameters.MaxGroupCount)
+	{
+		return;
+	}
+
+	RWBurleyGroupBuffer[IndexToStore + 1].GroupXY = GroupXY;
+}
+
+void AddSubsurfaceComputeGroup(uint GI, uint Type, uint2 GroupXY)
+{
+	InterlockedOr(SubsurfaceTypeFlag, Type);
+
+	GroupMemoryBarrierWithGroupSync();
+
+	//write to buffer using the first thread
+	if (GI == 0 && (SubsurfaceTypeFlag & TYPE_SEPARABLE))
+	{
+		AddSeparableGroup(GroupXY);
+	}
+
+	if (GI == 0 && (SubsurfaceTypeFlag & TYPE_BURLEY))
+	{
+		AddBurleyGroup(GroupXY);
+	}
+}
+
+RWTexture2D<float4> SetupTexture;
+RWTexture2D<float4> ProfileEdgeMask;
+
+[numthreads(THREAD_SIZE_X, THREAD_SIZE_Y, 1)]
+void SetupIndirectCS(uint3 DT_ID : SV_DispatchThreadID,
+	uint3 G_ID : SV_GroupID,
+	uint3 GT_ID : SV_GroupThreadID,
+	uint  GI : SV_GroupIndex)
+{
+	uint2 Pos = DT_ID.xy + SubsurfaceInput0_ViewportMin;
+	bool bHasSubsurface = false;
+	float2 BufferUV = ConvertGridPos2UV(Pos);
+	uint Type = 0;
+	float4 OutColor = 0;
+	float4 OutColor2 = 0;
 #if SUBSURFACE_HALF_RES
+	//Since the tiles only covers the half resolution texture size, we need to scale up UV by 2 to match the scene texture.
+	BufferUV *= 2;
 	// order aligned with Gather() hardware implementation
 	// RGB: color*A, A:weight 0 if no subsurface scattering
 
-	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5,  0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
-	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5,  0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
-	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2( 0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 A = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 B = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
+	float4 C = SetupSubsurfaceForOnePixel(min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
 	float4 D = SetupSubsurfaceForOnePixel(min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax));
 
 	float4 Sum = (A + B) + (C + D);
@@ -406,37 +537,125 @@ void SetupPS(in noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutC
 	float SingleDepth = dot(FourDepth, float4(A.a, B.a, C.a, D.a)) * Div;
 
 	OutColor.a = SingleDepth;
+
+	if (OutColor.a > 0)
+	{
+		bHasSubsurface = true;
+		OutColor2 = GetProfileEdgeMask(BufferUV);
+	}
+	//BufferUV += min(float2(-0.25, -0.25f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
 #else // SUBSURFACE_HALF_RES
 	OutColor = SetupSubsurfaceForOnePixel(BufferUV);
-	if(OutColor.a > 0)
+
+	if (OutColor.a > 0)
 	{
+		bHasSubsurface = true;
+
 		OutColor.a = CalcSceneDepth(BufferUV);
+		// Calculate the mask
+		OutColor2 = GetProfileEdgeMask(BufferUV);
+
+		//@TODO: sparkling
+		//supress the edge color lighting information at edge.
+		//with firefly elimination
 	}
 #endif // SUBSURFACE_HALF_RES
+
+	// setup the Subsurface type
+	uint SelectedProfile = 0;
+	if (bHasSubsurface)
+	{
+#if SUBSURFACE_HALF_RES
+		float Type1 = 0;
+		float2 UVA = min(BufferUV + float2(-0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
+		uint PidA = GetSubsurfaceProfileId(UVA);
+		float2 UVB = min(BufferUV + float2(0.5, 0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
+		uint PidB = GetSubsurfaceProfileId(UVB);
+		float2 UVC = min(BufferUV + float2(0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
+		uint PidC = GetSubsurfaceProfileId(UVC);
+		float2 UVD = min(BufferUV + float2(-0.5, -0.5f) * SubsurfaceInput0_ExtentInverse, SubsurfaceInput0_UVViewportBilinearMax);
+		uint PidD = GetSubsurfaceProfileId(UVD);
+
+		// Gatter available and use the last subsurface type for the current pixel.
+		SelectedProfile = lerp(SelectedProfile, PidA, A.a);
+		SelectedProfile = lerp(SelectedProfile, PidB, B.a);
+		SelectedProfile = lerp(SelectedProfile, PidC, C.a);
+		SelectedProfile = lerp(SelectedProfile, PidD, D.a);
+
+		// record the uv of this pixel
+		BufferUV = lerp(BufferUV, UVA, A.a);
+		BufferUV = lerp(BufferUV, UVB, B.a);
+		BufferUV = lerp(BufferUV, UVC, C.a);
+		BufferUV = lerp(BufferUV, UVD, D.a);
+
+		Type = GetSubsurfaceType(SelectedProfile);
+#else
+		SelectedProfile = GetSubsurfaceProfileId(BufferUV);
+		Type = GetSubsurfaceType(SelectedProfile);
+#endif
+	}
+
+	if (all(Pos < SubsurfaceInput0_ViewportMax))
+	{
+		SetupTexture[Pos] = OutColor;
+		//cache the edge mask, depth, and the original uv in the buffer.
+		ProfileEdgeMask[Pos] = float4(OutColor2.r, Type, BufferUV.x, BufferUV.y);
+	}
+
+	AddSubsurfaceComputeGroup(GI, Type, G_ID.xy);
 }
 
-// input0 is created by the SetupPS shader
-void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
+[numthreads(THREAD_SIZE_X*THREAD_SIZE_Y, 1, 1)]
+void MainIndirectDispatchCS(
+	uint3 IndirectG_ID : SV_GroupID,
+	uint  GI : SV_GroupIndex
+)
 {
-	float2 BufferUV = UVAndScreenPos.xy;
+	// The first element is used for counting
+	SubsurfaceGroupItem Item = GroupBuffer[IndirectG_ID.x + 1];
+	uint2 G_ID = Item.GroupXY;
+	uint2 DT_ID = G_ID * float2(THREAD_SIZE_X, THREAD_SIZE_Y) + float2(GI % THREAD_SIZE_X, GI / THREAD_SIZE_X);
 
-#if SUBSURFACE_DIRECTION == 0
+
+	//1. Call function based on which function is defined and in which phase
+#if SUBSURFACE_TYPE == SSS_TYPE_BURLEY
+
+	BurleyComputeMain(DT_ID, G_ID, GI);
+
+#elif SUBSURFACE_TYPE == SSS_TYPE_SSSS
+
+	uint2 Pos = DT_ID.xy*SUBSURFACE_GROUP_SIZE / THREAD_SIZE_1D + /*viewport offset*/SubsurfaceInput0_ViewportMin;
+	float2 BufferUV = ConvertGridPos2UV(Pos);
+
+	BRANCH if (GetSubsurfaceProfileUseBurley(BufferUV))
+	{
+		return;
+	}
+	// pass one and pass two
+#if SUBSURFACE_PASS == SUBSURFACE_PASS_ONE
 	// horizontal
 	float2 ViewportDirectionUV = float2(1, 0) * SUBSURFACE_RADIUS_SCALE;
-#else
+#elif SUBSURFACE_PASS == SUBSURFACE_PASS_TWO
 	// vertical
 	float2 ViewportDirectionUV = float2(0, 1) * SUBSURFACE_RADIUS_SCALE * (SubsurfaceInput0_Extent.x * SubsurfaceInput0_ExtentInverse.y);
 #endif
 
 	ViewportDirectionUV *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
 
-	OutColor = SSSSBlurPS(BufferUV, ViewportDirectionUV, false);
+	float4 OutColor = SSSSBlurPS(BufferUV, ViewportDirectionUV, false);
 
-#if SUBSURFACE_DIRECTION == SUBSURFACE_DIRECTION_VERTICAL
+#if SUBSURFACE_PASS == SUBSURFACE_PASS_TWO
 	// second pass prepares the setup from the recombine pass which doesn't need depth but wants to reconstruct the color
 	OutColor.a = GetMaskFromDepthInAlpha(OutColor.a);
 #endif
+	if (all(Pos < SubsurfaceInput0_ViewportMax))
+	{
+		SSSColorUAV[Pos] = OutColor;
+	}
+#endif
 }
+
+#endif
 
 // Recombines the half res Subsurface filtered lighting contribution (upsampled and renormalized with the alpha)
 // with the SceneColor.
