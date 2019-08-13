@@ -3347,6 +3347,11 @@ void AInstancedFoliageActor::PostInitProperties()
 		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
 		OnLevelActorDeletedDelegateHandle = GEngine->OnLevelActorDeleted().AddUObject(this, &AInstancedFoliageActor::OnLevelActorDeleted);
 
+		if (GetLevel())
+		{
+			OnApplyLevelTransformDelegateHandle = GetLevel()->OnApplyLevelTransform.AddUObject(this, &AInstancedFoliageActor::OnApplyLevelTransform);
+		}
+
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
 		OnPostApplyLevelOffsetDelegateHandle = FWorldDelegates::PostApplyLevelOffset.AddUObject(this, &AInstancedFoliageActor::OnPostApplyLevelOffset);
 	}
@@ -3360,6 +3365,12 @@ void AInstancedFoliageActor::BeginDestroy()
 	{
 		GEngine->OnActorMoved().Remove(OnLevelActorMovedDelegateHandle);
 		GEngine->OnLevelActorDeleted().Remove(OnLevelActorDeletedDelegateHandle);
+		
+		if (GetLevel())
+		{
+			GetLevel()->OnApplyLevelTransform.Remove(OnApplyLevelTransformDelegateHandle);
+		}
+
 		FWorldDelegates::PostApplyLevelOffset.Remove(OnPostApplyLevelOffsetDelegateHandle);
 	}
 }
@@ -3534,7 +3545,8 @@ void AInstancedFoliageActor::PostLoad()
 					else if (Info.Type == EFoliageImplType::Actor)
 					{
 						FFoliageActor* FoliageActor = StaticCast<FFoliageActor*>(Info.Implementation.Get());
-						FoliageActor->Reapply(this, FoliageType, Info.Instances);
+						const bool bPostLoad = true;
+						FoliageActor->Reapply(this, FoliageType, Info.Instances, bPostLoad);
 					}
 				}
 				Info.FoliageTypeUpdateGuid = FoliageType->UpdateGuid;
@@ -3728,6 +3740,18 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 			{
 				DeleteInstancesForComponent(Component);
 			}
+		}
+	}
+}
+
+void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
+{
+	for (auto& Pair : FoliageInfos)
+	{
+		FFoliageInfo& Info = *Pair.Value;
+		if (Info.Implementation)
+		{
+			Info.Implementation->PostApplyLevelTransform(InTransform, Info.Instances);
 		}
 	}
 }
