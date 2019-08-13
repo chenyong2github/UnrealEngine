@@ -67,7 +67,7 @@ void UAudioSettings::AddDefaultSettings()
 	DefaultSettings.DisplayName = LOCTEXT("DefaultSettingsName", "Default");
 	QualityLevels.Add(DefaultSettings);
 	bAllowPlayWhenSilent = true;
-	DefaultReverbSendLevel = 0.0f;
+	DefaultReverbSendLevel_DEPRECATED = 0.0f;
 	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	VoipBufferingDelay = 0.2f;
