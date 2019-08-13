@@ -17,7 +17,7 @@ public:
 	void SetAddress(const FOSCAddress& InAddress);
 
 	/** Get OSC message address. */
-	virtual const FOSCAddress& GetAddress() const override;
+	virtual const FOSCAddress& GetAddress() const;
 
 	/** Get arguments array. */
 	TArray<FOSCType>& GetArguments();

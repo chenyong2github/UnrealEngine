@@ -55,7 +55,6 @@ void FOSCBundlePacket::ReadData(FOSCStream& Stream)
 	while (!Stream.HasReachedEnd())
 	{
 		TSharedPtr<IOSCPacket> Packet = IOSCPacket::CreatePacket(Stream.GetData());
-
 		if (Packet.IsValid())
 		{
 			Packet->ReadData(Stream);
@@ -77,14 +76,4 @@ bool FOSCBundlePacket::IsBundle()
 bool FOSCBundlePacket::IsMessage()
 {
 	return false;
-}
-
-const FOSCAddress& FOSCBundlePacket::GetAddress() const
-{
-	const static FOSCAddress BundleIdentifier = FOSCAddress(OSC::BundleTag);
-	return BundleIdentifier;
-}
-
-void FOSCBundlePacket::SetAddress(const FOSCAddress& InAddress)
-{
 }

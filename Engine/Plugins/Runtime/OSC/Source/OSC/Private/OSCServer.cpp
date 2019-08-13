@@ -34,7 +34,6 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 	if (Packet.IsValid())
 	{
 		FOSCStream Stream = FOSCStream(Data->GetData(), Data->Num());
-
 		Packet->ReadData(Stream);
 		OSCPackets.Enqueue(MoveTemp(Packet));
 	}
@@ -62,7 +61,7 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				{
 					FOSCMessage Message(FOSCMessage(StaticCastSharedPtr<FOSCMessagePacket>(Packet)));
 					OnOscReceived.Broadcast(Message);
-					UE_LOG(LogOSC, Verbose, TEXT("Message received from endpoint '%s', OSCAddress of '%s'."), *Endpoint.Address.ToString(), *Packet->GetAddress().GetFullPath());
+					UE_LOG(LogOSC, Verbose, TEXT("Message received from endpoint '%s', OSCAddress of '%s'."), *Endpoint.Address.ToString(), *Message.GetAddress().GetFullPath());
 
 					for (const TPair<FOSCAddress, FOSCDispatchMessageEvent>& Pair: AddressPatterns)
 					{
@@ -72,7 +71,7 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 							DispatchEvent.Broadcast(Pair.Key, Message);
 							UE_LOG(LogOSC, Verbose, TEXT("Message dispatched from endpoint '%s', OSCAddress path of '%s' matched OSCAddress pattern '%s'."),
 								*Endpoint.Address.ToString(),
-								*Packet->GetAddress().GetFullPath(),
+								*Message.GetAddress().GetFullPath(),
 								*Pair.Key.GetFullPath());
 						}
 					}
@@ -84,7 +83,7 @@ void UOSCServer::Callback(const FArrayReaderPtr& Data, const FIPv4Endpoint& Endp
 				}
 				else
 				{
-					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. OSCAddress '%s' is invalid."), *Packet->GetAddress().GetFullPath());
+					UE_LOG(LogOSC, Warning, TEXT("Failed to parse invalid received OSC message. Invalid type (packet is neither identified as message nor bundle)."));
 				}
 			}
 		}),

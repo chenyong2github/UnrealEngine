@@ -21,12 +21,6 @@ public:
 	/** Read packet data from stream */
 	virtual void ReadData(FOSCStream& Stream) = 0;
 	
-	/** Returns OSC address identifier of packet */
-	virtual const FOSCAddress& GetAddress() const = 0;
-
-	/** Set the address identifier of packet */
-	virtual void SetAddress(const FOSCAddress& Address) = 0;
-
 	/** Returns true if packet is message */
 	virtual bool IsMessage() = 0;
 	
