@@ -537,9 +537,7 @@ void ComputeMotionBlurVelocity(
 			FDepthStencilBinding(
 				VelocityTileDepthTexture,
 				ERenderTargetLoadAction::EClear,
-				ERenderTargetStoreAction::EStore,
 				ERenderTargetLoadAction::ENoAction,
-				ERenderTargetStoreAction::ENoAction,
 				FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 		PassParameters->RenderTargets[0] =
