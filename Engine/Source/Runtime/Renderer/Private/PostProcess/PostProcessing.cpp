@@ -1275,7 +1275,8 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 						SceneColorDownsampleChain = EyeAdaptationDownsampleChain;
 					}
 				}
-				else if (bHistogramEnabled)
+				// We run histogram eye adaptation even if no histogram exists to support the manual clamping mode.
+				else
 				{
 					EyeAdaptation = AddHistogramEyeAdaptationPass(Context, Histogram);
 				}
