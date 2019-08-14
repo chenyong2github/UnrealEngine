@@ -833,8 +833,15 @@ namespace UnrealVS
 
 		private void RunBuildJobs()
 		{
+			if (BuildJobs == null)
+				throw new ArgumentNullException(nameof(BuildJobs));
+
+			if (_LastBuildJobsQueued == null)
+				throw new ArgumentNullException(nameof(_LastBuildJobsQueued));
+
 			int BuildJobCount = BuildJobs.Count;
 			SanityCheckBuildJobs();
+
 			if (BuildJobCount > BuildJobs.Count)
 			{
 				if (VSConstants.S_OK != VsShellUtilities.ShowMessageBox(ServiceProvider.GlobalProvider,
@@ -856,8 +863,11 @@ namespace UnrealVS
 				_BuildQueue.Enqueue(Job);
 			}
 
-			OutputPanelTitle = String.Format("{0} ({1})", OutputPanelTitlePrefix, _LastSelectedBuildJobSet.Name);
 			HasOutput = _BuildQueue.Count > 0;
+			if (_LastSelectedBuildJobSet != null)
+			{
+				OutputPanelTitle = String.Format("{0} ({1})", OutputPanelTitlePrefix, _LastSelectedBuildJobSet.Name);
+			}
 			OutputTab.IsSelected = HasOutput;
 
 			UpdateBusyState();
