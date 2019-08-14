@@ -1702,8 +1702,11 @@ void FWidgetBlueprintEditor::ReplaceTrackWithWidgets(const TArray<FWidgetReferen
 		for (const FWidgetAnimationBinding& Binding : BindingsToRemove)
 		{
 			UWidget* BoundWidget = PreviewRoot->GetWidgetFromName(Binding.WidgetName);
-			WidgetAnimation->RemoveBinding(*BoundWidget);
-			Sequencer->PreAnimatedState.RestorePreAnimatedState(*Sequencer, *BoundWidget);
+			WidgetAnimation->RemoveBinding(Binding);
+			if (BoundWidget)
+			{
+				Sequencer->PreAnimatedState.RestorePreAnimatedState(*Sequencer, *BoundWidget);
+			}
 		}
 
 		if (WidgetsToAdd.Num() > 0)
