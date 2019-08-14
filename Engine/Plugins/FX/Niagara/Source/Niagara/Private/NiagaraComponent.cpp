@@ -1356,6 +1356,31 @@ void UNiagaraComponent::PostLoad()
 	}
 }
 
+void UNiagaraComponent::SetUserParametersToDefaultValues()
+{
+	OverrideParameters.Empty();
+	if (Asset == nullptr)
+	{
+		return;
+	}
+
+	TArray<FNiagaraVariable> SourceVars;
+	Asset->GetExposedParameters().GetParameters(SourceVars);
+	for (FNiagaraVariable& Param : SourceVars)
+	{
+		OverrideParameters.AddParameter(Param, true);
+	}
+
+	TArray<FNiagaraVariable> ExistingVars;
+	OverrideParameters.GetUserParameters(ExistingVars);
+	for (FNiagaraVariable ExistingVar : ExistingVars)
+	{
+		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
+	}
+
+	OverrideParameters.Rebind();
+}
+
 #if WITH_EDITOR
 
 void UNiagaraComponent::PreEditChange(UProperty* PropertyAboutToChange)
@@ -1391,31 +1416,6 @@ void UNiagaraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 	ReinitializeSystem();
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
-}
-
-void UNiagaraComponent::SetUserParametersToDefaultValues()
-{
-	OverrideParameters.Empty();
-	if (Asset == nullptr)
-	{		
-		return;
-	}
-
-	TArray<FNiagaraVariable> SourceVars;
-	Asset->GetExposedParameters().GetParameters(SourceVars);
-	for (FNiagaraVariable& Param : SourceVars)
-	{
-		OverrideParameters.AddParameter(Param, true);
-	}
-
-	TArray<FNiagaraVariable> ExistingVars;
-	OverrideParameters.GetUserParameters(ExistingVars);
-	for (FNiagaraVariable ExistingVar : ExistingVars)
-	{
-		Asset->GetExposedParameters().CopyParameterData(OverrideParameters, ExistingVar);
-	}
-
-	OverrideParameters.Rebind();
 }
 
 void UNiagaraComponent::SynchronizeWithSourceSystem()
