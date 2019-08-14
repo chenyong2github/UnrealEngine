@@ -655,16 +655,16 @@ void HDRSettingChangedSinkCallback()
 			}
 #endif
 		}
-
+		
 		if (bNewValuesSet)
 		{
-			static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
-			static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
-			check(CVarHDROutputDevice);
-			check(CVarHDRColorGamut);
-
-			CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
-			CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
+		static IConsoleVariable* CVarHDROutputDevice = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.OutputDevice"));
+		static IConsoleVariable* CVarHDRColorGamut = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.Display.ColorGamut"));
+		check(CVarHDROutputDevice);
+		check(CVarHDRColorGamut);
+		
+		CVarHDROutputDevice->Set(OutputDevice, ECVF_SetByDeviceProfile);
+		CVarHDRColorGamut->Set(ColorGamut, ECVF_SetByDeviceProfile);
 		}
 		
 		// Now set the HDR setting.
@@ -1494,11 +1494,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 
 	// Initialize the audio device after a world context is setup
 	InitializeAudioDeviceManager();
-
-	if ( IsConsoleBuild() )
-	{
-		bUseConsoleInput = true;
-	}
 
 	// Make sure networking checksum has access to project version
 	const UGeneralProjectSettings& ProjectSettings = *GetDefault<UGeneralProjectSettings>();
@@ -3212,7 +3207,7 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 			// This is the world context that NewPlayer belongs to, see if anyone is using his CurrentControllerId
 			for (ULocalPlayer* LocalPlayer : LocalPlayers)
 			{
-				if(LocalPlayer && LocalPlayer->GetControllerId() == NewControllerID)
+				if (LocalPlayer && LocalPlayer != NewPlayer && LocalPlayer->GetControllerId() == NewControllerID)
 				{
 					LocalPlayer->SetControllerId( CurrentControllerId);
 					return;
@@ -8871,29 +8866,6 @@ FGuid UEngine::GetPackageGuid(FName PackageName, bool bForPIE)
 	}
 
 	return Result;
-}
-
-/** 
-* Returns whether we are running on a console platform or on the PC.
-*
-* @return true if we're on a console, false if we're running on a PC
-*/
-bool UEngine::IsConsoleBuild(EConsoleType ConsoleType) const
-{
-	switch (ConsoleType)
-	{
-	case EConsoleType::Any:
-#if !PLATFORM_DESKTOP
-		return true;
-#else
-		return false;
-#endif
-	case EConsoleType::Mobile:
-		return false;
-	default:
-		UE_LOG(LogEngine, Warning, TEXT("Unknown ConsoleType passed to IsConsoleBuild()"));
-		return false;
-	}
 }
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

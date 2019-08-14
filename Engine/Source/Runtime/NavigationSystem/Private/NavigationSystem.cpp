@@ -217,7 +217,7 @@ namespace
 		const FNavDataGenerator* Generator = MainNavData ? MainNavData->GetGenerator() : nullptr;
 		if (Generator)
 		{
-			Generator->GrabDebugSnapshot(&CurrentEntry, FMath::IsNearlyZero(Box.GetVolume()) ? MainNavData->GetBounds().ExpandBy(FVector(20, 20, 20)) : Box, CategoryName, Verbosity);
+			Generator->GrabDebugSnapshot(&CurrentEntry, (!Box.IsValid || FMath::IsNearlyZero(Box.GetVolume())) ? MainNavData->GetBounds().ExpandBy(FVector(20, 20, 20)) : Box, CategoryName, Verbosity);
 		}
 	}
 #endif // ENABLE_VISUAL_LOG

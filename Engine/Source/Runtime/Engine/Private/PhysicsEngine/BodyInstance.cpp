@@ -1167,31 +1167,31 @@ struct FInitBodiesHelper
 
 		check(IsInGameThread());
 
-		if(CreateShapesAndActors())
+		if (CreateShapesAndActors())
 		{
 			FPhysicsCommand::ExecuteWrite(PhysScene, [&]()
 			{
 				// If an aggregate present, add to that
-				if(Aggregate.IsValid())
+				if (Aggregate.IsValid())
 				{
-					for(FBodyInstance* BI : Bodies)
+					for (FBodyInstance* BI : Bodies)
 					{
 						const FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
-						if(FPhysicsInterface::IsValid(ActorHandle))
+						if (FPhysicsInterface::IsValid(ActorHandle))
 						{
 							FPhysicsInterface::AddActorToAggregate_AssumesLocked(Aggregate, ActorHandle);
 						}
 					}
 				}
-				else if(PhysScene)
+				else if (PhysScene)
 				{
 					TArray<FPhysicsActorHandle> ActorHandles;
 					ActorHandles.Reserve(Bodies.Num());
 
-					for(FBodyInstance* BI : Bodies)
+					for (FBodyInstance* BI : Bodies)
 					{
 						FPhysicsActorHandle& ActorHandle = BI->GetPhysicsActorHandle();
-						if(FPhysicsInterface::IsValid(ActorHandle))
+						if (FPhysicsInterface::IsValid(ActorHandle))
 						{
 							ActorHandles.Add(ActorHandle);
 
@@ -1212,10 +1212,10 @@ struct FInitBodiesHelper
 				}
 
 				// Set up dynamic instance data
-				if(!IsStatic())
+				if (!IsStatic())
 				{
 					SCOPE_CYCLE_COUNTER(STAT_InitBodyPostAdd);
-					for(int32 BodyIdx = 0, NumBodies = Bodies.Num(); BodyIdx < NumBodies; ++BodyIdx)
+					for (int32 BodyIdx = 0, NumBodies = Bodies.Num(); BodyIdx < NumBodies; ++BodyIdx)
 					{
 						FBodyInstance* Instance = Bodies[BodyIdx];
 						Instance->InitDynamicProperties_AssumesLocked();

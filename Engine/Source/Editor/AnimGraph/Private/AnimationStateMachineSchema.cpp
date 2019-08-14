@@ -337,7 +337,7 @@ void UAnimationStateMachineSchema::GetContextMenuActions(const UEdGraph* Current
 				MenuBuilder->AddMenuEntry( FGenericCommands::Get().Duplicate );
 				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().ReconstructNodes );
 				MenuBuilder->AddMenuEntry( FGraphEditorCommands::Get().BreakNodeLinks );
-				if(InGraphNode->bCanRenameNode)
+				if(InGraphNode->GetCanRenameNode())
 				{
 					MenuBuilder->AddMenuEntry( FGenericCommands::Get().Rename );
 				}

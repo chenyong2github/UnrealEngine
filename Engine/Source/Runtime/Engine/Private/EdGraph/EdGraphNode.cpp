@@ -211,6 +211,15 @@ void UEdGraphNode::Serialize(FArchive& Ar)
 #endif
 }
 
+bool UEdGraphNode::GetCanRenameNode() const
+{
+#if WITH_EDITORONLY_DATA
+	return bCanRenameNode;
+#else
+	return false;
+#endif
+}
+
 #if WITH_EDITOR
 
 FString UEdGraphNode::GetPropertyNameAndValueForDiff(const UProperty* Prop, const uint8* PropertyAddr) const

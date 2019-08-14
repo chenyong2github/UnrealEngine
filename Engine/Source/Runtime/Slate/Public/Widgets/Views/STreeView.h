@@ -548,8 +548,8 @@ public:
 					// series of calls, Private_SignalSelectionChanged() could end up in a child
 					// that indexes into either of these arrays (the index wouldn't be updated yet,
 					// and could be invalid)
-					SparseItemInfos = TempSparseItemInfo;
-					DenseItemInfos  = TempDenseItemInfos;
+					SparseItemInfos = MoveTemp(TempSparseItemInfo);
+					DenseItemInfos  = MoveTemp(TempDenseItemInfos);
 
 					// Once the selection changed events have gone through we can update the parent highlight statuses, which are based on your current selection.
 					if (bHighlightParentNodesForSelection)
@@ -692,7 +692,13 @@ public:
 	{
 		RequestListRefresh();
 	}
-		
+
+	virtual void RebuildList() override
+	{
+		LinearizedItems.Empty();
+		SListView<ItemType>::RebuildList();
+	}
+
 	/**
 	 * Set whether some data item is expanded or not.
 	 * 

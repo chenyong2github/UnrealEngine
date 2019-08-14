@@ -438,7 +438,7 @@ FReply SGraphPin::OnPinMouseDown( const FGeometry& SenderGeometry, const FPointe
 				}
 			}
 
-			if (!GraphPinObj->bNotConnectable)
+			if (!MouseEvent.IsShiftDown() && !GraphPinObj->bNotConnectable)
 			{
 				// Start a drag-drop on the pin
 				if (ensure(OwnerNodePinned.IsValid()))

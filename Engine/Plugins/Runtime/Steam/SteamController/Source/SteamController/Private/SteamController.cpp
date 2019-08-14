@@ -140,6 +140,11 @@ public:
 			ControllerHandle_t ControllerHandle = ControllerHandles[i];
 			FControllerState& ControllerState = ControllerStates[i];
 
+			// Doesn't seem to be a good way to get a non-localized string, so use generic name for scope
+			static FName SystemName(TEXT("SteamController"));
+			static FString ControllerName(TEXT("SteamController"));
+			FInputDeviceScope InputScope(this, SystemName, i, ControllerName);
+
 			for (auto It = DigitalActionHandlesMap.CreateConstIterator(); It; ++It)
 			{
 				FName DigitalActionName = It.Key();

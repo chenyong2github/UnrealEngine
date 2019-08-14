@@ -19,6 +19,7 @@ public class SteamController : ModuleRules
         {
 			"Core",
 			"CoreUObject",
+			"ApplicationCore",
 			"Engine",
 			"SteamShared"
 		});

@@ -1382,22 +1382,39 @@ void UCanvas::UpdateSafeZoneData()
 
 		SafeZonePadX = (CachedDisplayWidth - (CachedDisplayWidth * SafeRegionPercentage.X))/2.f;
 		SafeZonePadY = (CachedDisplayHeight - (CachedDisplayHeight * SafeRegionPercentage.Y))/2.f;
-		SafeZonePadX = SafeZonePadEX;
-		SafeZonePadY = SafeZonePadEY;
+		SafeZonePadEX = SafeZonePadX;
+		SafeZonePadEY = SafeZonePadY;
 	}
 	else if(FSlateApplication::IsInitialized())
 	{
 		FDisplayMetrics DisplayMetrics;
-
 		FSlateApplication::Get().GetCachedDisplayMetrics(DisplayMetrics);
+ 		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
+ 		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
 
-		SafeZonePadX = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.X);
-		SafeZonePadY = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.Y);
-		SafeZonePadEX = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.Z);
-		SafeZonePadEY = FMath::CeilToInt(DisplayMetrics.TitleSafePaddingSize.W);
+#if PLATFORM_DESKTOP
+		TSharedPtr<SWindow> Window = FSlateApplication::Get().GetActiveTopLevelWindow();
+		if (Window.IsValid())
+		{
+			FVector2D WindowSize = Window->GetClientSizeInScreen();
+			if (ISlateViewport* SlateViewport = Window->GetViewport().Get())
+			{
+				WindowSize = SlateViewport->GetSize();
+			}
 
-		CachedDisplayWidth = DisplayMetrics.PrimaryDisplayWidth;
-		CachedDisplayHeight = DisplayMetrics.PrimaryDisplayHeight;
+			CachedDisplayWidth = WindowSize.X;
+			CachedDisplayHeight = WindowSize.Y;
+		}
+#endif
+
+		const FVector2D EffectiveScreenSize = FVector2D(CachedDisplayWidth, CachedDisplayHeight);
+		FMargin SafeZone;
+		FSlateApplication::Get().GetSafeZoneSize(/*out*/ SafeZone, EffectiveScreenSize);
+
+		SafeZonePadX = FMath::CeilToInt(SafeZone.Left);
+		SafeZonePadY = FMath::CeilToInt(SafeZone.Top);
+		SafeZonePadEX = FMath::CeilToInt(SafeZone.Right);
+		SafeZonePadEY = FMath::CeilToInt(SafeZone.Bottom);
 	}
 
 }

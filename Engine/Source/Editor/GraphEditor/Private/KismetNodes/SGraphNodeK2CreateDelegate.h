@@ -18,23 +18,43 @@ public:
 	SLATE_BEGIN_ARGS(SGraphNodeK2CreateDelegate) {}
 	SLATE_END_ARGS()
 
-		struct FFunctionItemData
+	/** Data that defines a delegate function */
+	struct FFunctionItemData
 	{
 		FName Name;
-		FString Description;
+		FText Description;
 	};
+
+	/** Collection of function items that have matching function delegates to this node */
 	TArray<TSharedPtr<FFunctionItemData>> FunctionDataItems;
 	TWeakPtr<SComboButton> SelectFunctionWidget;
+
+	/** Data that can be used to create a matching function based on the parameters of a create event node */
+	TSharedPtr<FFunctionItemData> CreateMatchingFunctionData;
+	
+	/** Data that can be used to create a matching event based on based on the parameters of a create event node */
+	TSharedPtr<FFunctionItemData> CreateMatchingEventData;
+
 public:
 	virtual ~SGraphNodeK2CreateDelegate();
 	void Construct(const FArguments& InArgs, UK2Node* InNode);
 	virtual void CreateBelowPinControls(TSharedPtr<SVerticalBox> MainBox) override;
 
 protected:
-	static FString FunctionDescription(const UFunction* Function, const bool bOnlyDescribeSignature = false, const int32 CharacterLimit = 32);
+	static FText FunctionDescription(const UFunction* Function, const bool bOnlyDescribeSignature = false, const int32 CharacterLimit = 32);
 
 	FText GetCurrentFunctionDescription() const;
 	TSharedRef<ITableRow> HandleGenerateRowFunction(TSharedPtr<FFunctionItemData> FunctionItemData, const TSharedRef<STableViewBase>& OwnerTable);
 	void OnFunctionSelected(TSharedPtr<FFunctionItemData> FunctionItemData, ESelectInfo::Type SelectInfo);
+
+private:
+
+	/**
+	* Adds a FunctionItemData with a given description to the array of FunctionDataItems. 
+	* 
+	* @param	DescriptionName		Description of the option to give the user
+	* @return	Shared pointer to the FunctionItemData
+	*/
+	TSharedPtr<SGraphNodeK2CreateDelegate::FFunctionItemData> AddDefaultFunctionDataOption(const FText& DescriptionName);
 };
 

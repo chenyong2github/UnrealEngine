@@ -74,6 +74,14 @@ public:
 	UPROPERTY(config)
 	bool bShowInheritedVariables;
 
+	/** If set interface functions will always show in the overrides menu, even if they are already shown in the interfaces menu */
+	UPROPERTY(config)
+	bool bAlwaysShowInterfacesInOverrides;
+
+	/** If set then the parent class will be listed next to the override function name in the overrides function menu */
+	UPROPERTY(config)
+	bool bShowParentClassInOverrides;
+
 	/** If set we'll show empty sections in the My Blueprint view. */
 	UPROPERTY(config)
 	bool bShowEmptySections;

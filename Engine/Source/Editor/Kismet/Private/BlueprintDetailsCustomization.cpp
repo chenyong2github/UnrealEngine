@@ -284,28 +284,31 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 	];
 
-	TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
+	if (GetVariableTypeChangeEnabled())
+	{
+		TSharedPtr<SToolTip> VarTypeTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarTypeTooltip", "The type of the variable."), NULL, DocLink, TEXT("VariableType"));
 
-	Category.AddCustomRow( LOCTEXT("VariableTypeLabel", "Variable Type") )
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Text( LOCTEXT("VariableTypeLabel", "Variable Type") )
-		.ToolTip(VarTypeTooltip)
-		.Font(DetailFontInfo)
-	]
-	.ValueContent()
-	.MaxDesiredWidth(980.f)
-	[
-		SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
-		.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
-		.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
-		.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)
-		.Schema(Schema)
-		.TypeTreeFilter(ETypeTreeFilter::None)
-		.Font( DetailFontInfo )
-		.ToolTip(VarTypeTooltip)
-	];
+		Category.AddCustomRow(LOCTEXT("VariableTypeLabel", "Variable Type"))
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("VariableTypeLabel", "Variable Type"))
+			.ToolTip(VarTypeTooltip)
+			.Font(DetailFontInfo)
+			]
+		.ValueContent()
+			.MaxDesiredWidth(980.f)
+			[
+				SNew(SPinTypeSelector, FGetPinTypeTree::CreateUObject(Schema, &UEdGraphSchema_K2::GetVariableTypeTree))
+				.TargetPinType(this, &FBlueprintVarActionDetails::OnGetVarType)
+			.OnPinTypeChanged(this, &FBlueprintVarActionDetails::OnVarTypeChanged)
+			.IsEnabled(this, &FBlueprintVarActionDetails::GetVariableTypeChangeEnabled)
+			.Schema(Schema)
+			.TypeTreeFilter(ETypeTreeFilter::None)
+			.Font(DetailFontInfo)
+			.ToolTip(VarTypeTooltip)
+			];
+	}
 
 	TSharedPtr<SToolTip> EditableTooltip = IDocumentation::Get()->CreateToolTip(LOCTEXT("VarEditableTooltip", "Whether this variable is publicly editable on instances of this Blueprint."), NULL, DocLink, TEXT("Editable"));
 
@@ -1268,7 +1271,7 @@ void FBlueprintVarActionDetails::OnVarNameCommitted(const FText& InNewText, ETex
 bool FBlueprintVarActionDetails::GetVariableTypeChangeEnabled() const
 {
 	UProperty* VariableProperty = CachedVariableProperty.Get();
-	if(VariableProperty && IsVariableInBlueprint())
+	if(VariableProperty && !VariableProperty->IsA<UMulticastDelegateProperty>() && IsVariableInBlueprint())
 	{
 		if (!IsALocalVariable(VariableProperty))
 		{
@@ -6083,7 +6086,7 @@ void FBlueprintGraphNodeDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		}
 	}
 
-	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->bCanRenameNode)
+	if(!GraphNodePtr.IsValid() || !GraphNodePtr.Get()->GetCanRenameNode())
 	{
 		return;
 	}

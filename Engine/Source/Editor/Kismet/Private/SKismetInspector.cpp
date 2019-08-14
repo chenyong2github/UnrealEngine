@@ -710,36 +710,51 @@ void SKismetInspector::UpdateFromObjects(const TArray<UObject*>& PropertyObjects
 
 				if(Object != EditableComponentTemplate)
 				{
-					UObjectProperty* ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName());
-					if(ObjectProperty != nullptr)
+					if (UObjectProperty* ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), EditableComponentTemplate->GetFName()))
 					{
 						SelectedObjectProperties.Add(ObjectProperty);
 					}
-					else if(UActorComponent* Archetype = Cast<UActorComponent>(EditableComponentTemplate->GetArchetype()))
+					else 
 					{
-						if(AActor* Owner = Archetype->GetOwner())
+						auto FindPropertyReferencingComponent = [Object](const UActorComponent* Component) -> UProperty*
 						{
-							if(UClass* OwnerClass = Owner->GetClass())
+							if (AActor* Owner = Component->GetOwner())
 							{
-								AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
-								for(TFieldIterator<UObjectProperty> ObjPropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); ObjPropIt; ++ObjPropIt)
+								if (UClass* OwnerClass = Owner->GetClass())
 								{
-									ObjectProperty = *ObjPropIt;
-									check(ObjectProperty != nullptr);
-
-									// If the property value matches the current archetype, add it as a selected property for filtering
-									if(Archetype->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
-										&& Archetype == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
+									AActor* OwnerCDO = CastChecked<AActor>(OwnerClass->GetDefaultObject());
+									for (TFieldIterator<UObjectProperty> ObjPropIt(OwnerClass, EFieldIteratorFlags::IncludeSuper); ObjPropIt; ++ObjPropIt)
 									{
-										ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
-										if(ObjectProperty != nullptr)
+										UObjectProperty* ObjectProperty = *ObjPropIt;
+										check(ObjectProperty != nullptr);
+
+										// If the property value matches the current archetype, add it as a selected property for filtering
+										if (Component->GetClass()->IsChildOf(ObjectProperty->PropertyClass)
+											&& Component == ObjectProperty->GetObjectPropertyValue_InContainer(OwnerCDO))
 										{
-											SelectedObjectProperties.Add(ObjectProperty);
-											break;
+											ObjectProperty = FindField<UObjectProperty>(Object->GetClass(), ObjectProperty->GetFName());
+											if (ObjectProperty != nullptr)
+											{
+												return ObjectProperty;
+											}
 										}
 									}
 								}
 							}
+							return nullptr;
+						};
+
+						UProperty* ReferencingProperty = FindPropertyReferencingComponent(EditableComponentTemplate);
+						if (ReferencingProperty == nullptr)
+						{
+							if (UActorComponent* Archetype = Cast<UActorComponent>(EditableComponentTemplate->GetArchetype()))
+							{
+								ReferencingProperty = FindPropertyReferencingComponent(Archetype);
+							}
+						}
+						if (ReferencingProperty)
+						{
+							SelectedObjectProperties.Add(ReferencingProperty);
 						}
 					}
 				}

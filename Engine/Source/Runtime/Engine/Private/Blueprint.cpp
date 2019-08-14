@@ -462,6 +462,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 
 		if (Ar.IsLoading())
 		{
+#if WITH_EDITORONLY_DATA
 			if (bNativize_DEPRECATED)
 			{
 				// Migrate to the new transient flag.
@@ -472,6 +473,7 @@ void UBlueprint::Serialize(FArchive& Ar)
 				bSettingsChanged |= PackagingSettings->AddBlueprintAssetToNativizationList(this);
 			}
 			else
+#endif
 			{
 				// Cache whether or not this Blueprint asset was selected for exclusive nativization in the Project Settings.
 				for (int AssetIndex = 0; AssetIndex < PackagingSettings->NativizeBlueprintAssets.Num(); ++AssetIndex)
