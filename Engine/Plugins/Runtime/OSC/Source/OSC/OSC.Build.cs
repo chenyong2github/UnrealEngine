@@ -4,26 +4,23 @@ namespace UnrealBuildTool.Rules
 {
 	public class OSC : ModuleRules
 	{
-        public OSC(ReadOnlyTargetRules Target) : base(Target)
+		public OSC(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PublicDependencyModuleNames.AddRange(
+			PublicDependencyModuleNames.AddRange(
 				new string[] {
-                    "Core",
+					"Core",
 					"CoreUObject",
 					"Engine",
-                }
-            );
+				}
+			);
 
-            PrivateDependencyModuleNames.AddRange(
-                new string[] {
-                    "Core",
-                    "CoreUObject",
-                    "Engine",
-                    "Sockets",
-                    "InputCore",
-                    "Networking",
-                }
-            );
-        }
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"InputCore",
+					"Networking",
+					"Sockets",
+				}
+			);
+		}
 	}
 }
