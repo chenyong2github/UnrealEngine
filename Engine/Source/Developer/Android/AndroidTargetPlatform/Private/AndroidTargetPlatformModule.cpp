@@ -40,7 +40,7 @@ public:
 
 	virtual TArray<ITargetPlatform*> GetTargetPlatforms() override
 	{
-		if (TargetPlatforms.Num() == 0)
+		if (TargetPlatforms.Num() == 0 && FAndroidTargetPlatform::IsUsable())
 		{
 			for (int32 Type = 0; Type < 2; Type++)
 			{
