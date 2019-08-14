@@ -836,15 +836,16 @@ namespace CSVStats
             }
         }
 
-        public int StripByEvents(string startString, string endString)
+        public int StripByEvents(string startString, string endString, bool invert=false)
         {
             List<int> startIndices = null;
             List<int> endIndices = null;
             GetEventFrameIndexDelimiters(startString, endString, out startIndices, out endIndices);
-            if (startIndices.Count == 0 )
+			if (startIndices.Count == 0 )
             {
                 return 0;
             }
+
             int framesStripped = -1;
             int frameCount = 0;
             // Strip out samples and recompute averages
