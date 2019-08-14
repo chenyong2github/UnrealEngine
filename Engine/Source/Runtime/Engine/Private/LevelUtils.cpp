@@ -46,7 +46,6 @@ static TMap<ULevel*, FLevelReadOnlyData> LevelReadOnlyCache;
 
 #if WITH_EDITOR
 bool FLevelUtils::bMovingLevel = false;
-bool FLevelUtils::bApplyingLevelTransform = false;
 #endif
 
 /**
@@ -372,22 +371,14 @@ bool FLevelUtils::IsMovingLevel()
 	return bMovingLevel;
 }
 
-bool FLevelUtils::IsApplyingLevelTransform()
-{
-	return bApplyingLevelTransform;
-}
-
 #endif // WITH_EDITOR
+
 
 void FLevelUtils::ApplyLevelTransform( ULevel* Level, const FTransform& LevelTransform, bool bDoPostEditMove )
 {
 	bool bTransformActors =  !LevelTransform.Equals(FTransform::Identity);
 	if (bTransformActors)
 	{
-#if WITH_EDITOR
-		bool bOldValue = bApplyingLevelTransform;
-		bApplyingLevelTransform = true;
-#endif
 		if (!LevelTransform.GetRotation().IsIdentity())
 		{
 			// If there is a rotation applied, then the relative precomputed bounds become invalid.
@@ -419,9 +410,6 @@ void FLevelUtils::ApplyLevelTransform( ULevel* Level, const FTransform& LevelTra
 #endif // WITH_EDITOR
 
 		Level->OnApplyLevelTransform.Broadcast(LevelTransform);
-#if WITH_EDITOR
-		bApplyingLevelTransform = bOldValue;
-#endif
 	}
 }
 
