@@ -357,6 +357,22 @@ namespace Audio
 			++CurrentTick;
 			return CurrentValue;
 		}
+
+		// same as GetValue(), but overloaded to increment Current Tick by NumTicksToJumpAhead
+		// (before getting the value);
+		float GetValue(int32 NumTicksToJumpAhead)
+		{
+			if (IsDone())
+			{
+				return CurrentValue;
+			}
+
+			CurrentTick += NumTicksToJumpAhead;
+			CurrentValue = DeltaValue * (float)CurrentTick / DurationTicks + StartValue;
+
+			return CurrentValue;
+		}
+
 		 
 		// Updates the target value without changing the duration or tick data.
 		// Sets the state as if the new value was the target value all along
@@ -568,6 +584,12 @@ namespace Audio
 			{
 				return Capacity - ReadIndex + WriteIndex;
 			}
+		}
+
+		// Get the current capacity of the buffer
+		uint32 GetCapacity()
+		{
+			return Capacity;
 		}
 
 		// Get number of samples that can be pushed onto the buffer before it is full.

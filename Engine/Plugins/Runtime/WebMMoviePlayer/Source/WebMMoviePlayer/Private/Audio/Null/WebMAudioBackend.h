@@ -13,5 +13,3 @@ public:
 	void StopStreaming() {}
 	bool SendAudio(const uint8* Buffer, size_t BufferSize) { return true; }
 };
-
-using FWebMAudioBackend = FWebMAudioBackendNull;

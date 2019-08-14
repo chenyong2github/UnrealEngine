@@ -30,6 +30,11 @@ FNiagaraEmitterHandleViewModel::FNiagaraEmitterHandleViewModel()
 {
 }
 
+bool FNiagaraEmitterHandleViewModel::IsValid() const
+{
+	return EmitterHandle != nullptr;
+}
+
 void FNiagaraEmitterHandleViewModel::Cleanup()
 {
 	EmitterViewModel->Cleanup();
@@ -208,7 +213,7 @@ void FNiagaraEmitterHandleViewModel::SetIsEnabled(bool bInIsEnabled)
 	{
 		FScopedTransaction ScopedTransaction(NSLOCTEXT("NiagaraEmitterEditor", "EditEmitterEnabled", "Change emitter enabled state"));
 		GetOwningSystemViewModel()->GetSystem().Modify();
-		EmitterHandle->SetIsEnabled(bInIsEnabled);
+		EmitterHandle->SetIsEnabled(bInIsEnabled, GetOwningSystemViewModel()->GetSystem(), true);
 		OnPropertyChangedDelegate.Broadcast();
 	}
 }

@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -28,12 +28,13 @@ namespace UnrealVS
 			}
 		}
 
+		public static BatchBuilderToolControl.BatchBuilderToolState _ToolControlState = new BatchBuilderToolControl.BatchBuilderToolState();
 		private static BatchBuilderToolControl _ToolControl;
 		public static BatchBuilderToolControl ToolControl
 		{
 			get 
 			{
-				if (_ToolControl == null) _ToolControl = new BatchBuilderToolControl();
+				if (_ToolControl == null) _ToolControl = new BatchBuilderToolControl(_ToolControlState);
 				return _ToolControl;
 			}
 		}
@@ -41,6 +42,10 @@ namespace UnrealVS
 		/** methods */
 
 		public BatchBuilder()
+		{
+		}
+
+		public void Initialize()
 		{
 			// Create the command for the tool window
 			var ToolWindowCommandId = new CommandID(GuidList.UnrealVSCmdSet, BatchBuilderToolWindowId);
@@ -54,7 +59,7 @@ namespace UnrealVS
 		/// <param name="Stream">The stream to load the option data from.</param>
 		public void LoadOptions(Stream Stream)
 		{
-			ToolControl.LoadOptions(Stream);
+			_ToolControlState.LoadOptions(Stream);
 		}
 
 		/// <summary>
@@ -63,7 +68,7 @@ namespace UnrealVS
 		/// <param name="Stream">The stream to save the option data to.</param>
 		public void SaveOptions(Stream Stream)
 		{
-			ToolControl.SaveOptions(Stream);
+			_ToolControlState.SaveOptions(Stream);
 		}
 
 		/// <summary>

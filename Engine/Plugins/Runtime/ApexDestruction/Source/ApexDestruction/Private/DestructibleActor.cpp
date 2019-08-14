@@ -28,24 +28,17 @@ bool ADestructibleActor::GetReferencedContentObjects( TArray<UObject*>& Objects 
 	return true;
 }
 
-void ADestructibleActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ADestructibleActor, bAffectNavigation))
-	{
-		DestructibleComponent->SetCanEverAffectNavigation(bAffectNavigation);
-	}
-}
-#endif // WITH_EDITOR
-
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 void ADestructibleActor::PostLoad()
 {
 	Super::PostLoad();
-	
-	if (DestructibleComponent)
+
+	if (DestructibleComponent && bAffectNavigation)
 	{
 		DestructibleComponent->SetCanEverAffectNavigation(bAffectNavigation);
+		bAffectNavigation = false;
 	}
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#endif // WITH_EDITOR
 

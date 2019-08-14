@@ -487,6 +487,12 @@ FString GetMetalBinaryPath(uint32 ShaderPlatform)
 					MetalToolsPath = FString::Printf(TEXT("%s/Platforms/MacOSX.platform/usr/bin"), *XcodePath);
 				}
 				MetalPath = MetalToolsPath + TEXT("/metal");
+
+				if (!RemoteFileExists(MetalPath) && bIsMobile)
+				{
+					MetalToolsPath = FString::Printf(TEXT("%s/Toolchains/XcodeDefault.xctoolchain/usr/metal/ios/bin"), *XcodePath);
+					MetalPath = MetalToolsPath + TEXT("/metal");
+				}
 			}
 
 			if (RemoteFileExists(MetalPath))

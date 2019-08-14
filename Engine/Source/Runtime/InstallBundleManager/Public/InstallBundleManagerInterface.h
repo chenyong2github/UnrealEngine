@@ -2,13 +2,10 @@
 
 #pragma once
 
-#include "Modules/ModuleInterface.h"
-#include "Modules/ModuleManager.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Logging/LogMacros.h"
 #include "Internationalization/Text.h"
-//#include "IAnalyticsProviderET.h"
 
 class IAnalyticsProviderET;
 
@@ -285,14 +282,16 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FInstallBundlePausedMultiDelegate, FInstallB
 
 DECLARE_DELEGATE_OneParam(FInstallBundleGetContentStateDelegate, FInstallBundleContentState);
 
-class CORE_API IPlatformInstallBundleManager
+class INSTALLBUNDLEMANAGER_API IInstallBundleManager
 {
 public:
 	static FInstallBundleCompleteMultiDelegate InstallBundleCompleteDelegate;
 	static FInstallBundleCompleteMultiDelegate RemoveBundleCompleteDelegate;
 	static FInstallBundlePausedMultiDelegate PausedBundleDelegate;
 
-	virtual ~IPlatformInstallBundleManager() {}
+	static IInstallBundleManager* GetPlatformInstallBundleManager();
+
+	virtual ~IInstallBundleManager() {}
 
 	virtual bool HasBuildMetaData() const = 0;
 
@@ -339,36 +338,3 @@ public:
 	virtual TSharedPtr<IAnalyticsProviderET> GetAnalyticsProvider() const { return TSharedPtr<IAnalyticsProviderET>(); }
 };
 
-class IPlatformInstallBundleManagerModule : public IModuleInterface
-{
-public:
-	virtual void PreUnloadCallback() override
-	{
-		InstallBundleManager.Reset();
-	}
-
-	IPlatformInstallBundleManager* GetInstallBundleManager()
-	{
-		return InstallBundleManager.Get();
-	}
-
-protected:
-	TUniquePtr<IPlatformInstallBundleManager> InstallBundleManager;
-};
-
-template<class PlatformInstallBundleManagerImpl>
-class TPlatformInstallBundleManagerModule : public IPlatformInstallBundleManagerModule
-{
-public:
-	virtual void StartupModule() override
-	{
-		// Only instantiate the bundle manager if this is the version the game has been configured to use
-		FString ModuleName;
-		GConfig->GetString(TEXT("InstallBundleManager"), TEXT("ModuleName"), ModuleName, GEngineIni);
-
-		if (FModuleManager::Get().GetModule(*ModuleName) == this)
-		{
-			InstallBundleManager = MakeUnique<PlatformInstallBundleManagerImpl>();
-		}
-	}
-};

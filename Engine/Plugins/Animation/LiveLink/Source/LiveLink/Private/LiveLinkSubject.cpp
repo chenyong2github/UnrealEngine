@@ -142,7 +142,7 @@ bool FLiveLinkSubject::EvaluateFrameAtWorldTime(double InWorldTime, TSubclassOf<
 		}
 		else
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Can't evaluate frame for subject %s. Role %s is incompatible with current role %s"), *SubjectKey.SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
+			UE_LOG(LogLiveLink, Verbose, TEXT("Can't evaluate frame for subject %s. Role %s is incompatible with current role %s"), *SubjectKey.SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
 		}
 	}
 
@@ -180,7 +180,7 @@ bool FLiveLinkSubject::EvaluateFrameAtSceneTime(const FTimecode& InSceneTime, TS
 		}
 		else
 		{
-			UE_LOG(LogLiveLink, Warning, TEXT("Can't evaluate frame for subject '%s'. Role '%s' is incompatible with current role '%s'"), *SubjectKey.SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
+			UE_LOG(LogLiveLink, Verbose, TEXT("Can't evaluate frame for subject '%s'. Role '%s' is incompatible with current role '%s'"), *SubjectKey.SubjectName.ToString(), *InDesiredRole->GetName(), *Role->GetName());
 		}
 	}
 

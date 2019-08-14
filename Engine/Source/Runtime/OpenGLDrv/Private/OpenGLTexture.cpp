@@ -2399,7 +2399,7 @@ void FOpenGLDynamicRHI::RHIUpdateTexture3D(FRHITexture3D* TextureRHI, uint32 Mip
 void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 {
 	VERIFY_GL_SCOPE();
-	if (SharedContextState.Textures || RenderingContextState.Textures)
+	if (SharedContextState.Textures || RenderingContextState.Textures || PendingState.Textures)
 	{
 		for (int32 SamplerIndex = 0; SamplerIndex < FOpenGL::GetMaxCombinedTextureImageUnits(); ++SamplerIndex)
 		{
@@ -2413,6 +2413,12 @@ void FOpenGLDynamicRHI::InvalidateTextureResourceInCache(GLuint Resource)
 			{
 				RenderingContextState.Textures[SamplerIndex].Target = GL_NONE;
 				RenderingContextState.Textures[SamplerIndex].Resource = 0;
+			}
+
+			if (PendingState.Textures && PendingState.Textures[SamplerIndex].Resource == Resource)
+			{
+				PendingState.Textures[SamplerIndex].Target = GL_NONE;
+				PendingState.Textures[SamplerIndex].Resource = 0;
 			}
 		}
 	}
@@ -2439,6 +2445,12 @@ void FOpenGLDynamicRHI::InvalidateUAVResourceInCache(GLuint Resource)
 		{
 			RenderingContextState.UAVs[UAVIndex].Format = GL_NONE;
 			RenderingContextState.UAVs[UAVIndex].Resource = 0;
+		}
+
+		if (PendingState.UAVs[UAVIndex].Resource == Resource)
+		{
+			PendingState.UAVs[UAVIndex].Format = GL_NONE;
+			PendingState.UAVs[UAVIndex].Resource = 0;
 		}
 	}
 }

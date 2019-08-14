@@ -23,7 +23,6 @@ class FNiagaraObjectSelection;
 class FNiagaraScriptViewModel : public TSharedFromThis<FNiagaraScriptViewModel>, public FEditorUndoClient, public TNiagaraViewModelManager<UNiagaraScript, FNiagaraScriptViewModel>
 {
 public:
-	FNiagaraScriptViewModel(UNiagaraScript* InScript, FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
 	FNiagaraScriptViewModel(FText DisplayName, ENiagaraParameterEditMode InParameterEditMode);
 
 	~FNiagaraScriptViewModel();
@@ -57,7 +56,7 @@ public:
 	void CompileStandaloneScript(bool bForceCompile = false);
 
 	/** Get the latest status of this view-model's script compilation.*/
-	ENiagaraScriptCompileStatus GetLatestCompileStatus();
+	virtual ENiagaraScriptCompileStatus GetLatestCompileStatus();
 
 	/** Refreshes the nodes in the script graph, updating the pins to match external changes. */
 	void RefreshNodes();

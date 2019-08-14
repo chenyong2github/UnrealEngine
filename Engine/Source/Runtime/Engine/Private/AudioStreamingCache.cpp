@@ -515,7 +515,7 @@ uint64 FAudioChunkCache::TrimMemory(uint64 BytesToFree)
 
 #if DEBUG_STREAM_CACHE
 			// Reset debug info:
-			CurrentElement->DebugInfo = FCacheElementDebugInfo();
+			CurrentElement->DebugInfo.Reset();
 #endif
 		}
 
@@ -613,7 +613,8 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::FindElementForKey(const FChun
 		{
 			
 #if DEBUG_STREAM_CACHE
-			CurrentElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Add(ElementPosition);
+			float& CMA = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
+			CMA += ((ElementPosition - CMA) / (CurrentElement->DebugInfo.NumTimesTouched + 1));
 #endif
 
 			return CurrentElement;
@@ -799,8 +800,7 @@ FAudioChunkCache::FCacheElement* FAudioChunkCache::EvictLeastRecentChunk()
 
 #if DEBUG_STREAM_CACHE
 	// Reset debug information:
-	CacheElement->DebugInfo.PreviousLocationsBeforeBeingTouched.Reset();
-	CacheElement->DebugInfo.NumTimesTouched = 0;
+	CacheElement->DebugInfo.Reset();
 #endif
 
 	return CacheElement;
@@ -1066,21 +1066,24 @@ TPair<int, int> FAudioChunkCache::DebugDisplay(UWorld* World, FViewport* Viewpor
 		int32 NumTotalChunks = -1;
 		int32 NumTimesTouched = -1;
 		double TimeToLoad = -1.0;
+		float AveragePlaceInCache = -1.0f;
 
 #if DEBUG_STREAM_CACHE
 		NumTotalChunks = CurrentElement->DebugInfo.NumTotalChunks;
 		NumTimesTouched = CurrentElement->DebugInfo.NumTimesTouched;
 		TimeToLoad = CurrentElement->DebugInfo.TimeToLoad;
+		AveragePlaceInCache = CurrentElement->DebugInfo.AverageLocationInCacheWhenNeeded;
 #endif
 
 		const bool bWasTrimmed = CurrentElement->ChunkData.Num() == 0;
 
-		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Number of Decoders Using Chunk: %d     Chunk Load Time: %6.4fms      Name: %s "),
+		FString ElementInfo = *FString::Printf(TEXT("%4i. Size: %6.2f KB   Chunk: %d of %d   Request Count: %d    Average Index: %6.2f  Number of Decoders Using Chunk: %d     Chunk Load Time: %6.4fms      Name: %s "),
 			Index,
 			CurrentElement->ChunkData.Num() / 1024.0f,
 			CurrentElement->Key.ChunkIndex,
 			NumTotalChunks,
 			NumTimesTouched,
+			AveragePlaceInCache,
 			CurrentElement->NumConsumers.GetValue(),
 			TimeToLoad,
 			bWasTrimmed ? TEXT("TRIMMED CHUNK") : *CurrentElement->Key.SoundWaveName.ToString()

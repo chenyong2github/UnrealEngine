@@ -12,6 +12,8 @@
 class FBlueprintEditor;
 class UEdGraph;
 struct FSlateBrush;
+class SFunctionEditor;
+class SScrollBox;
 
 //////////////////////////////////////////////////////////////////////////
 // SGraphTitleBar
@@ -20,7 +22,7 @@ class SGraphTitleBar : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS( SGraphTitleBar )
-		: _EdGraphObj(NULL)
+		: _EdGraphObj(nullptr)
 		, _Kismet2()
 		{}
 
@@ -46,7 +48,9 @@ protected:
 	UEdGraph* EdGraphObj;
 
 	/** Pointer to the function editor widget */
-	TWeakPtr<class SFunctionEditor>	FuncEditorPtr;
+	TWeakPtr<SFunctionEditor>	FuncEditorPtr;
+
+	TSharedPtr<SScrollBox> BreadcrumbTrailScrollBox;
 
 	/** Breadcrumb trail widget */
 	TSharedPtr< SBreadcrumbTrail<UEdGraph*> > BreadcrumbTrail;

@@ -356,6 +356,7 @@ public:
 		, SizeY(InSizeY)
 		, Format(InFormat)
 		, NumMips(InNumMips)
+		, Hash(0)
 	{}
 
 	virtual uint32 GetSizeX() const override
@@ -377,11 +378,22 @@ public:
 		TextureRHI = RHICreateTexture2D(SizeX, SizeY, Format, NumMips, 1, TexCreate_CPUReadback, CreateInfo);
 	}
 
+	bool UpdateHashFromTextureSource(const uint8* MipData)
+	{
+		uint32 LocalHash = FCrc::MemCrc32(MipData, SizeX * SizeY * sizeof(FColor));
+		bool bChanged = (LocalHash != Hash);
+		Hash = LocalHash;
+		return bChanged;
+	}
+	   
+	uint32 GetHash() const { return Hash; }
+
 private:
 	uint32 SizeX;
 	uint32 SizeY;
 	EPixelFormat Format;
 	uint32 NumMips;
+	uint32 Hash;
 };
 
 UCLASS(Abstract, MinimalAPI, NotBlueprintable, hidecategories=(Display, Attachment, Physics, Debug, Lighting, LOD), showcategories=(Lighting, Rendering, "Utilities|Transformation"), hidecategories=(Mobility))
@@ -790,7 +802,6 @@ public:
 	virtual void PostEditMove(bool bFinished) override;
 	virtual bool ShouldImport(FString* ActorPropString, bool IsMovingLevel) override;
 	virtual bool ShouldExport() override;
-	virtual bool Modify(bool bAlwaysMarkDirty = true) override;
 	//~ End AActor Interface
 #endif	//WITH_EDITOR
 

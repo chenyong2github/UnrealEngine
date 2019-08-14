@@ -13,19 +13,19 @@ class FNiagaraStandaloneScriptViewModel : public FNiagaraScriptViewModel
 {
 public:
 	FNiagaraStandaloneScriptViewModel(
-		UNiagaraScript* InScript
-		, FText DisplayName
-		, ENiagaraParameterEditMode InParameterEditMode
-		, TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel
-		, UNiagaraScript* InSourceScript
-		, const FGuid& InMessageLogGuidKey
+		FText DisplayName,
+		ENiagaraParameterEditMode InParameterEditMode,
+		TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel,
+		const FGuid& InMessageLogGuidKey
 	);
+
+	void Initialize(UNiagaraScript* InScript, UNiagaraScript* InSourceScript);
 
 private:
 	virtual void OnVMScriptCompiled(UNiagaraScript* InScript) override;
 
 	/** Sends message jobs to FNiagaraMessageManager for all compile events from the last compile. */
-	void SendLastCompileMessageJobs(UNiagaraScript* InScript);
+	void SendLastCompileMessageJobs(const UNiagaraScript* InScript);
 
 	TSharedPtr<FNiagaraMessageLogViewModel> NiagaraMessageLogViewModel;
 	const UNiagaraScript* SourceScript;

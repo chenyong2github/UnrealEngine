@@ -16,6 +16,7 @@
 #include "Animation/AnimNode_Root.h"
 #include "Animation/AnimNode_SubInput.h"
 #include "Animation/AnimNode_Layer.h"
+#include "Animation/AnimNode_AssetPlayerBase.h"
 
 /////////////////////////////////////////////////////
 // FStateMachineDebugData
@@ -290,10 +291,11 @@ void UAnimBlueprintGeneratedClass::Link(FArchive& Ar, bool bRelinkExistingProper
 
 	if(RootClass != this)
 	{
-		// State notifies and baked machines from the root class
+		// State notifies and baked machines and asset player information from the root class
 		check(RootClass);
 		AnimNotifies = RootClass->AnimNotifies;
 		BakedStateMachines = RootClass->BakedStateMachines;
+		GraphAssetPlayerInformation = RootClass->GraphAssetPlayerInformation;
 	}
 
 	if(RootClass != this)

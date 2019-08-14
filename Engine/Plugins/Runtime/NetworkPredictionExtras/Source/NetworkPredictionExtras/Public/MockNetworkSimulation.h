@@ -14,7 +14,7 @@
 #include "Misc/OutputDevice.h"
 #include "Misc/CoreDelegates.h"
 
-#include "NetworkSimulationModelTemplates.h"
+#include "NetworkSimulationModel.h"
 #include "NetworkPredictionComponent.h"
 
 #include "MockNetworkSimulation.generated.h"
@@ -51,12 +51,10 @@ class IMockNetworkSimulationDriver;
 // State the client generates
 struct FMockInputCmd
 {
-	float FrameDeltaTime=0.f;
 	float InputValue=0;
 
 	void NetSerialize(const FNetSerializeParams& P)
 	{
-		P.Ar << FrameDeltaTime;
 		P.Ar << InputValue;
 	}
 
@@ -64,7 +62,6 @@ struct FMockInputCmd
 	{
 		if (P.Context == EStandardLoggingContext::Full)
 		{
-			P.Ar->Logf(TEXT("FrameDeltaTime: %4f"), FrameDeltaTime);
 			P.Ar->Logf(TEXT("InputValue: %4f"), InputValue);
 		}
 		else
@@ -116,8 +113,10 @@ struct FMockAuxState
 	}
 };
 
+using TMockNetworkSimulationBufferTypes = TNetworkSimBufferTypes<FMockInputCmd, FMockSyncState, FMockAuxState>;
+
 // Actual definition of our network simulation.
-class FMockNetworkSimulation : public TNetworkedSimulationModel<FMockNetworkSimulation, FMockInputCmd, FMockSyncState, FMockAuxState>
+class FMockNetworkSimulation : public TNetworkedSimulationModel<FMockNetworkSimulation, TMockNetworkSimulationBufferTypes>
 {
 public:
 
@@ -131,7 +130,7 @@ public:
 	};
 
 	/** Main update function */
-	static void Update(IMockNetworkSimulationDriver* Driver, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState);
+	static void Update(IMockNetworkSimulationDriver* Driver, const TSimTime& DeltaTimeMS, const FMockInputCmd& InputCmd, const FMockSyncState& InputState, FMockSyncState& OutputState, const FMockAuxState& AuxState);
 };
 
 // Needed to trick UHT into letting UMockNetworkSimulationComponent implement. UHT cannot parse the ::
@@ -162,8 +161,11 @@ private:
 	TUniquePtr<FMockNetworkSimulation> NetworkSim;
 	
 public:
+
 	void InitSyncState(FMockSyncState& OutSyncState) const override;
-	void SyncTo(const FMockSyncState& SyncState) override;
+	void FinalizeFrame(const FMockSyncState& SyncState) override;
+	void ProduceInput(const FMockNetworkSimulation::TSimTime& SimFrameTime, FMockInputCmd& Cmd);
+
 	virtual UWorld* GetDriverWorld() const override final { return GetWorld(); }
 	virtual UObject* GetVLogOwner() const override final;
 	virtual FTransform GetDebugWorldTransform() const override final;

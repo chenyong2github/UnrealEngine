@@ -2867,8 +2867,9 @@ public:
 
 	/** Get the scene index of the FRuntimeVirtualTextureSceneProxy associated with the producer. */
 	uint32 GetRuntimeVirtualTextureSceneIndex(uint32 ProducerId);
-	/** Build the mask used for filtering this Proxy against all of the runtime virtual textures in the scene. */
-	uint32 GetRuntimeVirtualTextureMask(FPrimitiveSceneProxy const* Proxy);
+
+	/** Flush any dirty runtime virtual texture pages */
+	void FlushDirtyRuntimeVirtualTextures();
 
 #if WITH_EDITOR
 	virtual bool InitializePixelInspector(FRenderTarget* BufferFinalColor, FRenderTarget* BufferSceneColor, FRenderTarget* BufferDepth, FRenderTarget* BufferHDR, FRenderTarget* BufferA, FRenderTarget* BufferBCDE, int32 BufferIndex) override;

@@ -13,6 +13,7 @@
 #include "ScenePrivate.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
+#include "VT/RuntimeVirtualTextureSceneProxy.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUScene.h"
 
@@ -638,13 +639,13 @@ void FPrimitiveSceneInfo::AddToScene(FRHICommandListImmediate& RHICmdList, bool 
 	// Store the component.
 	Scene->PrimitiveComponentIds[PackedIndex] = PrimitiveComponentId;
 
-	// Store the runtime virtual texture flags and lod info.
-	const bool bRenderToVirtualTexture = Proxy->WritesVirtualTexture();
-	Scene->PrimitiveVirtualTextureFlags[PackedIndex].bRenderToVirtualTexture = bRenderToVirtualTexture;
-	if (bRenderToVirtualTexture)
-	{
-		Scene->PrimitiveVirtualTextureFlags[PackedIndex].RuntimeVirtualTextureMask = Scene->GetRuntimeVirtualTextureMask(Proxy);
+	// Store the runtime virtual texture flags.
+	UpdateRuntimeVirtualTextureFlags();
+	Scene->PrimitiveVirtualTextureFlags[PackedIndex] = RuntimeVirtualTextureFlags;
 
+	// Store the runtime virtual texture Lod info.
+	if (RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
+	{
 		int8 MinLod, MaxLod;
 		GetRuntimeVirtualTextureLODRange(StaticMeshRelevances, MinLod, MaxLod);
 
@@ -742,6 +743,31 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	}
 }
 
+void FPrimitiveSceneInfo::UpdateRuntimeVirtualTextureFlags()
+{
+	const bool bRenderToVirtualTexture = Proxy->WritesVirtualTexture();
+
+	RuntimeVirtualTextureFlags.bRenderToVirtualTexture = bRenderToVirtualTexture;
+	RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask = 0;
+
+	if (bRenderToVirtualTexture)
+	{
+		// Performance assumption: The arrays of runtime virtual textures are small (less that 5?) so that O(n^2) scan isn't expensive
+		for (TSparseArray<FRuntimeVirtualTextureSceneProxy*>::TConstIterator It(Scene->RuntimeVirtualTextures); It; ++It)
+		{
+			int32 SceneIndex = It.GetIndex();
+			if (SceneIndex < FPrimitiveVirtualTextureFlags::RuntimeVirtualTexture_BitCount)
+			{
+				URuntimeVirtualTexture* SceneVirtualTexture = (*It)->VirtualTexture;
+				if (Proxy->WritesVirtualTexture(SceneVirtualTexture))
+				{
+					RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask |= 1 << SceneIndex;
+				}
+			}
+		}
+	}
+}
+
 bool FPrimitiveSceneInfo::NeedsUpdateStaticMeshes()
 {
 	return Scene->PrimitivesNeedingStaticMeshUpdate[PackedIndex];
@@ -790,6 +816,24 @@ void FPrimitiveSceneInfo::BeginDeferredUpdateStaticMeshesWithoutVisibilityCheck(
 		bNeedsStaticMeshUpdateWithoutVisibilityCheck = true;
 
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Add(this);
+	}
+}
+
+void FPrimitiveSceneInfo::FlushRuntimeVirtualTexture()
+{
+	if (RuntimeVirtualTextureFlags.bRenderToVirtualTexture)
+	{
+		uint32 RuntimeVirtualTextureIndex = 0;
+		uint32 Mask = RuntimeVirtualTextureFlags.RuntimeVirtualTextureMask;
+		while (Mask != 0)
+		{
+			if (Mask & 1)
+			{
+				Scene->RuntimeVirtualTextures[RuntimeVirtualTextureIndex]->Dirty(Proxy->GetBounds());
+			}
+			Mask >>= 1;
+			RuntimeVirtualTextureIndex++;
+		}
 	}
 }
 

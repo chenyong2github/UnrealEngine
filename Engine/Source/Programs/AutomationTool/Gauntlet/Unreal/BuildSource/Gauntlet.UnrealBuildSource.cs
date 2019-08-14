@@ -35,19 +35,19 @@ namespace Gauntlet
 
 		public int BuildCount { get { return DiscoveredBuilds.Count; } }
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference) 
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, null);
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, null);
 		}
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, Func<string, string> ResolutionDelegate)
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, Func<string, string> ResolutionDelegate)
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, ResolutionDelegate);
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, ResolutionDelegate);
 		}
 
-		public UnrealBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, IEnumerable<string> InSearchPaths)
+		public UnrealBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string BuildReference, IEnumerable<string> InSearchPaths)
 		{
-			InitBuildSource(InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, (string BuildRef) =>
+			InitBuildSource(InProjectName, InProjectPath, InUnrealPath, InUsesSharedBuildType, BuildReference, (string BuildRef) =>
 			{
 				foreach (string SearchPath in InSearchPaths)
 				{
@@ -74,13 +74,13 @@ namespace Gauntlet
 		}
 
 
-		protected void InitBuildSource(FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string InBuildArgument, Func<string, string> ResolutionDelegate)
+		protected void InitBuildSource(string InProjectName, FileReference InProjectPath, DirectoryReference InUnrealPath, bool InUsesSharedBuildType, string InBuildArgument, Func<string, string> ResolutionDelegate)
 		{
 			UnrealPath = InUnrealPath;
 			UsesSharedBuildType = InUsesSharedBuildType;
 
 			ProjectPath = InProjectPath;
-			ProjectName = InProjectPath.GetFileNameWithoutExtension();
+			ProjectName = InProjectName;
 
 			// Resolve the build argument into something meaningful
 			string ResolvedBuildName;
@@ -443,11 +443,11 @@ namespace Gauntlet
 				// add in -game or -server
 				if (Role.RoleType.IsClient())
 				{
-					Config.CommandLine = "-game " + Config.CommandLine;
+					Config.CommandLine = Config.CommandLine + " -game";
 				}
 				else if (Role.RoleType.IsServer())
 				{
-					Config.CommandLine = "-server " + Config.CommandLine;
+					Config.CommandLine = Config.CommandLine + " -server";
 				}
 			}
 

@@ -37,7 +37,7 @@
 
 static TAutoConsoleVariable<int32> CVarVTCompressCrunch(
 	TEXT("r.VT.EnableCompressCrunch"),
-	1,
+	0,
 	TEXT("Enable Crunch compression for virtual textures, for supported formats")
 );
 
@@ -451,6 +451,9 @@ static void GetTextureBuildSettings(
 		OutBuildSettings.bVirtualTextureEnableCompressCrunch = CVarVTCompressCrunch.GetValueOnAnyThread() != 0;
 		OutBuildSettings.VirtualTextureTileSize = FMath::RoundUpToPowerOfTwo(CVarVTTileSize.GetValueOnAnyThread());
 
+		// don't all max resolution to be less than VT tile size
+		OutBuildSettings.MaxTextureResolution = FMath::Max<uint32>(OutBuildSettings.MaxTextureResolution, OutBuildSettings.VirtualTextureTileSize);
+		
 		// 0 is a valid value for border size
 		// 1 would be OK in some cases, but breaks BC compressed formats, since it will result in physical tiles that aren't divisible by block size (4)
 		// Could allow border size of 1 for non BC compressed virtual textures, but somewhat complicated to get that correct, especially with multiple layers

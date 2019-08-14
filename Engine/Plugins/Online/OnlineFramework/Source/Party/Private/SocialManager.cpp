@@ -668,7 +668,7 @@ void USocialManager::JoinPartyInternal(FJoinPartyAttempt& JoinAttempt)
 {
 	IOnlinePartyPtr PartyInterface = Online::GetPartyInterfaceChecked(GetWorld());
 	FUniqueNetIdRepl LocalUserId = GetFirstLocalUserId(ESocialSubsystem::Primary);
-	check(LocalUserId.IsValid());
+	ensureMsgf(LocalUserId.IsValid(), TEXT("USocialManager::JoinPartyInternal: Invalid LocalUserId!"));
 
 	JoinAttempt.ActionTimeTracker.BeginStep(FJoinPartyAttempt::Step_JoinParty);
 

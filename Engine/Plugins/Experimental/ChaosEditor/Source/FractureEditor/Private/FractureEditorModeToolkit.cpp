@@ -1252,6 +1252,11 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 		return false;
 	}
 
+	if (!IsSeletedActorsInEditorWorld())
+	{
+		return false;
+	}
+
 	if (IsGeometryCollectionSelected())
 	{
 		return IsLeafBoneSelected();
@@ -1261,7 +1266,7 @@ bool FFractureEditorModeToolkit::CanExecuteFracture() const
 	{
 		return false;
 	}
-
+	
 	return false;
 }
 
@@ -1615,6 +1620,8 @@ void FFractureEditorModeToolkit::OnGenerateAssetPathChosen(const FString& InAsse
 			const FVector ActorLocation(FirstActor->GetActorLocation());
 			GeometryCollectionActor->SetActorLocation(ActorLocation);
 
+			// Clear selection of mesh actor used to make GC before selecting, will cause details pane to not display geometry collection details.
+			GEditor->SelectNone(true, true, false);
 			GEditor->SelectActor(GeometryCollectionActor, true, true);
 
 			EditBoneColor.SelectBones(GeometryCollection::ESelectionMode::AllGeometry);
@@ -1762,10 +1769,25 @@ bool FFractureEditorModeToolkit::IsStaticMeshSelected()
 		}
 	}
 	return false;
-
 }
 
-
+bool FFractureEditorModeToolkit::IsSeletedActorsInEditorWorld()
+{
+	USelection* SelectedActors = GEditor->GetSelectedActors();
+	for (FSelectionIterator Iter(*SelectedActors); Iter; ++Iter)
+	{
+		AActor* Actor = Cast<AActor>(*Iter);
+		if (Actor)
+		{
+			check(Actor->GetWorld());
+			if (Actor->GetWorld()->WorldType != EWorldType::Editor)
+			{
+				return false;
+			}
+		}
+	}
+	return true;
+}
 
 bool GetValidGeoCenter(const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter )
 {

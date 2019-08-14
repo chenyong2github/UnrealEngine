@@ -1309,12 +1309,17 @@ public:
 	virtual void StartNewPhysics(float deltaTime, int32 Iterations);
 	
 	/**
-	 * Perform jump. Called by Character when a jump has been detected because Character->bPressedJump was true. Checks CanJump().
+	 * Perform jump. Called by Character when a jump has been detected because Character->bPressedJump was true. Checks Character->CanJump().
 	 * Note that you should usually trigger a jump through Character::Jump() instead.
 	 * @param	bReplayingMoves: true if this is being done as part of replaying moves on a locally controlled client after a server correction.
 	 * @return	True if the jump was triggered successfully.
 	 */
 	virtual bool DoJump(bool bReplayingMoves);
+
+	/**
+	 * Returns true if current movement state allows an attempt at jumping. Used by Character::CanJump().
+	 */
+	virtual bool CanAttemptJump() const;
 
 	/** Queue a pending launch with velocity LaunchVel. */
 	virtual void Launch(FVector const& LaunchVel);
@@ -1720,7 +1725,7 @@ public:
 	/**
 	 * Draw in-world debug information for character movement (called with p.VisualizeMovement > 0).
 	 */
-	virtual void VisualizeMovement() const;
+	virtual float VisualizeMovement() const;
 
 	/** Check if swimming pawn just ran into edge of the pool and should jump out. */
 	virtual bool CheckWaterJump(FVector CheckPoint, FVector& WallNormal);

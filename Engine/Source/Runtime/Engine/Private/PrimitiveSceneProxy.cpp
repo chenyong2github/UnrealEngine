@@ -145,11 +145,11 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	CustomDepthStencilWriteMask(FRendererStencilMaskEvaluation::ToStencilMask(InComponent->CustomDepthStencilWriteMask))
 ,	LightingChannelMask(GetLightingChannelMaskForStruct(InComponent->LightingChannels))
 ,	IndirectLightingCacheQuality(InComponent->IndirectLightingCacheQuality)
-,	LpvBiasMultiplier(InComponent->LpvBiasMultiplier)
-,	DynamicIndirectShadowMinVisibility(0)
 ,	VirtualTextureLodBias(InComponent->VirtualTextureLodBias)
 ,	VirtualTextureCullMips(InComponent->VirtualTextureCullMips)
 ,	VirtualTextureMinCoverage(InComponent->VirtualTextureMinCoverage)
+,	LpvBiasMultiplier(InComponent->LpvBiasMultiplier)
+,	DynamicIndirectShadowMinVisibility(0)
 ,	PrimitiveComponentId(InComponent->ComponentId)
 ,	Scene(InComponent->GetScene())
 ,	PrimitiveSceneInfo(NULL)
@@ -219,7 +219,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 	bRequiresVisibleLevelToRender = (ComponentLevel && ComponentLevel->bRequireFullVisibilityToRender);
 	bIsComponentLevelVisible = (!ComponentLevel || ComponentLevel->bIsVisible);
 
-	// Setup the runtime virtual texture information and flush the virtual texture if necessary
+	// Setup the runtime virtual texture information
 	if (UseVirtualTexturing(GetScene().GetFeatureLevel()))
 	{
 		for (URuntimeVirtualTexture* VirtualTexture : InComponent->GetRuntimeVirtualTextures())
@@ -227,11 +227,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 			if (VirtualTexture != nullptr && VirtualTexture->GetEnabled())
 			{
 				RuntimeVirtualTextures.Add(VirtualTexture);
-				RuntimeVirtualTextureMaterialTypes.Add(VirtualTexture->GetMaterialType());
-			
-				//todo[vt]: Only flush this specific virtual texture
-				//todo[vt]: Only flush primitive bounds 
-				GetRendererModule().FlushVirtualTextureCache();
+				RuntimeVirtualTextureMaterialTypes.AddUnique(VirtualTexture->GetMaterialType());
 			}
 		}
 	}
@@ -264,13 +260,6 @@ void FPrimitiveSceneProxy::SetUsedMaterialForVerification(const TArray<UMaterial
 FPrimitiveSceneProxy::~FPrimitiveSceneProxy()
 {
 	check(IsInRenderingThread());
-
-	for (URuntimeVirtualTexture* VirtualTexture : RuntimeVirtualTextures)
-	{
-		//todo[vt]: Only flush Bounds 
-		//todo[vt]: Only flush specific virtual textures
-		GetRendererModule().FlushVirtualTextureCache();
-	}
 }
 
 HHitProxy* FPrimitiveSceneProxy::CreateHitProxies(UPrimitiveComponent* Component,TArray<TRefCountPtr<HHitProxy> >& OutHitProxies)

@@ -51,7 +51,10 @@ class NAVIGATIONSYSTEM_API UNavLinkCustomComponent : public UNavRelevantComponen
 	//~ Begin UActorComponent Interface
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
+	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
 	//~ End UActorComponent Interface
+
+	void ApplyComponentInstanceData(struct FNavLinkCustomInstanceData* ComponentInstanceData);
 
 	//~ Begin UObject Interface
 	virtual void PostLoad() override;
@@ -219,4 +222,38 @@ protected:
 	
 	/** gather agents to notify about state change */
 	void CollectNearbyAgents(TArray<UObject*>& NotifyList);
+};
+
+/** Used to store navlink data during RerunConstructionScripts */
+USTRUCT()
+struct FNavLinkCustomInstanceData : public FActorComponentInstanceData
+{
+	GENERATED_BODY()
+
+public:
+	FNavLinkCustomInstanceData() = default;
+	FNavLinkCustomInstanceData(const UNavLinkCustomComponent* SourceComponent)
+		: FActorComponentInstanceData(SourceComponent)
+		, NavLinkUserId(0)
+	{}
+
+	virtual ~FNavLinkCustomInstanceData() = default;
+
+	virtual bool ContainsData() const override
+	{
+		return true;
+	}
+
+	virtual void ApplyToComponent(UActorComponent* Component, const ECacheApplyPhase CacheApplyPhase) override
+	{
+		Super::ApplyToComponent(Component, CacheApplyPhase);
+
+		if (CacheApplyPhase == ECacheApplyPhase::PostUserConstructionScript)
+		{
+			CastChecked<UNavLinkCustomComponent>(Component)->ApplyComponentInstanceData(this);
+		}
+	}
+
+	UPROPERTY()
+	uint32 NavLinkUserId;
 };

@@ -295,6 +295,7 @@ public:
 
 	UNiagaraEmitter* MakeRecursiveDeepCopy(UObject* DestOuter) const;
 	UNiagaraEmitter* MakeRecursiveDeepCopy(UObject* DestOuter, TMap<const UObject*, UObject*>& ExistingConversions) const;
+	void NIAGARA_API InvalidateCompileResults();
 
 	/* Gets a Guid which is updated any time data in this emitter is changed. */
 	FGuid NIAGARA_API GetChangeId() const;
@@ -336,7 +337,7 @@ public:
 #endif
 
 	/** Is this emitter allowed to be enabled by the current system detail level. */
-	bool IsAllowedByDetailLevel(int32 DetailLevel)const;
+	NIAGARA_API bool IsAllowedByDetailLevel(int32 DetailLevel)const;
 	NIAGARA_API bool RequiresPersistantIDs()const;
 
 	NIAGARA_API bool IsValid()const;

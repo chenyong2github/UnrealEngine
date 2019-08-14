@@ -22,7 +22,8 @@ public:
 protected:
 	// ~Begin DebugClientApiEventHandler Interface
 	virtual void InvokeOnUIThread(void (Func)(void* Arg0), void* Arg0) override;
-	virtual void onConnectCompleted(const VivoxClientApi::Uri& Server) override;
+	virtual void onChannelJoined(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri) override;
+	virtual void onChannelExited(const VivoxClientApi::AccountName& AccountName, const VivoxClientApi::Uri& ChannelUri, const VivoxClientApi::VCSStatus& Status) override;
 	virtual void onDisconnected(const VivoxClientApi::Uri& Server, const VivoxClientApi::VCSStatus& Status) override;
 	// ~End DebugClientApiEventHandler Interface
 	
@@ -35,11 +36,13 @@ private:
 
 	void HandleApplicationWillEnterBackground();
 	void HandleApplicationHasEnteredForeground();
+	void HandleAudioRouteChanged(bool);
 
 	void Reconnect();
 
 	FDelegateHandle ApplicationWillEnterBackgroundHandle;
 	FDelegateHandle ApplicationDidEnterForegroundHandle;
+	FDelegateHandle AudioRouteChangedHandle;
 
 	UIBackgroundTaskIdentifier BGTask;
 	bool bDisconnectInBackground;
@@ -57,5 +60,5 @@ private:
 
 	void EnableVoiceChat(bool bEnable);
 	void UpdateVoiceChatSettings();
-	void DisableVoiceChat();
+	bool IsBluetoothA2DPInUse();
 };

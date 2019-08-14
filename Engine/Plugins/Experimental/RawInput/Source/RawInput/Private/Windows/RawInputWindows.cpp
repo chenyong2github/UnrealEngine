@@ -179,13 +179,7 @@ int32 FRawInputWindows::RegisterInputDevice(const int32 DeviceType, const int32 
 				if (CompareDeviceInfo(ConnectedDeviceInfo.RIDDeviceInfo, DeviceData))
 				{
 					FRawWindowsDeviceEntry& RegisteredDeviceInfo = RegisteredDeviceList[DeviceHandle];
-					RegisteredDeviceInfo.bIsConnected = true;
-					RegisteredDeviceInfo.DeviceData.DeviceName = ConnectedDeviceInfo.DeviceName;
-					if (DeviceData.DeviceType == RIM_TYPEHID)
-					{
-						RegisteredDeviceInfo.DeviceData.VendorID = ConnectedDeviceInfo.RIDDeviceInfo.hid.dwVendorId;
-						RegisteredDeviceInfo.DeviceData.ProductID = ConnectedDeviceInfo.RIDDeviceInfo.hid.dwProductId;
-					}
+					CopyConnectedDeviceInfo(RegisteredDeviceInfo, &ConnectedDeviceInfo);
 
 					UE_LOG(LogRawInputWindows, Log, TEXT("VenderID:%x ProductID:%x"), RegisteredDeviceInfo.DeviceData.VendorID, RegisteredDeviceInfo.DeviceData.ProductID);
 
@@ -251,7 +245,8 @@ void FRawInputWindows::SetupBindings(const int32 DeviceHandle, const bool bApply
 		const int32 VendorID = FCString::Strtoi(*DeviceConfig.VendorID, nullptr, 16);
 		const int32 ProductID = FCString::Strtoi(*DeviceConfig.ProductID, nullptr, 16);
 
-		if (VendorID != 0 && ProductID != 0 && VendorID == DeviceEntry.DeviceData.VendorID && ProductID == DeviceEntry.DeviceData.ProductID)
+		// If VendorId or ProductId are 0, apply to everything
+		if ((VendorID == 0 || VendorID == DeviceEntry.DeviceData.VendorID) && (ProductID == 0 || ProductID == DeviceEntry.DeviceData.ProductID))
 		{
 			const int32 NumButtons = FMath::Min(DeviceConfig.ButtonProperties.Num(), MAX_NUM_CONTROLLER_BUTTONS);
 			DeviceEntry.ButtonData.SetNum(NumButtons);
@@ -272,6 +267,7 @@ void FRawInputWindows::SetupBindings(const int32 DeviceHandle, const bool bApply
 					AnalogData.KeyName = AxisProps.Key.GetFName();
 					AnalogData.Offset = AxisProps.Offset;
 					AnalogData.bInverted = AxisProps.bInverted;
+					AnalogData.bGamepadStick = AxisProps.bGamepadStick;
 				}
 				else
 				{
@@ -447,47 +443,55 @@ bool FRawInputWindows::ProcessMessage(const HWND hwnd, const uint32 Msg, const W
 
  			bool bIsRegisteredDevice = false;			
 			
-			for (const TPair<int32, FRawWindowsDeviceEntry>& DeviceEntryPair : RegisteredDeviceList)
+			// If this is a HID device we need to do some stuff to determine if its one we care about (IE one we registered)
+			if (RawInputDataBuffer->header.dwType == RIM_TYPEHID)
 			{
-				const FRawWindowsDeviceEntry& EachEntry = DeviceEntryPair.Value;
-				if (RawInputDataBuffer->header.dwType == EachEntry.DeviceData.DeviceType)
+				HIDP_CAPS Caps;
+				FRawInputRegisteredDevice DeviceData;
+
+				// First we need to get the pre-parsed data
+				uint32 BufferSize;
+
+				if (::GetRawInputDeviceInfo(RawInputDataBuffer->header.hDevice, RIDI_PREPARSEDDATA, nullptr, &BufferSize) != RAW_INPUT_ERROR)
 				{
-					// If this is a HID device we need to do some stuff to determine if its one we care about (IE one we registered)
-					if (RawInputDataBuffer->header.dwType == RIM_TYPEHID)
-					{
-						// First we need to get the pre-parsed data
-						uint32 BufferSize;
-
-						if (::GetRawInputDeviceInfo(RawInputDataBuffer->header.hDevice, RIDI_PREPARSEDDATA, nullptr, &BufferSize) != RAW_INPUT_ERROR)
-						{
-							PreParsedData.SetNumUninitialized(BufferSize + 1, false);
+					PreParsedData.SetNumUninitialized(BufferSize + 1, false);
 							
-							if (::GetRawInputDeviceInfo(RawInputDataBuffer->header.hDevice, RIDI_PREPARSEDDATA, PreParsedData.GetData(), &BufferSize) != RAW_INPUT_ERROR)
-							{
-								HIDP_CAPS Caps;
+					if (::GetRawInputDeviceInfo(RawInputDataBuffer->header.hDevice, RIDI_PREPARSEDDATA, PreParsedData.GetData(), &BufferSize) != RAW_INPUT_ERROR)
+					{
+						// now that we have the PP data we need to get the caps, check those and see if this is a device we registered and if it is store it so we can send it
+						if (DLLPointers.HidP_GetCaps((PHIDP_PREPARSED_DATA)PreParsedData.GetData(), &Caps) == HIDP_STATUS_SUCCESS)
+						{
+							DeviceData = FRawInputRegisteredDevice(RawInputDataBuffer->header.dwType, Caps.Usage, Caps.UsagePage);									
+						}
+					}							
+				}
 
-								// now that we have the PP data we need to get the caps, check those and see if this is a device we registered and if it is store it so we can send it
-								if (DLLPointers.HidP_GetCaps((PHIDP_PREPARSED_DATA)PreParsedData.GetData(), &Caps) == HIDP_STATUS_SUCCESS)
-								{
-									FRawInputRegisteredDevice DeviceData(RawInputDataBuffer->header.dwType, Caps.Usage, Caps.UsagePage);
-									// Win32 doesn't correctly report the device ID, so at least for now just trust it is from the device we want
-									//if (DeviceData == EachEntry.DeviceData)
-									{
-										bIsRegisteredDevice = true;
-										ParseInputData(DeviceEntryPair.Key, RawInputDataBuffer, (PHIDP_PREPARSED_DATA)PreParsedData.GetData(), Caps);
-									}									
-								}
-							}							
+				if (DeviceData.bIsValid)
+				{
+					// Search for a registered device matching details
+					for (const TPair<int32, FRawWindowsDeviceEntry>& DeviceEntryPair : RegisteredDeviceList)
+					{
+						const FRawWindowsDeviceEntry& EachEntry = DeviceEntryPair.Value;
+						if (DeviceData == EachEntry.DeviceData)
+						{
+							if (!EachEntry.bIsConnected)
+							{
+								// Repoll connection data as this claims to be disconnected
+								QueryConnectedDevices();
+							}
+
+							bIsRegisteredDevice = true;
+							ParseInputData(DeviceEntryPair.Key, RawInputDataBuffer, (PHIDP_PREPARSED_DATA)PreParsedData.GetData(), Caps);
 						}
 					}
-					else
-					{
-						// Must be a keyboard/mouse, just send the data as we don't really have any detailed info about those to check if we registered them
-						bIsRegisteredDevice = true;
-					}
-
 				}
 			}
+			else
+			{
+				// Must be a keyboard/mouse, just send the data as we don't really have any detailed info about those to check if we registered them
+				bIsRegisteredDevice = true;
+			}
+			
 			if (bIsRegisteredDevice && FilteredInputDataHandler.IsBound())
 			{			
 				bHandled = FilteredInputDataHandler.Execute(Size, RawInputDataBuffer);
@@ -583,7 +587,7 @@ void FRawInputWindows::ParseInputData(const int32 InHandle, const RAWINPUT* InRa
 		{
 			for (FButtonData& DeviceButtonData : DeviceEntry->ButtonData)
 			{
-				DeviceButtonData.bPreviousButtonState = DeviceButtonData.bButtonState;
+				// We don't reset previous button state so we can detect state transitions, there's no guarantee this will get called after input has consumed the previous state
 				DeviceButtonData.bButtonState = false;
 			}
 
@@ -637,6 +641,12 @@ void FRawInputWindows::ParseInputData(const int32 InHandle, const RAWINPUT* InRa
 						if (DeviceEntry->AnalogData[iValue].RangeMax == -1.f)
 						{
 							DeviceEntry->AnalogData[iValue].RangeMax = ValueCapsBuffer[iValue].LogicalMax;
+							if (DeviceEntry->AnalogData[iValue].RangeMax < DeviceEntry->AnalogData[iValue].RangeMin)
+							{
+								// Need to mask against BitSize, xinput devices return 0xffffffff when they really mean 0x0000ffff
+								LONG BitMask = (1 << ValueCapsBuffer[iValue].BitSize) - 1;
+								DeviceEntry->AnalogData[iValue].RangeMax = (ValueCapsBuffer[iValue].LogicalMax & BitMask);
+							}
 						}
 						DeviceEntry->AnalogData[iValue].Index = ValueCapsBuffer[iValue].Range.UsageMin;
 						DeviceEntry->AnalogData[iValue].Value = (float)EachValue;
@@ -713,7 +723,38 @@ void FRawInputWindows::QueryConnectedDevices()
 		ShowDeviceInfo(ConnectedDeviceInfoList.Last());
 	}
 
-	UE_LOG(LogRawInputWindows, Warning, TEXT("Found device %d devices"), RegisteredDeviceList.Num());
+	// Update registered device info connected status
+	for (TPair<int32, FRawWindowsDeviceEntry>& DeviceEntryPair : RegisteredDeviceList)
+	{
+		bool bFoundConnected = false;
+		for (const FConnectedDeviceInfo& ConnectedDeviceInfo : ConnectedDeviceInfoList)
+		{
+			if (CompareDeviceInfo(ConnectedDeviceInfo.RIDDeviceInfo, DeviceEntryPair.Value.DeviceData))
+			{
+				bool bWasConnected = DeviceEntryPair.Value.bIsConnected;
+
+				bFoundConnected = true;
+				CopyConnectedDeviceInfo(DeviceEntryPair.Value, &ConnectedDeviceInfo);
+
+				if (!bWasConnected)
+				{
+					// If this is the first connection, apply bindings now
+					SetupBindings(DeviceEntryPair.Key, true);
+					
+					UE_LOG(LogRawInputWindows, Log, TEXT("Device was connected after registration (Usage:%d UsagePage:%d)"), DeviceEntryPair.Value.DeviceData.Usage, DeviceEntryPair.Value.DeviceData.UsagePage);				
+				}
+
+				break;
+			}
+		}
+
+		if (!bFoundConnected)
+		{
+			CopyConnectedDeviceInfo(DeviceEntryPair.Value, nullptr);
+		}
+	}
+
+	UE_LOG(LogRawInputWindows, Warning, TEXT("Found device %d devices"), ConnectedDeviceInfoList.Num());
 }
 
 FString FRawInputWindows::GetErrorString(const int32 StatusCode) const
@@ -803,6 +844,24 @@ bool FRawInputWindows::CompareDeviceInfo(const RID_DEVICE_INFO& DeviceInfo, cons
 	return bResult;
 }
 
+void FRawInputWindows::CopyConnectedDeviceInfo(FRawWindowsDeviceEntry& RegisteredDevice, const FConnectedDeviceInfo* ConnectedDevice)
+{
+	if (ConnectedDevice)
+	{
+		RegisteredDevice.bIsConnected = true;
+		RegisteredDevice.DeviceData.DeviceName = ConnectedDevice->DeviceName;
+		if (RegisteredDevice.DeviceData.DeviceType == RIM_TYPEHID)
+		{
+			RegisteredDevice.DeviceData.VendorID = ConnectedDevice->RIDDeviceInfo.hid.dwVendorId;
+			RegisteredDevice.DeviceData.ProductID = ConnectedDevice->RIDDeviceInfo.hid.dwProductId;
+		}
+	}
+	else
+	{
+		RegisteredDevice.bIsConnected = false;
+	}
+}
+
 void FRawInputWindows::ShowDeviceInfo(const FConnectedDeviceInfo& DeviceInfo) const
 {
 	UE_LOG(LogRawInputWindows, Verbose, TEXT("%s"), *DeviceInfo.DeviceName);
@@ -836,6 +895,8 @@ void FRawInputWindows::ShowDeviceInfo(const FConnectedDeviceInfo& DeviceInfo) co
 	}
 }
 
+static FName RawInputInterfaceName = FName("RawInput");
+
 void FRawInputWindows::SendControllerEvents()
 {
 	for (TPair<int32, FRawWindowsDeviceEntry>& DeviceEntryPair : RegisteredDeviceList)
@@ -845,6 +906,8 @@ void FRawInputWindows::SendControllerEvents()
 		// e.g if a button is still down or axis has a value (e.g. wheel not in centre)
 		if (DeviceEntry.bNeedsUpdate)
 		{
+			FInputDeviceScope InputScope(this, RawInputInterfaceName, DeviceEntryPair.Key, DeviceEntry.DeviceData.DeviceName);
+
 			for (FButtonData& DeviceButtonData : DeviceEntry.ButtonData)
 			{
 				if (!DeviceButtonData.ButtonName.IsNone())

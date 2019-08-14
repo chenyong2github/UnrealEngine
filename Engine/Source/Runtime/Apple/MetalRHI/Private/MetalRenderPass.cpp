@@ -450,6 +450,7 @@ void FMetalRenderPass::DrawPrimitiveIndirect(uint32 PrimitiveType, FMetalVertexB
 		ConditionalSwitchToRender();
 		check(CurrentEncoder.GetCommandBuffer());
 		check(CurrentEncoder.IsRenderCommandEncoderActive());
+		check(VertexBuffer->Buffer);
 		
 		PrepareToRender(PrimitiveType);
 		
@@ -583,6 +584,8 @@ void FMetalRenderPass::DrawIndexedIndirect(FMetalIndexBuffer* IndexBuffer, uint3
 		ConditionalSwitchToRender();
 		check(CurrentEncoder.GetCommandBuffer());
 		check(CurrentEncoder.IsRenderCommandEncoderActive());
+		check(IndexBuffer->Buffer);
+		check(VertexBuffer->Buffer);
 		
 		// finalize any pending state
 		PrepareToRender(PrimitiveType);
@@ -616,6 +619,8 @@ void FMetalRenderPass::DrawIndexedPrimitiveIndirect(uint32 PrimitiveType,FMetalI
 		ConditionalSwitchToRender();
 		check(CurrentEncoder.GetCommandBuffer());
 		check(CurrentEncoder.IsRenderCommandEncoderActive());
+		check(IndexBuffer->Buffer);
+		check(VertexBuffer->Buffer);
 		
 		PrepareToRender(PrimitiveType);
 		
@@ -1219,6 +1224,7 @@ void FMetalRenderPass::DispatchIndirect(FMetalVertexBuffer* ArgumentBuffer, uint
 		ConditionalSwitchToAsyncCompute();
 		check(PrologueEncoder.GetCommandBuffer());
 		check(PrologueEncoder.IsComputeCommandEncoderActive());
+		check(ArgumentBuffer->Buffer);
 		
 		PrepareToAsyncDispatch();
 		

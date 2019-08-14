@@ -25,9 +25,13 @@ namespace Audio
 		, NumSamples(0)
 		, SubmixAmbisonicsEncoderID(INDEX_NONE)
 		, SubmixAmbisonicsDecoderID(INDEX_NONE)
+		, InitializedOutputVolume(1.0f)
+		, OutputVolume(1.0f)
+		, TargetOutputVolume(1.0f)
 		, EnvelopeNumChannels(0)
 		, bIsRecording(false)
 		, bIsBackgroundMuted(false)
+		, bApplyOutputVolumeScale(false)
 		, OwningSubmixObject(nullptr)
 	{
 	}
@@ -58,6 +62,14 @@ namespace Audio
 		if (InSoundSubmix != nullptr)
 		{
 			OwningSubmixObject = InSoundSubmix;
+
+			// Set the initialized output volume
+			InitializedOutputVolume = FMath::Clamp(InSoundSubmix->OutputVolume, 0.0f, 1.0f);
+
+			if (!FMath::IsNearlyEqual(InitializedOutputVolume, 1.0f))
+			{
+				bApplyOutputVolumeScale = true;
+			}
 
 			// Loop through the submix's presets and make new instances of effects in the same order as the presets
 			ClearSoundEffectSubmixes();
@@ -769,6 +781,30 @@ namespace Audio
 			FMemory::Memcpy(EnvelopeValues, TempEnvelopeValues, sizeof(float)*AUDIO_MIXER_MAX_OUTPUT_CHANNELS);
 		}
 
+		// Don't necessarily need to do this if the user isn't using this feature
+		if (bApplyOutputVolumeScale)
+		{
+			const float TargetVolumeProduct = TargetOutputVolume * InitializedOutputVolume;
+			const float OutputVolumeProduct = OutputVolume * InitializedOutputVolume;
+
+			// If we've already set the volume, only need to multiply by constant
+			if (FMath::IsNearlyEqual(TargetVolumeProduct, OutputVolumeProduct))
+			{
+				Audio::MultiplyBufferByConstantInPlace(OutAudioBuffer, OutputVolumeProduct);
+			}
+			else
+			{
+				// To avoid popping, we do a fade on the buffer to the target volume
+				Audio::FadeBufferFast(OutAudioBuffer, OutputVolumeProduct, TargetVolumeProduct);
+				OutputVolume = TargetOutputVolume;
+
+				// No longer need to multiply the output buffer if we're now at 1.0
+				if (FMath::IsNearlyEqual(OutputVolume * InitializedOutputVolume, 1.0f))
+				{
+					bApplyOutputVolumeScale = false;
+				}
+			}
+		}
 
 		// Now loop through any buffer listeners and feed the listeners the result of this audio callback
 		{
@@ -952,9 +988,28 @@ namespace Audio
 		}
 	}
 
+	void FMixerSubmix::SetDynamicOutputVolume(float InVolume)
+	{
+		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
+		if (!FMath::IsNearlyEqual(InVolume, TargetOutputVolume))
+		{
+			TargetOutputVolume = InVolume;
+			bApplyOutputVolumeScale = true;
+		}
+	}
+
+	void FMixerSubmix::SetOutputVolume(float InVolume)
+	{
+		InVolume = FMath::Clamp(InVolume, 0.0f, 1.0f);
+		if (FMath::IsNearlyEqual(InitializedOutputVolume, InVolume))
+		{
+			InitializedOutputVolume = InVolume;
+			bApplyOutputVolumeScale = true;
+		}
+	}
+
 	void FMixerSubmix::BroadcastEnvelope()
 	{
-
 		if (bIsEnvelopeFollowing)
 		{
 			// Get the envelope data

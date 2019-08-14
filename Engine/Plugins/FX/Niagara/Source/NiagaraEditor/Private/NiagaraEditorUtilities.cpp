@@ -1143,4 +1143,47 @@ void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)
 	}
 }
 
+bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage)
+{
+	if (NewName == NAME_None)
+	{
+		OutErrorMessage = LOCTEXT("EmptyNameError", "Name can not be empty.");
+		return false;
+	}
+
+	if (GetSystemConstantNames().Contains(NewName))
+	{
+		OutErrorMessage = LOCTEXT("SystemConstantNameError", "Name can not be the same as a system constant");
+	}
+
+	if (NodeBeingChanged.IsA<UNiagaraNodeInput>())
+	{
+		TArray<UNiagaraNodeInput*> InputNodes;
+		NodeBeingChanged.GetGraph()->GetNodesOfClass<UNiagaraNodeInput>(InputNodes);
+		for (UNiagaraNodeInput* InputNode : InputNodes)
+		{
+			if (InputNode->Input.GetName() != OldName && InputNode->Input.GetName() == NewName)
+			{
+				OutErrorMessage = LOCTEXT("DuplicateInputNameError", "Name can not match an existing input name.");
+				return false;
+			}
+		}
+	}
+
+	if (NodeBeingChanged.IsA<UNiagaraNodeOutput>())
+	{
+		const UNiagaraNodeOutput* OutputNodeBeingChanged = CastChecked<const UNiagaraNodeOutput>(&NodeBeingChanged);
+		for (const FNiagaraVariable& Output : OutputNodeBeingChanged->GetOutputs())
+		{
+			if (Output.GetName() != OldName && Output.GetName() == NewName)
+			{
+				OutErrorMessage = LOCTEXT("DuplicateOutputNameError", "Name can not match an existing output name.");
+				return false;
+			}
+		}
+	}
+
+	return true;
+}
+
 #undef LOCTEXT_NAMESPACE

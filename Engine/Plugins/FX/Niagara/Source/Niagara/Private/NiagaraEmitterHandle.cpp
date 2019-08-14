@@ -99,9 +99,38 @@ bool FNiagaraEmitterHandle::GetIsEnabled() const
 	return bIsEnabled;
 }
 
-void FNiagaraEmitterHandle::SetIsEnabled(bool bInIsEnabled)
+bool FNiagaraEmitterHandle::SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOwnerSystem, bool bRecompileIfChanged)
 {
-	bIsEnabled = bInIsEnabled;
+	if (bIsEnabled != bInIsEnabled)
+	{
+		bIsEnabled = bInIsEnabled;
+
+#if WITH_EDITOR
+		if (InOwnerSystem.GetSystemSpawnScript() && InOwnerSystem.GetSystemSpawnScript()->GetSource())
+		{
+			// We need to get the NiagaraNodeEmitters to update their enabled state based on what happened.
+			InOwnerSystem.GetSystemSpawnScript()->GetSource()->RefreshFromExternalChanges();
+
+			// Need to cause us to recompile in the future if necessary...
+			InOwnerSystem.GetSystemSpawnScript()->InvalidateCompileResults();
+			InOwnerSystem.GetSystemUpdateScript()->InvalidateCompileResults();
+
+			// Clean out the emitter's compile results for cleanliness.
+			if (Instance)
+			{
+				Instance->InvalidateCompileResults();
+			}
+
+			// In some cases we may do the recompile now.
+			if (bRecompileIfChanged)
+			{
+				InOwnerSystem.RequestCompile(false);
+			}
+		}
+#endif
+		return true;
+	}
+	return false;
 }
 
 UNiagaraEmitter* FNiagaraEmitterHandle::GetInstance() const
@@ -119,14 +148,17 @@ FString FNiagaraEmitterHandle::GetUniqueInstanceName()const
 
 bool FNiagaraEmitterHandle::NeedsRecompile() const
 {
-	TArray<UNiagaraScript*> Scripts;
-	Instance->GetScripts(Scripts);
-
-	for (UNiagaraScript* Script : Scripts)
+	if (GetIsEnabled())
 	{
-		if (Script->IsCompilable() && !Script->AreScriptAndSourceSynchronized())
+		TArray<UNiagaraScript*> Scripts;
+		Instance->GetScripts(Scripts);
+
+		for (UNiagaraScript* Script : Scripts)
 		{
-			return true;
+			if (Script->IsCompilable() && !Script->AreScriptAndSourceSynchronized())
+			{
+				return true;
+			}
 		}
 	}
 	return false;
@@ -167,5 +199,13 @@ bool FNiagaraEmitterHandle::UsesEmitter(const UNiagaraEmitter& InEmitter) const
 {
 	return Instance == &InEmitter || (Instance != nullptr && Instance->UsesEmitter(InEmitter));
 }
+
+void FNiagaraEmitterHandle::ClearEmitter()
+{
+	Instance = nullptr;
+	Source_DEPRECATED = nullptr;
+	LastMergedSource_DEPRECATED = nullptr;
+}
+
 
 #endif

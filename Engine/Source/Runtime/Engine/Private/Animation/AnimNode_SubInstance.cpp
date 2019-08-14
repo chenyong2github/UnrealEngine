@@ -134,7 +134,11 @@ void FAnimNode_SubInstance::ReinitializeSubAnimInstance(const UAnimInstance* InO
 			DynamicUnlink(const_cast<UAnimInstance*>(InOwningAnimInstance));
 
 			MeshComp->SubInstances.Remove(InstanceToRun);
-			InstanceToRun->MarkPendingKill();
+			// Never delete the owning animation instance
+			if (InstanceToRun != InOwningAnimInstance)
+			{
+				InstanceToRun->MarkPendingKill();
+			}
 			InstanceToRun = nullptr;
 		}
 

@@ -1056,16 +1056,6 @@ bool USocialParty::IsCurrentlyCrossplaying() const
 	return false;
 }
 
-void USocialParty::StayWithPartyOnExit(bool bInStayWithParty)
-{
-	bStayWithPartyOnDisconnect = bInStayWithParty;
-}
-
-bool USocialParty::ShouldStayWithPartyOnExit() const
-{
-	return bStayWithPartyOnDisconnect;
-}
-
 bool USocialParty::IsPartyFunctionalityDegraded() const
 {
 	return bIsMissingXmppConnection.Get(false) || bIsMissingPlatformSession || bIsRequestingShutdown.Get(false);

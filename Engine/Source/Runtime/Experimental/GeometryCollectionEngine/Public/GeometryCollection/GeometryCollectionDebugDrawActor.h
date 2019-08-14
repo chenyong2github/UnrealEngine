@@ -4,7 +4,6 @@
 
 #include "GameFramework/Actor.h"
 #include "Components/BillboardComponent.h"
-#include "GeometryCollection/GeometryCollectionDebugDrawComponent.h"
 
 #include "GeometryCollectionDebugDrawActor.generated.h"
 
@@ -33,6 +32,16 @@ enum class EGeometryCollectionDebugDrawActorHideGeometry : uint8
 	HideWholeCollection,
 	// Hide all geometry collections.
 	HideAll
+};
+
+/**
+* FGeometryCollectionDebugDrawWarningMessage
+*   Empty structure used to embed a warning message in the UI through a detail customization.
+*/
+USTRUCT()
+struct FGeometryCollectionDebugDrawWarningMessage
+{
+	GENERATED_USTRUCT_BODY()
 };
 
 /**
@@ -220,13 +229,101 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
 	float NormalScale;
 
-	/** Scale factor used for visualizing transforms. */
+	/** Scale of the axis used for visualizing all transforms. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
-	float TransformScale;
+	float AxisScale;
 
 	/** Size of arrows used for visualizing normals, breaking information, ...etc. */
 	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
 	float ArrowScale;
+
+	/** Color used for the visualization of the rigid body ids. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyIdColor;
+
+	/** Scale for rigid body transform visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
+	float RigidBodyTransformScale;
+
+	/** Color used for collision primitives visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyCollisionColor;
+
+	/** Color used for the visualization of the rigid body inertia tensor box. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyInertiaColor;
+
+	/** Color used for rigid body velocities visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyVelocityColor;
+
+	/** Color used for rigid body applied force and torque visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyForceColor;
+
+	/** Color used for the visualization of the rigid body infos. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor RigidBodyInfoColor;
+
+	/** Color used for the visualization of the transform indices. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor TransformIndexColor;
+
+	/** Scale for cluster transform visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
+	float TransformScale;
+
+	/** Color used for the visualization of the levels. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor LevelColor;
+
+	/** Color used for the visualization of the link from the parents. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor ParentColor;
+
+	/** Line thickness used for the visualization of the rigid clustering connectivity edges. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
+	float ConnectivityEdgeThickness;
+
+	/** Color used for the visualization of the geometry indices. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor GeometryIndexColor;
+
+	/** Scale for geometry transform visualization. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (ClampMin="0.0001"))
+	float GeometryTransformScale;
+
+	/** Color used for the visualization of the bounding boxes. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor BoundingBoxColor;
+
+	/** Color used for the visualization of the faces. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor FaceColor;
+
+	/** Color used for the visualization of the face indices. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor FaceIndexColor;
+
+	/** Color used for the visualization of the face normals. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor FaceNormalColor;
+
+	/** Color used for the visualization of the single face. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor SingleFaceColor;
+
+	/** Color used for the visualization of the vertices. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor VertexColor;
+
+	/** Color used for the visualization of the vertex indices. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor VertexIndexColor;
+
+	/** Color used for the visualization of the vertex normals. */
+	UPROPERTY(EditAnywhere, Category = "Debug Draw|Settings", meta = (HideAlphaChannel))
+	FColor VertexNormalColor;
 
 	/** Display icon in the editor. */
 	UPROPERTY()
@@ -268,7 +365,7 @@ public:
 	void DrawVertexIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
 
 	/** Draw vertex indices for the part of the geometry attached to the specified transform index. */
-	void DrawVertexIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor & Color);
+	void DrawVertexIndices(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FColor& Color);
 
 	/** Draw vertex normals. */
 	void DrawVertexNormals(const TArray<FTransform>& GlobalTransforms, const UGeometryCollectionComponent* GeometryCollectionComponent, const FColor& Color);
@@ -368,10 +465,10 @@ public:
 	void DrawRigidBodyInfo(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
 
 	/** Draw Chaos' rigid clustering's connectivities edges */
-	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness);
+	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray);
 
 	/** Draw Chaos' single rigid clustering's connectivity edges. */
-	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness, FColor HSVColor = FColor(157, 160, 128));
+	void DrawConnectivityEdges(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, FColor HSVColor = FColor(157, 160, 128));
 
 	/** Draw Chaos' rigid body velocity. */
 	void DrawRigidBodiesVelocity(const UGeometryCollectionComponent* GeometryCollectionComponent, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
@@ -435,7 +532,7 @@ private:
 	void DrawRigidBodyInfoNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);
 
 	/** Draw Chaos' single rigid clustering's connectivity edges without synchronization checks. */
-	void DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, float Thickness, const FColor& Color);
+	void DrawConnectivityEdgesNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const TManagedArray<int32>& RigidBodyIdArray, const FColor& Color);
 
 	/** Draw Chaos' single rigid body velocity without synchronization checks. */
 	void DrawRigidBodyVelocityNoChecks(const UGeometryCollectionComponent* GeometryCollectionComponent, int32 TransformIndex, const FGeometryCollectionParticlesData& ParticlesData, const FColor& Color);

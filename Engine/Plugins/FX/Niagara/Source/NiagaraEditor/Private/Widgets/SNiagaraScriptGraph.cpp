@@ -145,7 +145,8 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 	Events.OnVerifyTextCommit = FOnNodeVerifyTextCommit::CreateSP(this, &SNiagaraScriptGraph::OnVerifyNodeTextCommit);
 	Events.OnSpawnNodeByShortcut = SGraphEditor::FOnSpawnNodeByShortcut::CreateSP(this, &SNiagaraScriptGraph::OnSpawnGraphNodeByShortcut);
 
-	TSharedRef<FUICommandList> Commands = ViewModel->GetCommands();
+	TSharedRef<FUICommandList> Commands = MakeShared<FUICommandList>();
+	Commands->Append(ViewModel->GetCommands());
 	Commands->MapAction(
 		FNiagaraEditorCommands::Get().FindInCurrentView,
 		FExecuteAction::CreateRaw(this, &SNiagaraScriptGraph::FocusGraphSearchBox));
@@ -154,7 +155,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 		FExecuteAction::CreateRaw(this, &SNiagaraScriptGraph::OnCreateComment));
 	
 	TSharedRef<SGraphEditor> CreatedGraphEditor = SNew(SGraphEditor)
-		.AdditionalCommands(ViewModel->GetCommands())
+		.AdditionalCommands(Commands)
 		.Appearance(AppearanceInfo)
 		.TitleBar(TitleBarWidget)
 		.GraphToEdit(ViewModel->GetGraph())
@@ -239,9 +240,10 @@ void SNiagaraScriptGraph::OnNodeTitleCommitted(const FText& NewText, ETextCommit
 bool SNiagaraScriptGraph::OnVerifyNodeTextCommit(const FText& NewText, UEdGraphNode* NodeBeingChanged, FText& OutErrorMessage)
 {
 	bool bValid = true;
-	if (NodeBeingChanged->IsA(UNiagaraNodeInput::StaticClass()))
+	UNiagaraNodeInput* InputNodeBeingChanged = Cast<UNiagaraNodeInput>(NodeBeingChanged);
+	if (InputNodeBeingChanged != nullptr)
 	{
-		return UNiagaraNodeInput::VerifyNodeRenameTextCommit(NewText, Cast<UNiagaraNodeInput>(NodeBeingChanged), OutErrorMessage);
+		return FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(*InputNodeBeingChanged, InputNodeBeingChanged->Input.GetName(), *NewText.ToString(), OutErrorMessage);
 	}
 	return bValid;
 }

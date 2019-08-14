@@ -631,6 +631,21 @@ namespace LevelEditorActionHelpers
 		);
 #undef LOCTEXT_NAMESPACE
 	}
+
+	struct FLevelSortByName
+	{
+		bool operator ()(const ULevel* LHS, const ULevel* RHS) const
+		{
+			if (LHS != NULL && LHS->GetOutermost() != NULL && RHS != NULL && RHS->GetOutermost() != NULL)
+			{
+				return FPaths::GetCleanFilename(LHS->GetOutermost()->GetName()) < FPaths::GetCleanFilename(RHS->GetOutermost()->GetName());
+			}
+			else
+			{
+				return false;
+			}
+		}
+	};
 }
 
 void LevelEditorActionHelpers::GetBlueprintSettingsSubMenu(FMenuBuilder& InMenuBuilder, const TSharedRef<FUICommandList> InCommandList, FBlueprintMenuSettings InSettingsData)
@@ -2116,21 +2131,21 @@ TSharedRef< SWidget > FLevelEditorToolBar::GenerateOpenBlueprintMenuContent( TSh
 			InMenuBuilder.BeginSection(NAME_None, LOCTEXT("SubLevelsHeading", "Sub-Level Blueprints"));
 			{
 				UWorld* World = InLvlEditor.Pin()->GetWorld();
-				for (int32 iLevel = 0; iLevel < World->GetNumLevels(); iLevel++)
-				{
-					ULevel* Level = World->GetLevel(iLevel);
-					if (Level != NULL && Level->GetOutermost() != NULL)
-					{
-						if (!Level->IsPersistentLevel())
-						{
-							FUIAction UIAction
-								(
-								FExecuteAction::CreateStatic(&FLevelEditorToolBar::OnOpenSubLevelBlueprint, Level)
-								);
+				// Sort the levels alphabetically 
+				TArray<ULevel*> SortedLevels = World->GetLevels();
+				Algo::Sort(SortedLevels, LevelEditorActionHelpers::FLevelSortByName());
 
-							FText DisplayName = FText::Format(LOCTEXT("SubLevelBlueprintItem", "Edit {0}"), FText::FromString(FPaths::GetCleanFilename(Level->GetOutermost()->GetName())));
-							InMenuBuilder.AddMenuEntry(DisplayName, FText::GetEmpty(), EditBP, UIAction);
-						}
+				for (ULevel* const Level : SortedLevels)
+				{
+					if (Level != NULL && Level->GetOutermost() != NULL && !Level->IsPersistentLevel())
+					{
+						FUIAction UIAction
+						(
+							FExecuteAction::CreateStatic(&FLevelEditorToolBar::OnOpenSubLevelBlueprint, Level)
+						);
+
+						FText DisplayName = FText::Format(LOCTEXT("SubLevelBlueprintItem", "Edit {0}"), FText::FromString(FPaths::GetCleanFilename(Level->GetOutermost()->GetName())));
+						InMenuBuilder.AddMenuEntry(DisplayName, FText::GetEmpty(), EditBP, UIAction);
 					}
 				}
 			}

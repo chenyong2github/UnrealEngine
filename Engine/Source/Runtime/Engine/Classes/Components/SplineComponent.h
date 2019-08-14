@@ -49,7 +49,7 @@ public:
 	virtual void DuplicatePoint(int32 Index) PURE_VIRTUAL(USplineMetadata::DuplicatePoint, );
 	virtual void CopyPoint(const USplineMetadata* FromSplineMetadata, int32 FromIndex, int32 ToIndex) PURE_VIRTUAL(USplineMetadata::CopyPoint, );
 	virtual void Reset(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Reset, );
-	virtual void Fixup(int32 NumPoints) PURE_VIRTUAL(USplineMetadata::Fixup, );
+	virtual void Fixup(int32 NumPoints, USplineComponent* SplineComp) PURE_VIRTUAL(USplineMetadata::Fixup, );
 };
 
 USTRUCT()
@@ -192,9 +192,6 @@ class ENGINE_API USplineComponent : public UPrimitiveComponent
 	UPROPERTY(EditAnywhere, Category=Points)
 	FSplineCurves SplineCurves;
 
-	UPROPERTY()
-	USplineMetadata* SplineMetadata;
-
 	/** Deprecated - please use GetSplinePointsPosition() to fetch this FInterpCurve */
 	UPROPERTY()
 	FInterpCurveVector SplineInfo_DEPRECATED;
@@ -316,10 +313,9 @@ public:
 	const FInterpCurveQuat& GetSplinePointsRotation() const { return SplineCurves.Rotation; }
 	FInterpCurveVector& GetSplinePointsScale() { return SplineCurves.Scale; }
 	const FInterpCurveVector& GetSplinePointsScale() const { return SplineCurves.Scale; }
-	USplineMetadata* GetSplinePointsMetadata() { return SplineMetadata; }
-	const USplineMetadata* GetSplinePointsMetadata() const { return SplineMetadata; }
 
-	void SetSplineMetadata(USplineMetadata* InMetadata) { SplineMetadata = InMetadata; }
+	virtual USplineMetadata* GetSplinePointsMetadata() { return nullptr; }
+	virtual const USplineMetadata* GetSplinePointsMetadata() const { return nullptr; }
 
 	void ApplyComponentInstanceData(struct FSplineInstanceData* ComponentInstanceData, const bool bPostUCS);
 

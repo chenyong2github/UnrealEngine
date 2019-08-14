@@ -67,7 +67,7 @@ void UAudioSettings::AddDefaultSettings()
 	DefaultSettings.DisplayName = LOCTEXT("DefaultSettingsName", "Default");
 	QualityLevels.Add(DefaultSettings);
 	bAllowPlayWhenSilent = true;
-	DefaultReverbSendLevel = 0.0f;
+	DefaultReverbSendLevel_DEPRECATED = 0.0f;
 	bEnableLegacyReverb = false;
 	VoiPSampleRate = EVoiceSampleRate::Low16000Hz;
 	VoipBufferingDelay = 0.2f;
@@ -144,15 +144,6 @@ void UAudioSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 void UAudioSettings::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);
-
-	if (Ar.IsLoading() || Ar.IsSaving())
-	{
-		if (bAllowVirtualizedSounds_DEPRECATED)
-		{
-			bAllowVirtualizedSounds_DEPRECATED = 0;
-			bAllowPlayWhenSilent = 1;
-		}
-	}
 }
 
 const FAudioQualitySettings& UAudioSettings::GetQualityLevelSettings(int32 QualityLevel) const

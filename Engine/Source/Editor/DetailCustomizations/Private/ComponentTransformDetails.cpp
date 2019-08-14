@@ -85,6 +85,7 @@ FComponentTransformDetails::FComponentTransformDetails( const TArray< TWeakObjec
 	, NotifyHook( DetailBuilder.GetPropertyUtilities()->GetNotifyHook() )
 	, bPreserveScaleRatio( false )
 	, bEditingRotationInUI( false )
+	, bIsSliderTransaction( false )
 	, HiddenFieldMask( 0 )
 {
 	GConfig->GetBool(TEXT("SelectionDetails"), TEXT("PreserveScaleRatio"), bPreserveScaleRatio, GEditorPerProjectIni);
@@ -1079,12 +1080,12 @@ void FComponentTransformDetails::OnSetTransform(ETransformField::Type TransformF
 					NewComponentValue = GetAxisFilteredVector(Axis, NewValue, OldComponentValue);
 				}
 
-				// If we're committing during a rotation edit then we need to force it
-				if (OldComponentValue != NewComponentValue || (bCommitted && bEditingRotationInUI))
+				// If we're committing during a slider transaction then we need to force it, in order that PostEditChangeChainProperty be called.
+				// Note: this will even happen if the slider hasn't changed the value.
+				if (OldComponentValue != NewComponentValue || (bCommitted && bIsSliderTransaction))
 				{
 					if (!bBeganTransaction && bCommitted)
 					{
-						// Begin a transaction the first time an actors rotation is about to change.
 						// NOTE: One transaction per change, not per actor
 						GEditor->BeginTransaction(TransactionText);
 						bBeganTransaction = true;
@@ -1369,6 +1370,7 @@ void FComponentTransformDetails::OnBeginRotationSlider()
 	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
 
 	bEditingRotationInUI = true;
+	bIsSliderTransaction = true;
 
 	for (TWeakObjectPtr<UObject> ObjectPtr : SelectedObjects)
 	{
@@ -1392,11 +1394,13 @@ void FComponentTransformDetails::OnEndRotationSlider(float NewValue)
 {
 	// Commit gets called right before this, only need to end the transaction
 	bEditingRotationInUI = false;
+	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
 }
 
 void FComponentTransformDetails::OnBeginLocationSlider()
 {
+	bIsSliderTransaction = true;
 	FText ActorTransaction = LOCTEXT("OnSetLocation", "Set Location");
 	FText ComponentTransaction = LOCTEXT("OnSetLocation_ComponentDirect", "Modify Component Location");
 	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
@@ -1404,11 +1408,13 @@ void FComponentTransformDetails::OnBeginLocationSlider()
 
 void FComponentTransformDetails::OnEndLocationSlider(float NewValue)
 {
+	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
 }
 
 void FComponentTransformDetails::OnBeginScaleSlider()
 {
+	bIsSliderTransaction = true;
 	FText ActorTransaction = LOCTEXT("OnSetScale", "Set Scale");
 	FText ComponentTransaction = LOCTEXT("OnSetScale_ComponentDirect", "Modify Component Scale");
 	BeginSliderTransaction(ActorTransaction, ComponentTransaction);
@@ -1416,6 +1422,7 @@ void FComponentTransformDetails::OnBeginScaleSlider()
 
 void FComponentTransformDetails::OnEndScaleSlider(float NewValue)
 {
+	bIsSliderTransaction = false;
 	GEditor->EndTransaction();
 }
 

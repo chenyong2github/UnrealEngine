@@ -10,7 +10,7 @@
 #include "PhysicsEngine/BodySetup.h"
 
 #include "PaperCustomVersion.h"
-#include "PaperGeomTools.h"
+#include "GeomTools.h"
 #include "PaperSpriteComponent.h"
 #include "PaperFlipbookComponent.h"
 #include "PaperGroupedSpriteComponent.h"
@@ -334,7 +334,7 @@ void UPaperSprite::ExtractSourceRegionFromTexturePoint(const FVector2D& SourcePo
 	FIntPoint SourceIntPoint(FMath::RoundToInt(SourcePoint.X), FMath::RoundToInt(SourcePoint.Y));
 	FIntPoint ClosestValidPoint;
 
-	FBitmap Bitmap(SourceTexture, 0, 0);
+	FBitmap Bitmap(GetSourceTexture(), 0, 0);
 	if (Bitmap.IsValid() && Bitmap.FoundClosestValidPoint(SourceIntPoint.X, SourceIntPoint.Y, 10, /*out*/ ClosestValidPoint))
 	{
 		FIntPoint Origin;
@@ -637,6 +637,7 @@ void UPaperSprite::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 void UPaperSprite::RescaleSpriteData(UTexture2D* Texture)
 {
 	Texture->ConditionalPostLoad();
+
 	FVector2D PreviousTextureDimension = SourceTextureDimension;
 	FVector2D NewTextureDimension(Texture->GetImportedSize().X, Texture->GetImportedSize().Y);
 
@@ -984,7 +985,7 @@ void UPaperSprite::FindTextureBoundingBox(float AlphaThreshold, /*out*/ FVector2
 	int32 BottomBound = (int32)(SourceUV.Y + SourceDimension.Y - 1);
 
 	const int32 AlphaThresholdInt = FMath::Clamp<int32>(AlphaThreshold * 255, 0, 255);
-	FBitmap SourceBitmap(SourceTexture, AlphaThresholdInt);
+	FBitmap SourceBitmap(GetSourceTexture(), AlphaThresholdInt);
 	if (SourceBitmap.IsValid())
 	{
 		// Make sure the initial bounds starts in the texture
@@ -1048,7 +1049,7 @@ void UPaperSprite::BuildGeometryFromContours(FSpriteGeometryCollection& GeomOwne
 
 	// DK: FindContours only returns positive contours, i.e. outsides
 	// Contour generation is simplified in FindContours by downscaling the detail prior to generating contour data
-	FindContours(InitialPos, InitialSize, GeomOwner.AlphaThreshold, GeomOwner.DetailAmount, SourceTexture, /*out*/ Contours);
+	FindContours(InitialPos, InitialSize, GeomOwner.AlphaThreshold, GeomOwner.DetailAmount, GetSourceTexture(), /*out*/ Contours);
 
 	// Convert the contours into geometry
 	GeomOwner.Shapes.Empty();
@@ -1078,7 +1079,7 @@ void UPaperSprite::BuildGeometryFromContours(FSpriteGeometryCollection& GeomOwne
 			NewShape.SetNewPivot(AverageCenterSnapped);
 
 			// Get intended winding
-			NewShape.bNegativeWinding = !PaperGeomTools::IsPolygonWindingCCW(NewShape.Vertices);
+			NewShape.bNegativeWinding = !FGeomTools2D::IsPolygonWindingCCW(NewShape.Vertices);
 		}
 	}
 }
@@ -1332,7 +1333,7 @@ void UPaperSprite::FindContours(const FIntPoint& ScanPos, const FIntPoint& ScanS
 						// Remove collinear points from the result
 						RemoveCollinearPoints(/*inout*/ ContourPoly);
 
-						if (!PaperGeomTools::IsPolygonWindingCCW(ContourPoly))
+						if (!FGeomTools2D::IsPolygonWindingCCW(ContourPoly))
 						{
 							// Remove newly added polygon, we don't support holes just yet
 							OutPoints.RemoveAt(OutPoints.Num() - 1);
@@ -1459,6 +1460,39 @@ void UPaperSprite::SetPivotMode(ESpritePivotMode::Type InPivotMode, FVector2D In
 		RebuildData();
 	}
 }
+
+#if WITH_EDITOR
+
+UTexture2D* UPaperSprite::GetSourceTexture() const
+{
+	// Verify the cache is still valid.
+	if (SourceTextureCacheNeverSerialized && SourceTexture.Get() != nullptr && SourceTexture.Get() == SourceTextureCacheNeverSerialized)
+	{
+		return SourceTextureCacheNeverSerialized;
+	}
+
+	UTexture2D* SourceTexturePtr = SourceTexture.LoadSynchronous();
+
+	// We need to completely load the texture if we're in post load and this texture is needed immediately,
+	// not safe to do in a game with EDL, but safe at editor time.
+	if (SourceTexturePtr)
+	{
+		if (SourceTexturePtr->HasAnyFlags(RF_NeedLoad))
+		{
+			if (FLinkerLoad* TextureLinker = SourceTexturePtr->GetLinker())
+			{
+				TextureLinker->Preload(SourceTexturePtr);
+			}
+		}
+		SourceTexturePtr->ConditionalPostLoad();
+	}
+
+	SourceTextureCacheNeverSerialized = SourceTexturePtr;
+
+	return SourceTexturePtr;
+}
+
+#endif
 
 FVector2D UPaperSprite::ConvertTextureSpaceToPivotSpace(FVector2D Input) const
 {
@@ -1647,20 +1681,7 @@ void UPaperSprite::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) cons
 
 FSlateAtlasData UPaperSprite::GetSlateAtlasData() const
 {
-	if ( SourceTexture == nullptr && BakedSourceTexture == nullptr )
-	{
-		return FSlateAtlasData(nullptr, FVector2D::ZeroVector, FVector2D::ZeroVector);
-	}
-	else if ( BakedSourceTexture == nullptr )
-	{
-		const FVector2D ImportedSize = FVector2D(SourceTexture->GetImportedSize());
-
-		const FVector2D StartUV = SourceUV / ImportedSize;
-		const FVector2D SizeUV = SourceDimension / ImportedSize;
-
-		return FSlateAtlasData(SourceTexture, StartUV, SizeUV);
-	}
-	else
+	if (BakedSourceTexture)
 	{
 		const FVector2D ImportedSize = FVector2D(BakedSourceTexture->GetImportedSize());
 
@@ -1668,6 +1689,21 @@ FSlateAtlasData UPaperSprite::GetSlateAtlasData() const
 		const FVector2D SizeUV = BakedSourceDimension / ImportedSize;
 
 		return FSlateAtlasData(BakedSourceTexture, StartUV, SizeUV);
+	}
+#if WITH_EDITOR
+	else if (UTexture2D* SourceTexturePtr = GetSourceTexture())
+	{
+		const FVector2D ImportedSize = FVector2D(SourceTexturePtr->GetImportedSize());
+
+		const FVector2D StartUV = SourceUV / ImportedSize;
+		const FVector2D SizeUV = SourceDimension / ImportedSize;
+
+		return FSlateAtlasData(SourceTexturePtr, StartUV, SizeUV);
+	}
+#endif
+	else
+	{
+		return FSlateAtlasData(nullptr, FVector2D::ZeroVector, FVector2D::ZeroVector);
 	}
 }
 
@@ -1869,7 +1905,11 @@ void UPaperSprite::PostLoad()
 
 UTexture2D* UPaperSprite::GetBakedTexture() const
 {
-	return (BakedSourceTexture != nullptr) ? BakedSourceTexture : SourceTexture;
+#if WITH_EDITOR
+	return (BakedSourceTexture != nullptr) ? BakedSourceTexture : GetSourceTexture();
+#else
+	return BakedSourceTexture;
+#endif
 }
 
 void UPaperSprite::GetBakedAdditionalSourceTextures(FAdditionalSpriteTextureArray& OutTextureList) const
@@ -1956,7 +1996,7 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 				SourcePolygon.GetTextureSpaceVertices(/*out*/ TextureSpaceVertices);
 
 				TArray<FVector2D>& FixedVertices = *new (ValidPolygonTriangles) TArray<FVector2D>();
-				PaperGeomTools::CorrectPolygonWinding(/*out*/ FixedVertices, TextureSpaceVertices, SourcePolygon.bNegativeWinding);
+				FGeomTools2D::CorrectPolygonWinding(/*out*/ FixedVertices, TextureSpaceVertices, SourcePolygon.bNegativeWinding);
 				PolygonsNegativeWinding.Add(SourcePolygon.bNegativeWinding);
 			}
 
@@ -1968,19 +2008,19 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 	}
 
 	// Check if polygons overlap, or have inconsistent winding, or edges overlap
-	if (!PaperGeomTools::ArePolygonsValid(ValidPolygonTriangles))
+	if (!FGeomTools2D::ArePolygonsValid(ValidPolygonTriangles))
 	{
 		return;
 	}
 
 	// Merge each additive and associated subtractive polygons to form a list of polygons in CCW winding
-	ValidPolygonTriangles = PaperGeomTools::ReducePolygons(ValidPolygonTriangles, PolygonsNegativeWinding);
+	ValidPolygonTriangles = FGeomTools2D::ReducePolygons(ValidPolygonTriangles, PolygonsNegativeWinding);
 
 	// Triangulate the polygons
 	for (int32 PolygonIndex = 0; PolygonIndex < ValidPolygonTriangles.Num(); ++PolygonIndex)
 	{
 		TArray<FVector2D> Generated2DTriangles;
-		if (PaperGeomTools::TriangulatePoly(Generated2DTriangles, ValidPolygonTriangles[PolygonIndex], bAvoidVertexMerging))
+		if (FGeomTools2D::TriangulatePoly(Generated2DTriangles, ValidPolygonTriangles[PolygonIndex], bAvoidVertexMerging))
 		{
 			AllGeneratedTriangles.Append(Generated2DTriangles);
 		}
@@ -1991,7 +2031,7 @@ void FSpriteGeometryCollection::Triangulate(TArray<FVector2D>& Target, bool bInc
 	{
 		TArray<FVector2D> TrianglesCopy = AllGeneratedTriangles;
 		AllGeneratedTriangles.Empty();
-		PaperGeomTools::RemoveRedundantTriangles(/*out*/ AllGeneratedTriangles, TrianglesCopy);
+		FGeomTools2D::RemoveRedundantTriangles(/*out*/ AllGeneratedTriangles, TrianglesCopy);
 	}
 
 	Target.Append(AllGeneratedTriangles);

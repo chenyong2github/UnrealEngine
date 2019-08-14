@@ -25,6 +25,7 @@
 #include "KismetCompiler.h"
 #include "Misc/OutputDeviceNull.h"
 #include "DiffResults.h"
+#include "Kismet2/Kismet2NameValidators.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_FunctionEntry"
 
@@ -131,10 +132,10 @@ public:
 			{
 				UEdGraphPin* Net = FEdGraphUtilities::GetNetFromPin(Pin);
 
-				if (Context.NetMap.Find(Net) == NULL)
+				if (Context.NetMap.Find(Net) == nullptr)
 				{
 					// New net, resolve the term that will be used to construct it
-					FBPTerminal* Term = NULL;
+					FBPTerminal* Term = nullptr;
 
 					check(Net->Direction == EGPD_Output);
 
@@ -152,7 +153,7 @@ public:
 		{
 			UEdGraphPin* EntryPointPin = Node->FindPin(UEdGraphSchema_K2::PN_EntryPoint);
 			FBPTerminal** pTerm = Context.NetMap.Find(EntryPointPin);
-			if ((EntryPointPin != NULL) && (pTerm != NULL))
+			if ((EntryPointPin != nullptr) && (pTerm != nullptr))
 			{
 				FBlueprintCompiledStatement& ComputedGotoStatement = Context.AppendStatementForNode(Node);
 				ComputedGotoStatement.Type = KCST_ComputedGoto;
@@ -197,6 +198,7 @@ UK2Node_FunctionEntry::UK2Node_FunctionEntry(const FObjectInitializer& ObjectIni
 	// Enforce const-correctness by default
 	bEnforceConstCorrectness = true;
 	bUpdatedDefaultValuesOnLoad = false;
+	bCanRenameNode = bIsEditable;
 }
 
 void UK2Node_FunctionEntry::PreSave(const class ITargetPlatform* TargetPlatform)
@@ -315,6 +317,32 @@ FText UK2Node_FunctionEntry::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
 
 	return DisplayInfo.DisplayName;
+}
+
+void UK2Node_FunctionEntry::OnRenameNode(const FString& NewName)
+{
+	CustomGeneratedFunctionName = FName(*NewName);
+	FBlueprintEditorUtils::RenameGraph(GetGraph(), NewName);
+}
+
+TSharedPtr<class INameValidatorInterface> UK2Node_FunctionEntry::MakeNameValidator() const
+{
+	if (CustomGeneratedFunctionName.IsNone())
+	{
+		FText TextName = GetNodeTitle(ENodeTitleType::Type::EditableTitle);
+		return MakeShareable(new FKismetNameValidator(GetBlueprint(), *TextName.ToString()));
+	}
+	else
+	{
+		return MakeShareable(new FKismetNameValidator(GetBlueprint(), CustomGeneratedFunctionName));
+	}
+}
+
+bool UK2Node_FunctionEntry::GetCanRenameNode() const
+{
+	UEdGraph* const Graph = GetGraph();
+
+	return (Graph && (Graph->bAllowDeletion || Graph->bAllowRenaming) && (bCanRenameNode || bIsEditable));
 }
 
 void UK2Node_FunctionEntry::AllocateDefaultPins()
@@ -840,6 +868,7 @@ void UK2Node_FunctionEntry::FixupPinStringDataReferences(FArchive* SavingArchive
 	Super::FixupPinStringDataReferences(SavingArchive);
 	if (SavingArchive)
 	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		// If any of our pins got fixed up, we need to refresh our user pin default values
 		// For custom events, the Pin default values are authoritative
 		for (TSharedPtr<FUserPinInfo> PinInfo : UserDefinedPins)
@@ -848,11 +877,9 @@ void UK2Node_FunctionEntry::FixupPinStringDataReferences(FArchive* SavingArchive
 			{
 				if (Pin->Direction == PinInfo->DesiredPinDirection)
 				{
-					FString DefaultsString = Pin->GetDefaultAsString();
-
-					if (DefaultsString != PinInfo->PinDefaultValue)
+					if(!K2Schema->DoesDefaultValueMatch(*Pin, PinInfo->PinDefaultValue))
 					{
-						ModifyUserDefinedPinDefaultValue(PinInfo, DefaultsString);
+						ModifyUserDefinedPinDefaultValue(PinInfo, Pin->GetDefaultAsString());
 					}
 				}
 			}

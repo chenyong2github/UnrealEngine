@@ -19,6 +19,10 @@ static float DrawDebugDefaultLifeTime = 30.f;
 static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("parametricmover.Debug.UseDrawDebug.DefaultLifeTime"),
 	DrawDebugDefaultLifeTime, TEXT("Use built in DrawDebug* functions for visual logging"), ECVF_Default);
 
+static int32 ForceNetUpdate = 0;
+static FAutoConsoleVariableRef CVarForceNetUpdate(TEXT("parametricmover.ForceNetUpdate"),
+	DrawDebugDefaultLifeTime, TEXT("Toggles calling ForceNetUpdate each tick on Parametric movers. This is only meant for testing/debugging."), ECVF_Default);
+
 }
 
 // -------------------------------------------------------------------------------------------------------------------------------
@@ -27,14 +31,14 @@ static FAutoConsoleVariableRef CVarDrawDebugDefaultLifeTime(TEXT("parametricmove
 
 namespace ParametricMovement
 {
-	void FMovementSystem::Update(IMovementDriver* Driver, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSystem::Update(IMovementDriver* Driver, const TSimTime& SimeTimeDeltaMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-		const float DeltaSeconds = InputCmd.FrameDeltaTime;
+		const float DeltaSeconds = SimeTimeDeltaMS.ToRealTimeSeconds();
 
 		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
 		const float InputPlayRate = InputCmd.PlayRate.Get(InputState.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
-		Driver->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, InputCmd.FrameDeltaTime);
+		Driver->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, DeltaSeconds);
 
 		// We have our time that we should be at. We just need to move primitive component to that position.
 		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
@@ -112,7 +116,7 @@ FNetworkSimulationModelInitParameters UParametricMovementComponent::GetSimulatio
 {
 	// These are reasonable defaults but may not be right for everyone
 	FNetworkSimulationModelInitParameters InitParams;
-	InitParams.InputBufferSize = Role != ROLE_SimulatedProxy ? 32 : 32;  // Fixme.. not good
+	InitParams.InputBufferSize = 32; //Role != ROLE_SimulatedProxy ? 32 : 32;  // Fixme.. not good
 	InitParams.SyncedBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.AuxBufferSize = Role != ROLE_AutonomousProxy ? 2 : 32;
 	InitParams.DebugBufferSize = 32;
@@ -141,7 +145,7 @@ void UParametricMovementComponent::InitSyncState(ParametricMovement::FMoveState&
 	OutSyncState.PlayRate = 0.f;
 }
 
-void UParametricMovementComponent::SyncTo(const ParametricMovement::FMoveState& SyncState)
+void UParametricMovementComponent::FinalizeFrame(const ParametricMovement::FMoveState& SyncState)
 {
 	FTransform NewTransform;
 	GetTransformForTime(SyncState.Position, NewTransform);
@@ -184,28 +188,38 @@ void UParametricMovementComponent::SetTransformForPosition(const float InPositio
 void UParametricMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
+
+	TickSimulation(DeltaTime); // fixme
+}
+
+void UParametricMovementComponent::Reconcile()
+{
+
+}
+
+void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
+{
 	const ENetRole OwnerRole = GetOwnerRole();
+
+	PreTickSimulation(DeltaTimeSeconds); // Fixme
 
 	if (NetworkSim && OwnerRole != ROLE_None)
 	{
-		
-		if (OwnerRole == ROLE_Authority)
-		{
-			if (ParametricMovement::FInputCmd* NextCmd = NetworkSim->GetNextInputForWrite(DeltaTime))
-			{
-				NextCmd->PlayRate = PendingPlayRate;
-				PendingPlayRate.Reset();
-			}
-		}
-
-		ParametricMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
-		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		ParametricMovement::FMovementSystem::FTickParameters Parameters(DeltaTimeSeconds, GetOwner());
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IParametricMovementDriver*)this, Parameters);
 	}
 
 	// TEMP
-	GetOwner()->ForceNetUpdate();
+	if (ParametricMoverCVars::ForceNetUpdate)
+	{
+		GetOwner()->ForceNetUpdate();
+	}
+}
+
+void UParametricMovementComponent::ProduceInput(const ParametricMovement::TSimTime& SimFrameTime, ParametricMovement::FInputCmd& Cmd)
+{
+	Cmd.PlayRate = PendingPlayRate;
+	PendingPlayRate.Reset();
 }

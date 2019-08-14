@@ -115,6 +115,7 @@ public:
 protected:
 	static bool IsGeometryCollectionSelected();
 	static bool IsStaticMeshSelected();
+	static bool IsSeletedActorsInEditorWorld();
 	void UpdateExplodedVectors(UGeometryCollectionComponent* GeometryCollectionComponent) const;
 private:
 	void OnOutlinerBoneSelectionChanged(UGeometryCollectionComponent* RootComponent, TArray<int32>& SelectedBones);

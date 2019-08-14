@@ -651,6 +651,11 @@ namespace UnrealBuildTool
 					DependencyListDir = DirectoryReference.Combine(RulesObject.ProjectFile.Directory, "Intermediate", "DependencyLists", RulesObject.Name, RulesObject.Configuration.ToString(), RulesObject.Platform.ToString());
 				}
 
+				if(!String.IsNullOrEmpty(Descriptor.Architecture))
+				{
+					DependencyListDir = new DirectoryReference(DependencyListDir.FullName + Descriptor.Architecture);
+				}
+
 				FileReference DependencyListFile;
 				if(RulesObject.bBuildAllModules)
 				{
@@ -2440,7 +2445,7 @@ namespace UnrealBuildTool
 					{
 						if (!UnrealBuildTool.IsProjectInstalled() || EnabledPlugins.Where(x => x.Type == PluginType.Mod).Any(x => Binary.OutputFilePaths[0].IsUnderDirectory(x.Directory)))
 						{
-							HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Select(x => x.Name));
+							HotReloadModuleNames.UnionWith(GameModules.OfType<UEBuildModuleCPP>().Where(x => !x.Rules.bUsePrecompiled).Select(x => x.Name));
 						}
 					}
 				}

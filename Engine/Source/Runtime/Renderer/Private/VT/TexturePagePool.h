@@ -7,10 +7,12 @@
 #include "Containers/BinaryHeap.h"
 #include "Containers/HashTable.h"
 
-class FVirtualTextureSystem;
-class FVirtualTextureSpace;
+union FVirtualTextureLocalTile;
 class FVirtualTexturePhysicalSpace;
 union FVirtualTextureProducerHandle;
+class FVirtualTextureSpace;
+class FVirtualTextureSystem;
+struct FVTProducerDescription;
 
 /**
  * Manages a pool of texture pages, backed by a large GPU texture atlas.
@@ -41,6 +43,12 @@ public:
 	 * Unmap/remove any pages that were allocated by the given producer
 	 */
 	void EvictPages(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& ProducerHandle);
+
+	/**
+	 * Unmap/remove any pages that were allocated by the given producer and are inside the TextureRegion.
+	 * Outputs the locked pages that can't be unmapped to the OutLocked array.
+	 */
+	void EvictPages(FVirtualTextureSystem* System, FVirtualTextureProducerHandle const& ProducerHandle, FVTProducerDescription const& Desc, FIntRect const& TextureRegion, TArray<union FVirtualTextureLocalTile>& OutLocked);
 
 	/**
 	* Unmap all pages from the given space...pages will remain resident in the pool, but no longer by mapped to any page table

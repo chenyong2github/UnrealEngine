@@ -284,8 +284,8 @@ public:
 	/** Removes the active sound from concurrency tracking when active sound is stopped. */
 	void RemoveActiveSound(FActiveSound& ActiveSound);
 
-	// Fades sound if concurrency settings request to, or calls stop if not set
-	void FadeOutActiveSound(FActiveSound& ActiveSound);
+	/** Stops sound, applying concurrency rules for how to stop */
+	void StopDueToVoiceStealing(FActiveSound& ActiveSound);
 
 	/** Stops any active sounds due to max concurrency quietest sound resolution rule */
 	void UpdateQuietSoundsToStop();

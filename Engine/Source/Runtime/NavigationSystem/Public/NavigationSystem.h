@@ -142,13 +142,13 @@ protected:
 	UPROPERTY()
 	uint32 bSupportRebuilding : 1; 
 
-	/** When set to TRUE, navigation data will be generated even if no navigation bounds is compatible to build it */
+	/** When set to TRUE, navigation data will be generated only when at least one navigation bounds is compatible for building it */
 	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bGenerateNavDataWhenNoCompatibleNavBound : 1;
+	uint32 bShouldGenerateNavDataOnlyWhenCompatibleNavBound : 1;
 
-	/** When set to TRUE, if there conflicting navigation data using same NavConfig, the last one loaded (via the additional level) will be used when rebuild navmesh */
+	/** When set to TRUE, equivalent navigation data will override the existing one in the system */
 	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bUseNavDataInAdditionalLevelWhenDuplicatedAgent : 1;
+	uint32 bAllowEquivalentNavDataOverride  : 1;
 public:
 	/** if set to true will result navigation system not rebuild navigation until 
 	 *	a call to ReleaseInitialBuildingLock() is called. Does not influence 
@@ -494,8 +494,8 @@ public:
 	bool ShouldAllowClientSideNavigation() const { return bAllowClientSideNavigation; }
 	virtual bool ShouldLoadNavigationOnClient(ANavigationData* NavData = nullptr) const { return bAllowClientSideNavigation; }
 	virtual bool ShouldDiscardSubLevelNavData(ANavigationData* NavData = nullptr) const { return bShouldDiscardSubLevelNavData; }
-	bool ShouldGenerateNavDataWhenNoCompatibleNavBound() const { return bGenerateNavDataWhenNoCompatibleNavBound; }
-	bool ShouldUseNavDataInAdditionalLevelWhenDuplicatedAgent() const { return bUseNavDataInAdditionalLevelWhenDuplicatedAgent; }
+	bool ShouldGenerateNavDataOnlyWhenCompatibleNavBound() const { return bShouldGenerateNavDataOnlyWhenCompatibleNavBound; }
+	bool ShouldAllowEquivalentNavDataOverride() const { return bAllowEquivalentNavDataOverride ; }
 
 	FBox GetWorldBounds() const;
 	
@@ -541,9 +541,9 @@ public:
 	// @todo document
 	virtual void UnregisterNavData(ANavigationData* NavData);
 
-	/** adds NavData to registration candidates queue - NavDataRegistrationQueue
-	 *	@return true if registration request was successful, false if given NavData 
-	 *	was deemed unsuitable for registration consideration */
+	/** Adds NavData to registration candidates queue - NavDataRegistrationQueue*/
+	virtual void RequestRegistrationDeferred(ANavigationData& NavData);
+	UE_DEPRECATED(4.24, "This version of RequestRegistration is deprecated. Please use the RequestRegistrationDeferred as the registration request is always queued now.")
 	virtual void RequestRegistration(ANavigationData* NavData, bool bTriggerRegistrationProcessing = true);
 
 protected:
@@ -801,7 +801,7 @@ public:
 	virtual void InitializeForWorld(UWorld& World, FNavigationSystemRunMode Mode) override;
 
 	/** Called after a NavSystemConfigOverride has finished overriding the old NavSystem */
-	virtual void OnNavSystemOverriden(UNavigationSystemBase* PreviousNavSystem) override;
+	virtual void FinalizeOverridingNavSystem(UNavigationSystemV1& PreviousNavSystem);
 
 	// Fetch the array of all nav-agent properties.
 	void GetNavAgentPropertiesArray(TArray<FNavAgentProperties>& OutNavAgentProperties) const;
@@ -1087,13 +1087,13 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Navigation)
 	uint32 bSpawnNavDataInNavBoundsLevel : 1;
 
-	/** When set to TRUE, navigation data will be generated even if no navigation bounds is compatible to build it */
+	/** When set to TRUE, navigation data will be generated only when at least one navigation bounds is compatible for building it */
 	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bGenerateNavDataWhenNoCompatibleNavBound : 1;
+	uint32 bShouldGenerateNavDataOnlyWhenCompatibleNavBound : 1;
 
-	/** When set to TRUE, if there conflicting navigation data using same NavConfig, the last one loaded (via the additional level) will be used when rebuild navmesh */
+	/** When set to TRUE, equivalent navigation data will override the existing one in the system */
 	UPROPERTY(EditAnywhere, Category = Navigation)
-	uint32 bUseNavDataInAdditionalLevelWhenDuplicatedAgent : 1;
+	uint32 bAllowEquivalentNavDataOverride : 1;
 public:
 	UNavigationSystemModuleConfig(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 

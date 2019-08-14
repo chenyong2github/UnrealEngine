@@ -39,6 +39,7 @@ public:
 	TSharedPtr< FUICommandInfo > AddOptionPin;
 	TSharedPtr< FUICommandInfo > RemoveOptionPin;
 	TSharedPtr< FUICommandInfo > ChangePinType;
+	TSharedPtr< FUICommandInfo > DeleteAndReconnectNodes;
 
 	// Pin visibility modes
 	TSharedPtr< FUICommandInfo > ShowAllPins;
@@ -62,6 +63,8 @@ public:
 	TSharedPtr< FUICommandInfo > ExpandNodes;
 	TSharedPtr< FUICommandInfo > CollapseSelectionToFunction;
 	TSharedPtr< FUICommandInfo > CollapseSelectionToMacro;
+	TSharedPtr< FUICommandInfo > ConvertFunctionToEvent;
+	TSharedPtr< FUICommandInfo > ConvertEventToFunction;
 
 	// Alignment commands
 	TSharedPtr< FUICommandInfo > AlignNodesTop;

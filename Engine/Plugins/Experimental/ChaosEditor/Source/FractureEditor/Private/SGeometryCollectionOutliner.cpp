@@ -10,6 +10,8 @@
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "FractureEditorMode.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
@@ -186,12 +188,14 @@ void SGeometryCollectionOutliner::OnSelectionChanged(FGeometryCollectionTreeItem
 		FGeometryCollectionTreeItemList SelectedItems;
 		TreeView->GetSelectedItems(SelectedItems);
 		
+		FScopedTransaction Transaction(FractureTransactionContexts::SelectBoneContext, LOCTEXT("SelectGeometryCollectionBoneTransaction", "Select Bone"), Item->GetComponent());
 		for(auto& SelectedItem : SelectedItems)
 		{
 			if (SelectedItem->GetBoneIndex() != INDEX_NONE)
 			{
 				TArray<int32>& SelectedBones = ComponentToBoneSelectionMap.FindChecked(Item->GetComponent());
 				SelectedBones.Add(SelectedItem->GetBoneIndex());
+				Item->GetComponent()->Modify();
 			}
 		}
 		// Fire off the delegate for each component

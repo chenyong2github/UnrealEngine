@@ -45,7 +45,7 @@ public:
 
 	virtual ITargetPlatform* GetTargetPlatform() override
 	{
-		if (AndroidTargetSingleton == NULL)
+		if (AndroidTargetSingleton == NULL && FAndroid_ETC1aTargetPlatform::IsUsable())
 		{
 			AndroidTargetSingleton = new FAndroid_ETC1aTargetPlatform();
 		}

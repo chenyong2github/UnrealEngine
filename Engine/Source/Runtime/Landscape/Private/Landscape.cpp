@@ -61,6 +61,7 @@ Landscape.cpp: Terrain rendering
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
+#include "Algo/BinarySearch.h"
 
 /** Landscape stats */
 
@@ -146,6 +147,7 @@ ULandscapeComponent::ULandscapeComponent(const FObjectInitializer& ObjectInitial
 , CachedEditingLayerData(nullptr)
 , LayerUpdateFlagPerMode(0)
 , WeightmapsHash(0)
+, SplineHash(0)
 #endif
 , GrassData(MakeShareable(new FLandscapeComponentGrassData()))
 , ChangeTag(0)
@@ -2801,9 +2803,25 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 	}
 	else
 	{
+		// Insert Proxies in a sorted fashion for generating determisnitic results in the Layer system
 		ALandscapeStreamingProxy* StreamingProxy = CastChecked<ALandscapeStreamingProxy>(Proxy);
+		if (!Proxies.Contains(Proxy))
+		{
+			uint32 InsertIndex = Algo::LowerBound(Proxies, Proxy, [](ALandscapeProxy* A, ALandscapeProxy* B)
+			{
+				FIntPoint SectionBaseA = A->GetSectionBaseOffset();
+				FIntPoint SectionBaseB = B->GetSectionBaseOffset();
 
-		Proxies.Add(StreamingProxy);
+				if (SectionBaseA.X != SectionBaseB.X)
+				{
+					return SectionBaseA.X < SectionBaseB.X;
+				}
+
+				return SectionBaseA.Y < SectionBaseB.Y;
+			});
+			
+			Proxies.Insert(StreamingProxy, InsertIndex);
+		}
 		StreamingProxy->LandscapeActor = LandscapeActor;
 		StreamingProxy->FixupSharedData(LandscapeActor.Get());
 	}

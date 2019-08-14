@@ -730,10 +730,10 @@ struct FXYOffsetmapAccessor
 			bool bUpdateFoliage = false;
 			bool bUpdateNormals = false;
 			
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
 			if (!LandscapeEdit->HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
+
 				bUpdateNormals = true;
 				for (ULandscapeComponent* Component : Components)
 				{
@@ -1094,10 +1094,9 @@ struct FFullWeightmapAccessor
 		TSet<ULandscapeComponent*> Components;
 		if (LandscapeEdit.GetComponentsInRegion(X1, Y1, X2, Y2, &Components))
 		{
-			ALandscapeProxy::InvalidateGeneratedComponentData(Components);
-
 			if (!LandscapeEdit.HasLandscapeLayersContent())
 			{
+				ALandscapeProxy::InvalidateGeneratedComponentData(Components);
 				ModifiedComponents.Append(Components);
 			}
 			LandscapeEdit.SetAlphaData(DirtyLayerInfos, X1, Y1, X2, Y2, Data, 0, PaintingRestriction);

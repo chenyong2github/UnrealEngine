@@ -777,43 +777,45 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 		else
 		{
 			UE_LOG(LogPartyBeacon, Verbose, TEXT("Adding Member"));
-			if (!State->IsBeaconFull())
+			
+			const int32 ExistingReservationIdx = State->GetExistingReservation(ReservationUpdateRequest.PartyLeader);
+			if (ExistingReservationIdx != INDEX_NONE)
 			{
-				const int32 ExistingReservationIdx = State->GetExistingReservation(ReservationUpdateRequest.PartyLeader);
-				if (ExistingReservationIdx != INDEX_NONE)
+				// Count the number of available slots for the existing reservation's team
+				TArray<FPartyReservation>& Reservations = State->GetReservations();
+				FPartyReservation& ExistingReservation = Reservations[ExistingReservationIdx];
+				const int32 NumTeamMembers = GetNumPlayersOnTeam(ExistingReservation.TeamNum);
+				const int32 NumAvailableSlotsOnTeam = FMath::Max<int32>(0, GetMaxPlayersPerTeam() - NumTeamMembers);
+				int32 NumPlayersWithExistingReservation = 0;
+
+				// Read the list of new players and remove the ones that have existing reservation entries
+				TArray<FPlayerReservation> NewPlayers;
+				for (int32 PlayerIdx = 0; PlayerIdx < ReservationUpdateRequest.PartyMembers.Num(); PlayerIdx++)
 				{
-					// Count the number of available slots for the existing reservation's team
-					TArray<FPartyReservation>& Reservations = State->GetReservations();
-					FPartyReservation& ExistingReservation = Reservations[ExistingReservationIdx];
-					const int32 NumTeamMembers = GetNumPlayersOnTeam(ExistingReservation.TeamNum);
-					const int32 NumAvailableSlotsOnTeam = FMath::Max<int32>(0, GetMaxPlayersPerTeam() - NumTeamMembers);
-					int32 NumPlayersWithExistingReservation = 0;
+					const FPlayerReservation& NewPlayerRes = ReservationUpdateRequest.PartyMembers[PlayerIdx];
 
-					// Read the list of new players and remove the ones that have existing reservation entries
-					TArray<FPlayerReservation> NewPlayers;
-					for (int32 PlayerIdx = 0; PlayerIdx < ReservationUpdateRequest.PartyMembers.Num(); PlayerIdx++)
+					const int32 FormerReservationIdx = State->GetExistingReservationContainingMember(NewPlayerRes.UniqueId);
+					if (FormerReservationIdx != ExistingReservationIdx)
 					{
-						const FPlayerReservation& NewPlayerRes = ReservationUpdateRequest.PartyMembers[PlayerIdx];
+						// player reservation doesn't exist in this reservation so add it as a new player
+						NewPlayers.Add(NewPlayerRes);
 
-						const int32 FormerReservationIdx = State->GetExistingReservationContainingMember(NewPlayerRes.UniqueId);
-						if (FormerReservationIdx != ExistingReservationIdx)
+						if (FormerReservationIdx != INDEX_NONE)
 						{
-							// player reservation doesn't exist in this reservation so add it as a new player
-							NewPlayers.Add(NewPlayerRes);
-
-							if (FormerReservationIdx != INDEX_NONE)
-							{
-								++NumPlayersWithExistingReservation;
-							}
-						}
-						else
-						{
-							// duplicate entry for this player
-							UE_LOG(LogPartyBeacon, Log, TEXT("Skipping player %s because they already have a reservation with this party"),
-								*NewPlayerRes.UniqueId.ToString());
+							++NumPlayersWithExistingReservation;
 						}
 					}
-
+					else
+					{
+						// duplicate entry for this player
+						UE_LOG(LogPartyBeacon, Log, TEXT("Skipping player %s because they already have a reservation with this party"),
+							*NewPlayerRes.UniqueId.ToString());
+					}
+				}
+				// check to see if we have space to add new reservations for the new players 
+				// Not using IsBeaconFull as we may not be adding a new player in the situation where a party player who has a reservation joins the game in which case NewPlayers.Num == 0
+				if ((State->GetRemainingReservations() - NewPlayers.Num()) >= 0)
+				{
 					// Validate that adding the new party members to this reservation entry still fits within the team size
 					if ((NewPlayers.Num() - NumPlayersWithExistingReservation) <= NumAvailableSlotsOnTeam)
 					{
@@ -935,14 +937,14 @@ EPartyReservationResult::Type APartyBeaconHost::UpdatePartyReservation(const FPa
 				}
 				else
 				{
-					// Send a not found reservation response
-					Result = EPartyReservationResult::ReservationNotFound;
+					// Send a session full response
+					Result = EPartyReservationResult::PartyLimitReached;
 				}
 			}
 			else
 			{
-				// Send a session full response
-				Result = EPartyReservationResult::PartyLimitReached;
+				// Send a not found reservation response
+				Result = EPartyReservationResult::ReservationNotFound;
 			}
 		}
 	}

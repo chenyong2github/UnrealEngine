@@ -234,7 +234,7 @@ namespace Gauntlet
 			Directory.CreateDirectory(LocalSaved);
 
 			// pull all the artifacts
-			string ArtifactPullCommand = string.Format("pull {0} {1}", Install.AndroidDevice.DeviceArtifactPath, Install.AndroidDevice.LocalCachePath);
+			string ArtifactPullCommand = string.Format("pull {0} {1}", Install.AndroidDevice.DeviceArtifactPath, LocalSaved);
 			IProcessResult PullCmd = Install.AndroidDevice.RunAdbDeviceCommand(ArtifactPullCommand);
 
 			if (PullCmd.ExitCode != 0)
@@ -831,14 +831,7 @@ namespace Gauntlet
 				string StorageLocation = StorageQueryResult.Output.Trim(); // "/mnt/sdcard";
 
 				// remote dir used to save things
-				string RemoteDir = StorageLocation + "/UE4Game/" + AppConfig.ProjectName;
-
-				// if not a bulk/dev build, remote dir will be under /{StorageLocation}/Android/data/{PackageName}
-				if ((Build.Flags & ( BuildFlags.Bulk | BuildFlags.CanReplaceExecutable)) == 0)
-				{
-					RemoteDir = StorageLocation + "/Android/data/" + Build.AndroidPackageName + "/files/UE4Game/" + AppConfig.ProjectName;
-				}
-				
+				string RemoteDir = StorageLocation + "/UE4Game/" + AppConfig.ProjectName;				
 				string DependencyDir = RemoteDir + "/deps";
 
 				// device artifact path, always clear between runs
@@ -965,7 +958,13 @@ namespace Gauntlet
 				// if != 0 then no folder exists
 				if (AdbResult.ExitCode == 0)
 				{
-					IEnumerable<string> CurrentRemoteFileList = AdbResult.Output.Replace("\r\n", "\n").Split('\n');
+					string[] Delimiters = { "\r\n", "\n" };
+					string[] CurrentRemoteFileList = AdbResult.Output.Split(Delimiters, StringSplitOptions.RemoveEmptyEntries);
+					for (int i = 0; i < CurrentRemoteFileList.Length; ++i)
+					{
+						CurrentRemoteFileList[i] = CurrentRemoteFileList[i].Trim();
+					}
+
 					IEnumerable<string> NewRemoteFileList = FilesToInstall.Values.Select(F => Path.GetFileName(F));
 
 					// delete any files that should not be there

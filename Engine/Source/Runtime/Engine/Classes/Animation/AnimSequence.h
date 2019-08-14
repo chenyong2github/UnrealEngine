@@ -194,53 +194,6 @@ struct ENGINE_API FRequestAnimCompressionParams
 	void InitFrameStrippingFromPlatform(const class ITargetPlatform* TargetPlatform);
 };
 
-#if WITH_EDITOR
-// Cache debugging data in editor for UE-49335
-struct FAnimLoadingDebugData
-{
-public:
-	//Single debug entry
-	struct Entry
-	{
-		FString Tag;
-		int32 RawDataCount;
-		int32 SourceDataCount;
-
-		Entry(const TCHAR* InTag, int32 InRawDataCount, int32 InSourceDataCount)
-			: Tag(InTag)
-			, RawDataCount(InRawDataCount)
-			, SourceDataCount(InSourceDataCount)
-		{}
-	};
-
-	template <typename... ArgsType>
-	void AddEntry(ArgsType&&... Args)
-	{
-		Entries.Emplace(Args...);
-	}
-
-	// Build a string of all the debug entries for output
-	FString GetEntries() const
-	{
-		FString Ret;
-		for (const Entry& E : Entries)
-		{
-			TArray<FStringFormatArg> Args;
-			Args.Add(LexToString(E.Tag));
-			Args.Add(LexToString(E.RawDataCount));
-			Args.Add(LexToString(E.SourceDataCount));
-			Ret += FString::Format(TEXT("\t{0}: Raw:{1} Source:{2}\n"), Args);
-		}
-		return Ret;
-	}
-
-private:
-
-	TArray<Entry> Entries;
-};
-
-#endif
-
 FArchive& operator<<(FArchive& Ar, FCompressedOffsetData& D);
 
 UCLASS(config=Engine, hidecategories=(UObject, Length), BlueprintType)
@@ -902,20 +855,6 @@ public:
 
 	friend class UAnimationAsset;
 	friend struct FScopedAnimSequenceRawDataCache;
-
-#if WITH_EDITOR
-	// Cache debugging data in editor for UE-49335
-	FAnimLoadingDebugData AnimLoadingDebugData;
-#endif
-
-	// Cache debugging data in editor for UE-49335
-	void AddAnimLoadingDebugEntry(const TCHAR* Tag)
-	{
-#if WITH_EDITOR
-		AnimLoadingDebugData.AddEntry(Tag, RawAnimationData.Num(), SourceRawAnimationData.Num());
-#endif
-	}
-
 	friend class UAnimationBlueprintLibrary;
 };
 

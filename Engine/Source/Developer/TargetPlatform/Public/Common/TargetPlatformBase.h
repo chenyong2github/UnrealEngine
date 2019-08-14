@@ -129,7 +129,7 @@ protected:
 	FTargetPlatformBase(const PlatformInfo::FPlatformInfo *const InPlatformInfo)
 		: PlatformInfo(InPlatformInfo)
 	{
-		check(PlatformInfo);
+		checkf(PlatformInfo, TEXT("Null PlatformInfo was passed to FTargetPlatformBase. Check the static IsUsable function before creating this object. See FWindowsTargetPlatformModule::GetTargetPlatform()"));
 
 		PlatformOrdinal = AssignPlatformOrdinal(*this);
 	}
@@ -151,6 +151,15 @@ class TTargetPlatformBase
 {
 public:
 
+	/**
+	 * Returns true if the target platform will be able to be  initialized with an FPlatformInfo. Because FPlatformInfo now comes from a .ini file,
+	 * it's possible that the .dll exists, but the .ini does not (should be uncommon, but is necessary to be handled)
+	 */
+	static bool IsUsable()
+	{
+		return PlatformInfo::FindPlatformInfo(TPlatformProperties::PlatformName()) != nullptr;
+	}
+	
 	/** Default constructor. */
 	TTargetPlatformBase()
 		: FTargetPlatformBase( PlatformInfo::FindPlatformInfo(TPlatformProperties::PlatformName()) )
