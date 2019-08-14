@@ -4657,7 +4657,7 @@ static void CheckForPrintTimesOverride()
 bool LaunchCorrectEditorExecutable(const FString& EditorTargetFileName)
 {
 	FTargetReceipt Receipt;
-	if(FPaths::FileExists(EditorTargetFileName) && Receipt.Read(EditorTargetFileName))
+	if(!FApp::IsUnattended() && FPaths::FileExists(EditorTargetFileName) && Receipt.Read(EditorTargetFileName))
 	{
 		FString CurrentExecutableName = FPlatformProcess::ExecutablePath();
 		FPaths::MakeStandardFilename(CurrentExecutableName);
