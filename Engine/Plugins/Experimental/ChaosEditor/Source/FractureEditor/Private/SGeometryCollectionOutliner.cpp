@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
 #include "FractureEditorMode.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "ChaosEditor"
 
