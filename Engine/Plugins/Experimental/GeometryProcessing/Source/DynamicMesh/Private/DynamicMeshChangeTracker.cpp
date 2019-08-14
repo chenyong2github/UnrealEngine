@@ -168,7 +168,6 @@ template class DYNAMICMESH_API TDynamicMeshAttributeChange<int, 3>;
 
 FDynamicMeshChange::~FDynamicMeshChange()
 {
-	check(true);
 }
 
 
@@ -679,5 +678,56 @@ void FDynamicMeshChange::GetSavedTriangleList(TArray<int>& TrianglesOut, bool bI
 	for (int32 i = 0; i < N; ++i)
 	{
 		TrianglesOut.Add(UseList[i].TriangleID);
+	}
+}
+
+
+
+void FDynamicMeshChange::CheckValidity(EValidityCheckFailMode FailMode) const
+{
+	bool is_ok = true;
+	TFunction<void(bool)> CheckOrFailF = [&](bool b)
+	{
+		is_ok = is_ok && b;
+	};
+	if (FailMode == EValidityCheckFailMode::Check)
+	{
+		CheckOrFailF = [&](bool b)
+		{
+			checkf(b, TEXT("FDynamicMeshChange::CheckValidity failed!"));
+			is_ok = is_ok && b;
+		};
+	}
+	else if (FailMode == EValidityCheckFailMode::Ensure)
+	{
+		CheckOrFailF = [&](bool b)
+		{
+			ensureMsgf(b, TEXT("FDynamicMeshChange::CheckValidity failed!"));
+			is_ok = is_ok && b;
+		};
+	}
+
+
+	TSet<int> SavedOldV, SavedNewV;
+	for (const FChangeVertex& ChangeVert : OldVertices)
+	{
+		SavedOldV.Add(ChangeVert.VertexID);
+	}
+	for (const FChangeVertex& ChangeVert : NewVertices)
+	{
+		SavedNewV.Add(ChangeVert.VertexID);
+	}
+
+	for (const FChangeTriangle& ChangedTri : OldTriangles)
+	{
+		CheckOrFailF(SavedOldV.Contains(ChangedTri.Vertices.A));
+		CheckOrFailF(SavedOldV.Contains(ChangedTri.Vertices.B));
+		CheckOrFailF(SavedOldV.Contains(ChangedTri.Vertices.C));
+	}
+	for (const FChangeTriangle& ChangedTri : NewTriangles)
+	{
+		CheckOrFailF(SavedNewV.Contains(ChangedTri.Vertices.A));
+		CheckOrFailF(SavedNewV.Contains(ChangedTri.Vertices.B));
+		CheckOrFailF(SavedNewV.Contains(ChangedTri.Vertices.C));
 	}
 }

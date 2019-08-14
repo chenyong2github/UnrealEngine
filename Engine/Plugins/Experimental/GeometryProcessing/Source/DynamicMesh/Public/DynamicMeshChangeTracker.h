@@ -141,6 +141,9 @@ public:
 	/** store IDs of saved triangles in TrianglesOut. if bInitial=true, old triangles are stored, otherwise new triangles */
 	void GetSavedTriangleList(TArray<int>& TrianglesOut, bool bInitial) const;
 
+	/** run self-validity checks on internal data structures to test if change is well-formed */
+	void CheckValidity(EValidityCheckFailMode FailMode = EValidityCheckFailMode::Check) const;
+
 protected:
 
 	struct FChangeVertex
