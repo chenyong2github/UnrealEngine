@@ -21,6 +21,7 @@
 #include "GameFramework/GameModeBase.h"
 #include "Dom/JsonObject.h"
 #include "Misc/App.h"
+#include "Misc/MessageDialog.h"
 
 DEFINE_LOG_CATEGORY(PixelStreaming);
 DEFINE_LOG_CATEGORY(PixelStreamingInput);
@@ -30,6 +31,14 @@ DEFINE_LOG_CATEGORY(PixelStreamingCapture);
 /** IModuleInterface implementation */
 void FPixelStreamingPlugin::StartupModule()
 {
+	// Check to see if we can use the Pixel Streaming plugin on this platform.
+	// If not then we avoid setting up our delegates to prevent access to the
+	// plugin.
+	if (!CheckPlatformCompatibility())
+	{
+		return;
+	}
+
 	// detect hardware capabilities, init nvidia capture libs, etc
 	check(GDynamicRHI);
 	void* Device = GDynamicRHI->RHIGetNativeDevice();
@@ -72,6 +81,29 @@ void FPixelStreamingPlugin::ShutdownModule()
 	}
 
 	IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+}
+
+bool FPixelStreamingPlugin::CheckPlatformCompatibility() const
+{
+	bool bCompatible = true;
+
+	bool bWin8OrHigher = FWindowsPlatformMisc::VerifyWindowsVersion(6, 2);
+	if (!bWin8OrHigher)
+	{
+		FString ErrorString(TEXT("Failed to initialize Pixel Streaming plugin because minimum requirement is Windows 8"));
+		FText ErrorText = FText::FromString(ErrorString);
+		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
+		UE_LOG(PixelStreaming, Error, TEXT("%s"), *ErrorString);
+		bCompatible = false;
+	}
+
+	if (!FStreamer::CheckPlatformCompatibility())
+	{
+		bCompatible = false;
+	}
+
+	return bCompatible;
 }
 
 void FPixelStreamingPlugin::UpdateViewport(FSceneViewport* Viewport)
