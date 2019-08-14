@@ -120,6 +120,7 @@ public:
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
+		, FrameCounterForNodeUpdate(0)
 		, CacheBonesRecursionCounter(0)
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
@@ -142,6 +143,7 @@ public:
 		, SyncGroupWriteIndex(0)
 		, RootMotionMode(ERootMotionMode::NoRootMotionExtraction)
 		, FrameCounterForUpdate(0)
+		, FrameCounterForNodeUpdate(0)
 		, CacheBonesRecursionCounter(0)
 		, bUpdatingRoot(false)
 		, bBoneCachesInvalidated(false)
@@ -861,6 +863,7 @@ protected:
 
 	// Sync counter
 	uint64 FrameCounterForUpdate;
+	uint64 FrameCounterForNodeUpdate;
 
 private:
 	// Root motion extracted from animation since the last time ConsumeExtractedRootMotion was called
