@@ -462,7 +462,12 @@ public:
 	/** Whether or not there is an async occlusion trace pending */
 	FThreadSafeBool bAsyncOcclusionPending;
 
+	/** Duration between now and when the sound has been started. */
 	float PlaybackTime;
+
+	/** If virtualized, duration between last time virtualized and now. */
+	float PlaybackTimeNonVirtualized;
+
 	float MinCurrentPitch;
 	float RequestedStartTime;
 

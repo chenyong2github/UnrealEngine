@@ -76,29 +76,30 @@ FActiveSound::FActiveSound()
 	, FadeOut(EFadeOut::None)
 	, bIsOccluded(false)
 	, bAsyncOcclusionPending(false)
-	, PlaybackTime(0.f)
+	, PlaybackTime(0.0f)
+	, PlaybackTimeNonVirtualized(0.0f)
 	, MinCurrentPitch(1.0f)
-	, RequestedStartTime(0.f)
-	, CurrentAdjustVolumeMultiplier(1.f)
-	, TargetAdjustVolumeMultiplier(1.f)
-	, TargetAdjustVolumeStopTime(-1.f)
-	, VolumeMultiplier(1.f)
-	, PitchMultiplier(1.f)
+	, RequestedStartTime(0.0f)
+	, CurrentAdjustVolumeMultiplier(1.0f)
+	, TargetAdjustVolumeMultiplier(1.0f)
+	, TargetAdjustVolumeStopTime(-1.0f)
+	, VolumeMultiplier(1.0f)
+	, PitchMultiplier(1.0f)
 	, LowPassFilterFrequency(MAX_FILTER_FREQUENCY)
 	, CurrentOcclusionFilterFrequency(MAX_FILTER_FREQUENCY)
 	, CurrentOcclusionVolumeAttenuation(1.0f)
 	, SubtitlePriority(DEFAULT_SUBTITLE_PRIORITY)
 	, Priority(1.0f)
 	, VolumeConcurrency(0.0f)
-	, OcclusionCheckInterval(0.f)
+	, OcclusionCheckInterval(0.0f)
 	, LastOcclusionCheckTime(TNumericLimits<float>::Lowest())
 	, MaxDistance(WORLD_MAX)
 	, LastLocation(FVector::ZeroVector)
 	, AudioVolumeID(0)
-	, LastUpdateTime(0.f)
-	, SourceInteriorVolume(1.f)
+	, LastUpdateTime(0.0f)
+	, SourceInteriorVolume(1.0f)
 	, SourceInteriorLPF(MAX_FILTER_FREQUENCY)
-	, CurrentInteriorVolume(1.f)
+	, CurrentInteriorVolume(1.0f)
 	, CurrentInteriorLPF(MAX_FILTER_FREQUENCY)
 	, EnvelopeFollowerAttackTime(10)
 	, EnvelopeFollowerReleaseTime(100)
@@ -130,7 +131,7 @@ FActiveSound* FActiveSound::CreateVirtualCopy(const FActiveSound& InActiveSoundT
 	ActiveSound->bIsPlayingAudio = false;
 
 	ActiveSound->AudioDevice = &InAudioDevice;
-
+	ActiveSound->PlaybackTimeNonVirtualized = 0.0f;
 	ActiveSound->VolumeConcurrency = 1.0f;
 
 	ActiveSound->ConcurrencyGroupData.Reset();
@@ -458,12 +459,24 @@ bool FActiveSound::GetConcurrencyFadeDuration(float& OutFadeDuration) const
 	GetConcurrencyHandles(Handles);
 	for (FConcurrencyHandle& Handle : Handles)
 	{
+		// StopQuietest can spam if a looping ActiveSound isn't active longer than a virtualization update period, which
+		// can happen when a concurrency group is maxed and constantly evicting.  If the voice steal fade time is particularly
+		// long, this can flood the active sound count. Therefore, only use the voice steal fade time if the sound has been
+		// active for a sufficient period of time.
+		const bool bStopQuietest = Handle.Settings.ResolutionRule == EMaxConcurrentResolutionRule::StopQuietest;
+		if (bStopQuietest && IsLooping() && FMath::IsNearlyZero(PlaybackTimeNonVirtualized, 0.1f))
+		{
+			OutFadeDuration = 0.0f;
+			return false;
+		}
+
 		OutFadeDuration = OutFadeDuration < 0.0f
 			? Handle.Settings.VoiceStealReleaseTime
 			: FMath::Min(Handle.Settings.VoiceStealReleaseTime, OutFadeDuration);
 	}
 
-	if (OutFadeDuration < 0.0f)
+	// Negative if no handles are found, so return no fade required.
+	if (OutFadeDuration <= 0.0f)
 	{
 		OutFadeDuration = 0.0f;
 		return false;
@@ -627,7 +640,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 			{
 				check(WaveInstance);
 
-				const float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation();
+				float WaveInstanceVolume = WaveInstance->GetVolumeWithDistanceAttenuation();
 				if (WaveInstanceVolume > VolumeConcurrency)
 				{
 					VolumeConcurrency = WaveInstanceVolume;
@@ -710,7 +723,7 @@ void FActiveSound::UpdateWaveInstances(TArray<FWaveInstance*> &InWaveInstances, 
 	{
 		DebugColor = FColor::MakeRandomColor();
 	}
-	FAudioDebugger::DrawDebugInfo(*this, ThisSoundsWaveInstances);
+	FAudioDebugger::DrawDebugInfo(*this, ThisSoundsWaveInstances, DeltaTime);
 #endif // ENABLE_AUDIO_DEBUG
 
 	InWaveInstances.Append(ThisSoundsWaveInstances);
