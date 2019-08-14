@@ -2871,12 +2871,15 @@ class COREUOBJECT_API UDynamicClass : public UClass
 
 public:
 
+	typedef void (*DynamicClassInitializerType)	(UDynamicClass*);
+
 	UDynamicClass(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 	explicit UDynamicClass(const FObjectInitializer& ObjectInitializer, UClass* InSuperClass);
 	UDynamicClass(EStaticConstructor, FName InName, uint32 InSize, uint32 InAlignment, EClassFlags InClassFlags, EClassCastFlags InClassCastFlags,
 		const TCHAR* InClassConfigName, EObjectFlags InFlags, ClassConstructorType InClassConstructor,
 		ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-		ClassAddReferencedObjectsType InClassAddReferencedObjects);
+		ClassAddReferencedObjectsType InClassAddReferencedObjects,
+		DynamicClassInitializerType InDynamicClassInitializer);
 
 	// UObject interface.
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
@@ -2905,6 +2908,8 @@ public:
 
 	/** IAnimClassInterface (UAnimClassData) or null */
 	UObject* AnimClassImplementation;
+
+	DynamicClassInitializerType DynamicClassInitializer;
 };
 
 /**
@@ -2968,7 +2973,8 @@ COREUOBJECT_API void GetPrivateStaticClassBody(
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic = false);
+	bool bIsDynamic = false,
+	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializer = nullptr);
 
 /*-----------------------------------------------------------------------------
 	FObjectInstancingGraph.

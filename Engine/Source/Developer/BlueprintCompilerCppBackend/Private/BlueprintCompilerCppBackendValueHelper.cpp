@@ -1813,14 +1813,6 @@ void FEmitDefaultValueHelper::GenerateConstructor(FEmitterLocalContext& Context)
 		Context.AddLine(TEXT("{"));
 		Context.IncreaseIndent();
 
-		// Call CustomDynamicClassInitialization
-		Context.AddLine(FString::Printf(TEXT("if(HasAnyFlags(RF_ClassDefaultObject) && (%s::StaticClass() == GetClass()))"), *CppClassName));
-		Context.AddLine(TEXT("{"));
-		Context.IncreaseIndent();
-		Context.AddLine(FString::Printf(TEXT("%s::__CustomDynamicClassInitialization(CastChecked<UDynamicClass>(GetClass()));"), *CppClassName));
-		Context.DecreaseIndent();
-		Context.AddLine(TEXT("}"));
-
 		// Subobjects that must be fixed after serialization
 		TArray<FDefaultSubobjectData> SubobjectsToInit;
 		TArray<FNonNativeComponentData> ComponentsToInit;

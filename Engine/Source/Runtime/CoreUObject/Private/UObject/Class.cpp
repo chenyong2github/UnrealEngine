@@ -3137,6 +3137,13 @@ UObject* UClass::CreateDefaultObject()
 					USparseDelegateFunction* SparseDelegateFunction = CastChecked<USparseDelegateFunction>(SparseDelegateIt->SignatureFunction);
 					FSparseDelegateStorage::RegisterDelegateOffset(ClassDefaultObject, SparseDelegateFunction->DelegateName, (size_t)&SparseDelegate - (size_t)ClassDefaultObject);
 				}
+				if (HasAnyClassFlags(CLASS_CompiledFromBlueprint))
+				{
+					if (UDynamicClass* DynamicClass = Cast<UDynamicClass>(this))
+					{
+						(*(DynamicClass->DynamicClassInitializer))(DynamicClass);
+					}
+				}
 				(*ClassConstructor)(FObjectInitializer(ClassDefaultObject, ParentDefaultObject, false, bShouldInitializeProperties));
 				if (bDoNotify)
 				{
@@ -4612,7 +4619,8 @@ void GetPrivateStaticClassBody(
 	UClass::ClassAddReferencedObjectsType InClassAddReferencedObjects,
 	UClass::StaticClassFunctionType InSuperClassFn,
 	UClass::StaticClassFunctionType InWithinClassFn,
-	bool bIsDynamic /*= false*/
+	bool bIsDynamic /*= false*/,
+	UDynamicClass::DynamicClassInitializerType InDynamicClassInitializerFn /*= nullptr*/
 	)
 {
 #if WITH_HOT_RELOAD
@@ -4690,7 +4698,8 @@ void GetPrivateStaticClassBody(
 			EObjectFlags(RF_Public | RF_Standalone | RF_Transient | RF_Dynamic | (GIsInitialLoad ? RF_MarkAsRootSet : RF_NoFlags)),
 			InClassConstructor,
 			InClassVTableHelperCtorCaller,
-			InClassAddReferencedObjects
+			InClassAddReferencedObjects,
+			InDynamicClassInitializerFn
 			);
 		check(ReturnClass);
 	}
@@ -5277,7 +5286,8 @@ UDynamicClass::UDynamicClass(
 	EObjectFlags	InFlags,
 	ClassConstructorType InClassConstructor,
 	ClassVTableHelperCtorCallerType InClassVTableHelperCtorCaller,
-	ClassAddReferencedObjectsType InClassAddReferencedObjects)
+	ClassAddReferencedObjectsType InClassAddReferencedObjects,
+	DynamicClassInitializerType InDynamicClassInitializer)
 : UClass(
   EC_StaticConstructor
 , InName
@@ -5291,6 +5301,7 @@ UDynamicClass::UDynamicClass(
 , InClassVTableHelperCtorCaller
 , InClassAddReferencedObjects)
 , AnimClassImplementation(nullptr)
+, DynamicClassInitializer(InDynamicClassInitializer)
 {
 }
 
