@@ -7,3 +7,13 @@ UNiagaraScriptVariable::UNiagaraScriptVariable(const FObjectInitializer& ObjectI
 {
 	
 }
+
+void UNiagaraScriptVariable::PostLoad()
+{
+	Super::PostLoad();
+
+	if (GIsEditor)
+	{
+		SetFlags(RF_Transactional);
+	}
+}
