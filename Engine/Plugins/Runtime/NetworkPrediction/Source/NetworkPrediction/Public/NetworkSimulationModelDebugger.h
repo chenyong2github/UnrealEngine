@@ -329,6 +329,8 @@ private:
 template <typename TNetSimModel, typename TDriver>
 struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 {
+	using TSimTime = typename TNetSimModel::TSimTime;
+
 	TNetworkSimulationModelDebugger(TNetSimModel* InNetSim, TDriver* InDriver, AActor* OwningActor, FString InDebugName)
 	{
 		NetworkSim = InNetSim;
@@ -365,16 +367,17 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			const int32 LastSerializedKeyframe = NetworkSim->RepProxy_Autonomous.GetLastSerializedKeyframe();
 
 			// Calc how much predicted time we have processed. Note that we use the motionstate buffer to iterate but the MS is on the input cmd. (if we are buffering cmds, don't want to count them)
-			float PredictedMS = 0.f;
+			
+			TSimTime PredictedMS;
 			for (int32 PredKeyrame = LastSerializedKeyframe+1; PredKeyrame <= NetworkSim->Buffers.Sync.GetHeadKeyframe(); ++PredKeyrame)
 			{
 				if (auto* Cmd = NetworkSim->Buffers.Input.FindElementByKeyframe(PredKeyrame))
 				{
-					PredictedMS += Cmd->FrameDeltaTime * 1000.f;
+					PredictedMS += Cmd->GetFrameDeltaTime();
 				}
 			}
 
-			FString ConfirmedFrameStr = FString::Printf(TEXT("LastConfirmedFrame: %d. Prediction: %d Frames, %.2f MS"), LastSerializedKeyframe, NetworkSim->Buffers.Sync.GetHeadKeyframe() - LastSerializedKeyframe, PredictedMS);
+			FString ConfirmedFrameStr = FString::Printf(TEXT("LastConfirmedFrame: %d. Prediction: %d Frames, %s MS"), LastSerializedKeyframe, NetworkSim->Buffers.Sync.GetHeadKeyframe() - LastSerializedKeyframe, *PredictedMS.ToString());
 			if (FaultDetected)
 			{
 				ConfirmedFrameStr += TEXT(" RECONCILE FAULT DETECTED!");
@@ -383,8 +386,8 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 			Out.Emit(*ConfirmedFrameStr, Color);
 
-			FString SimulationTimeString = FString::Printf(TEXT("Local SimulationTime: %s. SerialisedSimulationTime: %s. Difference MS: %s"), *NetworkSim->TickInfo.ProcessedSimulationTime.ToString(),
-				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimulationTimeKeeper().ToString(), *(NetworkSim->TickInfo.ProcessedSimulationTime - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimulationTimeKeeper()).ToString());
+			FString SimulationTimeString = FString::Printf(TEXT("Local SimulationTime: %s. SerialisedSimulationTime: %s. Difference MS: %s"), *NetworkSim->TickInfo.TotalProcessedSimulationTime.ToString(),
+				*NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime().ToString(), *(NetworkSim->TickInfo.TotalProcessedSimulationTime - NetworkSim->RepProxy_Autonomous.GetLastSerializedSimTime()).ToString());
 			Out.Emit(*SimulationTimeString, Color);
 			
 		}
@@ -433,10 +436,10 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 			float MinHeight = TextSizing.DrawYL;
 			static float MinHeightMS = 1/60.f * 1000.f;	// 60hz frame is drawn at MinHeight.
 
-			auto CalcHeight = [&](float MS)
+			auto CalcHeight = [&](TSimTime MS)
 			{
 				const float Ratio = MinHeight / MinHeightMS;
-				return MS * Ratio;
+				return MS.ToRealTimeSeconds() * Ratio;
 			};
 
 			for (auto It = DebugBuffer->CreateIterator(); It; ++It)
@@ -452,7 +455,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				Out.EmitQuad(FVector2D( ScreenX, ScreenY), FVector2D( ScreenWidth, ServerHeight), Color);
 				Out.EmitText(FVector2D( ScreenX, ScreenY), FColor::Black, FString::Printf(TEXT("%.2f"), (DebugState->LocalDeltaTimeSeconds * 1000.f)));
 
-				float ClientSimTime = 0.f;
+				TSimTime ClientSimTime;
 				float ClientX = ScreenX;
 				float ClientY = ScreenY - ClientOffsetY;
 				for (int32 Keyframe : DebugState->ProcessedKeyframes)
@@ -460,10 +463,10 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 					auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe);
 					if (Cmd)
 					{
-						ClientSimTime += Cmd->FrameDeltaTime * 1000.f;
+						ClientSimTime += Cmd->GetFrameDeltaTime();
 						
 						float ClientSizeX = MinWidth;
-						float ClientSizeY =  CalcHeight(Cmd->FrameDeltaTime * 1000.f);
+						float ClientSizeY =  CalcHeight(Cmd->GetFrameDeltaTime());
 
 						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
 						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Blue);
@@ -477,7 +480,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 					if (auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe))
 					{
 						float ClientSizeX = MinWidth;
-						float ClientSizeY = CalcHeight(Cmd->FrameDeltaTime * 1000.f);
+						float ClientSizeY = CalcHeight(Cmd->GetFrameDeltaTime());
 						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
 						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Red);
 						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));

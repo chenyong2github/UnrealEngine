@@ -35,13 +35,6 @@ public:
 	virtual void InitializeComponent() override;
 	virtual void PreReplication(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
 	virtual void PreNetReceive() override;
-
-	// PreSimulationTick callback.
-	// Called right in ::TickComponent for autonomous proxies. This is optional and intended to be a convencience for generating local input.
-	// If you don't use this function, you should manually be submitting client input prior to simulation tick (via GetNextClientInputCmdForWrite).
-	// (It is important to submit input prior to ticking the sim. If you get it backwards, you introduce local latency and cause problems with variable time steps).
-	DECLARE_DELEGATE_OneParam(FPreSimTickDelegate, float /* DeltaSeconds */)
-	void SetLocallyControlledPreTick(const FPreSimTickDelegate& PreSimTick) { PreTickLocallyControlledSim = PreSimTick; }
 	
 	virtual void Reconcile() { }
 	virtual void TickSimulation(float DeltaTimeSeconds) { }
@@ -76,8 +69,6 @@ protected:
 	FReplicationProxy ReplicationProxy_ServerRPC;
 
 private:
-
-	FPreSimTickDelegate PreTickLocallyControlledSim;
 
 	UPROPERTY(Replicated, transient)
 	FReplicationProxy ReplicationProxy_Autonomous;
