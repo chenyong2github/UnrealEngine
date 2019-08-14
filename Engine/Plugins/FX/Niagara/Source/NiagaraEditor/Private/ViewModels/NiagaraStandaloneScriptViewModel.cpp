@@ -4,19 +4,22 @@
 #include "NiagaraMessageManager.h"
 
 FNiagaraStandaloneScriptViewModel::FNiagaraStandaloneScriptViewModel(
-	UNiagaraScript* InScript
-	, FText DisplayName
-	, ENiagaraParameterEditMode InParameterEditMode
-	, TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel
-	, UNiagaraScript* InSourceScript
-	, const FGuid& InSourceScriptObjKey
-	)
-	: FNiagaraScriptViewModel(InScript, DisplayName, InParameterEditMode)
+	FText DisplayName,
+	ENiagaraParameterEditMode InParameterEditMode,
+	TSharedPtr<FNiagaraMessageLogViewModel> InNiagaraMessageLogViewModel,
+	const FGuid& InSourceScriptObjKey
+)
+	: FNiagaraScriptViewModel(DisplayName, InParameterEditMode)
 	, NiagaraMessageLogViewModel(InNiagaraMessageLogViewModel)
-	, SourceScript(InSourceScript)
 	, ScriptMessageLogGuidKey(InSourceScriptObjKey)
 {
-	SendLastCompileMessageJobs(InSourceScript);
+}
+
+void FNiagaraStandaloneScriptViewModel::Initialize(UNiagaraScript* InScript, UNiagaraScript* InSourceScript)
+{
+	SetScript(InScript);
+	SourceScript = InSourceScript;
+	SendLastCompileMessageJobs(SourceScript);
 }
 
 void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScript)
@@ -25,14 +28,14 @@ void FNiagaraStandaloneScriptViewModel::OnVMScriptCompiled(UNiagaraScript* InScr
 	SendLastCompileMessageJobs(InScript);
 }
 
-void FNiagaraStandaloneScriptViewModel::SendLastCompileMessageJobs(UNiagaraScript* InScript)
+void FNiagaraStandaloneScriptViewModel::SendLastCompileMessageJobs(const UNiagaraScript* InScript)
 {
 	int32 ErrorCount = 0;
 	int32 WarningCount = 0;
 
 	TArray<TSharedPtr<const INiagaraMessageJob>> JobBatchToQueue;
 
-	TArray<FNiagaraCompileEvent>& CurrentCompileEvents = InScript->GetVMExecutableData().LastCompileEvents;
+	const TArray<FNiagaraCompileEvent>& CurrentCompileEvents = InScript->GetVMExecutableData().LastCompileEvents;
 
 	// Iterate from back to front to avoid reordering the events when they are queued
 	for (int i = CurrentCompileEvents.Num() - 1; i >= 0; --i)

@@ -17,17 +17,6 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptGraphViewModel"
 
-FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(UNiagaraScriptSource* InScriptSrc, FText InDisplayName)
-	: ScriptSource(InScriptSrc)
-	, DisplayName(InDisplayName)
-	, Commands(MakeShareable(new FUICommandList()))
-	, NodeSelection(MakeShareable(new FNiagaraObjectSelection()))
-{
-	SetupCommands();
-	GEditor->RegisterForUndo(this);
-	ErrorColor = FEditorStyle::GetColor("ErrorReporting.BackgroundColor");
-}
-
 FNiagaraScriptGraphViewModel::FNiagaraScriptGraphViewModel(FText InDisplayName)
 	: DisplayName(InDisplayName)
 	, Commands(MakeShareable(new FUICommandList()))
