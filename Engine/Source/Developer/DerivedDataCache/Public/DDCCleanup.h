@@ -48,10 +48,7 @@ class DERIVEDDATACACHE_API FDDCCleanup : public FRunnable
 	//~ End FRunnable Interface
 
 	/** Checks if there's been any Stop requests */
-	FORCEINLINE bool ShouldStop() const
-	{
-		return StopTaskCounter.GetValue() > 0;
-	}
+	bool ShouldStop() const;
 
 	/**
 	 * Waits for a given amount of time periodically checking if there's been any Stop requests.

@@ -123,6 +123,11 @@ uint32 FDDCCleanup::Run()
 	return 0;
 }
 
+bool FDDCCleanup::ShouldStop() const
+{
+	return StopTaskCounter.GetValue() > 0 || GIsRequestingExit;
+}
+
 bool FDDCCleanup::CleanupFilesystemDirectory( TSharedPtr< FFilesystemInfo > FilesystemInfo )
 {
 	bool bCleanedUp = false;
