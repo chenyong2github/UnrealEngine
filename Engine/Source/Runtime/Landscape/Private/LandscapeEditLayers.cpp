@@ -4582,7 +4582,7 @@ bool ALandscape::UpdateCollisionAndClients(const TArray<ULandscapeComponent*>& I
 				if (ULandscapeHeightfieldCollisionComponent* CollisionComp = LandscapeComponent->CollisionComponent.Get())
 				{
 					FNavigationSystem::UpdateComponentData(*CollisionComp);
-					//CollisionComp->SnapFoliageInstances();
+					CollisionComp->SnapFoliageInstances();
 				}
 			}
 			else
