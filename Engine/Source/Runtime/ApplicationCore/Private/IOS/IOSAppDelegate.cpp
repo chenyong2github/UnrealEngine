@@ -399,7 +399,11 @@ static IOSAppDelegate* CachedDelegate = nil;
 
 -(void)RecordPeakMemory
 {
-    FIOSPlatformMemory::GetStats();
+    FPlatformMemoryStats MemoryStats = FIOSPlatformMemory::GetStats();
+
+#if ENABLE_LOW_LEVEL_MEM_TRACKER
+	FLowLevelMemTracker::Get().SetTagAmountForTracker(ELLMTracker::Platform, ELLMTag::PlatformVM, MemoryStats.UsedVirtual, false);
+#endif
 }
 
 -(void)InitIdleTimerSettings
