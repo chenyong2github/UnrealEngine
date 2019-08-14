@@ -30,6 +30,9 @@ public:
 	/** Initializes the emitter editor view model with the supplied emitter handle and simulation.*/
 	void Initialize(TSharedRef<FNiagaraSystemViewModel> InOwningSystemViewModel, FNiagaraEmitterHandle* InEmitterHandle, TWeakPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> InSimulation);
 
+	/** Returns whether or not this view model represents a valid emitter handle. */
+	bool IsValid() const;
+
 	/** Resets the data in the view model. */
 	void Reset();
 

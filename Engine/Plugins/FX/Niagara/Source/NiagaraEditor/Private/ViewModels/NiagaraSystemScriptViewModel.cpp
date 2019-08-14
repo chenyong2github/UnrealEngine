@@ -22,41 +22,29 @@
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 
-FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel(UNiagaraSystem& InSystem, FNiagaraSystemViewModel* InParent)
-	: FNiagaraScriptViewModel(InSystem.GetSystemSpawnScript(), NSLOCTEXT("SystemScriptViewModel", "GraphName", "System"), ENiagaraParameterEditMode::EditAll)
-	, Parent(InParent)
-	, System(InSystem)
+FNiagaraSystemScriptViewModel::FNiagaraSystemScriptViewModel()
+	: FNiagaraScriptViewModel(NSLOCTEXT("SystemScriptViewModel", "GraphName", "System"), ENiagaraParameterEditMode::EditAll)
 {
-	Scripts.Add(InSystem.GetSystemUpdateScript());
+}
 
-	if (GetGraphViewModel()->GetGraph())
-	{
-		OnGraphChangedHandle = GetGraphViewModel()->GetGraph()->AddOnGraphChangedHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemScriptViewModel::OnGraphChanged));
-
-		OnRecompileHandle = GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraSystemScriptViewModel::OnGraphChanged));
-		
-		GetGraphViewModel()->SetErrorTextToolTip("");
-	}
-
-	System.OnSystemCompiled().AddRaw(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
+void FNiagaraSystemScriptViewModel::Initialize(UNiagaraSystem& InSystem)
+{
+	System = &InSystem;
+	SetScript(System->GetSystemSpawnScript());
+	System->OnSystemCompiled().AddSP(this, &FNiagaraSystemScriptViewModel::OnSystemVMCompiled);
 }
 
 FNiagaraSystemScriptViewModel::~FNiagaraSystemScriptViewModel()
 {
-	System.OnSystemCompiled().RemoveAll(this);
-	if (GetGraphViewModel()->GetGraph())
+	if (System.IsValid())
 	{
-		GetGraphViewModel()->GetGraph()->RemoveOnGraphChangedHandler(OnGraphChangedHandle);
-		GetGraphViewModel()->GetGraph()->RemoveOnGraphNeedsRecompileHandler(OnRecompileHandle);
-		
+		System->OnSystemCompiled().RemoveAll(this);
 	}
 }
 
 void FNiagaraSystemScriptViewModel::OnSystemVMCompiled(UNiagaraSystem* InSystem)
 {
-	if (InSystem != &System)
+	if (InSystem != System.Get())
 	{
 		return;
 	}
@@ -130,13 +118,5 @@ FNiagaraSystemScriptViewModel::FOnSystemCompiled& FNiagaraSystemScriptViewModel:
 
 void FNiagaraSystemScriptViewModel::CompileSystem(bool bForce)
 {
-	System.RequestCompile(bForce);
-}
-
-void FNiagaraSystemScriptViewModel::OnGraphChanged(const struct FEdGraphEditAction& InAction)
-{
-	if (InAction.Action == GRAPHACTION_SelectNode)
-	{
-		return;
-	}
+	System->RequestCompile(bForce);
 }

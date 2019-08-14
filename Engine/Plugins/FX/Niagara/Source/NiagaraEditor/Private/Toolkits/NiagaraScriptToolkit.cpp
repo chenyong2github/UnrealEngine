@@ -147,7 +147,8 @@ void FNiagaraScriptToolkit::Initialize( const EToolkitMode::Type Mode, const TSh
 	const FGuid MessageLogGuidKey = FGuid::NewGuid();
 	NiagaraMessageLogViewModel = MakeShared<FNiagaraMessageLogViewModel>(GetNiagaraScriptMessageLogName(EditedNiagaraScript), MessageLogGuidKey, NiagaraMessageLog);
 
-	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(EditedNiagaraScript, DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, OriginalNiagaraScript, MessageLogGuidKey));
+	ScriptViewModel = MakeShareable(new FNiagaraStandaloneScriptViewModel(DisplayName, ENiagaraParameterEditMode::EditAll, NiagaraMessageLogViewModel, MessageLogGuidKey));
+	ScriptViewModel->Initialize(EditedNiagaraScript, OriginalNiagaraScript);
 
 	OnEditedScriptGraphChangedHandle = ScriptViewModel->GetGraphViewModel()->GetGraph()->AddOnGraphNeedsRecompileHandler(
 		FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptToolkit::OnEditedScriptGraphChanged));
@@ -698,7 +699,8 @@ void FNiagaraScriptToolkit::UpdateOriginalNiagaraScript()
 			TSharedPtr<FNiagaraScriptViewModel> AffectedScriptViewModel = FNiagaraScriptViewModel::GetExistingViewModelForObject(Script);
 			if (!AffectedScriptViewModel.IsValid())
 			{
-				AffectedScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(Script, FText::FromString(Script->GetName()), ENiagaraParameterEditMode::EditValueOnly));
+				AffectedScriptViewModel = MakeShareable(new FNiagaraScriptViewModel(FText::FromString(Script->GetName()), ENiagaraParameterEditMode::EditValueOnly));
+				AffectedScriptViewModel->SetScript(Script);
 			}
 			AffectedScriptViewModel->CompileStandaloneScript();
 		}
