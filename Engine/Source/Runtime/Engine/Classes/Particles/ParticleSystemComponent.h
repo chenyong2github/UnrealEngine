@@ -383,6 +383,17 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
 	virtual void SetAutoAttachmentParameters(USceneComponent* Parent, FName SocketName, EAttachmentRule LocationRule, EAttachmentRule RotationRule, EAttachmentRule ScaleRule) {}
+
+	/**
+	 * Deactivates this system and releases it to the pool on completion.
+	 * Usage of this PSC reference after this call is unsafe.
+	 * You should clear out your references to it.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
+	virtual void ReleaseToPool() {}
+
+	/** Returns an approximate memory usage value for this component. */
+	virtual uint32 GetApproxMemoryUsage() const { return 0; }
 };
 
 
@@ -1168,6 +1179,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
 	void EndTrails();
 
+	void ReleaseToPool() override;
+
 	/**
 	* Sets the defining data for all trails in this component.
 	*
@@ -1178,14 +1191,6 @@ public:
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Effects|Particles|Trails")
 	void SetTrailSourceData(FName InFirstSocketName, FName InSecondSocketName, ETrailWidthMode InWidthMode, float InWidth);
-
-	/** 
-	 * Deactivates this system and releases it to the pool on completion.
-	 * Usage of this PSC reference after this call is unsafe. 
-	 * You should clear out your references to it.
-	 */
-	UFUNCTION(BlueprintCallable, Category = "Effects|Components|ParticleSystem")
-	void ReleaseToPool();
 
 public:
 	/** Command fence used to shut down properly */
@@ -1372,7 +1377,7 @@ public:
 	virtual FName GetNameForMaterial(UMaterialInterface* InMaterial) const;
 
 	/** Returns an approximate memory usage value for this component. */
-	uint32 GetApproxMemoryUsage()const;
+	uint32 GetApproxMemoryUsage() const override;
 
 protected:
 
