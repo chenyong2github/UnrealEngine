@@ -35,15 +35,7 @@ ANetworkPredictionExtrasFlyingPawn::ANetworkPredictionExtrasFlyingPawn()
 	
 	if (HasAnyFlags(RF_ClassDefaultObject) == false)
 	{
-		// Setup callback for generating local input. There is some nuance here. This is the order we want things to happen for a locally controlled actor:
-		//	1. Create local input (the lambda below)
-		//	2. Tick the network sim (called by UFlyingMovementComponent::TickComponent). This wants the latest input (important the user cmd has the same DeltaTime as the current frame!)
-		//  3. Tick this actor (ANetworkPredictionExtrasFlyingPawn::Tick). This wants the latest movement state (computed in step #2).
-		//
-		// The ::SetLocallyControlledPreTick isn't strictly necessary. A player controller or some other object could tick first, submit the input, then let the sim tick and this actor tick.
-		// But for this simple example, its clearer to contain everything here. The delegate is just a helper to save you from dealing with tick graph prereq headaches.
-
-		FlyingMovementComponent->SetLocallyControlledPreTick(UNetworkPredictionComponent::FPreSimTickDelegate::CreateUObject(this, &ThisClass::GenerateLocalInput));
+		FlyingMovementComponent->ProduceInputDelegate.BindUObject(this, &ANetworkPredictionExtrasFlyingPawn::ProduceInput);
 
 		// Binds 0 and 9 to the debug hud commands. This is just a convenience for the extras plugin. Real projects should bind this themselves
 		if (FlyingPawnCVars::BindAutomatically > 0)
@@ -143,7 +135,7 @@ void ANetworkPredictionExtrasFlyingPawn::Tick( float DeltaSeconds)
 	// Do whatever you want here. By now we have the latest movement state and latest input processed.
 }
 
-void ANetworkPredictionExtrasFlyingPawn::GenerateLocalInput(float DeltaSeconds)
+void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd)
 {
 	// Generate user commands. Called right before the flying movement simulation will tick (for a locally controlled pawn)
 	// This isn't meant to be the best way of doing a camera system. It is just meant to show a couple of ways it may be done
@@ -158,164 +150,164 @@ void ANetworkPredictionExtrasFlyingPawn::GenerateLocalInput(float DeltaSeconds)
 	// targeting systems to happen /outside/ of the system, i.e, here. But I can think of scenarios where that may not be ideal too.
 
 	check(Controller);
-	if (FlyingMovement::FInputCmd* NextCmd = FlyingMovementComponent->GetNextClientInputCmdForWrite(DeltaSeconds))
+	
+	if (USpringArmComponent* SpringComp = FindComponentByClass<USpringArmComponent>())
 	{
-		if (USpringArmComponent* SpringComp = FindComponentByClass<USpringArmComponent>())
+		// This is not best practice: do not search for component every frame
+		SpringComp->bUsePawnControlRotation = true;
+	}
+
+	// Simple input scaling. A real game will probably map this to an acceleration curve
+	static float LookRateYaw = 150.f;
+	static float LookRatePitch = 150.f;
+
+	static float ControllerLookRateYaw = 1.5f;
+	static float ControllerLookRatePitch = 1.5f;
+
+	// Zero out input structs in case each path doesnt set each member. This is really all we are filling out here.
+	Cmd.MovementInput = FVector::ZeroVector;
+	Cmd.RotationInput = FRotator::ZeroRotator;
+
+	const float DeltaTimeSeconds = SimFrameTime.ToRealTimeSeconds();
+
+	switch (FlyingPawnCVars::CameraStyle)
+	{
+		case 0:
 		{
-			// This is not best practice: do not search for component every frame
-			SpringComp->bUsePawnControlRotation = true;
-		}
-
-		// Simple input scaling. A real game will probably map this to an acceleration curve
-		static float LookRateYaw = 150.f;
-		static float LookRatePitch = 150.f;
-
-		static float ControllerLookRateYaw = 1.5f;
-		static float ControllerLookRatePitch = 1.5f;
-
-		// Zero out input structs in case each path doesnt set each member. This is really all we are filling out here.
-		NextCmd->MovementInput = FVector::ZeroVector;
-		NextCmd->RotationInput = FRotator::ZeroRotator;
-
-		switch (FlyingPawnCVars::CameraStyle)
-		{
-			case 0:
+			// Fixed camera
+			if (USpringArmComponent* SpringComp = FindComponentByClass<USpringArmComponent>())
 			{
-				// Fixed camera
-				if (USpringArmComponent* SpringComp = FindComponentByClass<USpringArmComponent>())
-				{
-					// Only this camera mode has to set this to false
-					SpringComp->bUsePawnControlRotation = false;
-				}
+				// Only this camera mode has to set this to false
+				SpringComp->bUsePawnControlRotation = false;
+			}
 
-				NextCmd->RotationInput.Yaw = CachedLookInput.X * LookRateYaw;
-				NextCmd->RotationInput.Pitch = CachedLookInput.Y * LookRatePitch;
-				NextCmd->RotationInput.Roll = 0;
+			Cmd.RotationInput.Yaw = CachedLookInput.X * LookRateYaw;
+			Cmd.RotationInput.Pitch = CachedLookInput.Y * LookRatePitch;
+			Cmd.RotationInput.Roll = 0;
 					
-				NextCmd->MovementInput = CachedMoveInput;
-				break;
-			}
-			case 1:
-			{
-				// Free camera Restricted 2D movement on XY plane.
-				APlayerController* PC = Cast<APlayerController>(Controller);
-				if (ensure(PC)) // Requires player controller for now
-				{
-					// Camera yaw rotation
-					PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
-					PC->AddPitchInput(CachedLookInput.Y * ControllerLookRatePitch );
-
-					static float RotationMagMin = (1e-3);
-						
-					float RotationInputYaw = 0.f;
-					if (CachedMoveInput.Size() >= RotationMagMin)
-					{
-						FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
-
-						// 2D xy movement, relative to camera
-						{
-							FVector DesiredMoveDir2D = FVector(DesiredMovementDir.X, DesiredMovementDir.Y, 0.f);
-							DesiredMoveDir2D.Normalize();
-
-							const float DesiredYaw = DesiredMoveDir2D.Rotation().Yaw;
-							const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
-							NextCmd->RotationInput.Yaw = DeltaYaw / NextCmd->FrameDeltaTime;
-						}
-					}
-
-					NextCmd->MovementInput = FVector(FMath::Clamp<float>( CachedMoveInput.Size2D(), -1.f, 1.f ), 0.0f, CachedMoveInput.Z);
-				}
-				break;
-			}
-			case 2:
-			{
-				// Free camera on yaw and pitch, camera-relative movement.
-				APlayerController* PC = Cast<APlayerController>(Controller);
-				if (ensure(PC)) // Requires player controller for now
-				{
-					// Camera yaw rotation
-					PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
-					PC->AddPitchInput(CachedLookInput.Y * ControllerLookRatePitch );
-
-					// Rotational movement: orientate us towards our camera-relative desired velocity (unless we are upside down, then flip it)
-					static float RotationMagMin = (1e-3);
-					const float MoveInputMag = CachedMoveInput.Size();
-						
-					float RotationInputYaw = 0.f;
-					float RotationInputPitch = 0.f;
-					float RotationInputRoll = 0.f;
-
-					if (MoveInputMag >= RotationMagMin)
-					{								
-						FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
-
-						const float DesiredYaw = DesiredMovementDir.Rotation().Yaw;
-						const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
-
-						const float DesiredPitch = DesiredMovementDir.Rotation().Pitch;
-						const float DeltaPitch = DesiredPitch - GetActorRotation().Pitch;
-
-						const float DesiredRoll = DesiredMovementDir.Rotation().Roll;
-						const float DeltaRoll = DesiredRoll - GetActorRotation().Roll;
-
-						// Kind of gross but because we want "instant" turning we must factor in delta time so that it gets factored out inside the simulation
-						RotationInputYaw = DeltaYaw / NextCmd->FrameDeltaTime;
-						RotationInputPitch = DeltaPitch / NextCmd->FrameDeltaTime;
-						RotationInputRoll = DeltaRoll / NextCmd->FrameDeltaTime;
-								
-					}
-
-					NextCmd->RotationInput.Yaw = RotationInputYaw;
-					NextCmd->RotationInput.Pitch = RotationInputPitch;
-					NextCmd->RotationInput.Roll = RotationInputRoll;
-						
-					NextCmd->MovementInput = FVector(FMath::Clamp<float>( MoveInputMag, -1.f, 1.f ), 0.0f, 0.0f); // Not the best way but simple
-				}
-				break;
-			}
-			case 3:
-			{
-				// Free camera on the yaw, camera-relative motion
-				APlayerController* PC = Cast<APlayerController>(Controller);
-				if (ensure(PC)) // Requires player controller for now
-				{
-					// Camera yaw rotation
-					PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
-
-					// Rotational movement: orientate us towards our camera-relative desired velocity (unless we are upside down, then flip it)
-					static float RotationMagMin = (1e-3);
-					const float MoveInputMag = CachedMoveInput.Size2D();
-						
-					float RotationInputYaw = 0.f;
-					if (MoveInputMag >= RotationMagMin)
-					{
-						FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
-
-						const bool bIsUpsideDown = FVector::DotProduct(FVector(0.f, 0.f, 1.f), GetActorQuat().GetUpVector() ) < 0.f;
-						if (bIsUpsideDown)
-						{
-							DesiredMovementDir *= -1.f;
-						}							
-
-						const float DesiredYaw = DesiredMovementDir.Rotation().Yaw;
-						const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
-
-						// Kind of gross but because we want "instant" turning we must factor in delta time so that it gets factored out inside the simulation
-						RotationInputYaw = DeltaYaw / NextCmd->FrameDeltaTime;
-					}
-
-					NextCmd->RotationInput.Yaw = RotationInputYaw;
-					NextCmd->RotationInput.Pitch = CachedLookInput.Y * LookRatePitch; // Just pitch like normal
-					NextCmd->RotationInput.Roll = 0;
-						
-					NextCmd->MovementInput = FVector(FMath::Clamp<float>( MoveInputMag, -1.f, 1.f ), 0.0f, CachedMoveInput.Z); // Not the best way but simple
-				}
-				break;
-			}
+			Cmd.MovementInput = CachedMoveInput;
+			break;
 		}
+		case 1:
+		{
+			// Free camera Restricted 2D movement on XY plane.
+			APlayerController* PC = Cast<APlayerController>(Controller);
+			if (ensure(PC)) // Requires player controller for now
+			{
+				// Camera yaw rotation
+				PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
+				PC->AddPitchInput(CachedLookInput.Y * ControllerLookRatePitch );
+
+				static float RotationMagMin = (1e-3);
+						
+				float RotationInputYaw = 0.f;
+				if (CachedMoveInput.Size() >= RotationMagMin)
+				{
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+
+					// 2D xy movement, relative to camera
+					{
+						FVector DesiredMoveDir2D = FVector(DesiredMovementDir.X, DesiredMovementDir.Y, 0.f);
+						DesiredMoveDir2D.Normalize();
+
+						const float DesiredYaw = DesiredMoveDir2D.Rotation().Yaw;
+						const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
+						Cmd.RotationInput.Yaw = DeltaYaw / DeltaTimeSeconds;
+					}
+				}
+
+				Cmd.MovementInput = FVector(FMath::Clamp<float>( CachedMoveInput.Size2D(), -1.f, 1.f ), 0.0f, CachedMoveInput.Z);
+			}
+			break;
+		}
+		case 2:
+		{
+			// Free camera on yaw and pitch, camera-relative movement.
+			APlayerController* PC = Cast<APlayerController>(Controller);
+			if (ensure(PC)) // Requires player controller for now
+			{
+				// Camera yaw rotation
+				PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
+				PC->AddPitchInput(CachedLookInput.Y * ControllerLookRatePitch );
+
+				// Rotational movement: orientate us towards our camera-relative desired velocity (unless we are upside down, then flip it)
+				static float RotationMagMin = (1e-3);
+				const float MoveInputMag = CachedMoveInput.Size();
+						
+				float RotationInputYaw = 0.f;
+				float RotationInputPitch = 0.f;
+				float RotationInputRoll = 0.f;
+
+				if (MoveInputMag >= RotationMagMin)
+				{								
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+
+					const float DesiredYaw = DesiredMovementDir.Rotation().Yaw;
+					const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
+
+					const float DesiredPitch = DesiredMovementDir.Rotation().Pitch;
+					const float DeltaPitch = DesiredPitch - GetActorRotation().Pitch;
+
+					const float DesiredRoll = DesiredMovementDir.Rotation().Roll;
+					const float DeltaRoll = DesiredRoll - GetActorRotation().Roll;
+
+					// Kind of gross but because we want "instant" turning we must factor in delta time so that it gets factored out inside the simulation
+					RotationInputYaw = DeltaYaw / DeltaTimeSeconds;
+					RotationInputPitch = DeltaPitch / DeltaTimeSeconds;
+					RotationInputRoll = DeltaRoll / DeltaTimeSeconds;
+								
+				}
+
+				Cmd.RotationInput.Yaw = RotationInputYaw;
+				Cmd.RotationInput.Pitch = RotationInputPitch;
+				Cmd.RotationInput.Roll = RotationInputRoll;
+						
+				Cmd.MovementInput = FVector(FMath::Clamp<float>( MoveInputMag, -1.f, 1.f ), 0.0f, 0.0f); // Not the best way but simple
+			}
+			break;
+		}
+		case 3:
+		{
+			// Free camera on the yaw, camera-relative motion
+			APlayerController* PC = Cast<APlayerController>(Controller);
+			if (ensure(PC)) // Requires player controller for now
+			{
+				// Camera yaw rotation
+				PC->AddYawInput(CachedLookInput.X * ControllerLookRateYaw );
+
+				// Rotational movement: orientate us towards our camera-relative desired velocity (unless we are upside down, then flip it)
+				static float RotationMagMin = (1e-3);
+				const float MoveInputMag = CachedMoveInput.Size2D();
+						
+				float RotationInputYaw = 0.f;
+				if (MoveInputMag >= RotationMagMin)
+				{
+					FVector DesiredMovementDir = PC->GetControlRotation().RotateVector(CachedMoveInput);
+
+					const bool bIsUpsideDown = FVector::DotProduct(FVector(0.f, 0.f, 1.f), GetActorQuat().GetUpVector() ) < 0.f;
+					if (bIsUpsideDown)
+					{
+						DesiredMovementDir *= -1.f;
+					}							
+
+					const float DesiredYaw = DesiredMovementDir.Rotation().Yaw;
+					const float DeltaYaw = DesiredYaw - GetActorRotation().Yaw;
+
+					// Kind of gross but because we want "instant" turning we must factor in delta time so that it gets factored out inside the simulation
+					RotationInputYaw = DeltaYaw / DeltaTimeSeconds;
+				}
+
+				Cmd.RotationInput.Yaw = RotationInputYaw;
+				Cmd.RotationInput.Pitch = CachedLookInput.Y * LookRatePitch; // Just pitch like normal
+				Cmd.RotationInput.Roll = 0;
+						
+				Cmd.MovementInput = FVector(FMath::Clamp<float>( MoveInputMag, -1.f, 1.f ), 0.0f, CachedMoveInput.Z); // Not the best way but simple
+			}
+			break;
+		}
+	}
 				
 
-		CachedMoveInput = FVector::ZeroVector;
-		CachedLookInput = FVector2D::ZeroVector;
-	}
+	CachedMoveInput = FVector::ZeroVector;
+	CachedLookInput = FVector2D::ZeroVector;
 }

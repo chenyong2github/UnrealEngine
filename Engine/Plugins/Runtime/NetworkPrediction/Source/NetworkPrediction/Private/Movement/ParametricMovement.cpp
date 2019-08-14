@@ -31,14 +31,14 @@ static FAutoConsoleVariableRef CVarForceNetUpdate(TEXT("parametricmover.ForceNet
 
 namespace ParametricMovement
 {
-	void FMovementSystem::Update(IMovementDriver* Driver, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
+	void FMovementSystem::Update(IMovementDriver* Driver, const TSimTime& SimeTimeDeltaMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState)
 	{
 		IBaseMovementDriver& BaseMovementDriver = Driver->GetBaseMovementDriver();
-		const float DeltaSeconds = InputCmd.FrameDeltaTime;
+		const float DeltaSeconds = SimeTimeDeltaMS.ToRealTimeSeconds();
 
 		// Advance parametric time. This won't always be linear: we could loop, rewind/bounce, etc
 		const float InputPlayRate = InputCmd.PlayRate.Get(InputState.PlayRate); // Returns InputCmds playrate if set, else returns previous state's playrate		
-		Driver->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, InputCmd.FrameDeltaTime);
+		Driver->AdvanceParametricTime(InputState.Position, InputPlayRate, OutputState.Position, OutputState.PlayRate, DeltaSeconds);
 
 		// We have our time that we should be at. We just need to move primitive component to that position.
 		// Again, note that we expect this cannot fail. We move like this so that it can push things, but we don't expect failure.
@@ -205,15 +205,6 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 
 	if (NetworkSim && OwnerRole != ROLE_None)
 	{
-		if (OwnerRole == ROLE_Authority)
-		{
-			if (ParametricMovement::FInputCmd* NextCmd = NetworkSim->GetNextInputForWrite(DeltaTimeSeconds))
-			{
-				NextCmd->PlayRate = PendingPlayRate;
-				PendingPlayRate.Reset();
-			}
-		}
-
 		ParametricMovement::FMovementSystem::FTickParameters Parameters;
 		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTimeSeconds;
@@ -227,4 +218,10 @@ void UParametricMovementComponent::TickSimulation(float DeltaTimeSeconds)
 	{
 		GetOwner()->ForceNetUpdate();
 	}
+}
+
+void UParametricMovementComponent::ProduceInput(const ParametricMovement::TSimTime& SimFrameTime, ParametricMovement::FInputCmd& Cmd)
+{
+	Cmd.PlayRate = PendingPlayRate;
+	PendingPlayRate.Reset();
 }

@@ -30,17 +30,12 @@ namespace FlyingMovement
 	// State the client generates
 	struct FInputCmd
 	{
-
-		// Client's FrameTime. This is essential for a non-fixed step simulation. The server will run the movement simulation for this client at this rate.
-		float FrameDeltaTime = 0.f;
-
 		// Input: "pure" input for this frame. At this level, frame time has not been accounted for. (E.g., "move straight" would be (1,0,0) regardless of frame time)
 		FRotator RotationInput;
 		FVector MovementInput;
 
 		void NetSerialize(const FNetSerializeParams& P)
 		{
-			P.Ar << FrameDeltaTime;
 			P.Ar << RotationInput;
 			P.Ar << MovementInput;
 		}
@@ -53,7 +48,6 @@ namespace FlyingMovement
 			}
 			else if (P.Context == EStandardLoggingContext::Full)
 			{
-				P.Ar->Logf(TEXT("FrameDeltaTime: %.4f"), FrameDeltaTime);
 				P.Ar->Logf(TEXT("Movement: %s"), *MovementInput.ToString());
 				P.Ar->Logf(TEXT("ViewRot: %s"), *RotationInput.ToString());
 			}
@@ -131,11 +125,14 @@ namespace FlyingMovement
 		};
 
 		/** Main update function */
-		static void Update(IMovementDriver* Driver, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
+		static void Update(IMovementDriver* Driver, const TSimTime& DeltaTimeMS, const FInputCmd& InputCmd, const FMoveState& InputState, FMoveState& OutputState, const FAuxState& AuxState);
 
 		/** Dev tool to force simple mispredict */
 		static bool ForceMispredict;
 	};
+
+	// Simulation time used by the movement system
+	using TSimTime = FMovementSystem::TSimTime;
 
 	// general tolerance value for rotation checks
 	static const float ROTATOR_TOLERANCE = (1e-3);
@@ -161,14 +158,15 @@ public:
 	
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 
-	// Gets writable copy of FClientInputCmd for this frame. Should only be called once per frame by the local player.
-	FlyingMovement::FInputCmd* GetNextClientInputCmdForWrite(float DeltaTime);
-
 	IBaseMovementDriver& GetBaseMovementDriver() override final { return *static_cast<IBaseMovementDriver*>(this); }
 
 	void InitSyncState(FlyingMovement::FMoveState& OutSyncState) const override;
 	void PreSimSync(const FlyingMovement::FMoveState& SyncState) override;
+	void ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd) override;
 	void FinalizeFrame(const FlyingMovement::FMoveState& SyncState) override;
+
+	DECLARE_DELEGATE_TwoParams(FProduceFlyingInput, const FlyingMovement::TSimTime& /*SimFrameTime*/, FlyingMovement::FInputCmd& /*Cmd*/)
+	FProduceFlyingInput ProduceInputDelegate;
 
 protected:
 
