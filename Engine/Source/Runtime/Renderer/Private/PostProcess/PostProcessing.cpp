@@ -233,22 +233,33 @@ public:
 
 		const EDownsampleQuality DownsampleQuality = GetDownsampleQuality();
 
+		const auto DivideAndRoundUpClamped = [](const FIntRect Rect, uint32 DownsampleFactor)
+		{
+			FIntRect Out = FIntRect::DivideAndRoundUp(Rect, DownsampleFactor);
+			Out.Max.X = FMath::Max(1, Out.Max.X);
+			Out.Max.Y = FMath::Max(1, Out.Max.Y);
+			return Out;
+		};
+
+		FIntRect InputViewRect = DivideAndRoundUpClamped(InContext.View.ViewRect, 2);
+
 		// Queue the down samples. 
 		for (int i = 1; i < DownSampleStages; i++)
 		{
 			PostProcessDownsamples[i] = AddDownsamplePass(Context.Graph, PassLabels[i], PostProcessDownsamples[i - 1], DownsampleQuality);
 
+			InputViewRect = DivideAndRoundUpClamped(InputViewRect, 2);
+
 			// Add log2 data to the alpha channel after doing the 1st (i==1) down sample pass
-			if (bHasLog2Alpha && i == 1 ) {
-				FRenderingCompositePass* BasicEyeSetupPass = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasicEyeAdaptationSetUp());
-				BasicEyeSetupPass->SetInput(ePId_Input0, PostProcessDownsamples[i]);
-				PostProcessDownsamples[i] = FRenderingCompositeOutputRef(BasicEyeSetupPass);
+			if (bHasLog2Alpha && i == 1 )
+			{
+				PostProcessDownsamples[i] = AddBasicEyeAdaptationSetupPass(InContext, PostProcessDownsamples[i], InputViewRect);
 			}
 		}
 
 		// Calculate the final viewrect size (matching AddDownsamplePass behavior)
-		FinalViewRectSize.X = FMath::Max(1, FMath::DivideAndRoundUp(InContext.View.ViewRect.Width(), 1 << DownSampleStages));
-		FinalViewRectSize.Y = FMath::Max(1, FMath::DivideAndRoundUp(InContext.View.ViewRect.Height(), 1 << DownSampleStages));
+		FinalViewRectSize.X = InputViewRect.Width();
+		FinalViewRectSize.Y = InputViewRect.Height();
 	}
 
 	// The number of elements in the array.

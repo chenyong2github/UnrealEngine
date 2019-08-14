@@ -59,18 +59,10 @@ FEyeAdaptationParameters GetEyeAdaptationParameters(const FViewInfo& ViewInfo, E
 // Computes the a fixed exposure to be used to replace the dynamic exposure when it's not supported (< SM5).
 float GetEyeAdaptationFixedExposure(const FViewInfo& View);
 
-// Write Log2(Luminance) in the alpha channel.
-// ePId_Input0: Half-Res HDR scene color
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessBasicEyeAdaptationSetUp : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	virtual void Release() override { delete this; }
-};
+FRenderingCompositeOutputRef AddBasicEyeAdaptationSetupPass(
+	FPostprocessContext& Context,
+	FRenderingCompositeOutputRef SceneColor,
+	FIntRect SceneColorViewRect);
 
 // ePId_Input0: Downsampled SceneColor Log
 // derives from TRenderingCompositePassBase<InputCount, OutputCount> 

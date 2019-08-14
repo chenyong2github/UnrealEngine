@@ -136,13 +136,16 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 }
 #endif
 
+Texture2D SceneColorTexture;
+
+SamplerState SceneColorSampler;
 
 void MainBasicEyeAdaptationSetupPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
 	float2 UV = UVAndScreenPos.xy;
-	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, UV);
+	OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
 
 	// Use max to ensure intensity is never zero (so the following log is well behaved)
 	float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptation_LuminanceMin);

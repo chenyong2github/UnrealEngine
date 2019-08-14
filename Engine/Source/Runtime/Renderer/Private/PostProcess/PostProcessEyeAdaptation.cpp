@@ -146,7 +146,9 @@ float GetAutoExposureCompensation(const FViewInfo& View)
 		(EngineShowFlags.VisualizeBuffer && View.CurrentBufferVisualizationMode != NAME_None) ||
 		EngineShowFlags.RayTracingDebug ||
 		EngineShowFlags.VisualizeDistanceFieldAO ||
-		EngineShowFlags.VisualizeGlobalDistanceField;
+		EngineShowFlags.VisualizeGlobalDistanceField ||
+		EngineShowFlags.CollisionVisibility ||
+		EngineShowFlags.CollisionPawn;
 
 	if (bSkipExposureBias)
 	{
@@ -249,7 +251,9 @@ float GetEyeAdaptationFixedExposure(const FViewInfo& View)
 	return ExposureScale * Parameters.ExposureCompensation;
 }
 
-const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
+//////////////////////////////////////////////////////////////////////////
+//! Histogram Eye Adaptation
+//////////////////////////////////////////////////////////////////////////
 
 class FEyeAdaptationShader : public FGlobalShader
 {
@@ -268,7 +272,6 @@ public:
 	}
 
 	FEyeAdaptationShader() = default;
-
 	FEyeAdaptationShader(const CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{}
@@ -386,212 +389,111 @@ FRenderingCompositeOutputRef AddHistogramEyeAdaptationPass(FPostprocessContext& 
 	return FRenderingCompositeOutputRef(EyeAdaptationPass);
 }
 
-void FSceneViewState::UpdatePreExposure(FViewInfo& View)
+//////////////////////////////////////////////////////////////////////////
+//! Basic Eye Adaptation
+//////////////////////////////////////////////////////////////////////////
+
+const ERHIFeatureLevel::Type BasicEyeAdaptationMinFeatureLevel = ERHIFeatureLevel::ES3_1;
+
+class FBasicEyeAdaptationShader : public FGlobalShader
 {
-	const FSceneViewFamily& ViewFamily = *View.Family;
-	// One could use the IsRichView functionality to check if we need to update pre-exposure, 
-	// but this is too limiting for certain view. For instance shader preview doesn't have 
-	// volumetric lighting enabled, which makes the view be flagged as rich, and not updating 
-	// the pre-exposition value.
-	const bool bIsPreExposureRelevant =
-		ViewFamily.EngineShowFlags.EyeAdaptation && // Controls whether scene luminance is computed at all.
-		ViewFamily.EngineShowFlags.Lighting &&
-		ViewFamily.EngineShowFlags.PostProcessing &&
-		ViewFamily.bResolveScene &&
-		!ViewFamily.EngineShowFlags.LightMapDensity &&
-		!ViewFamily.EngineShowFlags.StationaryLightOverlap &&
-		!ViewFamily.EngineShowFlags.LightComplexity &&
-		!ViewFamily.EngineShowFlags.LODColoration &&
-		!ViewFamily.EngineShowFlags.HLODColoration &&
-		!ViewFamily.EngineShowFlags.LevelColoration &&
-		!ViewFamily.EngineShowFlags.VisualizeBloom;
-
-
-	PreExposure = 1.f;
-	bUpdateLastExposure = false;
-
-	if (IsMobilePlatform(View.GetShaderPlatform()))
-	{
-		if (!IsMobileHDR())
-		{
-			// In gamma space, the exposure is fully applied in the pre-exposure (no post-exposure compensation)
-			PreExposure = GetEyeAdaptationFixedExposure(View);
-		}
-	}
-	else if (bIsPreExposureRelevant)
-	{
-		if (UsePreExposure(View.GetShaderPlatform()))
-		{
-			const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
-			const float LastExposure = View.GetLastEyeAdaptationExposure();
-			if (PreExposureOverride > 0)
-			{
-				PreExposure = PreExposureOverride;
-			}
-			else if (LastExposure > 0)
-			{
-				PreExposure = LastExposure;
-			}
-
-			bUpdateLastExposure = true;
-		}
-		// The exposure compensation curves require the scene average luminance
-		else if (View.FinalPostProcessSettings.AutoExposureBiasCurve)
-		{
-			bUpdateLastExposure = true;
-		}
-	}
-
-	// Update the pre-exposure value on the actual view
-	View.PreExposure = PreExposure;
-
-	// Update the pre exposure of all temporal histories.
-	if (!View.bStatePrevViewInfoIsReadOnly)
-	{
-		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
-	}
-}
-
-/** Encapsulates the post process computation of Log2 Luminance pixel shader. */
-class FPostProcessBasicEyeAdaptationSetupPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(FPostProcessBasicEyeAdaptationSetupPS, Global);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
-	END_SHADER_PARAMETER_STRUCT()
-
+public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return IsFeatureLevelSupported(Parameters.Platform, BasicEyeAdaptationMinFeatureLevel);
 	}
 
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-	}
-
-	/** Default constructor. */
-	FPostProcessBasicEyeAdaptationSetupPS() {}
-
-public:
-	FPostProcessPassParameters PostprocessParameter;
-	FShaderParameter EyeAdaptationParams;
-
-	/** Initialization constructor. */
-	FPostProcessBasicEyeAdaptationSetupPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FBasicEyeAdaptationShader() = default;
+	FBasicEyeAdaptationShader(const CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
-	{
-		BindForLegacyShaderParameters<FParameters>(this, Initializer.ParameterMap);
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-	}
-
-	void SetPS(const FRenderingCompositePassContext& Context)
-	{
-		FRHIPixelShader* ShaderRHI = GetPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-		{
-			FParameters PassParameters;
-			PassParameters.EyeAdaptation = GetEyeAdaptationParameters(Context.View, BasicEyeAdaptationMinFeatureLevel);
-			SetShaderParameters(Context.RHICmdList, this, ShaderRHI, PassParameters);
-		}
-	}
-
-	// FShader interface.
-	virtual bool Serialize(FArchive& Ar) override
-	{
-		bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
-		Ar << PostprocessParameter << EyeAdaptationParams;
-		return bShaderHasOutdatedParameters;
-	}
+	{}
 };
 
-IMPLEMENT_SHADER_TYPE(, FPostProcessBasicEyeAdaptationSetupPS, TEXT("/Engine/Private/PostProcessEyeAdaptation.usf"), TEXT("MainBasicEyeAdaptationSetupPS"), SF_Pixel);
-
-void FRCPassPostProcessBasicEyeAdaptationSetUp::Process(FRenderingCompositePassContext& Context)
+/** Computes scaled and biased luma for the input scene color and puts it in the alpha channel. */
+class FBasicEyeAdaptationSetupPS : public FBasicEyeAdaptationShader
 {
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
+public:
+	DECLARE_GLOBAL_SHADER(FBasicEyeAdaptationSetupPS);
+	SHADER_USE_PARAMETER_STRUCT(FBasicEyeAdaptationSetupPS, FBasicEyeAdaptationShader);
 
-	if (!InputDesc)
-	{
-		// input is not hooked up correctly
-		return;
-	}
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT(FEyeAdaptationParameters, EyeAdaptation)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+};
 
-	const FSceneRenderTargetItem& DestRenderTarget = PassOutputs[0].RequestSurface(Context);
+IMPLEMENT_GLOBAL_SHADER(FBasicEyeAdaptationSetupPS, "/Engine/Private/PostProcessEyeAdaptation.usf", "MainBasicEyeAdaptationSetupPS", SF_Pixel);
 
-	ERenderTargetLoadAction LoadAction = Context.GetLoadActionForRenderTarget(DestRenderTarget);
-
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, MakeRenderTargetActions(LoadAction, ERenderTargetStoreAction::EStore));
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessBasicEyeAdaptationSetUp"));
-	{
-		const FViewInfo& View = Context.View;
-		const FSceneViewFamily& ViewFamily = *(View.Family);
-
-		FIntPoint SrcSize = InputDesc->Extent;
-		FIntPoint DestSize = PassOutputs[0].RenderTargetDesc.Extent;
-
-		// e.g. 4 means the input texture is 4x smaller than the buffer size
-		uint32 ScaleFactor = Context.ReferenceBufferSize.X / SrcSize.X;
-
-		FIntRect SrcRect = Context.SceneColorViewRect / ScaleFactor;
-		FIntRect DestRect = SrcRect;
-
-		SCOPED_DRAW_EVENTF(Context.RHICmdList, PostProcessBasicEyeAdaptationSetup, TEXT("PostProcessBasicEyeAdaptationSetup %dx%d"), DestRect.Width(), DestRect.Height());
-
-		Context.SetViewportAndCallRHI(0, 0, 0.0f, DestSize.X, DestSize.Y, 1.0f);
-
-		FGraphicsPipelineStateInitializer GraphicsPSOInit;
-		Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-		TShaderMapRef<FPostProcessVS> VertexShader(Context.GetShaderMap());
-		TShaderMapRef<FPostProcessBasicEyeAdaptationSetupPS> PixelShader(Context.GetShaderMap());
-
-		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = GETSAFERHISHADER_VERTEX(*VertexShader);
-		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = GETSAFERHISHADER_PIXEL(*PixelShader);
-		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-		SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-		PixelShader->SetPS(Context);
-
-		DrawPostProcessPass(
-			Context.RHICmdList,
-			DestRect.Min.X, DestRect.Min.Y,
-			DestRect.Width(), DestRect.Height(),
-			SrcRect.Min.X, SrcRect.Min.Y,
-			SrcRect.Width(), SrcRect.Height(),
-			DestSize,
-			SrcSize,
-			*VertexShader,
-			View.StereoPass,
-			Context.HasHmdMesh(),
-			EDRF_UseTriangleOptimization);
-	}
-	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestRenderTarget.TargetableTexture, DestRenderTarget.ShaderResourceTexture, FResolveParams());
-}
-
-FPooledRenderTargetDesc FRCPassPostProcessBasicEyeAdaptationSetUp::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FRDGTextureRef AddBasicEyeAdaptationSetupPass(
+	FRDGBuilder& GraphBuilder,
+	const FScreenPassViewInfo& ScreenPassView,
+	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	FRDGTextureRef SceneColorTexture,
+	FIntRect SceneColorViewRect)
 {
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
+	check(SceneColorTexture);
 
-	Ret.Reset();
-	Ret.DebugName = TEXT("EyeAdaptationBasicSetup");
+	FRDGTextureDesc OutputDesc = SceneColorTexture->Desc;
+	OutputDesc.Reset();
+	OutputDesc.DebugName = TEXT("EyeAdaptationBasicSetup");
 	// Require alpha channel for log2 information.
-	Ret.Format = PF_FloatRGBA;
-	Ret.Flags |= GFastVRamConfig.EyeAdaptation;
-	return Ret;
+	OutputDesc.Format = PF_FloatRGBA;
+	OutputDesc.Flags |= GFastVRamConfig.EyeAdaptation;
+
+	FRDGTextureRef OutputTexture = GraphBuilder.CreateTexture(OutputDesc, TEXT("BasicEyeAdaptationSetup"));
+
+	const FScreenPassTextureViewport Viewport(SceneColorViewRect, OutputTexture);
+
+	FBasicEyeAdaptationSetupPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationSetupPS::FParameters>();
+	PassParameters->EyeAdaptation = GetEyeAdaptationParameters(ScreenPassView.View, BasicEyeAdaptationMinFeatureLevel);
+	PassParameters->SceneColorTexture = SceneColorTexture;
+	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(OutputTexture, ScreenPassView.GetOverwriteLoadAction());
+
+	TShaderMapRef<FBasicEyeAdaptationSetupPS> PixelShader(ScreenPassView.View.ShaderMap);
+
+	AddDrawScreenPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("BasicEyeAdaptationSetup (PS) %dx%d", Viewport.Rect.Width(), Viewport.Rect.Height()),
+		ScreenPassView,
+		Viewport,
+		Viewport,
+		*PixelShader,
+		PassParameters);
+
+	return OutputTexture;
 }
 
+FRenderingCompositeOutputRef AddBasicEyeAdaptationSetupPass(
+	FPostprocessContext& Context,
+	FRenderingCompositeOutputRef SceneColor,
+	FIntRect SceneColorViewRect)
+{
+	const FViewInfo& View = Context.View;
 
+	FRenderingCompositePass* Pass = Context.Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 1>(
+			[&View, SceneColorViewRect](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		const FEyeAdaptationParameters EyeAdaptationParameters = GetEyeAdaptationParameters(View);
+
+		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+
+		FRDGTextureRef OutputTexture = AddBasicEyeAdaptationSetupPass(GraphBuilder, FScreenPassViewInfo(View), EyeAdaptationParameters, SceneColorTexture, SceneColorViewRect);
+
+		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
+
+		GraphBuilder.Execute();
+	}));
+
+	Pass->SetInput(ePId_Input0, SceneColor);
+
+	return FRenderingCompositeOutputRef(Pass);
+}
 
 class FPostProcessLogLuminance2ExposureScaleBase: public FGlobalShader
 {
@@ -949,4 +851,70 @@ TRefCountPtr<IPooledRenderTarget>&  FSceneViewState::FEyeAdaptationRTManager::Ge
 	}
 
 	return PooledRenderTarget[BufferNumber];
+}
+
+void FSceneViewState::UpdatePreExposure(FViewInfo& View)
+{
+	const FSceneViewFamily& ViewFamily = *View.Family;
+
+	// One could use the IsRichView functionality to check if we need to update pre-exposure, 
+	// but this is too limiting for certain view. For instance shader preview doesn't have 
+	// volumetric lighting enabled, which makes the view be flagged as rich, and not updating 
+	// the pre-exposition value.
+	const bool bIsPreExposureRelevant =
+		ViewFamily.EngineShowFlags.EyeAdaptation && // Controls whether scene luminance is computed at all.
+		ViewFamily.EngineShowFlags.Lighting &&
+		ViewFamily.EngineShowFlags.PostProcessing &&
+		ViewFamily.bResolveScene &&
+		!ViewFamily.EngineShowFlags.LightMapDensity &&
+		!ViewFamily.EngineShowFlags.StationaryLightOverlap &&
+		!ViewFamily.EngineShowFlags.LightComplexity &&
+		!ViewFamily.EngineShowFlags.LODColoration &&
+		!ViewFamily.EngineShowFlags.HLODColoration &&
+		!ViewFamily.EngineShowFlags.LevelColoration &&
+		!ViewFamily.EngineShowFlags.VisualizeBloom;
+
+	PreExposure = 1.f;
+	bUpdateLastExposure = false;
+
+	if (IsMobilePlatform(View.GetShaderPlatform()))
+	{
+		if (!IsMobileHDR())
+		{
+			// In gamma space, the exposure is fully applied in the pre-exposure (no post-exposure compensation)
+			PreExposure = GetEyeAdaptationFixedExposure(View);
+		}
+	}
+	else if (bIsPreExposureRelevant)
+	{
+		if (UsePreExposure(View.GetShaderPlatform()))
+		{
+			const float PreExposureOverride = CVarEyeAdaptationPreExposureOverride.GetValueOnRenderThread();
+			const float LastExposure = View.GetLastEyeAdaptationExposure();
+			if (PreExposureOverride > 0)
+			{
+				PreExposure = PreExposureOverride;
+			}
+			else if (LastExposure > 0)
+			{
+				PreExposure = LastExposure;
+			}
+
+			bUpdateLastExposure = true;
+		}
+		// The exposure compensation curves require the scene average luminance
+		else if (View.FinalPostProcessSettings.AutoExposureBiasCurve)
+		{
+			bUpdateLastExposure = true;
+		}
+	}
+
+	// Update the pre-exposure value on the actual view
+	View.PreExposure = PreExposure;
+
+	// Update the pre exposure of all temporal histories.
+	if (!View.bStatePrevViewInfoIsReadOnly)
+	{
+		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
+	}
 }
