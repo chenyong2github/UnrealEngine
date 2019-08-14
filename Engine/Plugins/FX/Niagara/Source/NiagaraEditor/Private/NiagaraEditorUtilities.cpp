@@ -1143,7 +1143,7 @@ void FNiagaraEditorUtilities::KillSystemInstances(const UNiagaraSystem& System)
 	}
 }
 
-bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage)
+bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage)
 {
 	if (NewName == NAME_None)
 	{
@@ -1172,7 +1172,7 @@ bool FNiagaraEditorUtilities::VerifyNameChangeForInputOrOutputNode(UNiagaraNode&
 
 	if (NodeBeingChanged.IsA<UNiagaraNodeOutput>())
 	{
-		UNiagaraNodeOutput* OutputNodeBeingChanged = CastChecked<UNiagaraNodeOutput>(&NodeBeingChanged);
+		const UNiagaraNodeOutput* OutputNodeBeingChanged = CastChecked<const UNiagaraNodeOutput>(&NodeBeingChanged);
 		for (const FNiagaraVariable& Output : OutputNodeBeingChanged->GetOutputs())
 		{
 			if (Output.GetName() != OldName && Output.GetName() == NewName)
