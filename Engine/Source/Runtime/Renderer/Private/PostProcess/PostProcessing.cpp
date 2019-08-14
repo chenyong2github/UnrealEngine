@@ -257,17 +257,15 @@ public:
 			}
 		}
 
-		// Calculate the final viewrect size (matching AddDownsamplePass behavior)
-		FinalViewRectSize.X = InputViewRect.Width();
-		FinalViewRectSize.Y = InputViewRect.Height();
+		FinalViewRect = InputViewRect;
 	}
 
 	// The number of elements in the array.
 	inline static int32 Num() { return DownSampleStages; }
 
-	FIntPoint GetFinalViewRectSize() const
+	FIntRect GetFinalViewRect() const
 	{
-		return FinalViewRectSize;
+		return FinalViewRect;
 	}
 
 	// Member data kept public for simplicity
@@ -279,7 +277,7 @@ private:
 	// no default constructor.
 	TBloomDownSampleArray() {};
 
-	FIntPoint	FinalViewRectSize;
+	FIntRect FinalViewRect;
 };
 
 // Standard DownsampleArray shared by Bloom, Tint, and Eye-Adaptation. 
@@ -416,12 +414,9 @@ static FRenderingCompositeOutputRef AddPostProcessBasicEyeAdaptation(const FView
 	static const int32 FinalDSIdx = FBloomDownSampleArray::Num() - 1;
 	FRenderingCompositeOutputRef PostProcessPriorReduction = BloomAndEyeDownSamples.PostProcessDownsamples[FinalDSIdx];
 
-	const FIntPoint DownsampledViewRectSize = BloomAndEyeDownSamples.GetFinalViewRectSize();
+	const FIntRect DownsampledViewRect = BloomAndEyeDownSamples.GetFinalViewRect();
 
-	// Compute the eye adaptation value based on average luminance from log2 luminance buffer, history, and specific shader parameters.
-	FRenderingCompositePass* Node = Context.Graph.RegisterPass(new(FMemStack::Get()) FRCPassPostProcessBasicEyeAdaptation(DownsampledViewRectSize));
-	Node->SetInput(ePId_Input0, PostProcessPriorReduction);
-	return FRenderingCompositeOutputRef(Node);
+	return AddBasicEyeAdaptationPass(Context, PostProcessPriorReduction, DownsampledViewRect);
 }
 
 static void AddVisualizeBloomOverlay(FPostprocessContext& Context, FRenderingCompositeOutputRef& HDRColor, FRenderingCompositeOutputRef& BloomOutputCombined)

@@ -8,37 +8,49 @@
 #include "PostProcessCommon.ush"
 #include "PostProcessHistogramCommon.ush"
 
-// prior frame's eye adaptation exposure scale
 Texture2D EyeAdaptationTexture;
-uint4 EyeAdaptionSrcRect;
 
-// Compute the average alpha stored in a 2D texture.
-// in uint4 ROI:  region of interest.  (min, min, max, max).
-// in float Slope 
-float ComputeWeightedTextureAverageAlpha(Texture2D InBuffer, in uint4 ROI, in float Slope)
+Texture2D HistogramTexture;
+
+Texture2D ColorTexture;
+
+SamplerState ColorSampler;
+
+#if COMPUTESHADER
+
+RWTexture2D<float4> RWEyeAdaptationTexture;
+
+#endif
+
+uint2 Color_ViewportMin;
+uint2 Color_ViewportMax;
+
+float ComputeWeightedTextureAverageAlpha(
+	Texture2D Texture,
+	uint2 RectMin,
+	uint2 RectMax,
+	float Slope)
 {
 	// The inverse of the Region of Interest size.
-	const float InvXMax = 1.f / float(ROI.z - ROI.x);
-	const float InvYMax = 1.f / float(ROI.w - ROI.y);
+	const float InvRectWidth = 1.0f / float(RectMax.x - RectMin.x);
+	const float InvRectHeight = 1.0f / float(RectMax.x - RectMin.y);
 
-	// use product of linear weight in x and y.  
-
+	// use product of linear weight in x and y.
 	float Average = 0.0f;
 	float WeightTotal = 0.0f;
 
-
-	for (uint i = ROI.x; i < ROI.z; ++i)
+	for (uint i = RectMin.x; i < RectMax.x; ++i)
 	{
-		float IWeight = AdaptationWeight( i * InvXMax, Slope);  
-		for (uint j = ROI.y; j < ROI.w; ++j)
+		float IWeight = AdaptationWeight(i * InvRectWidth, Slope);
+		for (uint j = RectMin.y; j < RectMax.y; ++j)
 		{
-			float JWeight = AdaptationWeight( j * InvYMax, Slope);
+			float JWeight = AdaptationWeight(j * InvRectHeight, Slope);
 			float Weight = max(IWeight * JWeight, 0.05f);
-			
+
 			WeightTotal += Weight;
 
-			//accumulate values from alpha channel
-			float Sample = InBuffer.Load(int3(i, j, 0)).w;
+			// Accumulate values from alpha channel.
+			float Sample = Texture.Load(int3(i, j, 0)).w;
 			Average += Weight * Sample;
 		}
 	}
@@ -47,53 +59,53 @@ float ComputeWeightedTextureAverageAlpha(Texture2D InBuffer, in uint4 ROI, in fl
 	return Average;
 }
 
-float2 ComputeWeightedTextureAverageAlphaSubRegion(Texture2D InBuffer, in uint4 SubROI, in uint4 MainROI, in float Slope)
+float2 ComputeWeightedTextureAverageAlphaSubRegion(
+	Texture2D Texture,
+	uint2 SubRectMin,
+	uint2 SubRectMax,
+	uint2 RectMin,
+	uint2 RectMax,
+	float Slope)
 {
 	// The inverse of the Region of Interest size.
-	const float InvXMax = 1.f / float(MainROI.z - MainROI.x);
-	const float InvYMax = 1.f / float(MainROI.w - MainROI.y);
+	const float InvRectWidth = 1.f / float(RectMax.x - RectMin.x);
+	const float InvRectHeight = 1.f / float(RectMax.y - RectMin.y);
 
-	// use product of linear weight in x and y.  
-
+	// use product of linear weight in x and y.
 	float Value = 0.0f;
-	float WeightTotal = 0.0000000001f;	
+	float WeightTotal = 0.0000000001f;
 
-	for (uint i = SubROI.x; i < SubROI.z; ++i)
+	for (uint i = SubRectMin.x; i < SubRectMax.x; ++i)
 	{
-		float IWeight = AdaptationWeight( i * InvXMax, Slope);  
-		for (uint j = SubROI.y; j < SubROI.w; ++j)
+		float IWeight = AdaptationWeight(i * InvRectWidth, Slope);
+		for (uint j = SubRectMin.y; j < SubRectMax.y; ++j)
 		{
-			float JWeight = AdaptationWeight( j * InvYMax, Slope);
+			float JWeight = AdaptationWeight(j * InvRectHeight, Slope);
 			float Weight = max(IWeight * JWeight, 0.05f);
-			
+
 			WeightTotal += Weight;
 
-			//accumulate values from alpha channel
-			float Sample = InBuffer.Load(int3(i, j, 0)).w;
+			// Accumulate values from alpha channel.
+			float Sample = Texture.Load(int3(i, j, 0)).w;
 			Value += Weight * Sample;
 		}
 	}
 
-	return  float2(Value, WeightTotal);
+	return float2(Value, WeightTotal);
 }
 
-
-// @param FrameTime in seconds
-// @return smoothed exposure
 float ComputeEyeAdaptation(float OldExposure, float TargetExposure, float FrameTime)
 {
-	float Diff = TargetExposure - OldExposure;
+	const float Diff = TargetExposure - OldExposure;
 
-	float AdaptionSpeed = (Diff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
+	const float AdaptionSpeed = (Diff > 0) ? EyeAdaptation_ExposureSpeedUp : EyeAdaptation_ExposureSpeedDown;
 
-	float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
+	const float Factor = 1.0f - exp2(-FrameTime * AdaptionSpeed);
 
 	return clamp(OldExposure + Diff * Factor, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 }
 
-Texture2D HistogramTexture;
-
-float4 MainEyeAdaptationCommon()
+float4 EyeAdaptationCommon()
 {
 	float4 OutColor = 0;
 
@@ -101,7 +113,7 @@ float4 MainEyeAdaptationCommon()
 	const float TargetExposure = clamp(AverageSceneLuminance, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 
 	float OldExposureScale = HistogramTexture.Load(int3(0, 1, 0)).x;
-	float OldExposure = EyeAdaptation_ExposureCompensation / ( OldExposureScale != 0 ? OldExposureScale : 1.0f );
+	float OldExposure = EyeAdaptation_ExposureCompensation / (OldExposureScale != 0 ? OldExposureScale : 1.0f);
 
 	// eye adaptation changes over time
 	float SmoothedExposure = ComputeEyeAdaptation(OldExposure, TargetExposure, EyeAdaptation_DeltaWorldTime);
@@ -117,35 +129,29 @@ float4 MainEyeAdaptationCommon()
 	return OutColor;
 }
 
-void MainPS(float4 UVAndScreenPos : TEXCOORD0, 
+void EyeAdaptationPS(float4 UVAndScreenPos : TEXCOORD0, 
 	out float4 OutColor : SV_Target0)
 {
-	OutColor = MainEyeAdaptationCommon();
+	OutColor = EyeAdaptationCommon();
 }
 
 #if COMPUTESHADER
-RWTexture2D<float4> RWEyeAdaptationTexture;
-
 [numthreads(1, 1, 1)]
-void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+void EyeAdaptationCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	float4 OutColor = MainEyeAdaptationCommon();
+	float4 OutColor = EyeAdaptationCommon();
 
 	uint2 PixelPos = DispatchThreadId;
 	RWEyeAdaptationTexture[PixelPos] = OutColor;
 }
 #endif
 
-Texture2D SceneColorTexture;
-
-SamplerState SceneColorSampler;
-
-void MainBasicEyeAdaptationSetupPS(
+void BasicEyeAdaptationSetupPS(
 	noperspective float4 UVAndScreenPos : TEXCOORD0,
 	out float4 OutColor : SV_Target0)
 {
 	float2 UV = UVAndScreenPos.xy;
-	OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);
+	OutColor = Texture2DSample(ColorTexture, ColorSampler, UV);
 
 	// Use max to ensure intensity is never zero (so the following log is well behaved)
 	float Intensity = max(dot(OutColor.xyz, float3(0.2126, 0.7152, 0.0722)), EyeAdaptation_LuminanceMin);
@@ -154,42 +160,20 @@ void MainBasicEyeAdaptationSetupPS(
 	OutColor.w = EyeAdaptation_HistogramScale * log2(Intensity) + EyeAdaptation_HistogramBias; 
 }
 
-
-// vertex shader entry point
-void MainReductionVS(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 UV : ATTRIBUTE1,
-	out float2 OutUV : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, UV, OutPosition, OutUV);
-}
-
-// pixel shader entry point
-void MainReductionPS(
-	noperspective float2 InUV : TEXCOORD0,
-	out float4 OutColor : SV_Target0
-	)
-{
-	// Output: low quality, 1 filtered sample
-	OutColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, InUV);
-}
-
 #if COMPUTESHADER
 
 #define TGSIZE 16
+
 groupshared float2 SubRectValueWeight[TGSIZE*TGSIZE];
-RWTexture2D<float4> RWOutputComputeTex;
 
 [numthreads(TGSIZE, TGSIZE, 1)]
-void MainLogLuminance2ExposureScaleCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThreadID)
+void BasicEyeAdaptationCS(uint GIndex : SV_GroupIndex, uint2 GTId : SV_GroupThreadID)
 {
 	float4 OutColor=0;
 
 #else
 
-void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
+void BasicEyeAdaptationPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 OutColor : SV_Target0)
 {
 
 #endif
@@ -201,21 +185,24 @@ void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out 
 #endif
 
 	// Weighting is a triangle function focused at the center of the screen
-	// with the product of linear decay in x and y.  
+	// with the product of linear decay in x and y.
 	// WeightSlope: 0 is uniform weighting.
 	//              1 decays to the edges.
 	//              >1 focuses more in the center of the screen.
-	float WeightSlope = EyeAdaptation_WeightSlope;
-	
+	const float WeightSlope = EyeAdaptation_WeightSlope;
+
 	// Compute scaled Log Luminance Average
 #if COMPUTESHADER
 	// There are TGSIZE*TGSIZE threads. Each thread will calculate the luminance for its own subregions from a TGSIZE*TGSIZE screen grid
-	uint4 SubRect = uint4(	((EyeAdaptionSrcRect.z-EyeAdaptionSrcRect.x) * GTId.x)		/ TGSIZE,
-							((EyeAdaptionSrcRect.w-EyeAdaptionSrcRect.y) * GTId.y)		/ TGSIZE, 
-							((EyeAdaptionSrcRect.z-EyeAdaptionSrcRect.x) * (GTId.x+1))	/ TGSIZE  ,
-							((EyeAdaptionSrcRect.w-EyeAdaptionSrcRect.y) * (GTId.y+1))	/ TGSIZE  );
+	const uint2 SubRectMin = uint2(
+		((Color_ViewportMax.x - Color_ViewportMin.y) * GTId.x) / TGSIZE,
+		((Color_ViewportMax.y - Color_ViewportMin.y) * GTId.y) / TGSIZE);
 
-	float2 LogLumAveWithWeight = ComputeWeightedTextureAverageAlphaSubRegion(PostprocessInput0, SubRect,  EyeAdaptionSrcRect, WeightSlope);
+	const uint2 SubRectMax = uint2(
+		((Color_ViewportMax.x - Color_ViewportMin.y) * (GTId.x + 1)) / TGSIZE,
+		((Color_ViewportMax.y - Color_ViewportMin.y) * (GTId.y + 1)) / TGSIZE);
+
+	const float2 LogLumAveWithWeight = ComputeWeightedTextureAverageAlphaSubRegion(ColorTexture, SubRectMin, SubRectMax, Color_ViewportMin, Color_ViewportMax, WeightSlope);
 
 	// Store in LDS
 	SubRectValueWeight[GIndex] = LogLumAveWithWeight;
@@ -248,7 +235,7 @@ void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out 
 
 	float LogLumAve = SubRectValueWeight[0].x /  SubRectValueWeight[0].y;
 #else
-	float LogLumAve = ComputeWeightedTextureAverageAlpha(PostprocessInput0,  EyeAdaptionSrcRect, WeightSlope);
+	float LogLumAve = ComputeWeightedTextureAverageAlpha(ColorTexture, Color_ViewportMin, Color_ViewportMax, WeightSlope);
 #endif
 
 	// Correct for [0,1] scaling
@@ -261,14 +248,14 @@ void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out 
 	const float ClampedLumAve = clamp(LumAve, EyeAdaptation_MinAverageLuminance, EyeAdaptation_MaxAverageLuminance);
 	
 	// The Exposure Scale (and thus intensity) used in the previous frame
-	float ExposureScaleOld = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
-	float LuminanceAveOld = EyeAdaptation_ExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
+	const float ExposureScaleOld = EyeAdaptationTexture.Load(int3(0, 0, 0)).x;
+	const float LuminanceAveOld = EyeAdaptation_ExposureCompensation / (ExposureScaleOld != 0 ? ExposureScaleOld : 1.0f);
 
 	// Time-based expoential blend of the intensity to allow the eye adaptation to ramp up over a few frames.
-	float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
+	const float SmoothedLuminance = ComputeEyeAdaptation(LuminanceAveOld, ClampedLumAve, EyeAdaptation_DeltaWorldTime);
 
-	float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedLuminance);
-	float TargetExposureScale   = 1.0f / max(0.0001f, ClampedLumAve);
+	const float SmoothedExposureScale = 1.0f / max(0.0001f, SmoothedLuminance);
+	const float TargetExposureScale   = 1.0f / max(0.0001f, ClampedLumAve);
 	
 	// Output the number that will rescale the image intensity
 	OutColor.x = EyeAdaptation_ExposureCompensation * SmoothedExposureScale;
@@ -276,11 +263,11 @@ void MainLogLuminance2ExposureScalePS(in float4 UVAndScreenPos : TEXCOORD0, out 
 	OutColor.y = EyeAdaptation_ExposureCompensation * TargetExposureScale;
 	OutColor.z = AverageSceneLuminance;
 	OutColor.w = 0;
-		
+
 #if COMPUTESHADER
 	if(GIndex==0)
 	{
-		RWOutputComputeTex[uint2(0,0)] = OutColor;
+		RWEyeAdaptationTexture[uint2(0,0)] = OutColor;
 	}
 #endif
 }

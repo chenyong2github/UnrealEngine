@@ -64,23 +64,9 @@ FRenderingCompositeOutputRef AddBasicEyeAdaptationSetupPass(
 	FRenderingCompositeOutputRef SceneColor,
 	FIntRect SceneColorViewRect);
 
-// ePId_Input0: Downsampled SceneColor Log
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessBasicEyeAdaptation : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	FRCPassPostProcessBasicEyeAdaptation(FIntPoint InDownsampledViewRect)
-	: DownsampledViewRect(InDownsampledViewRect) 
-	{
-	}
-
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-private:
-	FIntPoint DownsampledViewRect;
-};
+FRenderingCompositeOutputRef AddBasicEyeAdaptationPass(
+	FPostprocessContext& Context,
+	FRenderingCompositeOutputRef SceneColor,
+	FIntRect SceneColorViewRect);
 
 FRenderingCompositeOutputRef AddHistogramEyeAdaptationPass(FPostprocessContext& Context, FRenderingCompositeOutputRef Histogram);
