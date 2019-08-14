@@ -108,7 +108,13 @@ namespace Audio
 		// Updates the source effect chain (using unique object id). 
 		virtual void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails) override;
 		virtual bool GetCurrentSourceEffectChain(const uint32 SourceEffectChainId, TArray<FSourceEffectChainEntry>& OutCurrentSourceEffectChainEntries) override;
+
+		// Updates submix instances with new properties
+		virtual void UpdateSubmixProperties(USoundSubmix* InSubmix) override;
 		
+		// Sets the submix output volume dynamically
+		virtual void SetSubmixOutputVolume(USoundSubmix* InSubmix, float NewVolume) override;
+
 		// Submix recording callbacks:
 		virtual void StartRecording(USoundSubmix* InSubmix, float ExpectedRecordingDuration) override;
 		virtual Audio::AlignedFloatBuffer& StopRecording(USoundSubmix* InSubmix, float& OutNumChannels, float& OutSampleRate) override;
