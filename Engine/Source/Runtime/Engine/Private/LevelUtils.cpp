@@ -222,44 +222,9 @@ bool FLevelUtils::IsLevelLoaded(ULevel* Level)
 	}
 
 	ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-	checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-
-	// @todo: Dave, please come talk to me before implementing anything like this.
-	return true;
+	return (StreamingLevel != nullptr);
 }
 
-/**
- * Flags an unloaded level for loading.
- *
- * @param	Level		The level to modify.
- */
-void FLevelUtils::MarkLevelForLoading(ULevel* Level)
-{
-	// If the level is valid and not the persistent level (which is always loaded) . . .
-	if ( Level && !Level->IsPersistentLevel() )
-	{
-		// Mark the level's stream for load.
-		ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-		checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-		// @todo: Dave, please come talk to me before implementing anything like this.
-	}
-}
-
-/**
- * Flags a loaded level for unloading.
- *
- * @param	Level		The level to modify.
- */
-void FLevelUtils::MarkLevelForUnloading(ULevel* Level)
-{
-	// If the level is valid and not the persistent level (which is always loaded) . . .
-	if ( Level && !Level->IsPersistentLevel() )
-	{
-		ULevelStreaming* StreamingLevel = FindStreamingLevel( Level );
-		checkf( StreamingLevel, TEXT("Couldn't find streaming level" ) );
-		// @todo: Dave, please come talk to me before implementing anything like this.
-	}
-}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 //
