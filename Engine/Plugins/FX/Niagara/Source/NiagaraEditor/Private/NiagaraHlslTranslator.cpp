@@ -3729,6 +3729,24 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_Emitter);
 
+	// Just pass through the input parameter map pin if the node isn't enabled...
+	if (!EmitterNode->IsNodeEnabled())
+	{
+		TArray<UEdGraphPin*> OutputPins;
+		EmitterNode->GetOutputPins(OutputPins);
+
+		Outputs.SetNum(OutputPins.Num());
+		for (int32 i = 0; i < OutputPins.Num(); i++)
+		{
+			Outputs[i] = INDEX_NONE;
+		}
+		if (Inputs.Num() >= 1)
+		{
+			Outputs[0] = Inputs[0];
+		}
+		return;
+	}
+
 	FNiagaraFunctionSignature Signature;
 	UNiagaraScriptSource* Source = EmitterNode->GetScriptSource();
 	if (Source == nullptr)

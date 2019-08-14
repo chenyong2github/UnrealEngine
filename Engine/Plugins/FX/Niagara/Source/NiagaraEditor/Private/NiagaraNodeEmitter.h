@@ -47,6 +47,9 @@ public:
 
 	virtual void BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive = true, bool bFilterForCompilation = true) const override;
 
+	/** Synchronize with the handle associated with this emitter for enabled/disabled state.*/
+	void SyncEnabledState();
+
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const;
 
 	ENiagaraScriptUsage GetUsage() const { return ScriptType; }
