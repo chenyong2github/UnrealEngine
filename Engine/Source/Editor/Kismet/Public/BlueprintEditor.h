@@ -46,6 +46,7 @@ class UUserDefinedStruct;
 class UBlueprintEditorOptions;
 struct Rect;
 class UK2Node_FunctionEntry;
+class UK2Node_Event;
 
 /* Enums to use when grouping the blueprint members in the list panel. The order here will determine the order in the list */
 namespace NodeSectionID
@@ -853,6 +854,7 @@ protected:
 	void ReconnectPinMap(UEdGraphNode* Node, const TMap<FString, TSet<UEdGraphPin*>>& PinConnections);
 
 	void OnConvertEventToFunction();
+	void ConvertEventToFunction(UK2Node_Event* SelectedEventNode);
 	bool CanConvertEventToFunction() const;
 
 	/**
