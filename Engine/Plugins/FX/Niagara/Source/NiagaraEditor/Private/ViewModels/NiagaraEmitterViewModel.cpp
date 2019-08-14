@@ -24,6 +24,7 @@ template<> TMap<UNiagaraEmitter*, TArray<FNiagaraEmitterViewModel*>> TNiagaraVie
 
 const FText FNiagaraEmitterViewModel::StatsFormat = NSLOCTEXT("NiagaraEmitterViewModel", "StatsFormat", "{0} Particles | {1} ms | {2} MB | {3}");
 const FText FNiagaraEmitterViewModel::StatsParticleCountFormat = NSLOCTEXT("NiagaraEmitterViewModel", "StatsParticleCountFormat", "{0} Particles");
+const FText FNiagaraEmitterViewModel::ParticleDisabledDueToDetailLevel = NSLOCTEXT("NiagaraEmitterViewModel", "ParticleDisabledDueToDetailLevel", "Disabled due to detail level mismatch (Current: {0}). See Scalability options for valid range. ");
 
 namespace NiagaraCommands
 {
@@ -189,15 +190,21 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 				{
 					return LOCTEXT("NullInstance", "Invalid instance");
 				}
+				
+				if (Handle.GetIsEnabled() == false)
+				{
+					return LOCTEXT("DisabledSimulation", "Emitter is not enabled. Excluded from code.");
+				}
 
 				if (!HandleEmitter->IsValid())
 				{
 					return LOCTEXT("InvalidInstance", "Invalid Emitter! May have compile errors.");
 				}
 
-				if (Handle.GetIsEnabled() == false)
+				int32 DetailLevel = SimInstance->GetParentSystemInstance()->GetDetailLevel();
+				if (!HandleEmitter->IsAllowedByDetailLevel(DetailLevel))
 				{
-					return LOCTEXT("DisabledSimulation", "Simulation is not enabled.");
+					return FText::Format(ParticleDisabledDueToDetailLevel, FText::AsNumber(DetailLevel));
 				}
 
 				if (NiagaraCommands::EmitterStatsFormat->GetInt() == 1)
@@ -226,6 +233,25 @@ FText FNiagaraEmitterViewModel::GetStatsText() const
 TSharedRef<FNiagaraScriptViewModel> FNiagaraEmitterViewModel::GetSharedScriptViewModel()
 {
 	return SharedScriptViewModel.ToSharedRef();
+}
+
+bool FNiagaraEmitterViewModel::IsEnabledByDetailLevel() const
+{
+	if (Simulation.IsValid())
+	{
+		TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> SimInstance = Simulation.Pin();
+		if (SimInstance.IsValid())
+		{
+			const FNiagaraEmitterHandle& Handle = SimInstance->GetEmitterHandle();
+			if (Handle.GetInstance())
+			{
+				UNiagaraEmitter* HandleEmitter = Handle.GetInstance();
+				int32 DetailLevel = SimInstance->GetParentSystemInstance()->GetDetailLevel();
+				return HandleEmitter->IsAllowedByDetailLevel(DetailLevel);
+			}
+		}
+	}
+	return false;
 }
 
 const UNiagaraEmitterEditorData& FNiagaraEmitterViewModel::GetEditorData() const
