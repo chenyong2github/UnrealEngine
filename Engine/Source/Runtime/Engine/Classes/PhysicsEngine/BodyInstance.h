@@ -601,7 +601,10 @@ public:
 	const struct FWalkableSlopeOverride& GetWalkableSlopeOverride() const;
 
 	/** Sets a custom slope override struct for this instance. Implicitly sets bOverrideWalkableSlopeOnInstance to true. */
-	void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride);
+	void SetWalkableSlopeOverride(const FWalkableSlopeOverride& NewOverride, bool bNewOverideSetting = true);
+
+	/** Gets bOverrideWalkableSlopeOnInstance */
+	bool GetOverrideWalkableSlopeOnInstance() const;
 
 	/** Returns true if the body is not static */
 	bool IsDynamic() const;

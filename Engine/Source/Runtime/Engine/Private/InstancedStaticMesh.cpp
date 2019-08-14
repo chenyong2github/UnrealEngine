@@ -1521,6 +1521,11 @@ void UInstancedStaticMeshComponent::CreateAllInstanceBodies()
 	{
 		FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
 
+		if (!BodyInstance.GetOverrideWalkableSlopeOnInstance())
+		{
+			BodyInstance.SetWalkableSlopeOverride(BodySetup->WalkableSlopeOverride, false);
+		}
+
 		InstanceBodies.SetNumUninitialized(NumBodies);
 
 		// Sanitized array does not contain any nulls
