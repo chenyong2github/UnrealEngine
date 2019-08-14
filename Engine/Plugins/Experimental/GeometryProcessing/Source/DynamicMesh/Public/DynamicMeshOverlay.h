@@ -195,6 +195,12 @@ public:
 		}
 	}
 
+	/** @return true if triangle contains element */
+	inline bool TriangleHasElement(int TriangleID, int ElementID) const
+	{
+		int i = 3 * TriangleID;
+		return (ElementTriangles[i] == ElementID || ElementTriangles[i+1] == ElementID || ElementTriangles[i+2] == ElementID);
+	}
 
 
 	/** Returns true if the parent-mesh edge is a "Seam" in this overlay */
@@ -206,6 +212,9 @@ public:
 	void GetVertexElements(int VertexID, TArray<int>& OutElements) const;
 	/** Count the number of unique elements for a given parent-mesh vertex */
 	int CountVertexElements(int VertexID, bool bBruteForce = false) const;
+
+	/** find the triangles connected to an element */
+	void GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const;
 
 	/**
 	 * Checks that the overlay mesh is well-formed, ie all internal data structures are consistent

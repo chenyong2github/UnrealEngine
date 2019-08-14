@@ -271,6 +271,25 @@ int TDynamicMeshOverlay<RealType, ElementSize>::CountVertexElements(int vid, boo
 
 
 template<typename RealType, int ElementSize>
+void TDynamicMeshOverlay<RealType, ElementSize>::GetElementTriangles(int ElementID, TArray<int>& OutTriangles) const
+{
+	check(ElementsRefCounts.IsValid(ElementID));
+	int VertexID = ParentVertices[ElementID];
+
+	for (int TriangleID : ParentMesh->VtxTrianglesItr(VertexID))
+	{
+		int i = 3 * TriangleID;
+		if (ElementTriangles[i] == ElementID || ElementTriangles[i+1] == ElementID || ElementTriangles[i+2] == ElementID)
+		{
+			OutTriangles.Add(TriangleID);
+		}
+	}
+}
+
+
+
+
+template<typename RealType, int ElementSize>
 void TDynamicMeshOverlay<RealType, ElementSize>::OnRemoveTriangle(int TriangleID, bool bRemoveIsolatedVertices)
 {
 	FIndex3i Triangle = GetTriangle(TriangleID);

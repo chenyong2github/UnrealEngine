@@ -136,3 +136,23 @@ FVector3d FMeshNormals::ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertI
 	}
 	return SumNormal.Normalized();
 }
+
+
+FVector3d FMeshNormals::ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx)
+{
+	int ParentVertexID = NormalOverlay->GetParentVertex(ElemIdx);
+	FVector3d SumNormal = FVector3d::Zero();
+	int Count = 0;
+	for (int TriIdx : Mesh.VtxTrianglesItr(ParentVertexID))
+	{
+		if (NormalOverlay->TriangleHasElement(TriIdx, ElemIdx))
+		{
+			FVector3d Normal, Centroid; double Area;
+			Mesh.GetTriInfo(TriIdx, Normal, Area, Centroid);
+			SumNormal += Area * Normal;
+			Count++;
+		}
+	}
+
+	return (Count > 0) ? SumNormal.Normalized() : FVector3d::Zero();
+}

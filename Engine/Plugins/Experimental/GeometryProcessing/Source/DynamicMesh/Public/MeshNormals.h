@@ -98,9 +98,16 @@ public:
 
 
 	/**
-	 * @return the vertex normal at vertex VertIDx of Mesh
+	 * @return the vertex normal at vertex VertIdx of Mesh
 	 */
 	static FVector3d ComputeVertexNormal(const FDynamicMesh3& Mesh, int VertIdx);
+
+
+	/**
+	 * @return the computed overlay normal at an element of the overlay (ie based on normals of triangles connected to this element)
+	 */
+	static FVector3d ComputeOverlayNormal(const FDynamicMesh3& Mesh, FDynamicMeshNormalOverlay* NormalOverlay, int ElemIdx);
+
 
 
 protected:
