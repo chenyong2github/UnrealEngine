@@ -131,9 +131,6 @@ public:
 	EPartyState GetOssPartyPreviousState() const;
 
 	bool IsCurrentlyCrossplaying() const;
-	void StayWithPartyOnExit(bool bInStayWithParty);
-	bool ShouldStayWithPartyOnExit() const;
-
 	bool IsPartyFunctionalityDegraded() const;
 
 	bool IsPartyFull() const;
