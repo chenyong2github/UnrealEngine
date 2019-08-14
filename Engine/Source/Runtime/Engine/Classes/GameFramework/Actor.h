@@ -83,6 +83,7 @@ extern ENGINE_API FUObjectAnnotationSparseBool GSelectedActorAnnotation;
  * Actors may contain a collection of ActorComponents, which can be used to control how actors move, how they are rendered, etc.
  * The other main function of an Actor is the replication of properties and function calls across the network during play.
  * 
+ * 
  * Actor initialization has multiple steps, here's the order of important virtual functions that get called:
  * - UObject::PostLoad: For actors statically placed in a level, the normal UObject PostLoad gets called both in the editor and during gameplay.
  *                      This is not called for newly spawned actors.
@@ -532,7 +533,7 @@ public:
 	int32 InputPriority;
 
 	/** Component that handles input for this actor, if input is enabled. */
-	UPROPERTY()
+	UPROPERTY(DuplicateTransient)
 	class UInputComponent* InputComponent;
 
 	/** Square of the max distance from the client's viewpoint that this actor is relevant and will be replicated. */

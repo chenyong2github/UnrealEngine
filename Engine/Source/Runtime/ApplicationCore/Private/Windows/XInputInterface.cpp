@@ -98,6 +98,9 @@ float ShortToNormalizedFloat(int16 AxisVal)
 	return float(AxisVal) / Norm;
 }
 
+static FName XInputInterfaceName = FName("XInputInterface");
+static FString XInputControllerIdentifier = TEXT("XInputController");
+
 void XInputInterface::SendControllerEvents()
 {
 	bool bWereConnected[MAX_NUM_XINPUT_CONTROLLERS];
@@ -126,6 +129,9 @@ void XInputInterface::SendControllerEvents()
 		
 	for ( int32 ControllerIndex = 0; ControllerIndex < MAX_NUM_XINPUT_CONTROLLERS; ++ControllerIndex )
 	{
+		// Set input scope, there doesn't seem to be a reliable way to differentiate 360 vs Xbox one controllers so use generic name
+		FInputDeviceScope InputScope(this, XInputInterfaceName, ControllerIndex, XInputControllerIdentifier);
+
 		FControllerState& ControllerState = ControllerStates[ControllerIndex];
 
 		const bool bWasConnected = bWereConnected[ControllerIndex];
@@ -256,7 +262,7 @@ void XInputInterface::SetMessageHandler( const TSharedRef< FGenericApplicationMe
 	MessageHandler = InMessageHandler;
 }
 
-void XInputInterface::SetChannelValue( const int32 ControllerId, const FForceFeedbackChannelType ChannelType, const float Value )
+void XInputInterface::SetChannelValue( int32 ControllerId, const FForceFeedbackChannelType ChannelType, const float Value )
 {
 	if (ControllerId >= 0 && ControllerId < MAX_NUM_XINPUT_CONTROLLERS)
 	{
@@ -286,7 +292,7 @@ void XInputInterface::SetChannelValue( const int32 ControllerId, const FForceFee
 	}
 }
 
-void XInputInterface::SetChannelValues( const int32 ControllerId, const FForceFeedbackValues &Values )
+void XInputInterface::SetChannelValues( int32 ControllerId, const FForceFeedbackValues &Values )
 {
 	if (ControllerId >= 0 && ControllerId < MAX_NUM_XINPUT_CONTROLLERS)
 	{

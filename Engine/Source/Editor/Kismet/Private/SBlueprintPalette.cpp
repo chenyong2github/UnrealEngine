@@ -583,7 +583,7 @@ public:
 		FEdGraphSchemaAction_K2Event* EventAction = (FEdGraphSchemaAction_K2Event*)ActionPtr.Pin().Get();
 
 		UK2Node* AssociatedNode = EventAction->NodeTemplate;
-		if (AssociatedNode && AssociatedNode->bCanRenameNode)
+		if (AssociatedNode && AssociatedNode->GetCanRenameNode())
 		{
 			TSharedPtr<INameValidatorInterface> NodeNameValidator = FNameValidatorFactory::MakeValidator(AssociatedNode);
 			bIsNameValid = (NodeNameValidator->IsValid(InNewText.ToString(), true) == EValidatorResult::Ok);
@@ -648,7 +648,7 @@ public:
 		FEdGraphSchemaAction_K2TargetNode* TargetNodeAction = (FEdGraphSchemaAction_K2TargetNode*)ActionPtr.Pin().Get();
 
 		UK2Node* AssociatedNode = TargetNodeAction->NodeTemplate;
-		if (AssociatedNode && AssociatedNode->bCanRenameNode)
+		if (AssociatedNode && AssociatedNode->GetCanRenameNode())
 		{
 			TSharedPtr<INameValidatorInterface> NodeNameValidator = FNameValidatorFactory::MakeValidator(AssociatedNode);
 			bIsNameValid = (NodeNameValidator->IsValid(InNewText.ToString(), true) == EValidatorResult::Ok);

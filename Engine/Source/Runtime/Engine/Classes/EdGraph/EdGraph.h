@@ -166,8 +166,15 @@ public:
 	 */
 	void SelectNodeSet(TSet<const UEdGraphNode*> NodeSelection, bool bFromUI = false);
 
-	/** Remove a node from this graph */
-	bool RemoveNode( UEdGraphNode* NodeToRemove );
+	/** 
+	* Remove a node from this graph
+	* 
+	* @param NodeToRemove		The node to remove from this graph
+	* @param bBreakAllLinks		If true, all links will be broken on the given node. Editor only. Useful for moving nodes to a different graph.
+	* 
+	* @return True if the node has been removed from the graph
+	*/
+	bool RemoveNode( UEdGraphNode* NodeToRemove, bool bBreakAllLinks = true );
 
 	/** Signal to listeners that the graph has changed */
 	virtual void NotifyGraphChanged();

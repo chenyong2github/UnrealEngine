@@ -13,7 +13,7 @@ class USCS_Node;
 class UUserDefinedEnum;
 class UUserDefinedStruct;
 struct FDefaultSubobjectData;
-struct FNonativeComponentData;
+struct FNonNativeComponentData;
 enum class ENativizedTermUsage : uint8;
 struct FEmitterLocalContext;
 
@@ -333,8 +333,6 @@ struct FEmitHelper
 	static const TCHAR* EmptyDefaultConstructor(UScriptStruct* Struct);
 };
 
-struct FNonativeComponentData;
-
 struct FEmitDefaultValueHelper
 {
 	static void GenerateUserStructConstructor(const UUserDefinedStruct* Struct, FEmitterLocalContext& EmitterContext);
@@ -390,7 +388,7 @@ private:
 	static FString HandleSpecialTypes(FEmitterLocalContext& Context, const UProperty* Property, const uint8* ValuePtr);
 
 	static FString HandleNonNativeComponent(FEmitterLocalContext& Context, const USCS_Node* Node, TSet<const UProperty*>& OutHandledProperties
-		, TArray<FString>& NativeCreatedComponentProperties, const USCS_Node* ParentNode, TArray<FNonativeComponentData>& ComponentsToInit
+		, TArray<FString>& NativeCreatedComponentProperties, const USCS_Node* ParentNode, TArray<FNonNativeComponentData>& ComponentsToInit
 		, bool bBlockRecursion);
 };
 

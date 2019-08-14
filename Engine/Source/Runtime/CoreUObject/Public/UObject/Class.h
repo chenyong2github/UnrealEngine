@@ -108,6 +108,14 @@ class COREUOBJECT_API UField : public UObject
 	 */
 	FText GetToolTipText(bool bShortTooltip = false) const;
 
+	/** 
+	 * Formats a source comment into the form we want to show in the editor, is used by GetToolTipText and anything else that will get a native tooltip 
+	 * 
+	 * @param ToolTipString			String parsed out of C++ headers that is modified in place
+	 * @param bRemoveExtraSections	If true, cut off the comment on first line separator or 2 empty lines in a row
+	 */
+	static void FormatNativeToolTip(FString& ToolTipString, bool bRemoveExtraSections = true);
+
 	/**
 	 * Determines if the property has any metadata associated with the key
 	 * 

@@ -47,6 +47,8 @@ private:
 	// (returned from GetRemappedCurveName)
 	TMap<FName, FName> CurveNameMap;
 
+#if WITH_EDITOR
 	/** Blueprint.OnCompiled delegate handle */
 	FDelegateHandle OnBlueprintCompiledDelegate;
+#endif
 };

@@ -305,19 +305,75 @@ FText UField::GetToolTipText(bool bShortTooltip) const
 		{
 			NativeToolTip = FName::NameToDisplayString(FDisplayNameHelper::Get(*this), IsA<UBoolProperty>());
 		}
-		else
+		else if (!bShortTooltip && IsNative())
 		{
-			static const FString DoxygenSee(TEXT("@see"));
-			static const FString TooltipSee(TEXT("See:"));
-			if (NativeToolTip.ReplaceInline(*DoxygenSee, *TooltipSee) > 0)
-			{
-				NativeToolTip.TrimEndInline();
-			}
+			FormatNativeToolTip(NativeToolTip, true);
 		}
 		LocalizedToolTip = FText::FromString(NativeToolTip);
 	}
 
 	return LocalizedToolTip;
+}
+
+void UField::FormatNativeToolTip(FString& ToolTipString, bool bRemoveExtraSections)
+{
+	// First do doxygen replace
+	static const FString DoxygenSee(TEXT("@see"));
+	static const FString TooltipSee(TEXT("See:"));
+	ToolTipString.ReplaceInline(*DoxygenSee, *TooltipSee);
+
+	bool bCurrentLineIsEmpty = true;
+	int32 EmptyLineCount = 0;
+	int32 LastContentIndex = INDEX_NONE;
+	const int32 ToolTipLength = ToolTipString.Len();
+		
+	// Start looking for empty lines and whitespace to strip
+	for (int32 StrIndex = 0; StrIndex < ToolTipLength; StrIndex++)
+	{
+		TCHAR CurrentChar = ToolTipString[StrIndex];
+
+		if (!FChar::IsWhitespace(CurrentChar))
+		{
+			if (FChar::IsPunct(CurrentChar))
+			{
+				// Punctuation is considered content if it's on a line with alphanumeric text
+				if (!bCurrentLineIsEmpty)
+				{
+					LastContentIndex = StrIndex;
+				}
+			}
+			else
+			{
+				// This is something alphanumeric, this is always content and mark line as not empty
+				bCurrentLineIsEmpty = false;
+				LastContentIndex = StrIndex;
+			}
+		}
+		else if (CurrentChar == TEXT('\n'))
+		{
+			if (bCurrentLineIsEmpty)
+			{
+				EmptyLineCount++;
+				if (bRemoveExtraSections && EmptyLineCount >= 2)
+				{
+					// If we get two empty or punctuation/separator lines in a row, cut off the string if requested
+					break;
+				}
+			}
+			else
+			{
+				EmptyLineCount = 0;
+			}
+
+			bCurrentLineIsEmpty = true;
+		}
+	}
+
+	// Trim string to last content character, this strips trailing whitespace as well as extra sections if needed
+	if (LastContentIndex >= 0 && LastContentIndex != ToolTipLength - 1)
+	{
+		ToolTipString.RemoveAt(LastContentIndex + 1, ToolTipLength - (LastContentIndex + 1));
+	}
 }
 
 /**
