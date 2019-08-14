@@ -539,6 +539,7 @@ void ComputeMotionBlurVelocity(
 				ERenderTargetLoadAction::EClear,
 				ERenderTargetStoreAction::EStore,
 				ERenderTargetLoadAction::ENoAction,
+				ERenderTargetStoreAction::ENoAction,
 				FExclusiveDepthStencil::DepthWrite_StencilNop);
 
 		PassParameters->RenderTargets[0] =
