@@ -2052,11 +2052,7 @@ namespace UnrealBuildTool
 					BaseFolder = UnrealBuildTool.EngineDirectory;
 					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
 				}
-				if (Path == UnrealBuildTool.PlatformExtensionsDirectory)
-				{
-					BaseFolder = UnrealBuildTool.RootDirectory;
-					return FindOrAddProjectHelper(EngineProjectFileNameBase, BaseFolder);
-				}
+
 				if (Path == UnrealBuildTool.EnterpriseDirectory)
 				{
 					BaseFolder = UnrealBuildTool.EnterpriseDirectory;
