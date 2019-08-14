@@ -457,9 +457,13 @@ void FNiagaraEmitterViewModel::ScriptParameterStoreChanged(const FNiagaraParamet
 
 void FNiagaraEmitterViewModel::OnEmitterPropertiesChanged()
 {
-	// When the properties change we reset the scripts on the script view model because gpu/cpu or interpolation may have changed.
-	SharedScriptViewModel->SetScripts(Emitter.Get());
-	OnPropertyChangedDelegate.Broadcast();
+	// Check that these are valid since post edit changed is called on objects even when they've been deleted as a result of undo/redo.
+	if (SharedScriptViewModel.IsValid() && Emitter.IsValid())
+	{
+		// When the properties change we reset the scripts on the script view model because gpu/cpu or interpolation may have changed.
+		SharedScriptViewModel->SetScripts(Emitter.Get());
+		OnPropertyChangedDelegate.Broadcast();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

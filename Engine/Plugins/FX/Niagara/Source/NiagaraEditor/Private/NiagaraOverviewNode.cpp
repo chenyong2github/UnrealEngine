@@ -54,7 +54,8 @@ bool UNiagaraOverviewNode::CanUserDeleteNode() const
 
 bool UNiagaraOverviewNode::CanDuplicateNode() const
 {
-	return EmitterHandleGuid.IsValid();
+	// The class object must return true for can duplicate otherwise the CanImportNodesFromText utility function fails.
+	return HasAnyFlags(RF_ClassDefaultObject) || EmitterHandleGuid.IsValid();
 }
 
 UNiagaraSystem* UNiagaraOverviewNode::GetOwningSystem()
