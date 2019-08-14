@@ -193,8 +193,13 @@ public:
 	virtual float GetDefaultHalfHeight() const;
 
 	/** See if this actor is currently being controlled */
+	UE_DEPRECATED(4.24, "IsControlled is deprecated. Please call APawn::IsPawnControlled() instead.")
 	UFUNCTION(BlueprintCallable, Category=Pawn)
 	bool IsControlled() const;
+
+	/** Check if this actor is currently being controlled at all (the actor has a valid Controller) */
+	UFUNCTION(BlueprintCallable, Category = Pawn)
+	bool IsPawnControlled() const;
 
 	/** Returns controller for this actor. */
 	UFUNCTION(BlueprintCallable, Category=Pawn)

@@ -443,6 +443,11 @@ bool APawn::IsControlled() const
 	return(PC != nullptr);
 }
 
+bool APawn::IsPawnControlled() const
+{
+	return (Controller != nullptr);
+}
+
 FRotator APawn::GetControlRotation() const
 {
 	return Controller ? Controller->GetControlRotation() : FRotator::ZeroRotator;
