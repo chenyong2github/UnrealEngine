@@ -109,6 +109,11 @@ class UFXSystemAsset : public UObject
 	GENERATED_UCLASS_BODY()
 public:
 	UFXSystemAsset() {}
+
+	/** Max number of components of this system to keep resident in the world component pool. */
+	UPROPERTY(EditAnywhere, Category = Performance)
+	uint32 MaxPoolSize;
+	//TODO: Allow pool size overriding per world and possibly implement some preallocation too.
 };
 
 /**
@@ -337,11 +342,6 @@ public:
 	/** The maximum level of significance for emitters in this system. Any emitters with a higher significance will be capped at this significance level. */
 	UPROPERTY(EditAnywhere, Category = Performance)
 	EParticleSignificanceLevel MaxSignificanceLevel;
-
-	/** Max number of components of this system to keep resident in the world PSC pool. */
-	UPROPERTY(EditAnywhere, Category = Performance)
-	uint32 MaxPoolSize;
-	//TODO: Allow pool size overriding per world and possibly implement some preallocation too.
 
 	/** Local space position that UVs generated with the ParticleMacroUV material node will be centered on. */
 	UPROPERTY(EditAnywhere, Category=MacroUV)
