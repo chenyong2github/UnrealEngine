@@ -70,6 +70,7 @@ protected:
 	FVector2D SourceTextureDimension;
 #endif
 
+#if WITH_EDITORONLY_DATA
 	// Position within SourceTexture (in pixels)
 	UPROPERTY(Category=Sprite, EditAnywhere, AssetRegistrySearchable)
 	FVector2D SourceUV;
@@ -80,7 +81,8 @@ protected:
 
 	// The source texture that the sprite comes from
 	UPROPERTY(Category=Sprite, EditAnywhere, AssetRegistrySearchable)
-	UTexture2D* SourceTexture;
+	TSoftObjectPtr<UTexture2D> SourceTexture;
+#endif
 
 	// Additional source textures for other slots
 	UPROPERTY(Category=Sprite, EditAnywhere, AssetRegistrySearchable, meta=(DisplayName="Additional Textures"))
@@ -260,10 +262,9 @@ public:
 
 	ESpritePivotMode::Type GetPivotMode(FVector2D& OutCustomTextureSpacePivot) const { OutCustomTextureSpacePivot = CustomPivotPoint; return PivotMode; }
 
-
 	FVector2D GetSourceUV() const { return SourceUV; }
 	FVector2D GetSourceSize() const { return SourceDimension; }
-	UTexture2D* GetSourceTexture() const { return SourceTexture; }
+	UTexture2D* GetSourceTexture() const;
 
 	const UPaperSpriteAtlas* GetAtlasGroup() const { return AtlasGroup; }
 #endif
