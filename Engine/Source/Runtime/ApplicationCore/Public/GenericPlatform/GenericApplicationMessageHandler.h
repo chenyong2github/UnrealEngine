@@ -227,7 +227,45 @@ private:
 	TOptional<float> MaxHeight;
 };
 
+/** 
+ * Context scope that indicates which IInputDevice is currently being handled. 
+ * This can be used to determine hardware-specific information when handling input from FGenericApplicationMessageHandler subclasses.
+ * This is generally set during SendControllerEvents or Tick and is only valid on the game thread.
+ */
+class APPLICATIONCORE_API FInputDeviceScope
+{
+public:
+	/** The specific InputDevice that is currently being polled. This is only valid within the current function scope and may be null */
+	class IInputDevice* InputDevice;
 
+	/** Logical name of the input device interface. This is not translated but is platform-specific */
+	FName InputDeviceName;
+
+	/** A system-specific device id, this is not the same as controllerId and represents a physical device instead of logical user. -1 represents an unknown device */
+	int32 HardwareDeviceHandle;
+
+	/** Logical string identifying the hardware device. This is not translated and is system-specific, it may be empty */
+	FString HardwareDeviceIdentifier;
+
+	/** Constructor, this should only be allocated directly on the stack */
+	FInputDeviceScope(IInputDevice* InInputDevice, FName InInputDeviceName, int32 InHardwareDeviceHandle = -1, FString InHardwareDeviceIdentifier = FString());
+	~FInputDeviceScope();
+
+	/** Cannot be copied/moved */
+	FInputDeviceScope() = delete;
+	FInputDeviceScope(const FInputDeviceScope&) = delete;
+	FInputDeviceScope& operator=(const FInputDeviceScope&) = delete;
+	FInputDeviceScope(FInputDeviceScope&&) = delete;
+	FInputDeviceScope& operator=(FInputDeviceScope&&) = delete;
+
+	/** Returns the currently active InputDeviceScope. This is only valid to call on the game thread and may return null */
+	static const FInputDeviceScope* GetCurrent();
+
+private:
+	static TArray<FInputDeviceScope*> ScopeStack;
+};
+
+/** Interface that defines how to handle interaction with a user via hardware input and output */
 class FGenericApplicationMessageHandler
 {
 public:

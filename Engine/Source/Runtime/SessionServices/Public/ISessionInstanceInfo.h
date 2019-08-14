@@ -113,13 +113,6 @@ public:
 	virtual bool IsAuthorized() const = 0;
 
 	/**
-	 * Check whether this instance is a console build (i.e. no editor features).
-	 *
-	 * @return true if it is a console build, false otherwise.
-	 */
-	virtual const bool IsConsole() const = 0;
-
-	/**
 	 * Checks whether this instance has already begun game play.
 	 *
 	 * @return true if game play has begun, false otherwise.

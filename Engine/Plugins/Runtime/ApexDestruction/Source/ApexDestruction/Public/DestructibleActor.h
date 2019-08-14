@@ -27,21 +27,21 @@ private:
 	UDestructibleComponent* DestructibleComponent;
 public:
 
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, Category=Navigation)
-	uint32 bAffectNavigation : 1;
-
 	UPROPERTY(BlueprintAssignable, Category = "Components|Destructible")
 	FActorFractureSignature OnActorFracture;
 
-	//~ Begin AActor Interface.
+#if WITH_EDITORONLY_DATA
+	UE_DEPRECATED(4.24, "This property will be removed in future versions. Please use bCanEverAffectNavigation in DestructionComponent.")
+	UPROPERTY(config, BlueprintReadWrite, Category = Navigation, meta = (DeprecationMessage = "Setting the value from Blueprint script does nothing. Please use bCanEverAffectNavigation in DestructionComponent."))
+	uint32 bAffectNavigation : 1;
+#endif // WITH_EDITORONLY_DATA
+
 #if WITH_EDITOR
+	//~ Begin AActor Interface.
 	virtual bool GetReferencedContentObjects( TArray<UObject*>& Objects ) const override;
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif // WITH_EDITOR
-	//~ End AActor Interface.
-
 	virtual void PostLoad() override;
-
+	//~ End AActor Interface.
+#endif // WITH_EDITOR
 
 public:
 	/** Returns DestructibleComponent subobject **/

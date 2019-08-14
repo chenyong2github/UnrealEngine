@@ -26,14 +26,14 @@ struct FDLLPointers
 public:
 	
 	/* typedefs for the functions we want */
-	typedef bool(*HidD_GetSerialNumberStringType)(HANDLE device, PVOID buffer, uint32 buffer_len);
-	typedef bool(*HidD_GetManufacturerStringType)(HANDLE handle, PVOID buffer, uint32 buffer_len);
-	typedef bool(*HidD_GetProductStringType)(HANDLE handle, PVOID buffer, uint32 buffer_len);
-	typedef int32(*HidP_GetValueCapsType)(HIDP_REPORT_TYPE ReportType, PHIDP_VALUE_CAPS ValueCaps, uint16* ValueCapsLength, PHIDP_PREPARSED_DATA PreparsedData);
-	typedef int32(*HidP_GetButtonCapsType)(HIDP_REPORT_TYPE ReportType, PHIDP_BUTTON_CAPS ButtonCaps, uint16* ButtonCapsLength, PHIDP_PREPARSED_DATA PreparsedData);
-	typedef int32(*HidP_GetCapsType)(PHIDP_PREPARSED_DATA PreparsedData, PHIDP_CAPS Capabilities);
-	typedef int32(*HidP_GetUsagesType)(HIDP_REPORT_TYPE ReportType, uint16 UsagePage, uint16 LinkCollection, uint16* UsageList, uint32* UsageLength, PHIDP_PREPARSED_DATA PreparsedData, PCHAR Report, uint32 ReportLength);
-	typedef int32(*HidP_GetUsageValueType)(HIDP_REPORT_TYPE ReportType, uint16 UsagePage, uint16 LinkCollection, uint16 Usage, uint32* UsageValue, PHIDP_PREPARSED_DATA PreparsedData, PCHAR Report, uint32 ReportLength);
+	typedef bool(WINAPI *HidD_GetSerialNumberStringType)(HANDLE device, PVOID buffer, uint32 buffer_len);
+	typedef bool(WINAPI *HidD_GetManufacturerStringType)(HANDLE handle, PVOID buffer, uint32 buffer_len);
+	typedef bool(WINAPI *HidD_GetProductStringType)(HANDLE handle, PVOID buffer, uint32 buffer_len);
+	typedef int32(WINAPI *HidP_GetValueCapsType)(HIDP_REPORT_TYPE ReportType, PHIDP_VALUE_CAPS ValueCaps, uint16* ValueCapsLength, PHIDP_PREPARSED_DATA PreparsedData);
+	typedef int32(WINAPI *HidP_GetButtonCapsType)(HIDP_REPORT_TYPE ReportType, PHIDP_BUTTON_CAPS ButtonCaps, uint16* ButtonCapsLength, PHIDP_PREPARSED_DATA PreparsedData);
+	typedef int32(WINAPI *HidP_GetCapsType)(PHIDP_PREPARSED_DATA PreparsedData, PHIDP_CAPS Capabilities);
+	typedef int32(WINAPI *HidP_GetUsagesType)(HIDP_REPORT_TYPE ReportType, uint16 UsagePage, uint16 LinkCollection, uint16* UsageList, uint32* UsageLength, PHIDP_PREPARSED_DATA PreparsedData, PCHAR Report, uint32 ReportLength);
+	typedef int32(WINAPI *HidP_GetUsageValueType)(HIDP_REPORT_TYPE ReportType, uint16 UsagePage, uint16 LinkCollection, uint16 Usage, uint32* UsageValue, PHIDP_PREPARSED_DATA PreparsedData, PCHAR Report, uint32 ReportLength);
 	
 	FDLLPointers();
 	virtual ~FDLLPointers();
@@ -107,10 +107,11 @@ struct FAnalogData
 		, RangeMax(-1.f)
 		, Offset(0.f)
 		, bInverted(false)
+		, bGamepadStick(false)
 	{
 	}
 
-	FAnalogData(const int32 InIndex, const float InValue, const float InRangeMin, const float InRangeMax, const float InOffset, const bool bInInverted, const FName InKeyName)
+	FAnalogData(const int32 InIndex, const float InValue, const float InRangeMin, const float InRangeMax, const float InOffset, const bool bInInverted, const bool bInGamepadStick, const FName InKeyName)
 		: Index(InIndex)
 		, Value(InValue)
 		, PreviousValue(0.f)
@@ -118,6 +119,7 @@ struct FAnalogData
 		, RangeMax(InRangeMax)
 		, Offset(0.f)
 		, bInverted(bInInverted)
+		, bGamepadStick(bInGamepadStick)
 		, KeyName(InKeyName)
 	{
 	}
@@ -126,6 +128,13 @@ struct FAnalogData
 	float GetValue() const
 	{
 		const float Factor = 1.f / (RangeMax - RangeMin);
+		if (bGamepadStick)
+		{
+			// Need to do the re-centering before inverting
+			const float NormalizedValue = ((Value * Factor) - 0.5f) * 2 * (bInverted ? -1.0f : 1.0f);
+			return NormalizedValue + Offset;
+		}
+
 		const float NormalizedValue = (bInverted ? (Value * Factor * -1.f) : (Value * Factor));
 		return NormalizedValue + Offset;
 	}
@@ -156,6 +165,9 @@ struct FAnalogData
 
 	/* Is this axis inverted */
 	bool bInverted;
+
+	/* Is this axis centered on 0 instead of 0.5 */
+	bool bGamepadStick;
 	
 	/* Key name */
 	FName KeyName;
@@ -276,6 +288,9 @@ private:
 	
 	/** Compare a RID_DEVICE_INFO structure with a FRawInputRegisteredDevice one. */
 	static bool CompareDeviceInfo(const RID_DEVICE_INFO& DeviceInfo, const FRawInputRegisteredDevice& OtherInfo);
+
+	/** Updates a raw device with connected device info, if null will reset data */
+	static void CopyConnectedDeviceInfo(FRawWindowsDeviceEntry& RegisteredDevice, const FConnectedDeviceInfo* ConnectedDevice);
 
 	/** Returns the handle to a registered device or INDEX_NONE if the device doesn't exist. */
 	int32 FindRegisteredDeviceHandle(const FRawInputRegisteredDevice& InDeviceData) const;

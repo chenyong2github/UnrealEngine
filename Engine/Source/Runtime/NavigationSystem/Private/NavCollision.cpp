@@ -295,6 +295,21 @@ void UNavCollision::GetNavigationModifier(FCompositeNavModifier& Modifier, const
 	const int32 NumModifiers = (TriMeshCollision.VertexBuffer.Num() ? 1 : 0) + ConvexShapeIndices.Num();
 	Modifier.ReserveForAdditionalAreas(NumModifiers);
 
+	auto AddModFunc = [&](const TNavStatArray<FVector>& VertexBuffer, const int32 FirstVertIndex, const int32 LastVertIndex)
+	{
+		FAreaNavModifier AreaMod;
+		if (Modifier.IsPerInstanceModifier())
+		{
+			AreaMod.InitializePerInstanceConvex(VertexBuffer, FirstVertIndex, LastVertIndex, UseAreaClass);
+		}
+		else
+		{
+			AreaMod.InitializeConvex(VertexBuffer, FirstVertIndex, LastVertIndex, LocalToWorld, UseAreaClass);
+		}
+		AreaMod.SetIncludeAgentHeight(true);
+		Modifier.Add(AreaMod);
+	};
+
 	int32 LastVertIndex = 0;
 	for (int32 Idx = 0; Idx < ConvexShapeIndices.Num(); Idx++)
 	{
@@ -305,17 +320,13 @@ void UNavCollision::GetNavigationModifier(FCompositeNavModifier& Modifier, const
 		// contain any duplicates (which is the original cause of UE-52123)
 		if (FirstVertIndex < LastVertIndex)
 		{
-			FAreaNavModifier AreaMod(ConvexCollision.VertexBuffer, FirstVertIndex, LastVertIndex, ENavigationCoordSystem::Unreal, LocalToWorld, UseAreaClass);
-			AreaMod.SetIncludeAgentHeight(true);
-			Modifier.Add(AreaMod);
+			AddModFunc(ConvexCollision.VertexBuffer, FirstVertIndex, LastVertIndex);
 		}
 	}
 
 	if (TriMeshCollision.VertexBuffer.Num() > 0)
 	{
-		FAreaNavModifier AreaMod(TriMeshCollision.VertexBuffer, 0, TriMeshCollision.VertexBuffer.Num() - 1, ENavigationCoordSystem::Unreal, LocalToWorld, UseAreaClass);
-		AreaMod.SetIncludeAgentHeight(true);
-		Modifier.Add(AreaMod);
+		AddModFunc(TriMeshCollision.VertexBuffer, 0, TriMeshCollision.VertexBuffer.Num() - 1);
 	}
 }
 

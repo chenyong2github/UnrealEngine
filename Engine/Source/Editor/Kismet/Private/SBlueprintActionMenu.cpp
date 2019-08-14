@@ -344,6 +344,7 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 						.OnCreateWidgetForAction(SGraphActionMenu::FOnCreateWidgetForAction::CreateSP(this, &SBlueprintActionMenu::OnCreateWidgetForAction))
 						.OnCollectAllActions(this, &SBlueprintActionMenu::CollectAllActions)
 						.OnCreateCustomRowExpander_Static(&CreateCustomBlueprintActionExpander)
+						.DraggedFromPins(DraggedFromPins)
 				]
 			]
 		]

@@ -460,6 +460,11 @@ bool UK2Node_Event::IsFunctionEntryCompatible(const UK2Node_FunctionEntry* Entry
 	return (EventPins.Num() == 0) && (EntryPins.Num() == 0);
 }
 
+bool UK2Node_Event::IsInterfaceEventNode() const
+{
+	return (EventReference.GetMemberParentClass(GetBlueprintClassFromNode()) != nullptr) && EventReference.GetMemberParentClass(GetBlueprintClassFromNode())->IsChildOf(UInterface::StaticClass());
+}
+
 bool UK2Node_Event::IsCompatibleWithGraph(const UEdGraph* TargetGraph) const
 {
 	bool bIsCompatible = Super::IsCompatibleWithGraph(TargetGraph);
@@ -745,7 +750,7 @@ FText UK2Node_Event::GetToolTipHeading() const
 	{
 		EventHeading = LOCTEXT("ServerOnlyEvent", "Server Only");
 	}
-	else if(EventHeading.IsEmpty() && (EventReference.GetMemberParentClass(GetBlueprintClassFromNode()) != nullptr) && EventReference.GetMemberParentClass(GetBlueprintClassFromNode())->IsChildOf(UInterface::StaticClass()))
+	else if(EventHeading.IsEmpty() && IsInterfaceEventNode())
 	{
 		EventHeading = LOCTEXT("InterfaceEvent", "Interface Event");
 	}

@@ -334,6 +334,9 @@ public:
 		return (EnabledState == ENodeEnabledState::Enabled)	|| ((EnabledState == ENodeEnabledState::DevelopmentOnly) && IsInDevelopmentMode());
 	}
 
+	/** If true, this node can be renamed in the editor */
+	virtual bool GetCanRenameNode() const;
+
 	/** Returns the specific sort of enable state this node wants */
 	ENodeEnabledState GetDesiredEnabledState() const
 	{

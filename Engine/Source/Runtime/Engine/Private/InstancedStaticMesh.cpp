@@ -2705,6 +2705,7 @@ void UInstancedStaticMeshComponent::GetNavigationData(FNavigationRelevantData& D
 		UNavCollisionBase* NavCollision = GetStaticMesh()->NavCollision;
 		if (NavCollision->IsDynamicObstacle())
 		{
+			Data.Modifiers.MarkAsPerInstanceModifier();
 			NavCollision->GetNavigationModifier(Data.Modifiers, FTransform::Identity);
 
 			// Hook per instance transform delegate

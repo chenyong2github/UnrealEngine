@@ -6385,7 +6385,12 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports(FFlushTree* FlushTree)
 		{
 			continue;
 		}
-			
+
+		// This may be an import left behind from a core redirects fixup
+		if (Import->ObjectName.IsNone())
+		{
+			continue;
+		}
 
 		// Don't try to import a package that is in an import table that we know is an invalid entry
 		if (FLinkerLoad::IsKnownMissingPackage(Import->ObjectName))

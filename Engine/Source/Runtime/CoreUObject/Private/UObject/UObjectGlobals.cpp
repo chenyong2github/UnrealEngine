@@ -3020,21 +3020,65 @@ void FObjectInitializer::InitProperties(UObject* Obj, UClass* DefaultsClass, UOb
 	}
 }
 
-bool FObjectInitializer::IslegalOverride(FName InComponentName, class UClass *DerivedComponentClass, class UClass *BaseComponentClass) const
+/**  Add an override, make sure it is legal **/
+void FObjectInitializer::FOverrides::Add(FName InComponentName, UClass* InComponentClass, FObjectInitializer const& ObjectInitializer)
 {
-	if (DerivedComponentClass && BaseComponentClass && !DerivedComponentClass->IsChildOf(BaseComponentClass) )
+	const int32 Index = Find(InComponentName);
+	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s is not a legal override for component %s because it does not derive from %s."), 
-			*DerivedComponentClass->GetFullName(), *InComponentName.ToString(), *BaseComponentClass->GetFullName());
+		Overrides.Emplace(FOverride(InComponentName, InComponentClass));
+	}
+	else if (InComponentClass && Overrides[Index].ComponentClass)
+	{
+		// if a base class is asking for an override, the existing override (which we are going to use) had better be derived
+		if (!IsLegalOverride(Overrides[Index].ComponentClass, InComponentClass))
+		{
+			UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because it does not derive from %s. Will use %s when constructing component."),
+				*Overrides[Index].ComponentClass->GetFullName(), *InComponentName.ToString(), *InComponentClass->GetFullName(), *InComponentClass->GetFullName());
+
+			Overrides[Index].ComponentClass = InComponentClass;
+		}
+	}
+}
+
+/**  Retrieve an override, or TClassToConstructByDefault::StaticClass or nullptr if this was removed by a derived class **/
+UClass* FObjectInitializer::FOverrides::Get(FName InComponentName, UClass* ReturnType, UClass* ClassToConstructByDefault, FObjectInitializer const& ObjectInitializer) const
+{
+	const int32 Index = Find(InComponentName);
+	UClass* BaseComponentClass = ClassToConstructByDefault;
+	if (Index == INDEX_NONE)
+	{
+		return BaseComponentClass; // no override so just do what the base class wanted
+	}
+	else if (Overrides[Index].ComponentClass)
+	{
+		if (IsLegalOverride(Overrides[Index].ComponentClass, ReturnType)) // if THE base class is asking for a T, the existing override (which we are going to use) had better be derived
+		{
+			return Overrides[Index].ComponentClass; // the override is of an acceptable class, so use it
+		}
+		else
+		{
+			UE_LOG(LogUObjectGlobals, Error, TEXT("%s is not a legal override for component %s because it does not derive from %s. Using %s to construct component."),
+				*Overrides[Index].ComponentClass->GetFullName(), *InComponentName.ToString(), *ReturnType->GetFullName(), *ClassToConstructByDefault->GetFullName());
+
+			return ClassToConstructByDefault;
+		}
+	}
+	return nullptr;  // the override is of nullptr, which means "don't create this component"
+}
+bool FObjectInitializer::FOverrides::IsLegalOverride(const UClass* DerivedComponentClass, const UClass* BaseComponentClass)
+{
+	if (DerivedComponentClass && BaseComponentClass && !DerivedComponentClass->IsChildOf(BaseComponentClass))
+	{
 		return false;
 	}
 	return true;
 }
 
-void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(const TCHAR* SubobjectName) const
+void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(const FName SubobjectName) const
 {
 	UE_CLOG(!bSubobjectClassInitializationAllowed, LogUObjectGlobals, Fatal,
-		TEXT("%s.%s: Subobject class setup is only allowed in base class constructor call (in the initialization list)"), Obj ? *Obj->GetFullName() : TEXT("NULL"), SubobjectName);
+		TEXT("%s.%s: Subobject class setup is only allowed in base class constructor call (in the initialization list)"), Obj ? *Obj->GetFullName() : TEXT("NULL"), *SubobjectName.GetPlainNameString());
 }
 
 #if DO_CHECK
