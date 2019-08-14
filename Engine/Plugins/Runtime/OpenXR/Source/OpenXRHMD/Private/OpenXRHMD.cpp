@@ -19,6 +19,7 @@
 #include "Misc/CString.h"
 #include "ClearQuad.h"
 #include "XRThreadUtils.h"
+#include "RenderUtils.h"
 #include "PipelineStateCache.h"
 #include "Slate/SceneViewport.h"
 #include "Engine/GameEngine.h"
@@ -138,11 +139,12 @@ TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > FOpenXRHMDPlugin::Cre
 		}
 	}
 
-	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, System, RenderBridge);
+	auto OpenXRHMD = FSceneViewExtensions::NewExtension<FOpenXRHMD>(Instance, System, RenderBridge, HasExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME));
 	if( OpenXRHMD->IsInitialized() )
 	{
 		return OpenXRHMD;
 	}
+
 	return nullptr;
 }
 
@@ -299,12 +301,10 @@ bool FOpenXRHMDPlugin::PreInit()
 	}
 #endif
 
-#if 0
 	if (HasExtension(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME))
 	{
 		Extensions.Add(XR_KHR_COMPOSITION_LAYER_DEPTH_EXTENSION_NAME);
 	}
-#endif
 
 	if (HasExtension(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME))
 	{
@@ -740,7 +740,7 @@ bool FOpenXRHMD::IsActiveThisFrame(class FViewport* InViewport) const
 	return GEngine && GEngine->IsStereoscopic3D(InViewport);
 }
 
-FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge)
+FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance, XrSystemId InSystem, TRefCountPtr<FOpenXRRenderBridge>& InRenderBridge, bool InDepthExtensionSupported)
 	: FHeadMountedDisplayBase(nullptr)
 	, FSceneViewExtensionBase(AutoRegister)
 	, bStereoEnabled(false)
@@ -748,6 +748,8 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	, bIsReady(false)
 	, bIsRendering(false)
 	, bRunRequested(false)
+	, bDepthExtensionSupported(InDepthExtensionSupported)
+	, bNeedReAllocatedDepth(InDepthExtensionSupported)
 	, CurrentSessionState(XR_SESSION_STATE_UNKNOWN)
 	, Instance(InInstance)
 	, System(InSystem)
@@ -968,21 +970,24 @@ bool FOpenXRHMD::AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 
 	
 	// Grab the presentation texture out of the swapchain.
 	OutTargetableTexture = OutShaderResourceTexture = (FTexture2DRHIRef&)Swapchain->GetTextureRef();
-#if 0
-	// Allocate the depth buffer swapchain while we're here.
-	DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, NumMips, NumSamples, 0, TexCreate_DepthStencilTargetable);
-	if (!DepthSwapchain)
+
+	if (bDepthExtensionSupported)
 	{
-		return false;
+		// Allocate the depth buffer swapchain while we're here.
+		DepthSwapchain = RenderBridge->CreateSwapchain(Session, PF_DepthStencil, SizeX, SizeY, NumMips, NumSamples, 0, TexCreate_DepthStencilTargetable);
+		if (!DepthSwapchain)
+		{
+			return false;
+		}
+		bNeedReAllocatedDepth = false;
 	}
-#endif
+
 	return true;
 }
 
-#if 0
 bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples)
 {
-	if (!DepthSwapchain || DepthSwapchain->GetTexture2D()->GetSizeX() != SizeX || DepthSwapchain->GetTexture2D()->GetSizeY() != SizeY)
+	if (!DepthSwapchain.IsValid())
 	{
 		return false;
 	}
@@ -991,7 +996,6 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 
 	return true;
 }
-#endif
 
 void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
 {
@@ -1004,9 +1008,11 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 		bIsRendering = true;
 
 		Swapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#if 0
-		DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
-#endif
+		if (bDepthExtensionSupported)
+		{
+			ensure(DepthSwapchain != nullptr);
+			DepthSwapchain->IncrementSwapChainIndex_RHIThread(FrameStateRHI.predictedDisplayPeriod);
+		}
 	}
 
 	FrameStateRHI = FrameState;
@@ -1046,17 +1052,18 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			}
 		};
 
-#if 0
-		DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
-		DepthLayer.next = nullptr;
-		DepthLayer.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle();
-		DepthLayer.subImage.imageArrayIndex = 0;
-		DepthLayer.subImage.imageRect = Projection.subImage.imageRect;
-		DepthLayer.minDepth = 1.0f;
-		DepthLayer.maxDepth = 0.0f;
-		DepthLayer.nearZ = NearZ;
-		DepthLayer.farZ = FLT_MAX;
-#endif
+		if (bDepthExtensionSupported)
+		{
+			DepthLayer.type = XR_TYPE_COMPOSITION_LAYER_DEPTH_INFO_KHR;
+			DepthLayer.next = nullptr;
+			DepthLayer.subImage.swapchain = static_cast<FOpenXRSwapchain*>(GetDepthSwapchain())->GetHandle();
+			DepthLayer.subImage.imageArrayIndex = 0;
+			DepthLayer.subImage.imageRect = Projection.subImage.imageRect;
+			DepthLayer.minDepth = 1.0f;
+			DepthLayer.maxDepth = 0.0f;
+			DepthLayer.nearZ = NearZ;
+			DepthLayer.farZ = FLT_MAX;
+		}
 
 		OffsetX += Config.recommendedImageRectWidth;
 	}
@@ -1244,9 +1251,11 @@ void FOpenXRHMD::FinishRendering()
 	if (bIsRendering)
 	{
 		Swapchain->ReleaseCurrentImage_RHIThread();
-#if 0
-		DepthSwapchain->ReleaseCurrentImage_RHIThread();
-#endif
+
+		if (bDepthExtensionSupported)
+		{
+			DepthSwapchain->ReleaseCurrentImage_RHIThread();
+		}
 
 		XrFrameEndInfo EndInfo;
 		XrCompositionLayerBaseHeader* Headers[1] = { reinterpret_cast<XrCompositionLayerBaseHeader*>(&Layer) };
@@ -1276,6 +1285,11 @@ FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
 		Size.X += (int)Config.recommendedImageRectWidth;
 		Size.Y = FMath::Max(Size.Y, (int)Config.recommendedImageRectHeight);
 	}
+
+	// We always prefer the nearest multiple of 4 for our buffer sizes. Make sure we round up here,
+	// so we're consistent with the rest of the engine in creating our buffers.
+	QuantizeSceneBufferSize(Size, Size);
+
 	return Size;
 }
 
