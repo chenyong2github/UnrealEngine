@@ -14,6 +14,8 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "UObject/MobileObjectVersion.h"
 #include "RenderGraphUtils.h"
+// FIXME: temp fix for ordering issue between WorldContext.World()->InitWorld(); and GShaderCompilingManager->ProcessAsyncResults(false, true); in UnrealEngine.cpp
+#include "ShaderCompiler.h"
 
 DECLARE_MEMORY_STAT(TEXT("Volumetric Lightmap"),STAT_VolumetricLightmapBuildData,STATGROUP_MapBuildData);
 
@@ -695,6 +697,12 @@ void FPrecomputedVolumetricLightmap::AddToScene(FSceneInterface* Scene, UMapBuil
 	if (AllowStaticLightingVar->GetValueOnAnyThread() == 0)
 	{
 		return;
+	}
+
+	// FIXME: temp fix for ordering issue between WorldContext.World()->InitWorld(); and GShaderCompilingManager->ProcessAsyncResults(false, true); in UnrealEngine.cpp
+	if (GShaderCompilingManager)
+	{
+		GShaderCompilingManager->ProcessAsyncResults(false, true);
 	}
 
 	check(!bAddedToScene);
