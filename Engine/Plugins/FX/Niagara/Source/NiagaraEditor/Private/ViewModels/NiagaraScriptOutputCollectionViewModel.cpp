@@ -12,54 +12,11 @@
 
 #define LOCTEXT_NAMESPACE "NiagaraScriptOutputCollection"
 
-FNiagaraScriptOutputCollectionViewModel::FNiagaraScriptOutputCollectionViewModel(UNiagaraScript* InScript, ENiagaraParameterEditMode InParameterEditMode)
-	: FNiagaraParameterCollectionViewModel(InParameterEditMode)
-	, DisplayName(LOCTEXT("DisplayName", "Outputs"))
-{
-	if (InScript != nullptr)
-	{
-		Scripts.Add(InScript);
-	}
-
-	if (Scripts.Num() == 1 && Scripts[0].IsValid() && Scripts[0]->GetSource())
-	{
-		Graph = Cast<UNiagaraScriptSource>(Scripts[0]->GetSource())->NodeGraph;
-		bCanHaveNumericParameters = Scripts[0]->IsStandaloneScript();
-		
-		OutputNode = nullptr;
-		
-		TArray<UNiagaraNodeOutput*> OutputNodes;
-		Graph->GetNodesOfClass(OutputNodes);
-		if (OutputNodes.Num() == 1)
-		{
-			OutputNode = OutputNodes[0];
-		}
-
-	}
-	else
-	{
-		Graph = nullptr;
-		OutputNode = nullptr;
-		bCanHaveNumericParameters = true;
-	}
-	RefreshParameterViewModels();
-
-	if (Graph.IsValid())
-	{
-		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
-		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
-	}
-}
-
 FNiagaraScriptOutputCollectionViewModel::FNiagaraScriptOutputCollectionViewModel(ENiagaraParameterEditMode InParameterEditMode)
 	: FNiagaraParameterCollectionViewModel(InParameterEditMode)
 	, DisplayName(LOCTEXT("DisplayName", "Outputs"))
+	, bCanHaveNumericParameters(true)
 {
-	Graph = nullptr;
-	OutputNode = nullptr;
-	bCanHaveNumericParameters = false;
 }
 
 FNiagaraScriptOutputCollectionViewModel::~FNiagaraScriptOutputCollectionViewModel()
@@ -103,9 +60,9 @@ void FNiagaraScriptOutputCollectionViewModel::SetScripts(TArray<UNiagaraScript*>
 	{
 		Graph = Cast<UNiagaraScriptSource>(Scripts[0]->GetSource())->NodeGraph;
 		OnGraphChangedHandle = Graph->AddOnGraphChangedHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
+			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
 		OnRecompileHandle = Graph->AddOnGraphNeedsRecompileHandler(
-			FOnGraphChanged::FDelegate::CreateRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
+			FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScriptOutputCollectionViewModel::OnGraphChanged));
 		bCanHaveNumericParameters = Scripts[0]->IsStandaloneScript();
 
 		if (Scripts.Num() == 1)
@@ -232,8 +189,8 @@ void FNiagaraScriptOutputCollectionViewModel::RefreshParameterViewModels()
 		for (FNiagaraVariable& OutputVariable : OutputNode->Outputs)
 		{
 			TSharedRef<FNiagaraScriptParameterViewModel> ParameterViewModel = MakeShareable(new FNiagaraScriptParameterViewModel(OutputVariable, *OutputNode, nullptr, nullptr, ParameterEditMode));
-			ParameterViewModel->OnNameChanged().AddRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnParameterNameChanged, &OutputVariable);
-			ParameterViewModel->OnTypeChanged().AddRaw(this, &FNiagaraScriptOutputCollectionViewModel::OnParameterTypeChanged, &OutputVariable);
+			ParameterViewModel->OnNameChanged().AddSP(this, &FNiagaraScriptOutputCollectionViewModel::OnParameterNameChanged, &OutputVariable);
+			ParameterViewModel->OnTypeChanged().AddSP(this, &FNiagaraScriptOutputCollectionViewModel::OnParameterTypeChanged, &OutputVariable);
 			ParameterViewModels.Add(ParameterViewModel);
 		}
 	}
