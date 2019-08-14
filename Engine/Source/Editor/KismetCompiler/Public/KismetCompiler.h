@@ -267,7 +267,10 @@ public:
 
 	/** Ensures that all variables have valid names for compilation/replication */
 	void ValidateVariableNames();
-	
+
+	/** Ensures that all component class overrides are legal overrides of the parent class */
+	void ValidateComponentClassOverrides();
+
 	/** Creates a class variable for each entry in the Blueprint NewVars array */
 	virtual void CreateClassVariablesFromBlueprint();
 

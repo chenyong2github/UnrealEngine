@@ -5316,6 +5316,11 @@ void UDynamicClass::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 	Collector.AddReferencedObjects(This->ComponentTemplates, This);
 	Collector.AddReferencedObjects(This->Timelines, This);
 
+	for (TPair<FName, UClass*>& Override : This->ComponentClassOverrides)
+	{
+		Collector.AddReferencedObject(Override.Value);
+	}
+
 	Collector.AddReferencedObject(This->AnimClassImplementation, This);
 
 	Super::AddReferencedObjects(This, Collector);
@@ -5343,6 +5348,7 @@ void UDynamicClass::PurgeClass(bool bRecompilingOnLoad)
 	DynamicBindingObjects.Empty();
 	ComponentTemplates.Empty();
 	Timelines.Empty();
+	ComponentClassOverrides.Empty();
 
 	AnimClassImplementation = nullptr;
 }
@@ -5368,6 +5374,17 @@ UObject* UDynamicClass::FindArchetype(UClass* ArchetypeClass, const FName Archet
 	return Archetype ? Archetype :
 		(SuperClass ? SuperClass->FindArchetype(ArchetypeClass, ArchetypeName) : nullptr);
 }
+
+void UDynamicClass::SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const
+{
+	for (const TPair<FName, UClass*>& Override : ComponentClassOverrides)
+	{
+		ObjectInitializer.SetDefaultSubobjectClass(Override.Key, Override.Value);
+	}
+
+	GetSuperClass()->SetupObjectInitializer(ObjectInitializer);
+}
+
 
 UStructProperty* UDynamicClass::FindStructPropertyChecked(const TCHAR* PropertyName) const
 {

@@ -2550,6 +2550,11 @@ public:
 	virtual void InitPropertiesFromCustomList(uint8* DataPtr, const uint8* DefaultDataPtr) {}
 
 	/**
+	 * Allows class to provide data to the object initializer that can affect how native class subobjects are created.
+	 */
+	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const {}
+
+	/**
 	 * Get the name of the CDO for the this class
 	 * @return The name of the CDO
 	 */
@@ -2888,6 +2893,7 @@ public:
 	virtual UObject* CreateDefaultObject();
 	virtual void PurgeClass(bool bRecompilingOnLoad) override;
 	virtual UObject* FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const override;
+	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
 
 	/** Find a struct property, called from generated code */
 	UStructProperty* FindStructPropertyChecked(const TCHAR* PropertyName) const;
@@ -2905,6 +2911,9 @@ public:
 	TArray<UObject*> DynamicBindingObjects;
 	TArray<UObject*> ComponentTemplates;
 	TArray<UObject*> Timelines;
+
+	/** Array of blueprint overrides of component classes in parent classes */
+	TArray<TPair<FName, UClass*>> ComponentClassOverrides;
 
 	/** IAnimClassInterface (UAnimClassData) or null */
 	UObject* AnimClassImplementation;

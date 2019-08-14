@@ -591,6 +591,37 @@ private:
 	TArray<uint8> CachedPropertyData;
 };
 
+/** Utility struct to store class overrides for components. */
+USTRUCT()
+struct FBPComponentClassOverride
+{
+	GENERATED_BODY()
+
+	/** The component name an override is being specified for. */
+	UPROPERTY()
+	FName ComponentName;
+
+	/** The class to use when constructing the component. */
+	UPROPERTY()
+	UClass* ComponentClass;
+
+	FBPComponentClassOverride()
+		: ComponentClass(nullptr)
+	{
+	}
+
+	FBPComponentClassOverride(FName InComponentName, UClass* InComponentClass)
+		: ComponentName(InComponentName)
+		, ComponentClass(InComponentClass)
+	{
+	}
+
+	bool operator==(const FName OtherComponentName) const
+	{
+		return (ComponentName == OtherComponentName);
+	}
+};
+
 UCLASS()
 class ENGINE_API UBlueprintGeneratedClass : public UClass
 {
@@ -625,6 +656,10 @@ public:
 	/** Array of templates for timelines that should be created */
 	UPROPERTY()
 	TArray<class UTimelineTemplate*> Timelines;
+
+	/** Array of blueprint overrides of component classes in parent classes */
+	UPROPERTY()
+	TArray<FBPComponentClassOverride> ComponentClassOverrides;
 
 	/** 'Simple' construction script - graph of components to instance */
 	UPROPERTY()
@@ -715,6 +750,7 @@ public:
 	virtual UObject* FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const override;
 
 	virtual void InitPropertiesFromCustomList(uint8* DataPtr, const uint8* DefaultDataPtr) override;
+	virtual void SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const override;
 
 protected:
 

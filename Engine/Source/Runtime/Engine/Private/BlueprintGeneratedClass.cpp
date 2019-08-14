@@ -5,6 +5,7 @@
 #include "Stats/StatsMisc.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/CoreNet.h"
+#include "UObject/CoreRedirects.h"
 #include "UObject/Package.h"
 #include "UObject/LinkerLoad.h"
 #include "Serialization/ObjectReader.h"
@@ -126,6 +127,28 @@ void UBlueprintGeneratedClass::PostLoad()
 #endif
 	}
 #endif // WITH_EDITORONLY_DATA
+
+	// Update any component names that have been redirected
+	if (!FPlatformProperties::RequiresCookedData())
+	{
+		for (FBPComponentClassOverride& Override : ComponentClassOverrides)
+		{
+			const FString ComponentName = Override.ComponentName.ToString();
+			UClass* ClassToCheck = this;
+			while (ClassToCheck)
+			{
+				if (const TMap<FString, FString>* ValueChanges = FCoreRedirects::GetValueRedirects(ECoreRedirectFlags::Type_Class, ClassToCheck))
+				{
+					if (const FString* NewComponentName = ValueChanges->Find(ComponentName))
+					{
+						Override.ComponentName = **NewComponentName;
+						break;
+					}
+				}
+				ClassToCheck = ClassToCheck->GetSuperClass();
+			}
+		}
+	}
 
 	AssembleReferenceTokenStream(true);
 }
@@ -601,6 +624,16 @@ void UBlueprintGeneratedClass::UpdateCustomPropertyListForPostConstruction()
 	}
 
 	bCustomPropertyListForPostConstructionInitialized = true;
+}
+
+void UBlueprintGeneratedClass::SetupObjectInitializer(FObjectInitializer& ObjectInitializer) const
+{
+	for (const FBPComponentClassOverride& Override : ComponentClassOverrides)
+	{
+		ObjectInitializer.SetDefaultSubobjectClass(Override.ComponentName, Override.ComponentClass);
+	}
+
+	GetSuperClass()->SetupObjectInitializer(ObjectInitializer);
 }
 
 void UBlueprintGeneratedClass::InitPropertiesFromCustomList(uint8* DataPtr, const uint8* DefaultDataPtr)
@@ -1426,6 +1459,15 @@ void UBlueprintGeneratedClass::GetDefaultObjectPreloadDependencies(TArray<UObjec
 		if (ComponentTemplate)
 		{
 			OutDeps.Add(ComponentTemplate);
+		}
+	}
+
+	// Add the classes that will be used for overriding components defined in base classes
+	for (const FBPComponentClassOverride& Override : ComponentClassOverrides)
+	{
+		if (Override.ComponentClass)
+		{
+			OutDeps.Add(Override.ComponentClass);
 		}
 	}
 }

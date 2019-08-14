@@ -3116,7 +3116,7 @@ bool FBlueprintEditorUtils::IsDataOnlyBlueprint(const UBlueprint* Blueprint)
 		return false;
 	}
 
-	if (Blueprint->ComponentTemplates.Num() || Blueprint->Timelines.Num())
+	if (Blueprint->ComponentTemplates.Num() > 0 || Blueprint->Timelines.Num() > 0 || Blueprint->ComponentClassOverrides.Num() > 0)
 	{
 		return false;
 	}

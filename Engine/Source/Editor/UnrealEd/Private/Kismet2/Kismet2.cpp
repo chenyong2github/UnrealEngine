@@ -1124,9 +1124,25 @@ static void ConformComponentsUtils::ConformRemovedNativeComponents(UObject* BpCd
 		{
 			// Keep track of components inherited from the native super class that are still valid.
 			NewNativeComponents.Add(Component);
-
 			continue;
 		}
+
+		// If we have overriden the class of a native component then ensure that the component still exists and that the overriden class is a valid subclass of it
+		if (const FBPComponentClassOverride* BPCO = CastChecked<UBlueprintGeneratedClass>(BlueprintClass)->ComponentClassOverrides.FindByKey(Component->GetFName()))
+		{
+			if (BPCO->ComponentClass == Component->GetClass())
+			{
+				if (UObject* OverridenComponent = (UObject*)FindObjectWithOuter(NativeCDO, UActorComponent::StaticClass(), Component->GetFName()))
+				{
+					if (Component->IsA(OverridenComponent->GetClass()))
+					{
+						NewNativeComponents.Add(Component);
+						continue;
+					}
+				}
+			}
+		}
+
 		// else, the component has been removed from our native super class
 
 		Component->DestroyComponent(/*bPromoteChildren =*/false);

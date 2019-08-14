@@ -3802,7 +3802,7 @@ void FBlueprintGraphActionDetails::SetNetFlags( TWeakObjectPtr<UK2Node_EditableP
 				TypedEntryNode->SetExtraFlags(ExtraFlags);
 				bBlueprintModified = true;
 			}
-			if (UK2Node_CustomEvent * CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode.Get()))
+			if (UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode.Get()))
 			{
 				CustomEventNode->FunctionFlags &= ~FlagsToClear;
 				CustomEventNode->FunctionFlags |= FlagsToSet;
@@ -3819,7 +3819,7 @@ void FBlueprintGraphActionDetails::SetNetFlags( TWeakObjectPtr<UK2Node_EditableP
 
 FText FBlueprintGraphActionDetails::GetCurrentReplicatedEventString() const
 {
-	const UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	const UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	const UK2Node_CustomEvent* CustomEvent = Cast<const UK2Node_CustomEvent>(FunctionEntryNode);
 
 	uint32 const ReplicatedNetMask = (FUNC_NetMulticast | FUNC_NetServer | FUNC_NetClient);
@@ -4682,7 +4682,7 @@ TSharedRef<ITableRow> FBlueprintGraphActionDetails::HandleGenerateRowAccessSpeci
 FText FBlueprintGraphActionDetails::GetCurrentAccessSpecifierName() const
 {
 	uint32 AccessSpecifierFlag = 0;
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(FunctionEntryNode))
 	{
 		AccessSpecifierFlag = FUNC_AccessSpecifiers & EntryNode->GetFunctionFlags();
@@ -4698,7 +4698,7 @@ bool FBlueprintGraphActionDetails::IsAccessSpecifierVisible() const
 {
 	bool bSupportedType = false;
 	bool bIsEditable = false;
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(FunctionEntryNode)
 	{
 		UBlueprint* Blueprint = FunctionEntryNode->GetBlueprint();
@@ -4818,7 +4818,7 @@ bool FBlueprintGraphActionDetails::IsCustomEvent() const
 
 void FBlueprintGraphActionDetails::OnIsReliableReplicationFunctionModified(const ECheckBoxState NewCheckedState)
 {
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	UK2Node_CustomEvent* CustomEvent = Cast<UK2Node_CustomEvent>(FunctionEntryNode);
 	if( CustomEvent )
 	{
@@ -4828,7 +4828,7 @@ void FBlueprintGraphActionDetails::OnIsReliableReplicationFunctionModified(const
 			{
 				TypedEntryNode->AddExtraFlags(FUNC_NetReliable);
 			}
-			if (UK2Node_CustomEvent * CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode))
+			if (UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode))
 			{
 				CustomEventNode->FunctionFlags |= FUNC_NetReliable;
 			}
@@ -4839,7 +4839,7 @@ void FBlueprintGraphActionDetails::OnIsReliableReplicationFunctionModified(const
 			{
 				TypedEntryNode->ClearExtraFlags(FUNC_NetReliable);
 			}
-			if (UK2Node_CustomEvent * CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode))
+			if (UK2Node_CustomEvent* CustomEventNode = Cast<UK2Node_CustomEvent>(FunctionEntryNode))
 			{
 				CustomEventNode->FunctionFlags &= ~FUNC_NetReliable;
 			}
@@ -4851,7 +4851,7 @@ void FBlueprintGraphActionDetails::OnIsReliableReplicationFunctionModified(const
 
 ECheckBoxState FBlueprintGraphActionDetails::GetIsReliableReplicatedFunction() const
 {
-	const UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	const UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	const UK2Node_CustomEvent* CustomEvent = Cast<const UK2Node_CustomEvent>(FunctionEntryNode);
 	if(!CustomEvent)
 	{
@@ -4871,7 +4871,7 @@ bool FBlueprintGraphActionDetails::IsPureFunctionVisible() const
 {
 	bool bSupportedType = false;
 	bool bIsEditable = false;
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(FunctionEntryNode)
 	{
 		UBlueprint* Blueprint = FunctionEntryNode->GetBlueprint();
@@ -4885,7 +4885,7 @@ bool FBlueprintGraphActionDetails::IsPureFunctionVisible() const
 
 void FBlueprintGraphActionDetails::OnIsPureFunctionModified( const ECheckBoxState NewCheckedState )
 {
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	UFunction* Function = FindFunction();
 	UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(FunctionEntryNode);
 	if (EntryNode && Function)
@@ -4916,7 +4916,7 @@ bool FBlueprintGraphActionDetails::IsConstFunctionVisible() const
 {
 	bool bSupportedType = false;
 	bool bIsEditable = false;
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	if(FunctionEntryNode)
 	{
 		bSupportedType = FunctionEntryNode->IsA<UK2Node_FunctionEntry>();
@@ -4927,7 +4927,7 @@ bool FBlueprintGraphActionDetails::IsConstFunctionVisible() const
 
 void FBlueprintGraphActionDetails::OnIsConstFunctionModified( const ECheckBoxState NewCheckedState )
 {
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 	UFunction* Function = FindFunction();
 	UK2Node_FunctionEntry* EntryNode = Cast<UK2Node_FunctionEntry>(FunctionEntryNode);
 	if(EntryNode && Function)
@@ -4956,7 +4956,7 @@ ECheckBoxState FBlueprintGraphActionDetails::GetIsConstFunction() const
 
 FReply FBaseBlueprintGraphActionDetails::OnAddNewInputClicked()
 {
-	UK2Node_EditablePinBase * FunctionEntryNode = FunctionEntryNodePtr.Get();
+	UK2Node_EditablePinBase* FunctionEntryNode = FunctionEntryNodePtr.Get();
 
 	if( FunctionEntryNode )
 	{
@@ -5736,6 +5736,40 @@ void FBlueprintComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailLa
 			]
 		];
 
+		UActorComponent* ComponentTemplate = (CachedNodePtr->IsNative() ? CachedNodePtr->GetComponentTemplate() : nullptr);
+		if (ComponentTemplate)
+		{
+			UClass* BaseClass = ComponentTemplate->GetClass();
+
+			if (const FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplate->GetFName()))
+			{
+				AActor* Owner = ComponentTemplate->GetOwner();
+				AActor* OwnerArchetype = CastChecked<AActor>(Owner->GetArchetype());
+				if (UActorComponent* ArchetypeComponent = Cast<UActorComponent>((UObject*)FindObjectWithOuter(OwnerArchetype, UActorComponent::StaticClass(), ComponentTemplate->GetFName())))
+				{
+					BaseClass = ArchetypeComponent->GetClass();
+				}
+			}
+
+			const FText ComponentClassTooltip = LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideTooltip", "The class to use when creating this component for this class. This can only be done for components defined in native at this time.");
+
+			VariableCategory.AddCustomRow( LOCTEXT("BlueprintComponentDetails_ComponentClassOverride", "Component Class") )
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("BlueprintComponentDetails_ComponentClassOverrideLabel", "Component Class"))
+				.ToolTipText(ComponentClassTooltip)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+			]
+			.ValueContent()
+			[
+				SNew(SClassPropertyEntryBox)
+				.MetaClass(BaseClass)
+				.AllowNone(false)
+				.SelectedClass(this, &FBlueprintComponentDetails::GetSelectedEntryClass)
+				.OnSetClass(this, &FBlueprintComponentDetails::HandleNewEntryClassSelected)];
+		}
+
 		IDetailCategoryBuilder& SocketsCategory = DetailLayout.EditCategory("Sockets", LOCTEXT("BlueprintComponentDetailsCategory", "Sockets"), ECategoryPriority::Important);
 
 		SocketsCategory.AddCustomRow(LOCTEXT("BlueprintComponentDetails_Sockets", "Sockets"))
@@ -5994,6 +6028,87 @@ void FBlueprintComponentDetails::PopulateVariableCategories()
 		}
 	}
 }
+
+const UClass* FBlueprintComponentDetails::GetSelectedEntryClass() const
+{
+	check(CachedNodePtr.IsValid());
+
+	if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+	{
+		UBlueprint* BlueprintObj = GetBlueprintObj();
+		check(BlueprintObj);
+
+		do
+		{
+			if (const FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplate->GetFName()))
+			{
+				return Override->ComponentClass;
+			}
+
+			BlueprintObj = UBlueprint::GetBlueprintFromClass(Cast<UBlueprintGeneratedClass>(BlueprintObj->ParentClass));
+
+		} while (BlueprintObj);
+
+		return ComponentTemplate->GetClass();
+	}
+
+	return nullptr;
+
+}
+
+void FBlueprintComponentDetails::HandleNewEntryClassSelected(const UClass* NewEntryClass) const
+{
+	const UClass* PreviousClass = GetSelectedEntryClass();
+
+	if (PreviousClass != NewEntryClass)
+	{
+		check(CachedNodePtr.IsValid());
+
+		if (UActorComponent* ComponentTemplate = CachedNodePtr->GetComponentTemplate())
+		{
+			const FName ComponentTemplateName = ComponentTemplate->GetFName();
+
+			UBlueprint* BlueprintObj = GetBlueprintObj();
+			check(BlueprintObj);
+
+			if (FBPComponentClassOverride* Override = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
+			{
+				bool bRemoveEntry = false;
+				bool bFoundOverride = false;
+
+				UBlueprint* ParentBP = UBlueprint::GetBlueprintFromClass(Cast<UBlueprintGeneratedClass>(BlueprintObj->ParentClass));
+				while (ParentBP)
+				{
+					if (FBPComponentClassOverride* ParentOverride = BlueprintObj->ComponentClassOverrides.FindByKey(ComponentTemplateName))
+					{
+						bRemoveEntry = (ParentOverride->ComponentClass == NewEntryClass);
+						bFoundOverride = true;
+						break;
+					}
+				}
+				if (!bFoundOverride)
+				{
+					bRemoveEntry = (ComponentTemplate->GetClass() == NewEntryClass);
+				}
+				if (bRemoveEntry)
+				{
+					BlueprintObj->ComponentClassOverrides.RemoveAllSwap([ComponentTemplateName](const FBPComponentClassOverride& CCOverride) { return (CCOverride.ComponentName == ComponentTemplateName); });
+				}
+				else
+				{
+					Override->ComponentClass = const_cast<UClass*>(NewEntryClass);
+				}
+			}
+			else
+			{
+				BlueprintObj->ComponentClassOverrides.Emplace(FBPComponentClassOverride(ComponentTemplateName, const_cast<UClass*>(NewEntryClass)));
+			}
+
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(BlueprintObj);
+		}
+	}
+}
+
 
 FText FBlueprintComponentDetails::GetSocketName() const
 {

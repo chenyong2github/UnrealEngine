@@ -2557,6 +2557,11 @@ FObjectInitializer::FObjectInitializer(UObject* InObj, UObject* InObjectArchetyp
 	LastConstructedObject = ThreadContext.ConstructedObject;
 	ThreadContext.ConstructedObject = Obj;
 	ThreadContext.PushInitializer(this);
+
+	if (Obj)
+	{
+		Obj->GetClass()->SetupObjectInitializer(*this);
+	}
 }
 
 /**

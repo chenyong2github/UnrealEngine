@@ -820,6 +820,8 @@ protected:
 	void OnVariableCategoryTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit, FName VarName);
 	void OnVariableCategorySelectionChanged(TSharedPtr<FText> ProposedSelection, ESelectInfo::Type /*SelectInfo*/);
 	TSharedRef<ITableRow> MakeVariableCategoryViewWidget(TSharedPtr<FText> Item, const TSharedRef< STableViewBase >& OwnerTable);
+	const UClass* GetSelectedEntryClass() const;
+	void HandleNewEntryClassSelected(const UClass* NewEntryClass) const;
 
 	FText GetSocketName() const;
 	bool CanChangeSocket() const;

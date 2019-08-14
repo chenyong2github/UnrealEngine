@@ -11,6 +11,7 @@
 #include "Engine/EngineTypes.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/BlueprintCore.h"
+#include "Engine/BlueprintGeneratedClass.h"
 #include "UObject/SoftObjectPath.h"
 #include "Blueprint/BlueprintSupport.h"
 #include "Blueprint.generated.h"
@@ -593,6 +594,10 @@ public:
 	/** Array of templates for timelines that should be created */
 	UPROPERTY()
 	TArray<class UTimelineTemplate*> Timelines;
+
+	/** Array of blueprint overrides of component classes in parent classes */
+	UPROPERTY()
+	TArray<FBPComponentClassOverride> ComponentClassOverrides;
 
 	/** Stores data to override (in children classes) components (created by SCS) from parent classes */
 	UPROPERTY()
