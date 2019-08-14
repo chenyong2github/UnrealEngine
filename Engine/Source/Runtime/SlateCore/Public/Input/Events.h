@@ -689,6 +689,31 @@ public:
 		, bIsTouchFirstMove(false)
 	{ }
 
+	FPointerEvent(
+		uint32 InUserIndex,
+		uint32 InPointerIndex,
+		const FVector2D& InScreenSpacePosition,
+		const FVector2D& InLastScreenSpacePosition,
+		const FVector2D& InDelta,
+		const TSet<FKey>& InPressedButtons,
+		const FModifierKeysState& InModifierKeys
+	)
+		: FInputEvent(InModifierKeys, InUserIndex, false)
+		, ScreenSpacePosition(InScreenSpacePosition)
+		, LastScreenSpacePosition(InLastScreenSpacePosition)
+		, CursorDelta(InDelta)
+		, PressedButtons(InPressedButtons)
+		, PointerIndex(InPointerIndex)
+		, TouchpadIndex(0)
+		, Force(1.0f)
+		, bIsTouchEvent(false)
+		, GestureType(EGestureEvent::None)
+		, WheelOrGestureDelta(0.0f, 0.0f)
+		, bIsDirectionInvertedFromDevice(false)
+		, bIsTouchForceChanged(false)
+		, bIsTouchFirstMove(false)
+	{ }
+
 	/** A constructor for raw mouse events */
 	FPointerEvent(
 		uint32 InPointerIndex,

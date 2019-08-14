@@ -190,6 +190,7 @@ private:
 class SLATE_API ISlateInputManager
 {
 public:
+	virtual int32 GetUserIndexForMouse() const = 0;
 	virtual int32 GetUserIndexForKeyboard() const = 0;
 	virtual int32 GetUserIndexForController(int32 ControllerId) const = 0;
 };
@@ -197,6 +198,7 @@ public:
 class SLATE_API FSlateDefaultInputMapping : public ISlateInputManager
 {
 public:
+	virtual int32 GetUserIndexForMouse() const override { return 0; }
 	virtual int32 GetUserIndexForKeyboard() const override { return 0; }
 	virtual int32 GetUserIndexForController(int32 ControllerId) const override { return ControllerId; }
 };
@@ -1527,6 +1529,11 @@ public:
 	 * @param InGestureEvent		The event data that is is routed to the widget path
 	 */
 	FReply RouteMouseWheelOrGestureEvent(const FWidgetPath& WidgetsUnderPointer, const FPointerEvent& InWheelEvent, const FPointerEvent* InGestureEvent = nullptr);
+
+	/**
+	 * @return int user index that the mouse is mapped to. -1 if the mouse isn't mapped
+	 */
+	int32 GetUserIndexForMouse() const;
 
 	/**
 	 * @return int user index that the keyboard is mapped to. -1 if the keyboard isn't mapped
