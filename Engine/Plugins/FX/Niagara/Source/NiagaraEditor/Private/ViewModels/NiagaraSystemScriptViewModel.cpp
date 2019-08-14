@@ -161,6 +161,7 @@ ENiagaraScriptCompileStatus FNiagaraSystemScriptViewModel::GetLatestCompileStatu
 	TArray<UNiagaraScript*> SystemScripts;
 	SystemScripts.Add(System->GetSystemSpawnScript());
 	SystemScripts.Add(System->GetSystemUpdateScript());
+
 	for (const FNiagaraEmitterHandle& Handle : System->GetEmitterHandles())
 	{
 		if (Handle.GetIsEnabled())
