@@ -1275,7 +1275,7 @@ void FPostProcessing::Process(FRHICommandListImmediate& RHICmdList, const FViewI
 						SceneColorDownsampleChain = EyeAdaptationDownsampleChain;
 					}
 				}
-				else
+				else if (bHistogramEnabled)
 				{
 					EyeAdaptation = AddHistogramEyeAdaptationPass(Context, Histogram);
 				}
