@@ -434,12 +434,12 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 
 			float MinWidth = TextSizing.DrawXL;
 			float MinHeight = TextSizing.DrawYL;
-			static float MinHeightMS = 1/60.f * 1000.f;	// 60hz frame is drawn at MinHeight.
+			static float MinHeightSeconds = 1/60.f;	// 60hz frame is drawn at MinHeight.
 
-			auto CalcHeight = [&](TSimTime MS)
+			auto CalcHeight = [&](float RealTimeSeconds)
 			{
-				const float Ratio = MinHeight / MinHeightMS;
-				return MS.ToRealTimeSeconds() * Ratio;
+				const float Ratio = MinHeight / MinHeightSeconds;
+				return RealTimeSeconds * Ratio;
 			};
 
 			for (auto It = DebugBuffer->CreateIterator(); It; ++It)
@@ -450,7 +450,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 				float ScreenWidth = MinWidth;
 				float FramePct = FMath::Clamp<float>((DebugState->LocalDeltaTimeSeconds - LocalFrameTimeRed) / ( LocalFrameTimeGreen - LocalFrameTimeRed ), 0.f, 1.f);
 				FColor Color = FColor::MakeRedToGreenColorFromScalar( FramePct );
-				float ServerHeight = CalcHeight(DebugState->LocalDeltaTimeSeconds * 1000.f);
+				float ServerHeight = CalcHeight(DebugState->LocalDeltaTimeSeconds);
 
 				Out.EmitQuad(FVector2D( ScreenX, ScreenY), FVector2D( ScreenWidth, ServerHeight), Color);
 				Out.EmitText(FVector2D( ScreenX, ScreenY), FColor::Black, FString::Printf(TEXT("%.2f"), (DebugState->LocalDeltaTimeSeconds * 1000.f)));
@@ -466,7 +466,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 						ClientSimTime += Cmd->GetFrameDeltaTime();
 						
 						float ClientSizeX = MinWidth;
-						float ClientSizeY =  CalcHeight(Cmd->GetFrameDeltaTime());
+						float ClientSizeY =  CalcHeight(Cmd->GetFrameDeltaTime().ToRealTimeSeconds());
 
 						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
 						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Blue);
@@ -480,7 +480,7 @@ struct TNetworkSimulationModelDebugger : public INetworkSimulationModelDebugger
 					if (auto* Cmd = InputBuffer.FindElementByKeyframe(Keyframe))
 					{
 						float ClientSizeX = MinWidth;
-						float ClientSizeY = CalcHeight(Cmd->GetFrameDeltaTime());
+						float ClientSizeY = CalcHeight(Cmd->GetFrameDeltaTime().ToRealTimeSeconds());
 						FVector2D ScreenPos(ClientX, ClientY - ClientSizeY);
 						Out.EmitQuad(ScreenPos, FVector2D( ClientSizeX, ClientSizeY), FColor::Red);
 						Out.EmitText(ScreenPos, FColor::White, LexToString(Keyframe));

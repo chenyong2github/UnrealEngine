@@ -18,7 +18,7 @@ High level goals:
  
 What this is NOT:
 -We are not moving to a global fixed ticking system. Though these systems have huge advantages, we don't think it is a good universal solution for the engine.
--That said, we recognize that it is the right solution for many things and we want to enable support for that. Nothing in this system /requires/ dynamic ticking, but it is something we feel the need to support.
+-That said, we recognize that it is the right solution for many things and we want to enable support for that. Our goal is that the user simulation code is independent of ticking being fixed or not.
 -To be clear: widely different, variable, fluctuating tick rates between clients and server is basically the root problems we are fighting here.
 -Related, we are also not all in on a "predict everything: seamlessly and automatically" solution. We still feel player prediction is best kept to a minimum (meaning: predict the minimum amount of stuff you can get away with).
 -But, we are trying to make it way easier to write predictive gameplay systems. Easier to write, to debug and reason about.
@@ -94,7 +94,13 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 // Release notes
 // ----------------------------------------------------------------------------------------------------------
- 
+
+Update
+-Refactor on ticking state is taking shape and feeling much better. Some thing may have broke but will get smoothed out.
+-New goal is to support fixed ticking seamlessly. Meaning, when you instantiate or define your network sim you can opt into fix ticking and this won't affect how your simulation code works.
+-(Nice thing is that storing frame time on the user cmds is now an internal detail of the system and transparent to users. So you will not need seperate sets of input cmds for a fix tixed version of your sim)
+
+
 Update (8-9-19)
 -Big refactor underway within the NetworkSimModel. Some files are renamed or moved as well. Still a bit to do but this was a good commit point.
 -Mainly to facilitate clean implementation of interpolation/extrapolation/forward predict option for simulated proxy simulations: this was exposing weaknesses in the templated implementations.
