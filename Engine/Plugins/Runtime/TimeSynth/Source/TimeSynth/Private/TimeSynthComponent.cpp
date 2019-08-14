@@ -736,7 +736,10 @@ FTimeSynthClipHandle UTimeSynthComponent::PlayClip(UTimeSynthClip* InClip, UTime
 
 	FTimeSynthTimeDef ClipDuration = InClip->ClipDuration;
 	FTimeSynthTimeDef FadeInTime = InClip->FadeInTime;
-	FTimeSynthTimeDef FadeOutTime = InClip->FadeOutTime;
+
+	FTimeSynthTimeDef FadeOutTime = InClip->bApplyFadeOut
+		? InClip->FadeOutTime
+		: FTimeSynthTimeDef(0, 0);
 
 	// Send this new clip over to the audio render thread
 	SynthCommand([this, NewClipInfo, ClipDuration, FadeInTime, FadeOutTime]
