@@ -21,14 +21,18 @@
 // ----------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 template <
-	typename T,
-	typename TUserBufferTypes,
-	typename InTTickSettings=TNetworkSimTickSettings<>,
-	typename TRepProxyServerRPC =	TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Input>,
-	typename TRepProxyAutonomous =	TReplicator_BasicReconciliar <TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
-	typename TRepProxySimulated =	TReplicator_SimulatedExtrapolatedReconciliar <TInternalBufferTypes<TUserBufferTypes, InTTickSettings>, InTTickSettings>,
-	typename TRepProxyReplay =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync>,
-	typename TRepProxyDebug =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug>
+	typename T,											// Final Driver class
+	typename TUserBufferTypes,							// The user types (input, sync, aux, debug). Note this gets wrapped in TInternalBufferTypes internally.
+	typename InTTickSettings=TNetworkSimTickSettings<>, // Defines global rules about time keeping and ticking
+
+	// Core proxies that dictate how data replicates and how the simulation evolves for the three main roles
+	typename TRepProxyServerRPC =	TReplicator_Server		<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings >,
+	typename TRepProxyAutonomous =	TReplicator_Autonomous	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
+	typename TRepProxySimulated =	TReplicator_Simulated	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
+
+	// Defines how replication happens on these special channels, but doesn't dictate how simulation evolves
+	typename TRepProxyReplay =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
+	typename TRepProxyDebug =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug, 3>
 >
 class TNetworkedSimulationModel : public IReplicationProxy
 {
@@ -53,13 +57,10 @@ public:
 		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
 	};
 
-	struct FTickParameters
+	struct FTickParameters : public FNetSimTickParametersBase
 	{
-		// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
-		ENetRole Role = ROLE_None;
-
-		// (Only used when ROLE_Authorty: Whether we are expecting a remote client to control. e.g, there is an autoproxy client driving this)
-		bool bIsRemotelyControlled = false;
+		FTickParameters() { }
+		FTickParameters(typename TTickSettings::TRealTime InRealTime, class AActor* Actor=nullptr) : FNetSimTickParametersBase(Actor), LocalDeltaTimeSeconds(InRealTime) {}
 
 		// Local fraem delta time seconds. Just passed in from ::Tick
 		typename TTickSettings::TRealTime LocalDeltaTimeSeconds = 0.f;
@@ -104,58 +105,17 @@ public:
 		switch (Parameters.Role)
 		{
 			case ROLE_Authority:
-				RepProxy_ServerRPC.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_ServerRPC.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_AutonomousProxy:
-				RepProxy_Autonomous.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_Autonomous.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 
 			case ROLE_SimulatedProxy:
-				RepProxy_Simulated.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
+				RepProxy_Simulated.template PreSimTick<T, TDriver, FTickParameters>(Driver, Buffers, TickInfo, Parameters);
 			break;
 		}
-
-
-		if (Parameters.Role == ROLE_Authority)
-		{
-			// Always give simulation time on the authority
-			TickInfo.GiveSimulationTime(Parameters.LocalDeltaTimeSeconds);
-
-			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
-			if (DeltaSimTime.ToRealTimeSeconds() > 0)
-			{
-				if (Parameters.bIsRemotelyControlled)
-				{
-					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
-				}
-				else
-				{
-					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
-					{
-						*InputCmd = TInputCmd();
-						InputCmd->SetFrameDeltaTime(DeltaSimTime);
-						Driver->ProduceInput(DeltaSimTime, *InputCmd);
-						TickInfo.MaxAllowedInputKeyframe++;
-					}
-				}
-			}
-		}
-
-		switch (Parameters.Role) {
-
-		case ROLE_Authority:
-		{
-			if ( TickInfo.LastProcessedInputKeyframe+1 < Buffers.Input.GetTailKeyframe() )
-			{
-				// We've missed commands
-				UE_LOG(LogNetworkSim, Warning, TEXT("::Tick missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
-				TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
-			}
-			break;
-		}
-
-		} // end switch
 
 		// -------------------------------------------------------------------------------------------------------------------------------------------------
 		//	PreInput processing
@@ -235,7 +195,6 @@ public:
 				break;
 			}
 		}
-
 
 		// FIXME: this needs to be sorted out. We really want to check if there is new sync state and then call this here.
 		// Call into the driver to sync to the latest state if we processed any input
@@ -352,7 +311,6 @@ public:
 
 		// We want to start with an empty command in the input buffer. See notes in input buffer processing function.
 		*Buffers.Input.GetWriteNext() = TInputCmd();
-		TickInfo.LastLocalInputGFrameNumber = 0;
 	}	
 	
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed

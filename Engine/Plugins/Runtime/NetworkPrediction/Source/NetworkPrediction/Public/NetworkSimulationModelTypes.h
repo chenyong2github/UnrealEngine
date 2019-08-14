@@ -157,7 +157,7 @@ struct TNetworkSimBufferContainer
 // ----------------------------------------------------------------------------------------------------------------------------------------------
 
 // Holds all settings for a network sim related to ticking
-template<uint32 InFixedStepMS=0, uint32 InMaxStepMS=0, typename TUnderlyingSimTimeType=uint32, typename TUnderlyingRealTimeType=float, int32 InRealToSimFactor=1000>
+template<int32 InFixedStepMS=0, int32 InMaxStepMS=0, typename TUnderlyingSimTimeType=int32, typename TUnderlyingRealTimeType=float, int32 InRealToSimFactor=1000>
 struct TNetworkSimTickSettings
 {
 	using TUnderlingSimTime = TUnderlyingSimTimeType;	// Underlying type of time. This type shouldn't be used directly (use TNetworkSimTime)
@@ -275,27 +275,8 @@ struct TSimulationTickState
 	int32 LastProcessedInputKeyframe;	// The last input keyframe that we processed
 	int32 MaxAllowedInputKeyframe;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
 
-	uint32 LastLocalInputGFrameNumber;	// Tracks the last time we accepted local input via GetNextInputForWrite. Used to guard against accidental input latency due to ordering of input/sim ticking.
-
 	TNetworkSimTime<TSettings> TotalAllowedSimulationTime;	// Total time we have been "given" to process. We cannot process more simulation time than this: doing so would be speed hacking.
 	TNetworkSimTime<TSettings> TotalProcessedSimulationTime;	// How much time we've actually processed. The only way to increment this is to process user commands or receive authoritative state from the network.
-	
-	template<typename TBufferTypes>
-	typename TBufferTypes::TInputCmd* GetNextInputForWrite(TNetworkSimBufferContainer<TBufferTypes>& Buffers)
-	{
-		// Not really necessary anymore since input command is requested by the sim now instead of pushed into it
-		ensure(LastLocalInputGFrameNumber != GFrameNumber);
-		LastLocalInputGFrameNumber = GFrameNumber;
-
-		typename TBufferTypes::TInputCmd* Next = nullptr;
-		if (Buffers.Input.GetHeadKeyframe() == LastProcessedInputKeyframe)
-		{
-			// Only return a cmd if we have processed the last one. This is a bit heavy handed but is a good practice to start with. We want buffering of input to be very explicit, never something that accidentally happens.
-			Next = Buffers.Input.GetWriteNext();
-			*Next = typename TBufferTypes::TInputCmd();
-		}
-		return Next;
-	}
 
 	// "Grants" allowed simulation time to this tick state. That is, we are now allowed to advance the simulation by this amount the next time the sim ticks.
 	// Note the input is RealTime in SECONDS. This is what the rest of the engine uses when dealing with float delta time.
@@ -304,6 +285,7 @@ struct TSimulationTickState
 		RealtimeAccumulator.Accumulate(TotalAllowedSimulationTime, RealTimeSeconds);
 	}
 
+	// How much granted simulation time is left to process
 	TNetworkSimTime<TSettings> GetRemaningAllowedSimulationTime() const
 	{
 		return TotalAllowedSimulationTime - TotalProcessedSimulationTime;
@@ -324,6 +306,11 @@ struct TFrameCmd : public BaseCmdType
 {
 	TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return FrameDeltaTime; }
 	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { FrameDeltaTime = InTime; }
+	void NetSerialize(const FNetSerializeParams& P)
+	{
+		FrameDeltaTime.NetSerialize(P.Ar);
+		BaseCmdType::NetSerialize(P); 
+	}
 
 private:
 	TNetworkSimTime<TickSettings> FrameDeltaTime;
@@ -335,6 +322,7 @@ struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
 {
 	constexpr TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return TNetworkSimTime<TickSettings>::FromMSec(TickSettings::GetFixedStepMS()); }
 	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { }
+	void NetSerialize(const FNetSerializeParams& P) { BaseCmdType::NetSerialize(P); }
 };
 
 // Helper to turn user supplied buffer types into the "real" buffer types: the InputCmd struct is wrapped in TFrameCmd
