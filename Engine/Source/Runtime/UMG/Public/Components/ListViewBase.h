@@ -413,7 +413,11 @@ private:
 		TSubclassOf<UUserWidget> DesiredEntryClass = GetDesiredEntryClassForItem(Item);
 
 		UUserWidget& EntryWidget = OnGenerateEntryWidgetInternal(Item, DesiredEntryClass, OwnerTable);
-		EntryWidget.SetPadding(GetDesiredEntryPadding(Item));
+		
+		// Combine the desired entry padding with the padding the widget wants natively on the CDO.
+		const FMargin DefaultPadding = EntryWidget.GetClass()->GetDefaultObject<UUserWidget>()->Padding;
+		EntryWidget.SetPadding(DefaultPadding + GetDesiredEntryPadding(Item));
+		
 		TSharedPtr<SWidget> CachedWidget = EntryWidget.GetCachedWidget();
 		CachedWidget->SetCanTick(true); // this is a hack to force ticking to true so selection works (which should NOT require ticking! but currently does)
 		return StaticCastSharedPtr<SObjectTableRow<ItemType>>(CachedWidget).ToSharedRef();
