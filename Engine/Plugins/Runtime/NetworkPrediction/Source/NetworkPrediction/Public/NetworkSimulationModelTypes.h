@@ -176,6 +176,7 @@ struct TNetworkSimTickSettings
 	static constexpr TUnderlingSimTime GetMaxStepMS() { return static_cast<TUnderlingSimTime>(InMaxStepMS); }
 	static constexpr TUnderlingSimTime GetFixedStepMS() { return static_cast<TUnderlingSimTime>(InFixedStepMS); }
 	static constexpr TRealTime GetRealToSimFactor() { return static_cast<TRealTime>(InRealToSimFactor); }
+	static constexpr TRealTime GetSimToRealFactor() { return static_cast<TRealTime>(1.f / InRealToSimFactor); }
 };
 
 // Actual time value. This by default will store time in MSec (ultimately determined by TickSettings::RealToSimFactor)
@@ -186,10 +187,12 @@ struct TNetworkSimTime
 	using TRealTime = typename TickSettings::TRealTime;
 
 	TNetworkSimTime() { }
-	TNetworkSimTime(const TTime& InTime) : Time(InTime) { }
-	TNetworkSimTime(const TRealTime& InRealTime) : Time(InRealTime * TickSettings::RealToSimFactor) { }
 
-	TRealTime ToRealTimeSeconds() const { return (Time / TickSettings::RealToSimFactor); }
+	// Things get confusing with templated types and overloaded functions. To avoid that, use these funcs to construct from either msec or real time
+	static inline TNetworkSimTime FromMSec(const TTime& InTime) { return TNetworkSimTime(InTime); } 
+	static inline TNetworkSimTime FromRealTimeSeconds(const TRealTime& InRealTime) { return TNetworkSimTime( static_cast<TTime>(InRealTime * TickSettings::GetRealToSimFactor())); } 
+	
+	TRealTime ToRealTimeSeconds() const { return (Time * TickSettings::GetSimToRealFactor()); }
 	FString ToString() const { return LexToString(this->Time); }
 
 	// FIXME
@@ -199,7 +202,7 @@ struct TNetworkSimTime
 	T& operator+= (const T &rhs) { this->Time += rhs.Time; return(*this); }
 	T& operator-= (const T &rhs) { this->Time -= rhs.Time; return(*this); }
 	
-	T operator+ (const T &rhs) const { return T(this->Time - rhs.Time); }
+	T operator+ (const T &rhs) const { return T(this->Time + rhs.Time); }
 	T operator- (const T &rhs) const { return T(this->Time - rhs.Time); }
 
 	bool operator<  (const T &rhs) const { return(this->Time < rhs.Time); }
@@ -210,6 +213,9 @@ struct TNetworkSimTime
 	bool operator!= (const T &rhs) const { return(this->Time != rhs.Time); }
 
 	TTime Time = 0;
+
+private:
+	TNetworkSimTime(const TTime& InTime) { Time = InTime; }
 };
 
 // ----------------------------------------------------------------------------------------------------------------------------------------------
@@ -221,11 +227,12 @@ template<typename TickSettings, bool IsFixedTick=(TickSettings::FixedStepMS!=0)>
 struct TRealTimeAccumulator
 {
 	using TRealTime = typename TickSettings::TRealTime;
-	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, TRealTime RealTimeSeconds)
+	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
 	{
 		// Non fixed step: just accumulate the time directly
 		// Note that MaxStepMS enforcement does NOT belong here. Dropping time due to MaxStepMS would just make the sim run slower. MaxStepMS is used at the input processing level.
-		NetworkSimTime += RealTimeSeconds;
+		// (wondering: does converting down to MSec make sense in variable rates? We aren't really gaining anything here. Specializing to avoid the multiply probably not worth the complexity though)
+		NetworkSimTime += TNetworkSimTime<TickSettings>::FromRealTimeSeconds(RealTimeSeconds);
 	}
 };
 
@@ -234,9 +241,9 @@ template<typename TickSettings>
 struct TRealTimeAccumulator<TickSettings, true>
 {
 	using TRealTime = typename TickSettings::TRealTime;
-	const TRealTime RealTimeFixedStep = TNetworkSimTime<TickSettings>(TickSettings::GetFixedStepMS() / TickSettings::GetRealToSimFactor()).ToRealTimeSeconds();
+	const TRealTime RealTimeFixedStep = static_cast<TRealTime>(TickSettings::GetFixedStepMS() * TickSettings::GetSimToRealFactor());
 
-	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, TRealTime RealTimeSeconds)
+	void Accumulate(TNetworkSimTime<TickSettings>& NetworkSimTime, const TRealTime RealTimeSeconds)
 	{
 		AccumulatedTime += RealTimeSeconds;
 		if (AccumulatedTime > RealTimeFixedStep)
@@ -249,7 +256,7 @@ struct TRealTimeAccumulator<TickSettings, true>
 				AccumulatedTime = TRealTime(0.f);
 			}
 
-			NetworkSimTime += TNetworkSimTime<TickSettings>(NumFrames * TickSettings::GetFixedStepMS());
+			NetworkSimTime += TNetworkSimTime<TickSettings>::FromMSec(NumFrames * TickSettings::FixedStepMS);
 		}
 	}
 	TRealTime AccumulatedTime;
@@ -267,7 +274,6 @@ struct TSimulationTickState
 
 	int32 LastProcessedInputKeyframe;	// The last input keyframe that we processed
 	int32 MaxAllowedInputKeyframe;		// The max input keyframe that we are allowed to process (e.g, don't process input past this keyframe yet)
-
 
 	uint32 LastLocalInputGFrameNumber;	// Tracks the last time we accepted local input via GetNextInputForWrite. Used to guard against accidental input latency due to ordering of input/sim ticking.
 
@@ -327,7 +333,7 @@ private:
 template<typename BaseCmdType, typename TickSettings>
 struct TFrameCmd<BaseCmdType, TickSettings, true> : public BaseCmdType
 {
-	constexpr TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return TNetworkSimTime<TickSettings>(TickSettings::GetFixedStepMS()); }
+	constexpr TNetworkSimTime<TickSettings> GetFrameDeltaTime() const { return TNetworkSimTime<TickSettings>::FromMSec(TickSettings::GetFixedStepMS()); }
 	void SetFrameDeltaTime(const TNetworkSimTime<TickSettings>& InTime) { }
 };
 

@@ -55,8 +55,14 @@ public:
 
 	struct FTickParameters
 	{
-		ENetRole Role;
-		float LocalDeltaTimeSeconds;
+		// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
+		ENetRole Role = ROLE_None;
+
+		// (Only used when ROLE_Authorty: Whether we are expecting a remote client to control. e.g, there is an autoproxy client driving this)
+		bool bIsRemotelyControlled = false;
+
+		// Local fraem delta time seconds. Just passed in from ::Tick
+		typename TTickSettings::TRealTime LocalDeltaTimeSeconds = 0.f;
 	};
 
 	template<typename TDriver>
@@ -108,27 +114,35 @@ public:
 			case ROLE_SimulatedProxy:
 				RepProxy_Simulated.template PreSimTick<T, TDriver>(Driver, Buffers, TickInfo, Parameters.LocalDeltaTimeSeconds);
 			break;
-		}		
+		}
+
+
+		if (Parameters.Role == ROLE_Authority)
+		{
+			// Always give simulation time on the authority
+			TickInfo.GiveSimulationTime(Parameters.LocalDeltaTimeSeconds);
+
+			TNetworkSimTime<TTickSettings> DeltaSimTime = TickInfo.GetRemaningAllowedSimulationTime();
+			if (DeltaSimTime.ToRealTimeSeconds() > 0)
+			{
+				if (Parameters.bIsRemotelyControlled)
+				{
+					TickInfo.MaxAllowedInputKeyframe = Buffers.Input.GetHeadKeyframe();
+				}
+				else
+				{
+					if (TInputCmd* InputCmd = Buffers.Input.GetWriteNext())
+					{
+						*InputCmd = TInputCmd();
+						InputCmd->SetFrameDeltaTime(DeltaSimTime);
+						Driver->ProduceInput(DeltaSimTime, *InputCmd);
+						TickInfo.MaxAllowedInputKeyframe++;
+					}
+				}
+			}
+		}
 
 		switch (Parameters.Role) {
-
-		
-		case ROLE_AutonomousProxy:
-		{
-			// Check SyncBuffer being ahead of processed Keyframes. This would happen in cases where we are either not predicting or are buffering our input locally
-			// while sending latest cmds to the server. Essentially, we got the authoritative motion state from the server before we ran the simulation locally.
-			if (Buffers.Sync.GetHeadKeyframe() > TickInfo.LastProcessedInputKeyframe)
-			{
-				checkf(Buffers.Input.IsValidKeyframe(Buffers.Sync.GetHeadKeyframe()), TEXT("MotionState and InputCmd buffers are out of system. LastProcessedInputKeyframe: %d {%s} vs {%s}"),
-					TickInfo.LastProcessedInputKeyframe, *Buffers.Sync.GetBasicDebugStr(), *Buffers.Input.GetBasicDebugStr());
-
-				UE_LOG(LogNetworkSim, Warning, TEXT("Skipping local input frames because we have newer data in SyncBuffer. LastProcessedInputKeyframe: %d. {%s} {%s}"),
-					TickInfo.LastProcessedInputKeyframe, *Buffers.Sync.GetBasicDebugStr(), *Buffers.Input.GetBasicDebugStr());
-
-				TickInfo.LastProcessedInputKeyframe = Buffers.Sync.GetHeadKeyframe();
-			}
-			break;
-		}
 
 		case ROLE_Authority:
 		{
@@ -138,12 +152,6 @@ public:
 				UE_LOG(LogNetworkSim, Warning, TEXT("::Tick missing inputcmds. LastProcessedInputKeyframe: %d. %s"), TickInfo.LastProcessedInputKeyframe, *Buffers.Input.GetBasicDebugStr());
 				TickInfo.LastProcessedInputKeyframe = Buffers.Input.GetTailKeyframe()+1;
 			}
-			break;
-		}
-
-		case ROLE_SimulatedProxy:
-		{
-			RepProxy_Simulated.template Reconcile<T, TDriver>(Driver, Buffers, TickInfo);
 			break;
 		}
 

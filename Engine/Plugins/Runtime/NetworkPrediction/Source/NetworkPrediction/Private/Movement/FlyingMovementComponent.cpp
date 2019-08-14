@@ -114,8 +114,9 @@ void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick Ti
 		}
 
 		FlyingMovement::FMovementSystem::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		Parameters.Role = OwnerRole;
+		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IFlyingMovementDriver*)this, Parameters);

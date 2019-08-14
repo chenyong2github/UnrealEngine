@@ -164,10 +164,11 @@ void UMockNetworkSimulationComponent::TickComponent(float DeltaTime, enum ELevel
 			ForceMispredict = true;
 			MockNetworkSimCVars::RequestMispredict = 0;
 		}
-
+		
 		FMockNetworkSimulation::FTickParameters Parameters;
-		Parameters.Role = OwnerRole;
 		Parameters.LocalDeltaTimeSeconds = DeltaTime;
+		Parameters.Role = OwnerRole;
+		Parameters.bIsRemotelyControlled = (OwnerRole == ROLE_Authority && GetOwner()->GetNetConnection() != nullptr);
 
 		// Tick the core network sim, this will consume input and generate new sync state
 		NetworkSim->Tick((IMockNetworkSimulationDriver*)this, Parameters);
