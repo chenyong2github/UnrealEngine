@@ -396,32 +396,25 @@ float4 SetupSubsurfaceForOnePixel(float2 UVSceneColor)
 // Indirect pass
 
 // Indirect dispatch parameters
-struct SubsurfaceGroupItem
-{
-	float2 GroupXY; // Which tile
-	int Count;		// The first element is used as the counter.
-	int Dummy;		// Alignment
-};
-
-RWStructuredBuffer<SubsurfaceGroupItem> RWSeparableGroupBuffer;
-RWStructuredBuffer<SubsurfaceGroupItem> RWBurleyGroupBuffer;
+RWStructuredBuffer<uint> RWSeparableGroupBuffer;
+RWStructuredBuffer<uint> RWBurleyGroupBuffer;
 RWBuffer<uint> RWIndirectDispatchArgsBuffer;
-StructuredBuffer<SubsurfaceGroupItem> GroupBuffer;
+StructuredBuffer<uint> GroupBuffer;
 
 
 [numthreads(1, 1, 1)]
 void InitValueBufferCS()
 {
 	// Clear the first buffer element which is used as the buffer counter.
-	RWSeparableGroupBuffer[0].Count = 0;
-	RWBurleyGroupBuffer[0].Count = 0;
+	RWSeparableGroupBuffer[0] = 0;
+	RWBurleyGroupBuffer[0] = 0;
 }
 
 // fixed to 64 by now
 [numthreads(1, 1, 1)]
 void BuildIndirectDispatchArgsCS()
 {
-	uint ValueCount = min(SubsurfaceUniformParameters.MaxGroupCount, GroupBuffer[0].Count);
+	uint ValueCount = min(SubsurfaceUniformParameters.MaxGroupCount, GroupBuffer[0]);
 	RWIndirectDispatchArgsBuffer[0] = ValueCount;// (ValueCount + (THREAD_SIZE_1D*THREAD_SIZE_1D) - 1) / (THREAD_SIZE_1D*THREAD_SIZE_1D);
 	RWIndirectDispatchArgsBuffer[1] = 1;
 	RWIndirectDispatchArgsBuffer[2] = 1;
@@ -456,14 +449,15 @@ void AddSeparableGroup(uint2 GroupXY)
 	//buffer counter is stored in the .Count in the first element.
 	int IndexToStore = 0;
 
-	InterlockedAdd(RWSeparableGroupBuffer[0].Count, 1, IndexToStore);
+	InterlockedAdd(RWSeparableGroupBuffer[0], 1, IndexToStore);
 
 	if (IndexToStore >= SubsurfaceUniformParameters.MaxGroupCount)
 	{
 		return;
 	}
 
-	RWSeparableGroupBuffer[IndexToStore + 1].GroupXY = GroupXY;
+	RWSeparableGroupBuffer[2 *(IndexToStore + 1) + 0] = GroupXY.x;
+	RWSeparableGroupBuffer[2 *(IndexToStore + 1) + 1] = GroupXY.y;
 }
 
 void AddBurleyGroup(uint2 GroupXY)
@@ -471,14 +465,15 @@ void AddBurleyGroup(uint2 GroupXY)
 	//buffer counter is stored in the .Count in the first element.
 	int IndexToStore = 0;
 
-	InterlockedAdd(RWBurleyGroupBuffer[0].Count, 1, IndexToStore);
+	InterlockedAdd(RWBurleyGroupBuffer[0], 1, IndexToStore);
 
 	if (IndexToStore >= SubsurfaceUniformParameters.MaxGroupCount)
 	{
 		return;
 	}
 
-	RWBurleyGroupBuffer[IndexToStore + 1].GroupXY = GroupXY;
+	RWBurleyGroupBuffer[2*(IndexToStore + 1 ) + 0] = GroupXY.x;
+	RWBurleyGroupBuffer[2*(IndexToStore + 1 ) + 1] = GroupXY.y;
 }
 
 void AddSubsurfaceComputeGroup(uint GI, uint Type, uint2 GroupXY)
@@ -612,8 +607,7 @@ void MainIndirectDispatchCS(
 )
 {
 	// The first element is used for counting
-	SubsurfaceGroupItem Item = GroupBuffer[IndirectG_ID.x + 1];
-	uint2 G_ID = Item.GroupXY;
+	uint2 G_ID = uint2(GroupBuffer[2*(IndirectG_ID.x + 1) + 0], GroupBuffer[2*(IndirectG_ID.x + 1)+1]);
 	uint2 DT_ID = G_ID * float2(THREAD_SIZE_X, THREAD_SIZE_Y) + float2(GI % THREAD_SIZE_X, GI / THREAD_SIZE_X);
 
 

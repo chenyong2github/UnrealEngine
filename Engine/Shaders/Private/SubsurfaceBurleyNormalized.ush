@@ -3,6 +3,7 @@
 /*=============================================================================
 	SubsurfaceBurleyNormalized.ush: Screenspace Burley subsurface scattering implementation.
 =============================================================================*/
+#pragma once
 
 #include "Random.ush"
 #include "BurleyNormalizedSSSCommon.ush"
@@ -726,22 +727,26 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 	// need to perform burley normalized subsurface scattering if it's burley
 	// this would unroll to just 1 sequence.
 	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+	{
 		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
-			{
-				uint2 Pos = ConvertGroupIndexTo2DUsingMoltonCode(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
-				float2 LBufferUV = ConvertGridPos2UV(Pos);
-				SSSColorUAV[Pos] = BurleyNormalizedSS(LBufferUV, Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
-			}
+		{
+			uint2 Pos = ConvertGroupIndexTo2DUsingMoltonCode(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
+			float2 LBufferUV = ConvertGridPos2UV(Pos);
+			SSSColorUAV[Pos] = BurleyNormalizedSS(LBufferUV, Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
+		}
+	}
 
 #else
 	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+	{
 		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
-			{
+		{
 
-				uint2 Pos = ConvertGroupIndexToNormal2DGrid(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
-				float2 LBufferUV = ConvertGridPos2UV(Pos);
-				SSSColorUAV[Pos] = BurleyNormalizedSS(ConvertGridPos2UV(Pos), Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
-			}
+			uint2 Pos = ConvertGroupIndexToNormal2DGrid(GI, TopLeftCorner + THREAD_TEXTURE_BOARDER + uint2(j, i)*THREAD_SIZE_1D);
+			float2 LBufferUV = ConvertGridPos2UV(Pos);
+			SSSColorUAV[Pos] = BurleyNormalizedSS(ConvertGridPos2UV(Pos), Pos - (TopLeftCorner + THREAD_TEXTURE_BOARDER));
+		}
+	}
 #endif
 #else
 
@@ -749,16 +754,18 @@ void BurleyComputeMain(uint2 DT_ID, uint2 G_ID, uint GI)
 
 	//we only update the variance if the subsurface is burley
 	UNROLL for (int i = 0; i < LOCALGROUP_RATIO; ++i)
+	{
 		UNROLL for (int j = 0; j < LOCALGROUP_RATIO; ++j)
-			{
-				uint2 TargetGridPos = Pos + uint2(i, j);
-				float2 LBufferUV = ConvertGridPos2UV(TargetGridPos);
-				// We perform quality variance thread-wise in the second pass
-				float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
-				HistoryUAV[TargetGridPos] = UpdateQualityVariance(SurfaceColor, LBufferUV);
-				// Direct sample the color
-				SSSColorUAV[TargetGridPos] = float4(SurfaceColor.rgb, 1.0f);
-			}
+		{
+			uint2 TargetGridPos = Pos + uint2(i, j);
+			float2 LBufferUV = ConvertGridPos2UV(TargetGridPos);
+			// We perform quality variance thread-wise in the second pass
+			float4 SurfaceColor = Texture2DSample(SubsurfaceInput0_Texture, SubsurfaceSampler0, LBufferUV);
+			HistoryUAV[TargetGridPos] = UpdateQualityVariance(SurfaceColor, LBufferUV);
+			// Direct sample the color
+			SSSColorUAV[TargetGridPos] = float4(SurfaceColor.rgb, 1.0f);
+		}
+	}
 #endif
 }
 
