@@ -28,6 +28,7 @@ FNiagaraOverviewGraphViewModel::FNiagaraOverviewGraphViewModel()
 
 FNiagaraOverviewGraphViewModel::~FNiagaraOverviewGraphViewModel()
 {
+	GEditor->UnregisterForUndo(this);
 }
 
 void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewModel> InSystemViewModel)
@@ -36,6 +37,8 @@ void FNiagaraOverviewGraphViewModel::Initialize(TSharedRef<FNiagaraSystemViewMod
 	OverviewGraph = InSystemViewModel->GetEditorData().GetSystemOverviewGraph();
 
 	SetupCommands();
+	GEditor->RegisterForUndo(this);
+
 	NodeSelection->OnSelectedObjectsChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::GraphSelectionChanged);
 	InSystemViewModel->GetSelectionViewModel()->OnSelectionChanged().AddSP(this, &FNiagaraOverviewGraphViewModel::SystemSelectionChanged);
 }
@@ -76,11 +79,6 @@ const FNiagaraGraphViewSettings& FNiagaraOverviewGraphViewModel::GetViewSettings
 void FNiagaraOverviewGraphViewModel::SetViewSettings(const FNiagaraGraphViewSettings& InOverviewGraphViewSettings)
 {
 	GetSystemViewModel()->GetEditorData().SetSystemOverviewGraphViewSettings(InOverviewGraphViewSettings);
-}
-
-FNiagaraOverviewGraphViewModel::FOnNodesPasted& FNiagaraOverviewGraphViewModel::OnNodesPasted()
-{
-	return OnNodesPastedDelegate;
 }
 
 TSharedRef<FNiagaraSystemViewModel> FNiagaraOverviewGraphViewModel::GetSystemViewModel()
@@ -150,16 +148,27 @@ void FNiagaraOverviewGraphViewModel::DeleteSelectedNodes()
 		const FScopedTransaction Transaction(FGenericCommands::Get().Delete->GetDescription());
 		Graph->Modify();
 
-		TArray<UObject*> NodesToDelete = NodeSelection->GetSelectedObjects().Array();
+		TArray<UObject*> ObjectsToDelete = NodeSelection->GetSelectedObjects().Array();
 		NodeSelection->ClearSelectedObjects();
 
 		TSet<FGuid> EmitterGuidsToDelete;
-		for (UObject* NodeToDelete : NodesToDelete)
+		for (UObject* ObjectToDelete : ObjectsToDelete)
 		{
-			UNiagaraOverviewNode* GraphNodeToDelete = Cast<UNiagaraOverviewNode>(NodeToDelete);
-			if (GraphNodeToDelete != nullptr && GraphNodeToDelete->CanUserDeleteNode())
+			UEdGraphNode* NodeToDelete = Cast<UEdGraphNode>(ObjectToDelete);
+			if (NodeToDelete != nullptr && NodeToDelete->CanUserDeleteNode())
 			{
-				EmitterGuidsToDelete.Add(GraphNodeToDelete->GetEmitterHandleGuid());
+				NodeToDelete->Modify();
+				UNiagaraOverviewNode* OverviewNodeToDelete = Cast<UNiagaraOverviewNode>(NodeToDelete);
+				if (OverviewNodeToDelete != nullptr)
+				{
+					// For emitter nodes, just collect their ids and let the system view model delete them.  It will update the overview graph.
+					EmitterGuidsToDelete.Add(OverviewNodeToDelete->GetEmitterHandleGuid());
+				}
+				else
+				{
+					// Other types of nodes can be deleted directly.
+					NodeToDelete->DestroyNode();
+				}
 			}
 		}
 		//we have checked SystemViewModel is valid as this is a requisite for Graph to not be null.
@@ -274,24 +283,27 @@ void FNiagaraOverviewGraphViewModel::PasteNodes()
 		TSet<UEdGraphNode*> PastedNodes;
 		FEdGraphUtilities::ImportNodesFromText(Graph, TextToImport, PastedNodes);
 
-// 		for (UEdGraphNode* PastedNode : PastedNodes) //@TODO System Overview: fix this, copy the impl from sequencer impl in system toolkit
-// 		{
-// 			PastedNode->CreateNewGuid();
-// 			UNiagaraNode* Node = Cast<UNiagaraNode>(PastedNode);
-// 			if (Node)
-// 				Node->MarkNodeRequiresSynchronization(__FUNCTION__, false);
-// 		}
+		TArray<FNiagaraSystemViewModel::FEmitterHandleToDuplicate> EmitterHandlesToDuplicate;
+ 		for (UEdGraphNode* PastedNode : PastedNodes)
+ 		{
+			UNiagaraOverviewNode* OverviewNode = Cast<UNiagaraOverviewNode>(PastedNode);
+			
+			if(OverviewNode != nullptr)
+			{
+				if (OverviewNode->GetOwningSystem() != nullptr && OverviewNode->GetEmitterHandleGuid().IsValid())
+				{
+					FNiagaraSystemViewModel::FEmitterHandleToDuplicate EmitterHandleToDuplicate;
+					EmitterHandleToDuplicate.SystemPath = OverviewNode->GetOwningSystem()->GetPathName();
+					EmitterHandleToDuplicate.EmitterHandleId = OverviewNode->GetEmitterHandleGuid();
+					EmitterHandlesToDuplicate.Add(EmitterHandleToDuplicate);
+				}
+				// Once we've collected the data from the pasted overview node delete it, since a proper node will be created as part
+				// of the duplication process.
+				OverviewNode->DestroyNode();
+			}
+ 		}
 
-		OnNodesPastedDelegate.Broadcast(PastedNodes);
-
-		TSet<UObject*> PastedObjects;
-		for (UEdGraphNode* PastedNode : PastedNodes)
-		{
-			PastedObjects.Add(PastedNode);
-		}
-
-		NodeSelection->SetSelectedObjects(PastedObjects);
-		Graph->NotifyGraphChanged(); //@TODO System Overview: might not be necessary 
+		GetSystemViewModel()->DuplicateEmitters(EmitterHandlesToDuplicate);
 	}
 }
 
@@ -403,6 +415,12 @@ void FNiagaraOverviewGraphViewModel::SystemSelectionChanged(UNiagaraSystemSelect
 
 		NodeSelection->SetSelectedObjects(SelectedNodes);
 	}
+}
+
+void FNiagaraOverviewGraphViewModel::PostUndo(bool bSuccess)
+{
+	// This is neccessary to have the graph editor respond correctly to data changes due to undo.
+	OverviewGraph->NotifyGraphChanged();
 }
 
 #undef LOCTEXT_NAMESPACE // NiagaraScriptGraphViewModel
