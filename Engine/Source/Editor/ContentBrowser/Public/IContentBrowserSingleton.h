@@ -381,6 +381,7 @@ struct FSharedAssetDialogConfig
 	FString DefaultPath;
 	TArray<FName> AssetClassNames;
 	FVector2D WindowSizeOverride;
+	FOnPathSelected OnPathSelected;
 
 	virtual EAssetDialogType::Type GetDialogType() const = 0;
 
