@@ -2,6 +2,7 @@
 #pragma once
 
 #include "GameFramework/Pawn.h"
+#include "Movement/FlyingMovement.h"
 #include "NetworkPredictionExtrasFlyingPawn.generated.h"
 
 class UInputComponent;
@@ -44,7 +45,7 @@ class NETWORKPREDICTIONEXTRAS_API ANetworkPredictionExtrasFlyingPawn : public AP
 
 private:
 
-	void GenerateLocalInput(float DeltaSeconds);
+	void ProduceInput(const FlyingMovement::TSimTime& SimFrameTime, FlyingMovement::FInputCmd& Cmd);
 
 	FVector CachedMoveInput;
 	FVector2D CachedLookInput;
