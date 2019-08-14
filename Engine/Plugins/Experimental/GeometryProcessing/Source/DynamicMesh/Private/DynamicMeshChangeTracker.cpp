@@ -668,3 +668,16 @@ void FDynamicMeshChangeTracker::VerifySaveState()
 {
 	Change->VerifySaveState();
 }
+
+
+
+void FDynamicMeshChange::GetSavedTriangleList(TArray<int>& TrianglesOut, bool bInitial) const
+{
+	const TArray<FChangeTriangle>& UseList = (bInitial) ? OldTriangles : NewTriangles;
+	int32 N = UseList.Num();
+	TrianglesOut.Reserve(TrianglesOut.Num() + N);
+	for (int32 i = 0; i < N; ++i)
+	{
+		TrianglesOut.Add(UseList[i].TriangleID);
+	}
+}

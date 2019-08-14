@@ -138,6 +138,9 @@ public:
 	/** @return true if this vertex was saved. Uses linear search. */
 	bool HasSavedVertex(int VertexID);
 
+	/** store IDs of saved triangles in TrianglesOut. if bInitial=true, old triangles are stored, otherwise new triangles */
+	void GetSavedTriangleList(TArray<int>& TrianglesOut, bool bInitial) const;
+
 protected:
 
 	struct FChangeVertex
