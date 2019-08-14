@@ -45,6 +45,7 @@ InstancedFoliage.cpp: Instanced foliage implementation.
 #include "UObject/FortniteMainBranchObjectVersion.h"
 #include "PreviewScene.h"
 #include "FoliageActor.h"
+#include "LevelUtils.h"
 
 #define LOCTEXT_NAMESPACE "InstancedFoliage"
 
@@ -2315,6 +2316,11 @@ const FFoliageInfo* AInstancedFoliageActor::FindInfo(const UFoliageType* InType)
 #if WITH_EDITOR
 void AInstancedFoliageActor::MoveInstancesForMovedComponent(UActorComponent* InComponent)
 {
+	if (FLevelUtils::IsApplyingLevelTransform())
+	{
+		return;
+	}
+
 	const auto BaseId = InstanceBaseCache.GetInstanceBaseId(InComponent);
 	if (BaseId == FFoliageInstanceBaseCache::InvalidBaseId)
 	{
@@ -3746,14 +3752,26 @@ void AInstancedFoliageActor::OnLevelActorDeleted(AActor* InActor)
 
 void AInstancedFoliageActor::OnApplyLevelTransform(const FTransform& InTransform)
 {
+#if WITH_EDITORONLY_DATA
 	for (auto& Pair : FoliageInfos)
 	{
 		FFoliageInfo& Info = *Pair.Value;
-		if (Info.Implementation)
+
+		InstanceBaseCache.UpdateInstanceBaseCachedTransforms();
+
+		Info.InstanceHash->Empty();
+		for (int32 InstanceIdx = 0; InstanceIdx < Info.Instances.Num(); InstanceIdx++)
 		{
-			Info.Implementation->PostApplyLevelTransform(InTransform, Info.Instances);
+			FFoliageInstance& Instance = Info.Instances[InstanceIdx];
+			FTransform OldTransform(Instance.Rotation, Instance.Location);
+			FTransform NewTransform = OldTransform * InTransform;
+			Instance.Location = NewTransform.GetTranslation();
+			Instance.Rotation = NewTransform.Rotator();
+			// Rehash instance location
+			Info.InstanceHash->InsertInstance(Instance.Location, InstanceIdx);
 		}
 	}
+#endif
 }
 
 void AInstancedFoliageActor::OnPostApplyLevelOffset(ULevel* InLevel, UWorld* InWorld, const FVector& InOffset, bool bWorldShift)
