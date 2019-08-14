@@ -240,3 +240,18 @@ private:
 	int64 RestoreBits = 0;
 	class UNetConnection* CachedNetConnection = nullptr;
 };
+
+struct NETWORKPREDICTION_API FNetSimTickParametersBase
+{
+	FNetSimTickParametersBase();
+	FNetSimTickParametersBase(AActor* Actor);
+
+	// Owner's role. Necessary to know which proxy we should be forwarding functions in tick to
+	ENetRole Role = ROLE_None;
+
+	// Are we creating input cmds locally. Note this is distinct from Role/Authority:
+	//		-[On Server] Autonomous Proxy client = false
+	//		-[On Server] Non player controlled actor = true
+	//		-[On Client] Simulated proxies (everyone but client) = true, if you want extrapolation. Note clients can just not tick the netsim to disable extrapolation as well.
+	bool bGenerateLocalInputCmds = false;
+};
