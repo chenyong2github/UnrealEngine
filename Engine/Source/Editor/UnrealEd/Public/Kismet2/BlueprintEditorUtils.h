@@ -381,6 +381,17 @@ public:
 		FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
 	}
 
+	/**
+	* Get the override class of a given function from its name
+	* 
+	* @param Blueprint		Blueprint to check the function on
+	* @param FuncName		Name of the function
+	* @param OutFunction	The function that has this name
+	* 
+	* @return The override class of a given function
+	*/
+	static UClass* const GetOverrideFunctionClass(UBlueprint* Blueprint, const FName FuncName, UFunction** OutFunction = nullptr);
+
 	/** Adds a macro graph to this blueprint.  If bIsUserCreated is true, the entry/exit nodes will be editable. SignatureFromClass is used to find signature for entry/exit nodes if using an existing signature. */
 	static void AddMacroGraph(UBlueprint* Blueprint, class UEdGraph* Graph,  bool bIsUserCreated, UClass* SignatureFromClass);
 
@@ -1257,6 +1268,14 @@ public:
 
 	/** Remove an implemented interface, and its associated member function graphs.  If bPreserveFunctions is true, then the interface will move its functions to be normal implemented blueprint functions */
 	static void RemoveInterface(UBlueprint* Blueprint, const FName& InterfaceClassName, bool bPreserveFunctions = false);
+	
+	/**
+	* Attempt to remove a function from an interfaces list of function graphs.
+	* Note that this will NOT remove interface events (i.e. functions with no outputs)
+	* 
+	* @return	True if the function was removed from the blueprint
+	*/
+	static bool RemoveInterfaceFunction(class UBlueprint* Blueprint, struct FBPInterfaceDescription& Interface, class UFunction* Function, bool bPreserveFunction);
 
 	/**
 	* Promotes a Graph from being an Interface Override to a full member function
@@ -1268,6 +1287,28 @@ public:
 
 	/** Gets the graphs currently in the blueprint associated with the specified interface */
 	static void GetInterfaceGraphs(UBlueprint* Blueprint, const FName& InterfaceClassName, TArray<UEdGraph*>& ChildGraphs);
+
+	/**
+	* Checks if the given function is a part of an interface on this blueprint
+	* 
+	* @param Blueprint		The blueprint to consider
+	* @param Function		Function to check if it is an interface or not
+	* @return	True if the given function is implemented as part of an interface
+	*/
+	static bool IsInterfaceFunction(UBlueprint* Blueprint, UFunction* Function);
+
+	/**
+	* Get the corresponding UFunction pointer to the name given on the blueprint.
+	* Searches the given blueprints implemented interfaces first, and then looks 
+	* in the parent. 
+	* 
+	* @param Blueprint		The blueprint to consider
+	* @param FuncName		The name of the function to look for
+	*
+	* @return	Corresponding UFunction pointer to the name given; Nullptr if not 
+	*			part of any interfaces
+	*/
+	static UFunction* GetInterfaceFunction(UBlueprint* Blueprint, const FName FuncName);
 
 	/** Makes sure that all graphs for all interfaces we implement exist, and add if not */
 	static void ConformImplementedInterfaces(UBlueprint* Blueprint);

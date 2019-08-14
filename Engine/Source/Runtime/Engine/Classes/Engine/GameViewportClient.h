@@ -64,7 +64,7 @@ public:
 	UPROPERTY()
 	class UConsole* ViewportConsole;
 
-	/** @todo document */
+	/** Debug properties that have been added via one of the "displayall" commands */
 	UPROPERTY()
 	TArray<struct FDebugDisplayProperty> DebugProperties;
 
@@ -846,6 +846,17 @@ private:
 
 	/** Finds available PNG cursor images */
 	bool LoadAvailableCursorPngs(TArray<TSharedPtr<FPngFileData>>& Results, const FString& InPathToCursorWithoutExtension);
+
+	/**
+	* Adds a DebugDisplayProperty to the DebugProperties array if it does not already exist. 
+	* @see FDebugDisplayProperty for more info on debug properties
+	* 
+	* @param Obj				Object that the debug property is on
+	* @param WithinClass		further limit the display to objects that have an Outer of WithinClass
+	* @param PropertyName		name of the property to display
+	* @param bSpecialProperty	whether PropertyName is a "special" value not directly mapping to a real property (e.g. state name)
+	*/
+	void AddDebugDisplayProperty(class UObject* Obj, TSubclassOf<class UObject> WithinClass, const FName& PropertyName, bool bSpecialProperty = false);
 
 private:
 	/** Slate window associated with this viewport client.  The same window may host more than one viewport client. */

@@ -38,6 +38,7 @@ UCameraComponent::UCameraComponent(const FObjectInitializer& ObjectInitializer)
 	}
 
 	bUseControllerViewRotation_DEPRECATED = true; // the previous default value before bUsePawnControlRotation replaced this var.
+	bCameraMeshHiddenInGame = true;
 #endif
 
 	FieldOfView = 90.0f;
@@ -63,6 +64,18 @@ void UCameraComponent::OnUpdateTransform(EUpdateTransformFlags UpdateTransformFl
 }
 
 #if WITH_EDITORONLY_DATA
+void UCameraComponent::PostEditChangeProperty(FPropertyChangedEvent & PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.Property ? PropertyChangedEvent.Property->GetFName() : FName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UCameraComponent, bCameraMeshHiddenInGame))
+	{
+		OnCameraMeshHiddenChanged();
+	}
+
+	RefreshVisualRepresentation();
+}
 
 void UCameraComponent::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
@@ -86,7 +99,7 @@ void UCameraComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 		DrawFrustum->DestroyComponent();
 	}
 }
-#endif
+#endif	// WITH_EDITORONLY_DATA
 
 #if WITH_EDITOR
 FText UCameraComponent::GetFilmbackText() const
@@ -107,7 +120,7 @@ void UCameraComponent::OnRegister()
 			ProxyMeshComponent->SetIsVisualizationComponent(true);
 			ProxyMeshComponent->SetStaticMesh(CameraMesh);
 			ProxyMeshComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-			ProxyMeshComponent->bHiddenInGame = true;
+			ProxyMeshComponent->bHiddenInGame = bCameraMeshHiddenInGame;
 			ProxyMeshComponent->CastShadow = false;
 			ProxyMeshComponent->CreationMethod = CreationMethod;
 			ProxyMeshComponent->RegisterComponentWithWorld(GetWorld());
@@ -124,7 +137,7 @@ void UCameraComponent::OnRegister()
 	}
 
 	RefreshVisualRepresentation();
-#endif
+#endif	// WITH_EDITORONLY_DATA
 
 	Super::OnRegister();
 }
@@ -186,6 +199,12 @@ void UCameraComponent::RefreshVisualRepresentation()
 		DrawFrustum->MarkRenderStateDirty();
 	}
 
+	// Update the proxy camera mesh if necessary
+	if (ProxyMeshComponent && ProxyMeshComponent->GetStaticMesh() != CameraMesh)
+	{
+		ProxyMeshComponent->SetStaticMesh(CameraMesh);
+	}
+
 	ResetProxyMeshTransform();
 }
 
@@ -223,15 +242,6 @@ void UCameraComponent::RestoreFrustumColor()
 		//Cam->DrawFrustum->FrustumColor = DefCam->DrawFrustum->FrustumColor;
 	}
 }
-#endif	// WITH_EDITORONLY_DATA
-
-#if WITH_EDITORONLY_DATA
-void UCameraComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
-{
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	RefreshVisualRepresentation();
-}
 
 void UCameraComponent::Serialize(FArchive& Ar)
 {
@@ -243,6 +253,16 @@ void UCameraComponent::Serialize(FArchive& Ar)
 	}
 }
 #endif	// WITH_EDITORONLY_DATA
+
+void UCameraComponent::OnCameraMeshHiddenChanged()
+{
+#if WITH_EDITORONLY_DATA
+	if (ProxyMeshComponent)
+	{
+		ProxyMeshComponent->bHiddenInGame = bCameraMeshHiddenInGame;
+	}
+#endif
+}
 
 void UCameraComponent::GetCameraView(float DeltaTime, FMinimalViewInfo& DesiredView)
 {

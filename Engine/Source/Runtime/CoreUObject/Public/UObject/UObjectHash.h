@@ -29,7 +29,7 @@ DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("NumObjects"), STAT_Hash_NumObjects, STAT
  * @param	ExclusiveInternalFlags	Ignores objects that contain any of the specified internal exclusive flags
  * @return	Returns a pointer to the found object or NULL if none could be found
  */
-UObject* StaticFindObjectFastInternal(UClass* Class, UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
+UObject* StaticFindObjectFastInternal(const UClass* Class, const UObject* InOuter, FName InName, bool ExactClass = false, bool AnyPackage = false, EObjectFlags ExclusiveFlags = RF_NoFlags, EInternalObjectFlags ExclusiveInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Variation of StaticFindObjectFast that uses explicit path.
@@ -41,7 +41,7 @@ UObject* StaticFindObjectFastInternal(UClass* Class, UObject* InOuter, FName InN
  * @param	ExclusiveFlags	Ignores objects that contain any of the specified exclusive flags
  * @return	Returns a pointer to the found object or NULL if none could be found
  */
-UObject* StaticFindObjectFastExplicit(UClass* ObjectClass, FName ObjectName, const FString& ObjectPathName, bool bExactClass, EObjectFlags ExcludeFlags = RF_NoFlags);
+UObject* StaticFindObjectFastExplicit(const UClass* ObjectClass, FName ObjectName, const FString& ObjectPathName, bool bExactClass, EObjectFlags ExcludeFlags = RF_NoFlags);
 
 /**
  * Return all objects with a given outer
@@ -72,7 +72,7 @@ COREUOBJECT_API void ForEachObjectWithOuter(const class UObjectBase* Outer, TFun
  * @param	ClassToLookFor				if NULL, ignore this parameter, otherwise require the returned object have this class
  * @param	NameToLookFor				if NAME_None, ignore this parameter, otherwise require the returned object have this name
  */
-COREUOBJECT_API class UObjectBase* FindObjectWithOuter(class UObjectBase* Outer, class UClass* ClassToLookFor = NULL, FName NameToLookFor = NAME_None);
+COREUOBJECT_API class UObjectBase* FindObjectWithOuter(const class UObjectBase* Outer, const class UClass* ClassToLookFor = nullptr, FName NameToLookFor = NAME_None);
 
 /**
  * Returns an array of objects of a specific class. Optionally, results can include objects of derived classes as well.
@@ -83,7 +83,7 @@ COREUOBJECT_API class UObjectBase* FindObjectWithOuter(class UObjectBase* Outer,
  * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
  * @param	ExclusiveInternalFlags	Specifies internal flags to use as a filter for which objects to return
  */
-COREUOBJECT_API void GetObjectsOfClass(UClass* ClassToLookFor, TArray<UObject *>& Results, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+COREUOBJECT_API void GetObjectsOfClass(const UClass* ClassToLookFor, TArray<UObject *>& Results, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Performs an operation on all objects with a given outer
@@ -93,7 +93,7 @@ COREUOBJECT_API void GetObjectsOfClass(UClass* ClassToLookFor, TArray<UObject *>
  * @param	bIncludeDerivedClasses		If true, the results will include objects of child classes as well.
  * @param	AdditionalExcludeFlags		Objects with any of these flags will be excluded from the results.
  */
-COREUOBJECT_API void ForEachObjectOfClass(UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
+COREUOBJECT_API void ForEachObjectOfClass(const UClass* ClassToLookFor, TFunctionRef<void(UObject*)> Operation, bool bIncludeDerivedClasses = true, EObjectFlags ExcludeFlags = RF_ClassDefaultObject, EInternalObjectFlags ExclusionInternalFlags = EInternalObjectFlags::None);
 
 /**
  * Returns an array of classes that were derived from the specified class.
@@ -102,7 +102,7 @@ COREUOBJECT_API void ForEachObjectOfClass(UClass* ClassToLookFor, TFunctionRef<v
  * @param	Results						An output list of child classes of the specified parent class.
  * @param	bRecursive					If true, the results will include children of the children classes, recursively. Otherwise, only direct decedents will be included.
  */
-COREUOBJECT_API void GetDerivedClasses(UClass* ClassToLookFor, TArray<UClass *>& Results, bool bRecursive = true);
+COREUOBJECT_API void GetDerivedClasses(const UClass* ClassToLookFor, TArray<UClass *>& Results, bool bRecursive = true);
 
 /**
  * Returns true if any instances of the class in question are currently being async loaded.
@@ -110,7 +110,7 @@ COREUOBJECT_API void GetDerivedClasses(UClass* ClassToLookFor, TArray<UClass *>&
  * @param	ClassToLookFor				The class in question
  * @return	True if there are any instances of the class being async loaded - includes instances based on derived classes. Otherwise, false
  */
-COREUOBJECT_API bool ClassHasInstancesAsyncLoading(UClass* ClassToLookFor);
+COREUOBJECT_API bool ClassHasInstancesAsyncLoading(const UClass* ClassToLookFor);
 
 /**
  * Add an object to the name hash tables

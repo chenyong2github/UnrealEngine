@@ -6376,7 +6376,7 @@ float UCharacterMovementComponent::GetValidPerchRadius() const
 	if (CharacterOwner)
 	{
 		const float PawnRadius = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleRadius();
-		return FMath::Clamp(PawnRadius - GetPerchRadiusThreshold(), 0.1f, PawnRadius);
+		return FMath::Clamp(PawnRadius - GetPerchRadiusThreshold(), 0.11f, PawnRadius);
 	}
 	return 0.f;
 }

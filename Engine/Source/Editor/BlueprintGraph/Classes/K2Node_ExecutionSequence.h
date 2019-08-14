@@ -14,7 +14,7 @@
 
 class FBlueprintActionDatabaseRegistrar;
 
-UCLASS(MinimalAPI)
+UCLASS(MinimalAPI, meta = (Keywords = "sequence"))
 class UK2Node_ExecutionSequence : public UK2Node, public IK2Node_AddPinInterface
 {
 	GENERATED_UCLASS_BODY()

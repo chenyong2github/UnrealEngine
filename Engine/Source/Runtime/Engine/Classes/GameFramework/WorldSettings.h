@@ -736,7 +736,6 @@ public:
 #endif // WITH_EDITOR
 	virtual void PostInitProperties() override;
 	virtual void PreInitializeComponents() override;
-	virtual void PostInitializeComponents() override;
 	virtual void PostRegisterAllComponents() override;
 	//~ End AActor Interface.
 

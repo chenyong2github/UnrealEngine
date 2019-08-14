@@ -395,32 +395,44 @@ void UK2Node_CustomEvent::ReconstructNode()
 
 	if (bUseDelegateSignature)
 	{
-		UserDefinedPins.Empty();
-		for (TFieldIterator<UProperty> PropIt(DelegateSignature); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
-		{
-			const UProperty* Param = *PropIt;
-			if (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm))
-			{
-				FEdGraphPinType PinType;
-				K2Schema->ConvertPropertyToPinType(Param, /*out*/ PinType);
-
-				FName NewPinName = Param->GetFName();
-				int32 Index = 1;
-				while ((DelegateOutputName == NewPinName) || (UEdGraphSchema_K2::PN_Then == NewPinName))
-				{
-					++Index;
-					NewPinName = *FString::Printf(TEXT("%s%d"), *NewPinName.ToString(), Index);
-				}
-				TSharedPtr<FUserPinInfo> NewPinInfo = MakeShareable( new FUserPinInfo() );
-				NewPinInfo->PinName = NewPinName;
-				NewPinInfo->PinType = PinType;
-				NewPinInfo->DesiredPinDirection = EGPD_Output;
-				UserDefinedPins.Add(NewPinInfo);
-			}
-		}
+		SetDelegateSignature(DelegateSignature);
 	}
 
 	Super::ReconstructNode();
+}
+
+void UK2Node_CustomEvent::SetDelegateSignature(const UFunction* DelegateSignature)
+{
+	if (DelegateSignature == nullptr)
+	{
+		return;
+	}
+
+	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+	
+	UserDefinedPins.Empty();
+	for (TFieldIterator<UProperty> PropIt(DelegateSignature); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+	{
+		const UProperty* Param = *PropIt;
+		if (!Param->HasAnyPropertyFlags(CPF_OutParm) || Param->HasAnyPropertyFlags(CPF_ReferenceParm))
+		{
+			FEdGraphPinType PinType;
+			K2Schema->ConvertPropertyToPinType(Param, /*out*/ PinType);
+
+			FName NewPinName = Param->GetFName();
+			int32 Index = 1;
+			while ((DelegateOutputName == NewPinName) || (UEdGraphSchema_K2::PN_Then == NewPinName))
+			{
+				++Index;
+				NewPinName = *FString::Printf(TEXT("%s%d"), *NewPinName.ToString(), Index);
+			}
+			TSharedPtr<FUserPinInfo> NewPinInfo = MakeShareable(new FUserPinInfo());
+			NewPinInfo->PinName = NewPinName;
+			NewPinInfo->PinType = PinType;
+			NewPinInfo->DesiredPinDirection = EGPD_Output;
+			UserDefinedPins.Add(NewPinInfo);
+		}
+	}
 }
 
 UK2Node_CustomEvent* UK2Node_CustomEvent::CreateFromFunction(FVector2D GraphPosition, UEdGraph* ParentGraph, const FString& Name, const UFunction* Function, bool bSelectNewNode/* = true*/)

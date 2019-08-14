@@ -3,6 +3,7 @@
 #include "GenericPlatform/GenericApplication.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/CoreDelegates.h"
+#include "IInputDevice.h"
 
 const FGamepadKeyNames::Type FGamepadKeyNames::Invalid(NAME_None);
 
@@ -100,6 +101,43 @@ const FGamepadKeyNames::Type FGamepadKeyNames::MotionController_Right_Thumbstick
 const FGamepadKeyNames::Type FGamepadKeyNames::MotionController_Right_TriggerAxis("MotionController_Right_TriggerAxis");
 const FGamepadKeyNames::Type FGamepadKeyNames::MotionController_Right_Grip1Axis( "MotionController_Right_Grip1Axis" );
 const FGamepadKeyNames::Type FGamepadKeyNames::MotionController_Right_Grip2Axis( "MotionController_Right_Grip2Axis" );
+
+TArray<FInputDeviceScope*> FInputDeviceScope::ScopeStack;
+
+FInputDeviceScope::FInputDeviceScope(IInputDevice* InInputDevice, FName InInputDeviceName, int32 InHardwareDeviceHandle, FString InHardwareDeviceIdentifier)
+	: InputDevice(InInputDevice)
+	, InputDeviceName(InInputDeviceName)
+	, HardwareDeviceHandle(InHardwareDeviceHandle)
+	, HardwareDeviceIdentifier(InHardwareDeviceIdentifier)
+{
+	if (ensure(IsInGameThread()))
+	{
+		// Add to scope stack
+		ScopeStack.Add(this);
+	}
+}
+
+FInputDeviceScope::~FInputDeviceScope()
+{
+	if (ensure(IsInGameThread()))
+	{
+		// This should always be the top of the stack
+		ensureMsgf((ScopeStack.Num() > 0 && ScopeStack.Last() == this), TEXT("FInputDeviceScope was not destroyed in correct order!"));
+		ScopeStack.Remove(this);
+	}
+}
+
+const FInputDeviceScope* FInputDeviceScope::GetCurrent()
+{
+	if (ensure(IsInGameThread()))
+	{
+		if (ScopeStack.Num() > 0)
+		{
+			return ScopeStack.Last();
+		}
+	}
+	return nullptr;
+}
 
 float GDebugSafeZoneRatio = 1.0f;
 float GDebugActionZoneRatio = 1.0f;
