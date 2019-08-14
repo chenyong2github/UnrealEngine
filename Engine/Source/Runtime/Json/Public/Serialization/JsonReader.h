@@ -150,6 +150,12 @@ public:
 		check(CurrentToken == EJsonToken::Number);
 		return NumberValue;
 	}
+
+	FORCEINLINE const FString& GetValueAsNumberString() const
+	{
+		check(CurrentToken == EJsonToken::Number);
+		return StringValue;
+	}
 	
 	FORCEINLINE bool GetValueAsBoolean() const 
 	{ 
@@ -697,6 +703,7 @@ private:
 		// ensure the number has followed valid Json format
 		if (!Error && ((State == 2) || (State == 3) || (State == 6) || (State == 8)))
 		{
+			StringValue = String;
 			NumberValue = FCString::Atod(*String);
 			return true;
 		}

@@ -22,7 +22,7 @@ FJsonArchiveInputFormatter::FJsonArchiveInputFormatter(FArchive& InInner, TFunct
 
 	TSharedPtr< FJsonObject > RootObject;
 	TSharedRef< TJsonReader<char> > Reader = TJsonReaderFactory<char>::Create(&InInner);
-	ensure(FJsonSerializer::Deserialize(Reader, RootObject));
+	ensure(FJsonSerializer::Deserialize(Reader, RootObject, FJsonSerializer::EFlags::StoreNumbersAsStrings));
 	ValueStack.Add(MakeShared<FJsonValueObject>(RootObject));
 
 	ValueStack.Reserve(64);
@@ -284,52 +284,52 @@ bool FJsonArchiveInputFormatter::TryEnterAttribute(FArchiveFieldName AttributeNa
 
 void FJsonArchiveInputFormatter::Serialize(uint8& Value)
 {
-	Value = (uint8)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint16& Value)
 {
-	Value = (uint16)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint32& Value)
 {
-	Value = (uint32)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(uint64& Value)
 {
-	Value = (uint64)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(int8& Value)
 {
-	Value = (int8)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(int16& Value)
 {
-	Value = (int16)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);;
 }
 
 void FJsonArchiveInputFormatter::Serialize(int32& Value)
 {
-	Value = (int32)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(int64& Value)
 {
-	Value = (int64)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(float& Value)
 {
-	Value = (float)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(double& Value)
 {
-	Value = (double)ValueStack.Top()->AsNumber();
+	ValueStack.Top()->TryGetNumber(Value);
 }
 
 void FJsonArchiveInputFormatter::Serialize(bool& Value)

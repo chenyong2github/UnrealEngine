@@ -72,29 +72,14 @@ const TSharedPtr<FJsonObject>& FJsonValue::AsObject() const
 	return *Object;
 }
 
-
-bool FJsonValue::TryGetNumber( int32& OutNumber ) const
+template <typename T>
+bool TryConvertNumber(const FJsonValue& InValue, T& OutNumber)
 {
 	double Double;
 
-	if (TryGetNumber(Double) && (Double >= INT_MIN) && (Double <= INT_MAX))
+	if (InValue.TryGetNumber(Double) && (Double >= TNumericLimits<T>::Min()) && (Double <= TNumericLimits<T>::Max()))
 	{
-		OutNumber = static_cast<int32>(FMath::RoundHalfFromZero(Double));
-		
-		return true;
-	}
-
-	return false;
-}
-
-
-bool FJsonValue::TryGetNumber( uint32& OutNumber ) const
-{
-	double Double;
-
-	if (TryGetNumber(Double) && (Double >= 0.0) && (Double <= UINT_MAX))
-	{
-		OutNumber = static_cast<uint32>(FMath::RoundHalfFromZero(Double));
+		OutNumber = static_cast<T>(FMath::RoundHalfFromZero(Double));
 
 		return true;
 	}
@@ -102,21 +87,58 @@ bool FJsonValue::TryGetNumber( uint32& OutNumber ) const
 	return false;
 }
 
-
-bool FJsonValue::TryGetNumber( int64& OutNumber ) const
+bool FJsonValue::TryGetNumber(float& OutNumber) const
 {
 	double Double;
 
-	if (TryGetNumber(Double) && (Double >= INT64_MIN) && (Double <= INT64_MAX))
+	if (TryGetNumber(Double))
 	{
-		OutNumber = static_cast<int64>(FMath::RoundHalfFromZero(Double));
-		
+		OutNumber = static_cast<float>(Double);
 		return true;
 	}
 
 	return false;
 }
 
+bool FJsonValue::TryGetNumber(uint8& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(uint16& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(uint32& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(uint64& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(int8& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(int16& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(int32& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
+
+bool FJsonValue::TryGetNumber(int64& OutNumber) const
+{
+	return TryConvertNumber(*this, OutNumber);
+}
 
 //static 
 bool FJsonValue::CompareEqual( const FJsonValue& Lhs, const FJsonValue& Rhs )

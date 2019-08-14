@@ -31,16 +31,34 @@ public:
 	virtual const TSharedPtr<FJsonObject>& AsObject() const;
 
 	/** Tries to convert this value to a number, returning false if not possible */
-	virtual bool TryGetNumber(double& OutDouble) const { return false; }
+	virtual bool TryGetNumber(double& OutNumber) const { return false; }
 
-	/** Tries to convert this value to an integer, returning false if not possible */
-	bool TryGetNumber(int32& OutNumber) const;
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(float& OutNumber) const;
 
-	/** Tries to convert this value to an integer, returning false if not possible */
-	bool TryGetNumber(uint32& OutNumber) const;
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(int8& OutNumber) const;
 
-	/** Tries to convert this value to an integer, returning false if not possible */
-	bool TryGetNumber(int64& OutNumber) const;
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(int16& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(int32& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(int64& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(uint8& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(uint16& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(uint32& OutNumber) const;
+
+	/** Tries to convert this value to a number, returning false if not possible */
+	virtual bool TryGetNumber(uint64& OutNumber) const;
 
 	/** Tries to convert this value to a string, returning false if not possible */
 	virtual bool TryGetString(FString& OutString) const { return false; }
@@ -99,7 +117,11 @@ public:
 	FJsonValueString(const FString& InString) : Value(InString) {Type = EJson::String;}
 
 	virtual bool TryGetString(FString& OutString) const override	{ OutString = Value; return true; }
-	virtual bool TryGetNumber(double& OutDouble) const override		{ if(Value.IsNumeric()){ OutDouble = FCString::Atod(*Value); return true; } else { return false; } }
+	virtual bool TryGetNumber(double& OutDouble) const override		{ if (Value.IsNumeric()) { OutDouble = FCString::Atod(*Value); return true; } else { return false; } }
+	virtual bool TryGetNumber(int32& OutValue) const override		{ LexFromString(OutValue, *Value); return true; }
+	virtual bool TryGetNumber(uint32& OutValue) const override		{ LexFromString(OutValue, *Value); return true; }
+	virtual bool TryGetNumber(int64& OutValue) const override		{ LexFromString(OutValue, *Value); return true; }
+	virtual bool TryGetNumber(uint64& OutValue) const override		{ LexFromString(OutValue, *Value); return true; }
 	virtual bool TryGetBool(bool& OutBool) const override			{ OutBool = Value.ToBool(); return true; }
 
 protected:
@@ -119,9 +141,36 @@ public:
 	virtual bool TryGetString(FString& OutString) const override	{ OutString = FString::SanitizeFloat(Value, 0); return true; }
 	
 protected:
+
 	double Value;
 
 	virtual FString GetType() const override {return TEXT("Number");}
+};
+
+
+/** A Json Number Value, stored internally as a string so as not to lose precision */
+class JSON_API FJsonValueNumberString : public FJsonValue
+{
+public:
+	FJsonValueNumberString(const FString& InString) : Value(InString) { Type = EJson::Number; }
+
+	virtual bool TryGetString(FString& OutString) const override { OutString = Value; return true; }
+	virtual bool TryGetNumber(double& OutDouble) const override { return LexTryParseString(OutDouble, *Value); }
+	virtual bool TryGetNumber(float &OutDouble) const override { return LexTryParseString(OutDouble, *Value); }
+	virtual bool TryGetNumber(int8& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(int16& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(int32& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(int64& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(uint8& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(uint16& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(uint32& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetNumber(uint64& OutValue) const override { return LexTryParseString(OutValue, *Value); }
+	virtual bool TryGetBool(bool& OutBool) const override { OutBool = Value.ToBool(); return true; }
+
+protected:
+	FString Value;
+
+	virtual FString GetType() const override { return TEXT("NumberString"); }
 };
 
 

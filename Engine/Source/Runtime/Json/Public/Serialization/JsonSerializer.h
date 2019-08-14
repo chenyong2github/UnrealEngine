@@ -15,17 +15,23 @@ class FJsonSerializer
 {
 public:
 
-	template <class CharType>
-	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TArray<TSharedPtr<FJsonValue>>& OutArray)
+	enum class EFlags
 	{
-		return Deserialize(*Reader, OutArray);
+		None = 0,
+		StoreNumbersAsStrings = 1,
+	};
+
+	template <class CharType>
+	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TArray<TSharedPtr<FJsonValue>>& OutArray, EFlags InOptions = EFlags::None)
+	{
+		return Deserialize(*Reader, OutArray, InOptions);
 	}
 
 	template <class CharType>
-	static bool Deserialize(TJsonReader<CharType>& Reader, TArray<TSharedPtr<FJsonValue>>& OutArray )
+	static bool Deserialize(TJsonReader<CharType>& Reader, TArray<TSharedPtr<FJsonValue>>& OutArray, EFlags InOptions = EFlags::None)
 	{
 		StackState State;
-		if (!Deserialize(Reader, /*OUT*/State))
+		if (!Deserialize(Reader, /*OUT*/State, InOptions))
 		{
 			return false;
 		}
@@ -42,15 +48,15 @@ public:
 	}
 
 	template <class CharType>
-	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TSharedPtr<FJsonObject>& OutObject )
+	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TSharedPtr<FJsonObject>& OutObject, EFlags InOptions = EFlags::None)
 	{
-		return Deserialize(*Reader, OutObject);
+		return Deserialize(*Reader, OutObject, InOptions);
 	}
 	template <class CharType>
-	static bool Deserialize(TJsonReader<CharType>& Reader, TSharedPtr<FJsonObject>& OutObject)
+	static bool Deserialize(TJsonReader<CharType>& Reader, TSharedPtr<FJsonObject>& OutObject, EFlags InOptions = EFlags::None)
 	{
 		StackState State;
-		if (!Deserialize(Reader, /*OUT*/State))
+		if (!Deserialize(Reader, /*OUT*/State, InOptions))
 		{
 			return false;
 		}
@@ -66,16 +72,16 @@ public:
 	}
 
 	template <class CharType>
-	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TSharedPtr<FJsonValue>& OutValue)
+	static bool Deserialize(const TSharedRef<TJsonReader<CharType>>& Reader, TSharedPtr<FJsonValue>& OutValue, EFlags InOptions = EFlags::None)
 	{
-		return Deserialize(*Reader, OutValue);
+		return Deserialize(*Reader, OutValue, InOptions);
 	}
 
 	template <class CharType>
-	static bool Deserialize(TJsonReader<CharType>& Reader, TSharedPtr<FJsonValue>& OutValue)
+	static bool Deserialize(TJsonReader<CharType>& Reader, TSharedPtr<FJsonValue>& OutValue, EFlags InOptions = EFlags::None)
 	{
 		StackState State;
-		if (!Deserialize(Reader, /*OUT*/State))
+		if (!Deserialize(Reader, /*OUT*/State, InOptions))
 		{
 			return false;
 		}
@@ -183,7 +189,7 @@ private:
 private:
 
 	template <class CharType>
-	static bool Deserialize(TJsonReader<CharType>& Reader, StackState& OutStackState)
+	static bool Deserialize(TJsonReader<CharType>& Reader, StackState& OutStackState, EFlags InOptions)
 	{
 		TArray<TSharedRef<StackState>> ScopeStack; 
 		TSharedPtr<StackState> CurrentState;
@@ -256,7 +262,14 @@ private:
 				break;
 
 			case EJsonNotation::Number:
-				NewValue = MakeShared<FJsonValueNumber>(Reader.GetValueAsNumber());
+				if (EnumHasAnyFlags(InOptions, EFlags::StoreNumbersAsStrings))
+				{
+					NewValue = MakeShared<FJsonValueNumberString>(Reader.GetValueAsNumberString());
+				}
+				else
+				{
+					NewValue = MakeShared<FJsonValueNumber>(Reader.GetValueAsNumber());
+				}
 				break;
 
 			case EJsonNotation::Null:
