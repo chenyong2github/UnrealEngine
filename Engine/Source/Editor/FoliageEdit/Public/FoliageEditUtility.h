@@ -12,6 +12,7 @@
 class UFoliageType;
 struct FFoliageMeshUIInfo;
 class ULevel;
+class AActor;
 
 class FFoliageEditUtility
 {
