@@ -50,7 +50,7 @@ void FNiagaraStandaloneScriptViewModel::SendLastCompileMessageJobs(const UNiagar
 			WarningCount++;
 		}
 
-		JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<UNiagaraScript>(InScript), TOptional<const FString>(), SourceScript->GetPathName()));
+		JobBatchToQueue.Add(MakeShared<FNiagaraMessageJobCompileEvent>(CompileEvent, TWeakObjectPtr<const UNiagaraScript>(InScript), TOptional<const FString>(), SourceScript->GetPathName()));
 	}
 
 	JobBatchToQueue.Insert(MakeShared<FNiagaraMessageJobPostCompileSummary>(ErrorCount, WarningCount, GetLatestCompileStatus(), FText::FromString("Script")), 0);
