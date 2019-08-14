@@ -1940,6 +1940,8 @@ namespace UnrealBuildTool
 
 					// Find all of the source files (and other files) and add them to the project
 					List<FileReference> FoundFiles = SourceFileSearch.FindModuleSourceFiles( CurModuleFile, SearchSubdirectories:SearchSubdirectories );
+					// remove any target files, they are technically not part of the module and are explicitly added when the project is created
+					FoundFiles.RemoveAll(f => f.FullName.EndsWith(".Target.cs"));
 					ProjectFile.AddFilesToProject( FoundFiles, BaseFolder );
 
 					// Check if there's a plugin directory here
