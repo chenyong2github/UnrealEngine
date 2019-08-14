@@ -271,6 +271,7 @@ abort_collapse:
 			EMeshResult result = Mesh->FlipEdge(edgeID, flipInfo);
 			if (result == EMeshResult::Ok) 
 			{
+				OnEdgeFlip(edgeID, flipInfo);
 				DoDebugChecks();
 				return EProcessResult::Ok_Flipped;
 			}

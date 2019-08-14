@@ -146,6 +146,13 @@ public:
 		// this is for subclasses...
 	}
 
+	/** Callback for subclasses to override to implement custom behavior */
+	virtual void OnEdgeFlip(int EdgeID, const FDynamicMesh3::FEdgeFlipInfo& FlipInfo)
+	{
+		// this is for subclasses...
+	}
+
+
 	/**
 	 * Number of edges that were modified in previous Remesh pass.
 	 * If this number gets small relative to edge count, you have probably converged (ish)
