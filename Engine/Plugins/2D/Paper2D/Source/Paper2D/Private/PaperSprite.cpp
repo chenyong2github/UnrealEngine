@@ -334,7 +334,7 @@ void UPaperSprite::ExtractSourceRegionFromTexturePoint(const FVector2D& SourcePo
 	FIntPoint SourceIntPoint(FMath::RoundToInt(SourcePoint.X), FMath::RoundToInt(SourcePoint.Y));
 	FIntPoint ClosestValidPoint;
 
-	FBitmap Bitmap(GetSourceTexture(), 0, 0);
+	FBitmap Bitmap(SourceTexture, 0, 0);
 	if (Bitmap.IsValid() && Bitmap.FoundClosestValidPoint(SourceIntPoint.X, SourceIntPoint.Y, 10, /*out*/ ClosestValidPoint))
 	{
 		FIntPoint Origin;
@@ -984,7 +984,7 @@ void UPaperSprite::FindTextureBoundingBox(float AlphaThreshold, /*out*/ FVector2
 	int32 BottomBound = (int32)(SourceUV.Y + SourceDimension.Y - 1);
 
 	const int32 AlphaThresholdInt = FMath::Clamp<int32>(AlphaThreshold * 255, 0, 255);
-	FBitmap SourceBitmap(GetSourceTexture(), AlphaThresholdInt);
+	FBitmap SourceBitmap(SourceTexture, AlphaThresholdInt);
 	if (SourceBitmap.IsValid())
 	{
 		// Make sure the initial bounds starts in the texture
@@ -1048,7 +1048,7 @@ void UPaperSprite::BuildGeometryFromContours(FSpriteGeometryCollection& GeomOwne
 
 	// DK: FindContours only returns positive contours, i.e. outsides
 	// Contour generation is simplified in FindContours by downscaling the detail prior to generating contour data
-	FindContours(InitialPos, InitialSize, GeomOwner.AlphaThreshold, GeomOwner.DetailAmount, GetSourceTexture(), /*out*/ Contours);
+	FindContours(InitialPos, InitialSize, GeomOwner.AlphaThreshold, GeomOwner.DetailAmount, SourceTexture, /*out*/ Contours);
 
 	// Convert the contours into geometry
 	GeomOwner.Shapes.Empty();
@@ -1460,15 +1460,6 @@ void UPaperSprite::SetPivotMode(ESpritePivotMode::Type InPivotMode, FVector2D In
 	}
 }
 
-#if WITH_EDITOR
-
-UTexture2D* UPaperSprite::GetSourceTexture() const
-{
-	return SourceTexture.LoadSynchronous();
-}
-
-#endif
-
 FVector2D UPaperSprite::ConvertTextureSpaceToPivotSpace(FVector2D Input) const
 {
 	const FVector2D Pivot = GetPivotPosition();
@@ -1656,7 +1647,20 @@ void UPaperSprite::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) cons
 
 FSlateAtlasData UPaperSprite::GetSlateAtlasData() const
 {
-	if (BakedSourceTexture)
+	if ( SourceTexture == nullptr && BakedSourceTexture == nullptr )
+	{
+		return FSlateAtlasData(nullptr, FVector2D::ZeroVector, FVector2D::ZeroVector);
+	}
+	else if ( BakedSourceTexture == nullptr )
+	{
+		const FVector2D ImportedSize = FVector2D(SourceTexture->GetImportedSize());
+
+		const FVector2D StartUV = SourceUV / ImportedSize;
+		const FVector2D SizeUV = SourceDimension / ImportedSize;
+
+		return FSlateAtlasData(SourceTexture, StartUV, SizeUV);
+	}
+	else
 	{
 		const FVector2D ImportedSize = FVector2D(BakedSourceTexture->GetImportedSize());
 
@@ -1664,21 +1668,6 @@ FSlateAtlasData UPaperSprite::GetSlateAtlasData() const
 		const FVector2D SizeUV = BakedSourceDimension / ImportedSize;
 
 		return FSlateAtlasData(BakedSourceTexture, StartUV, SizeUV);
-	}
-#if WITH_EDITOR
-	else if (UTexture2D* SourceTexturePtr = GetSourceTexture())
-	{
-		const FVector2D ImportedSize = FVector2D(SourceTexturePtr->GetImportedSize());
-
-		const FVector2D StartUV = SourceUV / ImportedSize;
-		const FVector2D SizeUV = SourceDimension / ImportedSize;
-
-		return FSlateAtlasData(SourceTexturePtr, StartUV, SizeUV);
-	}
-#endif
-	else
-	{
-		return FSlateAtlasData(nullptr, FVector2D::ZeroVector, FVector2D::ZeroVector);
 	}
 }
 
@@ -1880,11 +1869,7 @@ void UPaperSprite::PostLoad()
 
 UTexture2D* UPaperSprite::GetBakedTexture() const
 {
-#if WITH_EDITOR
-	return (BakedSourceTexture != nullptr) ? BakedSourceTexture : GetSourceTexture();
-#else
-	return BakedSourceTexture;
-#endif
+	return (BakedSourceTexture != nullptr) ? BakedSourceTexture : SourceTexture;
 }
 
 void UPaperSprite::GetBakedAdditionalSourceTextures(FAdditionalSpriteTextureArray& OutTextureList) const
