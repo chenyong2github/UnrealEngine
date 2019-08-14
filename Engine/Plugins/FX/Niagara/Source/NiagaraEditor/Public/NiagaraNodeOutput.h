@@ -69,7 +69,7 @@ private:
 	/** Gets the display text for a pin. */
 	FText GetPinNameText(UEdGraphPin* Pin) const;
 
-	bool VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin);
+	bool VerifyPinNameTextChanged(const FText& InText, FText& OutErrorMessage, UEdGraphPin* Pin) const;
 
 	/** Called when a pin's name text is committed. */
 	void PinNameTextCommitted(const FText& Text, ETextCommit::Type CommitType, UEdGraphPin* Pin);

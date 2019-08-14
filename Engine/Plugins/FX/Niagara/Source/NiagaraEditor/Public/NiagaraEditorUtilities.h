@@ -198,5 +198,5 @@ namespace FNiagaraEditorUtilities
 	void KillSystemInstances(const UNiagaraSystem& System);
 
 
-	bool VerifyNameChangeForInputOrOutputNode(UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
+	bool VerifyNameChangeForInputOrOutputNode(const UNiagaraNode& NodeBeingChanged, FName OldName, FName NewName, FText& OutErrorMessage);
 };
