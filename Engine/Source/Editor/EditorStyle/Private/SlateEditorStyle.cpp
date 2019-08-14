@@ -6415,6 +6415,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("UserDefinedEnum"),
 			TEXT("UserDefinedStruct"),
 			TEXT("UserWidget"),
+			TEXT("WidgetBlueprint"),
 			TEXT("WindDirectionalSource"),
 			TEXT("World"),
 			TEXT("Cube"),
