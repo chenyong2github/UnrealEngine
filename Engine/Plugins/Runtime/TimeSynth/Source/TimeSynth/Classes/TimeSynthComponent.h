@@ -185,6 +185,11 @@ struct TIMESYNTH_API FTimeSynthTimeDef
 		, NumBeats(InNumBeats)
 	{
 	}
+
+	bool IsZeroDuration() const
+	{
+		return NumBars == 0 && NumBeats == 0;
+	}
 };
 
 // Struct used to define a handle to a clip
