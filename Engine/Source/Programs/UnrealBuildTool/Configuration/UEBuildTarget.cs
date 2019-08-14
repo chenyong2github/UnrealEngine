@@ -3805,19 +3805,6 @@ namespace UnrealBuildTool
 					}
 				}
 
-				// Override the default for whether the module requires nested include paths
-				if(RulesObject.bLegacyPublicIncludePaths == null)
-				{
-					if(RulesObject.bUseBackwardsCompatibleDefaults)
-					{
-						RulesObject.bLegacyPublicIncludePaths = Rules.bLegacyPublicIncludePaths;
-					}
-					else
-					{
-						RulesObject.bLegacyPublicIncludePaths = false;
-					}
-				}
-
 				// Allow the current platform to modify the module rules
 				UEBuildPlatform.GetBuildPlatform(Platform).ModifyModuleRulesForActivePlatform(ModuleName, RulesObject, Rules);
 
