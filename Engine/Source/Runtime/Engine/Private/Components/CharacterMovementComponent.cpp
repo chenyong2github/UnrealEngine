@@ -6853,17 +6853,17 @@ void UCharacterMovementComponent::DisplayDebug(UCanvas* Canvas, const FDebugDisp
 	DisplayDebugManager.DrawString(T);
 }
 
-void UCharacterMovementComponent::VisualizeMovement() const
+float UCharacterMovementComponent::VisualizeMovement() const
 {
+	float HeightOffset = 0.f;
 	if (CharacterOwner == nullptr)
 	{
-		return;
+		return HeightOffset;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	const FVector TopOfCapsule = GetActorLocation() + FVector(0.f, 0.f, CharacterOwner->GetSimpleCollisionHalfHeight());
-	float HeightOffset = 0.f;
-
+	
 	// Position
 	{
 		const FColor DebugColor = FColor::White;
@@ -6945,6 +6945,8 @@ void UCharacterMovementComponent::VisualizeMovement() const
 		DrawDebugString(GetWorld(), DebugLocation, DebugText, nullptr, DebugColor, 0.f, true);
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
+	return HeightOffset;
 }
 
 void UCharacterMovementComponent::ForceReplicationUpdate()
