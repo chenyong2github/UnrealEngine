@@ -144,6 +144,10 @@ public:
 	FScreenPassViewInfo(const FViewInfo& InView);
 	FScreenPassViewInfo(const FScreenPassViewInfo&) = default;
 
+	// Returns the load action we should use when we expect to overwrite all relevant pixels.
+	// Takes into account the HMD mesh.
+	ERenderTargetLoadAction GetOverwriteLoadAction() const;
+
 	const FViewInfo& View;
 
 	// The vertex shader used by draw screen pass. Cached here to avoid many lookups.

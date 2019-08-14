@@ -137,6 +137,11 @@ FScreenPassViewInfo::FScreenPassViewInfo(const FViewInfo& InView)
 	, bUseComputePasses(ShouldDoComputePostProcessing(InView))
 {}
 
+ERenderTargetLoadAction FScreenPassViewInfo::GetOverwriteLoadAction() const
+{
+	return bHasHMDMask ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
+}
+
 void SetScreenPassPipelineState(FRHICommandListImmediate& RHICmdList, const FScreenPassDrawInfo& ScreenPassDraw)
 {
 	FRHIPixelShader* PixelShaderRHI = GETSAFERHISHADER_PIXEL(ScreenPassDraw.PixelShader);
