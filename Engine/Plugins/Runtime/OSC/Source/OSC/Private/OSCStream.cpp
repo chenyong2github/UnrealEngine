@@ -351,11 +351,9 @@ FString FOSCStream::ReadString()
 
 	const ANSICHAR* StrStart = (ANSICHAR*)(&Data[InitPosition]);
 
-	int32 i = InitPosition;
-	for (; i < DataSize; i++)
+	for (; Position < DataSize; Position++)
 	{
-		Position++;
-		if (Data[i] == '\0')
+		if (Data[Position] == '\0')
 		{
 			break;
 		}
