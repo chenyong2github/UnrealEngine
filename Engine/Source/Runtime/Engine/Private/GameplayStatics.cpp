@@ -365,6 +365,33 @@ bool UGameplayStatics::IsGamePaused(const UObject* WorldContextObject)
 	return World ? World->IsPaused() : false;
 }
 
+void UGameplayStatics::SetForceDisableSplitscreen(const UObject* WorldContextObject, bool bDisable)
+{
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			GameViewportClient->SetForceDisableSplitscreen(bDisable);
+		}
+	}
+}
+
+bool UGameplayStatics::IsSplitscreenForceDisabled(const UObject* WorldContextObject)
+{
+	UWorld* const World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
+	if (World)
+	{
+		UGameViewportClient* GameViewportClient = World->GetGameViewport();
+		if (GameViewportClient)
+		{
+			return GameViewportClient->IsSplitscreenForceDisabled();
+		}
+	}
+	return false;
+}
+
 void UGameplayStatics::SetEnableWorldRendering(const UObject* WorldContextObject, bool bEnable)
 {
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
