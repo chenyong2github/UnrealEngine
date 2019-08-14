@@ -87,6 +87,7 @@ public:
 
 	/** IHeadMountedDisplayModule implementation */
 	virtual TSharedPtr< class IXRTrackingSystem, ESPMode::ThreadSafe > CreateTrackingSystem() override;
+	virtual TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > GetVulkanExtensions() override;
 	virtual uint64 GetGraphicsAdapterLuid() override;
 	virtual bool PreInit() override;
 
@@ -119,6 +120,7 @@ private:
 	XrSystemId System;
 	TSet<FString> AvailableExtensions;
 	TRefCountPtr<FOpenXRRenderBridge> RenderBridge;
+	TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > VulkanExtensions;
 
 	bool EnumerateExtensions();
 	bool InitRenderBridge();
@@ -154,6 +156,21 @@ uint64 FOpenXRHMDPlugin::GetGraphicsAdapterLuid()
 		}
 	}
 	return RenderBridge->GetGraphicsAdapterLuid();
+}
+
+TSharedPtr< IHeadMountedDisplayVulkanExtensions, ESPMode::ThreadSafe > FOpenXRHMDPlugin::GetVulkanExtensions()
+{
+#if XR_USE_GRAPHICS_API_VULKAN
+	if (PreInit() && HasExtension(XR_KHR_VULKAN_ENABLE_EXTENSION_NAME))
+	{
+		if (!VulkanExtensions.IsValid())
+		{
+			VulkanExtensions = MakeShareable(new FOpenXRHMD::FVulkanExtensions(Instance, System));
+		}
+		return VulkanExtensions;
+	}
+#endif//XR_USE_GRAPHICS_API_VULKAN
+	return nullptr;
 }
 
 bool FOpenXRHMDPlugin::EnumerateExtensions()
@@ -228,6 +245,9 @@ bool FOpenXRHMDPlugin::InitRenderBridge()
 
 bool FOpenXRHMDPlugin::PreInit()
 {
+	if (Instance)
+		return true;
+
 #if PLATFORM_WINDOWS
 #if PLATFORM_64BITS
 	FString BinariesPath = FPaths::EngineDir() / FString(TEXT("Binaries/ThirdParty/OpenXR/win64"));
@@ -359,12 +379,11 @@ bool FOpenXRHMD::FVulkanExtensions::GetVulkanInstanceExtensionsRequired(TArray<c
 		VulkanRHI::vkEnumerateInstanceExtensionProperties(nullptr, &PropertyCount, Properties.GetData());
 	}
 
-	TArray<char> Extensions;
 	{
 		uint32 ExtensionCount = 0;
-		xrGetVulkanInstanceExtensionsKHR(Instance, System, 0, &ExtensionCount, nullptr);
+		XR_ENSURE(xrGetVulkanInstanceExtensionsKHR(Instance, System, 0, &ExtensionCount, nullptr));
 		Extensions.SetNum(ExtensionCount);
-		xrGetVulkanInstanceExtensionsKHR(Instance, System, ExtensionCount, &ExtensionCount, Extensions.GetData());
+		XR_ENSURE(xrGetVulkanInstanceExtensionsKHR(Instance, System, ExtensionCount, &ExtensionCount, Extensions.GetData()));
 	}
 
 	ANSICHAR* Context = nullptr;
@@ -404,16 +423,15 @@ bool FOpenXRHMD::FVulkanExtensions::GetVulkanDeviceExtensionsRequired(VkPhysical
 		VulkanRHI::vkEnumerateDeviceExtensionProperties((VkPhysicalDevice)pPhysicalDevice, nullptr, &PropertyCount, Properties.GetData());
 	}
 
-	TArray<char> Extensions;
 	{
 		uint32 ExtensionCount = 0;
-		xrGetVulkanDeviceExtensionsKHR(Instance, System, 0, &ExtensionCount, nullptr);
-		Extensions.SetNum(ExtensionCount);
-		xrGetVulkanDeviceExtensionsKHR(Instance, System, ExtensionCount, &ExtensionCount, Extensions.GetData());
+		XR_ENSURE(xrGetVulkanDeviceExtensionsKHR(Instance, System, 0, &ExtensionCount, nullptr));
+		DeviceExtensions.SetNum(ExtensionCount);
+		XR_ENSURE(xrGetVulkanDeviceExtensionsKHR(Instance, System, ExtensionCount, &ExtensionCount, DeviceExtensions.GetData()));
 	}
 
 	ANSICHAR* Context = nullptr;
-	for (ANSICHAR* Tok = FCStringAnsi::Strtok(Extensions.GetData(), " ", &Context); Tok != nullptr; Tok = FCStringAnsi::Strtok(nullptr, " ", &Context))
+	for (ANSICHAR* Tok = FCStringAnsi::Strtok(DeviceExtensions.GetData(), " ", &Context); Tok != nullptr; Tok = FCStringAnsi::Strtok(nullptr, " ", &Context))
 	{
 		bool ExtensionFound = false;
 		for (int32 PropertyIndex = 0; PropertyIndex < Properties.Num(); PropertyIndex++)

@@ -51,6 +51,9 @@ public:
 	private:
 		XrInstance Instance;
 		XrSystemId System;
+
+		TArray<char> Extensions;
+		TArray<char> DeviceExtensions;
 	};
 
 	/** IXRTrackingSystem interface */
