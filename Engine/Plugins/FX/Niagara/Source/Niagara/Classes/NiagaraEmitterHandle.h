@@ -47,8 +47,8 @@ public:
 	/** Gets whether or not this emitter is enabled within the System.  Disabled emitters aren't simulated. */
 	bool GetIsEnabled() const;
 
-	/** Gets whether or not this emitter is enabled within the System.  Disabled emitters aren't simulated. */
-	void SetIsEnabled(bool bInIsEnabled);
+	/** Sets whether or not this emitter is enabled within the System.  Disabled emitters aren't simulated. Returns whether or not the enabled state changed. */
+	bool SetIsEnabled(bool bInIsEnabled, UNiagaraSystem& InOwnerSystem, bool bRecompileIfChanged);
 
 #if WITH_EDITORONLY_DATA
 	bool IsIsolated() const {	return bIsolated; }
@@ -70,6 +70,8 @@ public:
 
 	/** Whether or not this handle uses the supplied emitter. */
 	bool UsesEmitter(const UNiagaraEmitter& InEmitter) const;
+
+	void ClearEmitter();
 
 #endif
 public:

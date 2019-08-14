@@ -47,6 +47,8 @@ class UNiagaraScriptSource : public UNiagaraScriptSourceBase
 
 	virtual void CleanUpOldAndInitializeNewRapidIterationParameters(FString UniqueEmitterName, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FNiagaraParameterStore& RapidIterationParameters) const override;
 	virtual void InvalidateCachedCompileIds() override;
+	virtual void RefreshFromExternalChanges() override;
+
 private:
 	void OnGraphChanged(const FEdGraphEditAction &Action);
 	void OnGraphDataInterfaceChanged();
