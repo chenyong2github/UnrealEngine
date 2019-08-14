@@ -404,9 +404,7 @@ bool FOpenXRHMDPlugin::PreInit()
 	XrResult rs = xrCreateInstance(&Info, &Instance);
 	if (XR_FAILED(rs))
 	{
-		char error[XR_MAX_RESULT_STRING_SIZE] = { '\0' };
-		xrResultToString(XR_NULL_HANDLE, rs, error);
-		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed."), error);
+		UE_LOG(LogHMD, Log, TEXT("Failed to create an OpenXR instance, result is %s. Please check if you have an OpenXR runtime installed."), OpenXRResultToString(rs));
 		return false;
 	}
 
@@ -417,9 +415,7 @@ bool FOpenXRHMDPlugin::PreInit()
 	rs = xrGetSystem(Instance, &SystemInfo, &System);
 	if (XR_FAILED(rs))
 	{
-		char error[XR_MAX_RESULT_STRING_SIZE] = { '\0' };
-		xrResultToString(XR_NULL_HANDLE, rs, error);
-		UE_LOG(LogHMD, Log, TEXT("Failed to get an OpenXR system, result is %s. Please check that your runtime supports VR headsets."), error);
+		UE_LOG(LogHMD, Log, TEXT("Failed to get an OpenXR system, result is %s. Please check that your runtime supports VR headsets."), OpenXRResultToString(rs));
 		return false;
 	}
 
@@ -1083,9 +1079,7 @@ void FOpenXRHMD::OnBeginRendering_RenderThread(FRHICommandListImmediate& RHICmdL
 			static bool bLoggedBeginFrameFailure = false;
 			if (!bLoggedBeginFrameFailure)
 			{
-				char Error[XR_MAX_RESULT_STRING_SIZE] = { '\0' };
-				xrResultToString(XR_NULL_HANDLE, Result, Error);
-				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), Error);
+				UE_LOG(LogHMD, Error, TEXT("Unexpected error on xrBeginFrame. Error code was %s."), OpenXRResultToString(Result));
 				bLoggedBeginFrameFailure = true;
 			}
 		}
