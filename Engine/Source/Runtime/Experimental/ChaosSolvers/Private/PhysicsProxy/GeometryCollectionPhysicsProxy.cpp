@@ -2482,6 +2482,33 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(Chaos:
 					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr< FSimplicial >(
 						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get()));
 				}
+				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Box)
+				{
+					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
+					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<TImplicitObject<float, 3>>(
+						FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *UnionMesh,
+							InstanceBoundingBox, 0, 0, 0,
+							SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
+							SizeSpecificData.ImplicitType)
+						);
+
+					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr< FSimplicial >(
+						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get()));
+
+				}
+				else if (SizeSpecificData.ImplicitType == EImplicitTypeEnum::Chaos_Implicit_Sphere)
+				{
+					ErrorReporter.SetPrefix(BaseErrorPrefix + " | Cluster Transform Index: " + FString::FromInt(ClusterTransformIdx));
+					CollectionImplicits[ClusterTransformIdx] = TUniquePtr<TImplicitObject<float, 3>>(
+						FCollisionStructureManager::NewImplicit(ErrorReporter, MassSpaceParticles, *UnionMesh,
+							InstanceBoundingBox, InstanceBoundingBox.GetExtent().GetAbsMin() / 2, 0, 0,
+							SizeSpecificData.CollisionObjectReductionPercentage, SizeSpecificData.CollisionType,
+							SizeSpecificData.ImplicitType)
+						);
+
+					CollectionSimplicials[ClusterTransformIdx] = TUniquePtr< FSimplicial >(
+						FCollisionStructureManager::NewSimplicial(MassSpaceParticles, *UnionMesh, CollectionImplicits[ClusterTransformIdx].Get()));
+				}
 				else
 				{
 					CollectionImplicits[ClusterTransformIdx].Reset();	//union so just set as null
