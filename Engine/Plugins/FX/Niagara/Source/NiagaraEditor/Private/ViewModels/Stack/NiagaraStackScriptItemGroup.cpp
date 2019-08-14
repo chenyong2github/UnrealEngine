@@ -313,6 +313,14 @@ void UNiagaraStackScriptItemGroup::FinalizeInternal()
 	{
 		ScriptGraph->RemoveOnGraphChangedHandler(OnGraphChangedHandle);
 	}
+	if (AddUtilities.IsValid())
+	{
+		AddUtilities.Reset();
+	}
+	if (ScriptViewModel.IsValid())
+	{
+		ScriptViewModel.Reset();
+	}
 	Super::FinalizeInternal();
 }
 
