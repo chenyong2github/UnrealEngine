@@ -43,11 +43,12 @@ void FAnimInstanceProxy::UpdateAnimationNode_WithRoot(float DeltaSeconds, FAnimN
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 	if(InRootNode != nullptr)
 	{
-		if (FrameCounterForUpdate != GFrameCounter)
+		if (FrameCounterForNodeUpdate != GFrameCounter)
 		{
+			FrameCounterForNodeUpdate = GFrameCounter;
 			UpdateCounter.Increment();
 		}
-
+		
 		InRootNode->Update_AnyThread(FAnimationUpdateContext(this, DeltaSeconds));
 
 		// We've updated the graph, now update the fractured saved pose sections
