@@ -843,6 +843,8 @@ static TAutoConsoleVariable<float> CVarStallInitViews(
 
 void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 {
+	Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+
 	check(RHICmdList.IsOutsideRenderPass());
 
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
@@ -936,7 +938,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	// Find the visible primitives.
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
-	
+
 	bool bDoInitViewAftersPrepass = false;
 	{
 		SCOPED_GPU_STAT(RHICmdList, VisibilityCommands);

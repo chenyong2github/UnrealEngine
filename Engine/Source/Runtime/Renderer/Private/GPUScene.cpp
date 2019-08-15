@@ -151,7 +151,7 @@ int32 FGrowOnlySpanAllocator::SearchFreeList(int32 Num)
 	return INDEX_NONE;
 }
 
-void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
+void UpdateGPUScene(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 {
 	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
 	{
@@ -190,13 +190,12 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 
 		const int32 NumPrimitiveDataUploads = Scene.GPUScene.PrimitivesToUpdate.Num();
 
+		int32 NumLightmapDataUploads = 0;
 		if (NumPrimitiveDataUploads > 0)
 		{
 			SCOPED_DRAW_EVENTF(RHICmdList, UpdateGPUScene, TEXT("UpdateGPUScene PrimitivesToUpdate = %u"), NumPrimitiveDataUploads);
 
 			FScatterUploadBuilder PrimitivesUploadBuilder(NumPrimitiveDataUploads, FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s, Scene.GPUScene.PrimitivesUploadScatterBuffer, Scene.GPUScene.PrimitivesUploadDataBuffer);
-
-			int32 NumLightmapDataUploads = 0;
 
 			for (int32 Index : Scene.GPUScene.PrimitivesToUpdate)
 			{
@@ -221,26 +220,31 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 			{
 				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, Scene.GPUScene.PrimitiveBuffer.UAV);
 			}
-			
+
 			PrimitivesUploadBuilder.UploadTo_Flush(RHICmdList, Scene.GPUScene.PrimitiveBuffer);
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, Scene.GPUScene.PrimitiveBuffer.UAV);
+		}
 
-			if (GGPUSceneValidatePrimitiveBuffer && Scene.GPUScene.PrimitiveBuffer.NumBytes > 0)
+		if (GGPUSceneValidatePrimitiveBuffer && Scene.GPUScene.PrimitiveBuffer.NumBytes > 0)
+		{
+			//UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
+			FPrimitiveSceneShaderData* InstanceBufferCopy = (FPrimitiveSceneShaderData*)RHILockStructuredBuffer(Scene.GPUScene.PrimitiveBuffer.Buffer, 0, Scene.GPUScene.PrimitiveBuffer.NumBytes, RLM_ReadOnly);
+
+			for (int32 Index = 0; Index < Scene.PrimitiveSceneProxies.Num(); Index++)
 			{
-				UE_LOG(LogRenderer, Warning, TEXT("r.GPUSceneValidatePrimitiveBuffer enabled, doing slow readback from GPU"));
-				FPrimitiveSceneShaderData* InstanceBufferCopy = (FPrimitiveSceneShaderData*)RHILockStructuredBuffer(Scene.GPUScene.PrimitiveBuffer.Buffer, 0, Scene.GPUScene.PrimitiveBuffer.NumBytes, RLM_ReadOnly);
-
-				for (int32 Index = 0; Index < Scene.PrimitiveSceneProxies.Num(); Index++)
+				FPrimitiveSceneShaderData PrimitiveSceneData(Scene.PrimitiveSceneProxies[Index]);
+				for (int i = 0; i < FPrimitiveSceneShaderData::PrimitiveDataStrideInFloat4s; i++)
 				{
-					FPrimitiveSceneShaderData PrimitiveSceneData(Scene.PrimitiveSceneProxies[Index]);
-
-					check(FMemory::Memcmp(&InstanceBufferCopy[Index], &PrimitiveSceneData, sizeof(FPrimitiveSceneShaderData)) == 0);
+					check(PrimitiveSceneData.Data[i] == InstanceBufferCopy[Index].Data[i]);
 				}
-
-				RHIUnlockStructuredBuffer(Scene.GPUScene.PrimitiveBuffer.Buffer);
 			}
 
+			RHIUnlockStructuredBuffer(Scene.GPUScene.PrimitiveBuffer.Buffer);
+		}
+
+		if (NumPrimitiveDataUploads > 0)
+		{
 			if (NumLightmapDataUploads > 0)
 			{
 				FScatterUploadBuilder LightmapDataUploadBuilder(NumLightmapDataUploads, FLightmapSceneShaderData::LightmapDataStrideInFloat4s, Scene.GPUScene.LightmapUploadScatterBuffer, Scene.GPUScene.LightmapUploadDataBuffer);
@@ -299,7 +303,7 @@ void UpdateGPUScene(FRHICommandList& RHICmdList, FScene& Scene)
 	checkSlow(Scene.GPUScene.PrimitivesToUpdate.Num() == 0);
 }
 
-void UploadDynamicPrimitiveShaderDataForView(FRHICommandList& RHICmdList, FScene& Scene, FViewInfo& View)
+void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdList, FScene& Scene, FViewInfo& View)
 {
 	if (UseGPUScene(GMaxRHIShaderPlatform, Scene.GetFeatureLevel()))
 	{

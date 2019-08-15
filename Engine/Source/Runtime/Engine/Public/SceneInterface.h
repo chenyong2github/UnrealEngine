@@ -62,6 +62,10 @@ public:
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) = 0;
 	/** Called when a primitive is being unregistered and will not be immediately re-registered. */
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) = 0;
+	/**
+	* Updates all primitive scene info additions, remobals and translation changes
+	*/
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) = 0;
 	/** 
 	 * Updates the transform of a primitive which has already been added to the scene. 
 	 * 

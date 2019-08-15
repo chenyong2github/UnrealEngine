@@ -4132,6 +4132,20 @@ void FEngineLoop::Tick()
 			GEngine->UpdateTimeAndHandleMaxTickRate();
 		}
 
+		for (const FWorldContext& Context : GEngine->GetWorldContexts())
+		{
+			UWorld* CurrentWorld = Context.World();
+			if (CurrentWorld)
+			{
+				FSceneInterface* Scene = CurrentWorld->Scene;
+				ENQUEUE_RENDER_COMMAND(UpdateScenePrimitives)(
+					[Scene](FRHICommandListImmediate& RHICmdList)
+				{
+					Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+				});
+			}
+		}
+
 		// beginning of RHI frame
 		ENQUEUE_RENDER_COMMAND(BeginFrame)([CurrentFrameCounter](FRHICommandListImmediate& RHICmdList)
 		{

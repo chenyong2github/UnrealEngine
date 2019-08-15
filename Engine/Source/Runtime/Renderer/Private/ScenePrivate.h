@@ -2653,6 +2653,7 @@ public:
 	virtual void AddPrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void RemovePrimitive(UPrimitiveComponent* Primitive) override;
 	virtual void ReleasePrimitive(UPrimitiveComponent* Primitive) override;
+	virtual void UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList) override;
 	virtual void UpdatePrimitiveTransform(UPrimitiveComponent* Primitive) override;
 	virtual void UpdatePrimitiveAttachment(UPrimitiveComponent* Primitive) override;
 	virtual void UpdateCustomPrimitiveData(UPrimitiveComponent* Primitive) override;
@@ -2902,7 +2903,7 @@ private:
 	/**
 	 * Ensures the packed primitive arrays contain the same number of elements.
 	 */
-	void CheckPrimitiveArrays();
+	void CheckPrimitiveArrays(int MaxTypeOffsetIndex = -1);
 
 	/**
 	 * Retrieves the lights interacting with the passed in primitive and adds them to the out array.
@@ -2916,7 +2917,7 @@ private:
 	 * Adds a primitive to the scene.  Called in the rendering thread by AddPrimitive.
 	 * @param PrimitiveSceneInfo - The primitive being added.
 	 */
-	void AddPrimitiveSceneInfo_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneInfo* PrimitiveSceneInfo);
+	void AddPrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo, const TOptional<FTransform>& PreviousTransform);
 
 	/**
 	 * Removes a primitive from the scene.  Called in the rendering thread by RemovePrimitive.
@@ -2925,7 +2926,7 @@ private:
 	void RemovePrimitiveSceneInfo_RenderThread(FPrimitiveSceneInfo* PrimitiveSceneInfo);
 
 	/** Updates a primitive's transform, called on the rendering thread. */
-	void UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& OwnerPosition);
+	void UpdatePrimitiveTransform_RenderThread(FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& OwnerPosition, const TOptional<FTransform>& PreviousTransform);
 
 	/** Updates a single primitive's lighting attachment root. */
 	void UpdatePrimitiveLightingAttachmentRoot(UPrimitiveComponent* Primitive);
@@ -2998,6 +2999,22 @@ private:
 	void ProcessAtmosphereLightAddition_RenderThread(FLightSceneInfo* LightSceneInfo);
 
 private:
+	struct FUpdateTransformCommand
+	{
+		FBoxSphereBounds WorldBounds;
+		FBoxSphereBounds LocalBounds; 
+		FMatrix LocalToWorld; 
+		FVector AttachmentRootPosition;
+	};
+
+	TMap<FPrimitiveSceneInfo*, FPrimitiveComponentId> UpdatedAttachmentRoots;
+	TMap<FPrimitiveSceneProxy*, FCustomPrimitiveData> UpdatedCustomPrimitiveParams;
+	TMap<FPrimitiveSceneProxy*, FUpdateTransformCommand> UpdatedTransforms;
+	TMap<FPrimitiveSceneInfo*, FMatrix> OverridenPreviousTransforms;
+	TSet<FPrimitiveSceneInfo*> AddedPrimitiveSceneInfos;
+	TSet<FPrimitiveSceneInfo*> RemovedPrimitiveSceneInfos;
+	TSet<FPrimitiveSceneInfo*> DistanceFieldSceneDataUpdates;
+
 	/** 
 	 * The number of visible lights in the scene
 	 * Note: This is tracked on the game thread!
