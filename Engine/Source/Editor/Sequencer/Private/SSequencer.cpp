@@ -82,6 +82,7 @@
 #include "LevelSequence.h"
 #include "SequencerLog.h"
 #include "MovieSceneCopyableBinding.h"
+#include "SExposedBindingsWidget.h"
 #include "MovieSceneCopyableTrack.h"
 #include "IPropertyRowGenerator.h"
 #include "Fonts/FontMeasure.h"
@@ -1616,13 +1617,22 @@ TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
 
 	MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleShowGotoBox);
 
-	MenuBuilder.AddMenuSeparator();
+	MenuBuilder.BeginSection( "Bindings", LOCTEXT( "BindingsMenuHeader", "Bindings" ) );
 
 	if (SequencerPtr.Pin()->IsLevelEditorSequencer())
 	{
+
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().FixActorReferences);
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().RebindPossessableReferences);
 	}
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("ExposeBindingLabel", "Exposed Binding Groups"),
+		LOCTEXT("ExposeBindingTooltip", "Specifies options for exposing this binding to external systems as a persistent name."),
+		FNewMenuDelegate::CreateSP(this, &SSequencer::PopulateExposeBindingsMenu)
+	);
+
+	MenuBuilder.EndSection();
 
 	if ( SequencerPtr.Pin()->IsLevelEditorSequencer() )
 	{
@@ -1633,6 +1643,11 @@ TSharedRef<SWidget> SSequencer::MakeGeneralMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SSequencer::PopulateExposeBindingsMenu(FMenuBuilder& InMenuBuilder)
+{
+	InMenuBuilder.AddWidget(SNew(SExposedBindingsWidget, SequencerPtr), FText(), true);
 }
 
 void SSequencer::FillPlaybackSpeedMenu(FMenuBuilder& InMenuBarBuilder)
