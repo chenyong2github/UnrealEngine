@@ -212,10 +212,19 @@ void SceneUnderstandingObserver::StopSceneUnderstandingObserver()
 void SceneUnderstandingObserver::RequestAsyncUpdate()
 {
 #if WITH_SCENE_UNDERSTANDING
-	concurrency::create_task([this]()
+	Scene^ LastScene = nullptr;
 	{
 		std::lock_guard<std::mutex> lock(RefsLock);
-		ObservedScene = SceneObserver::Compute(Settings, VolumeSize, ObservedScene);
+		LastScene = ObservedScene;
+	}
+
+	auto RequestTask = concurrency::create_task(SceneObserver::ComputeAsync(Settings, VolumeSize, LastScene));
+	RequestTask.then([this](Scene^ NewScene)
+	{
+		{
+			std::lock_guard<std::mutex> lock(RefsLock);
+			ObservedScene = NewScene;
+		}
 		OnSceneUnderstandingUpdateComplete();
 	});
 #endif
