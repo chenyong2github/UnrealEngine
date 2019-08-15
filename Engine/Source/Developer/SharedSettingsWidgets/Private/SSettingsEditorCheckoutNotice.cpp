@@ -149,10 +149,10 @@ namespace SettingsHelpers
 
 			if (ShowErrorInNotification)
 			{
-				FNotificationInfo MakeWritiableNotification(ErrorMessage);
-				MakeWritiableNotification.ExpireDuration = 3.0f;
+				FNotificationInfo MakeWritableNotification(ErrorMessage);
+				MakeWritableNotification.ExpireDuration = 3.0f;
 
-				FSlateNotificationManager::Get().AddNotification(MakeWritiableNotification);
+				FSlateNotificationManager::Get().AddNotification(MakeWritableNotification);
 			}
 		}
 
