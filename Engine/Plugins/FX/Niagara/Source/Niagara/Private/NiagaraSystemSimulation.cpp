@@ -687,7 +687,7 @@ bool FNiagaraSystemSimulation::Tick(float DeltaSeconds)
 			SystemInstance->FinalizeTick(DeltaSeconds);
 			// @todo If we buffer up the Tick object we create here we can push all the data for every system in this simulation at once.
 			// @todo It may also be worth considering hoisting the push out to FNiagaraWorldManager::Tick to push every desired simulation at once.
-			if (SystemInstance->ActiveGPUEmitterCount > 0 && RHISupportsComputeShaders(SystemInstance->GetBatcher()->GetShaderPlatform()))
+			if (SystemInstance->ActiveGPUEmitterCount > 0 && NiagaraSupportsComputeShaders(SystemInstance->GetBatcher()->GetShaderPlatform()))
 			{
 				ensure(!SystemInstance->IsComplete());
 				FNiagaraGPUSystemTick GPUTick;
