@@ -13,7 +13,7 @@ class FVirtualTexturePhysicalSpace;
 class FVirtualTextureProducer
 {
 public:
-	FVirtualTextureProducer() : VirtualTexture(nullptr) { FMemory::Memzero(PhysicalSpace); }
+	FVirtualTextureProducer() : VirtualTexture(nullptr) {}
 
 	void Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf);
 
@@ -33,7 +33,7 @@ private:
 	~FVirtualTextureProducer() {}
 
 	IVirtualTexture* VirtualTexture;
-	FVirtualTexturePhysicalSpace* PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
+	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
 	FVTProducerDescription Description;
 };
 
