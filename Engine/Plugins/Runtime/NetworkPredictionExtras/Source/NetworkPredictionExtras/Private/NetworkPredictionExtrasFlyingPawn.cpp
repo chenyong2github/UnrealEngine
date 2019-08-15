@@ -149,7 +149,11 @@ void ANetworkPredictionExtrasFlyingPawn::ProduceInput(const FlyingMovement::TSim
 	// answers and will depend on the game and its specific needs. In general, at this time, I'd recommend aim assist and lock on 
 	// targeting systems to happen /outside/ of the system, i.e, here. But I can think of scenarios where that may not be ideal too.
 
-	check(Controller);
+	if (Controller == nullptr)
+	{
+		// We don't have a local controller so we can't run the code below. This is ok. Simulated proxies will just use previous input when extrapolating
+		return;
+	}
 	
 	if (USpringArmComponent* SpringComp = FindComponentByClass<USpringArmComponent>())
 	{
