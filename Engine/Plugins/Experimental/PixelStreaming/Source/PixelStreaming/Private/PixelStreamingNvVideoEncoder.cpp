@@ -16,6 +16,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Modules/ModuleManager.h"
 #include "CommonRenderResources.h"
+#include "Misc/MessageDialog.h"
 
 #if defined PLATFORM_WINDOWS
 // Disable macro redefinition warning for compatibility with Windows SDK 8+
@@ -773,18 +774,25 @@ void FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoderImpl::Unregiste
 }
 
 
+bool FPixelStreamingNvVideoEncoder::CheckPlatformCompatibility()
+{
+	if (FPlatformProcess::GetDllHandle(GetDllName()) == nullptr)
+	{
+		FString ErrorString(TEXT("Failed to initialize Pixel Streaming plugin because Nvidia NVENC was not installed"));
+		FText ErrorText = FText::FromString(ErrorString);
+		FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
+		FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
+		UE_LOG(PixelStreaming, Error, TEXT("%s"), *ErrorString);
+		return false;
+	}
+
+	return true;
+}
+
 FPixelStreamingNvVideoEncoder::FPixelStreamingNvVideoEncoder(const FVideoEncoderSettings& Settings, const FTexture2DRHIRef& BackBuffer, const FEncodedFrameReadyCallback& InEncodedFrameReadyCallback)
 	: NvVideoEncoderImpl(nullptr), DllHandle(nullptr)
 {
-#if defined PLATFORM_WINDOWS
-#if defined _WIN64
-	DllHandle = FPlatformProcess::GetDllHandle(TEXT("nvEncodeAPI64.dll"));
-#else
-	DllHandle = FPlatformProcess::GetDllHandle(TEXT("nvEncodeAPI.dll"));
-#endif
-#else
-	DllHandle = FPlatformProcess::GetDllHandle(TEXT("libnvidia-encode.so.1"));
-#endif
+	DllHandle = FPlatformProcess::GetDllHandle(GetDllName());
 	checkf(DllHandle != nullptr, TEXT("Failed to load NvEncode dll"));
 
 	if (DllHandle)
@@ -833,3 +841,17 @@ void FPixelStreamingNvVideoEncoder::ForceIdrFrame()
 	NvVideoEncoderImpl->ForceIdrFrame();
 }
 
+const TCHAR* FPixelStreamingNvVideoEncoder::GetDllName()
+{
+#if defined PLATFORM_WINDOWS
+#if defined _WIN64
+	return TEXT("nvEncodeAPI64.dll");
+#else
+	return TEXT("nvEncodeAPI.dll");
+#endif
+#elif defined PLATFORM_LINUX
+	return TEXT("libnvidia-encode.so.1");
+#else
+	return TEXT("");
+#endif
+}
