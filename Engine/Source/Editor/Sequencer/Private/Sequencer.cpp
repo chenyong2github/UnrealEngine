@@ -5368,6 +5368,8 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 
 	GEditor->GetSelectedActors()->EndBatchSelectOperation();
 
+	GEditor->NoteSelectionChange();
+
 	if (SelectedSequencerComponents.Num())
 	{
 		GEditor->GetSelectedComponents()->Modify();
@@ -5379,9 +5381,9 @@ void FSequencer::SynchronizeExternalSelectionWithSequencerSelection()
 		}
 
 		GEditor->GetSelectedComponents()->EndBatchSelectOperation();
+
+		GEditor->NoteSelectionChange();
 	}
-		
-	GEditor->NoteSelectionChange();
 }
 
 
