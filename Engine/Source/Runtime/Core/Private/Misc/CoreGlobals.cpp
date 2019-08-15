@@ -99,6 +99,9 @@ bool GAllowActorScriptExecutionInEditor = false;
 /** Forces use of template names for newly instanced components in a CDO */
 bool GCompilingBlueprint = false;
 
+/** True if we're garbage collecting after a blueprint compilation */
+bool GIsGCingAfterBlueprintCompile = false;
+
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 bool GIsReconstructingBlueprintInstances = false;
 
