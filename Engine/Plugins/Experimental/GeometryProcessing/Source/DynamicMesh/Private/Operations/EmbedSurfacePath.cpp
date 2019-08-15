@@ -692,7 +692,7 @@ bool FMeshSurfacePath::EmbedSimplePath(bool bUpdatePath, TArray<int>& PathVertic
 	return true;
 }
 
-bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, bool bClosePath, double PtSnapVertexOrEdgeThresholdSq)
+bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, bool bClosePath, FMeshFaceSelection* EnclosedFaces, double PtSnapVertexOrEdgeThresholdSq)
 {
 	int32 EndIdxA = Path2D.Num() - (bClosePath ? 1 : 2);
 	int CurrentSeedTriID = StartTriID;
@@ -719,6 +719,50 @@ bool EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, con
 		Mesh->GetVertexOneRingTriangles(OutPathVertices.Last(), TrianglesOut);
 		check(TrianglesOut.Num());
 		CurrentSeedTriID = TrianglesOut[0];
+	}
+
+	if (EnclosedFaces)
+	{
+		TSet<int> Edges;
+		int32 NumEdges = bClosePath ? OutPathVertices.Num() : OutPathVertices.Num() - 1;
+		int32 SeedTriID = -1;
+		for (int32 IdxA = 0; IdxA < NumEdges; IdxA++)
+		{
+			int32 IdxB = (IdxA + 1) % OutPathVertices.Num();
+			int32 IDA = OutPathVertices[IdxA];
+			int32 IDB = OutPathVertices[IdxB];
+			int EID = Mesh->FindEdge(IDA, IDB);
+			Edges.Add(EID);
+
+			if (SeedTriID == -1)
+			{
+				FVector2d PA = Frame.ToPlaneUV(Mesh->GetVertex(IDA));
+				FVector2d PB = Frame.ToPlaneUV(Mesh->GetVertex(IDB));
+
+				FIndex2i OppVIDs = Mesh->GetEdgeOpposingV(EID);
+				double SignedAreaA = FTriangle2d::SignedArea(PA, PB, Frame.ToPlaneUV(Mesh->GetVertex(OppVIDs.A)));
+				if (SignedAreaA > FMathd::Epsilon)
+				{
+					SeedTriID = Mesh->GetEdgeT(EID).A;
+				}
+				else if (OppVIDs.B != FDynamicMesh3::InvalidID)
+				{
+					double SignedAreaB = FTriangle2d::SignedArea(PA, PB, Frame.ToPlaneUV(Mesh->GetVertex(OppVIDs.B)));
+					if (SignedAreaB > FMathd::Epsilon)
+					{
+						SeedTriID = Mesh->GetEdgeT(EID).B;
+					}
+				}
+			}
+		}
+		if (SeedTriID)
+		{
+			EnclosedFaces->FloodFill(SeedTriID, nullptr, [&Edges](int ID)
+			{
+				return !Edges.Contains(ID);
+			});
+		}
+		
 	}
 
 	return true;

@@ -37,6 +37,23 @@ public:
 		*this = MoveTemp(Moved);
 	}
 
+	TDynamicVector(const TArray<Type>& Array)
+	{
+		SetNum(Array.Num());
+		for (int Idx = 0; Idx < Array.Num(); Idx++)
+		{
+			(*this)[Idx] = Array[Idx];
+		}
+	}
+	TDynamicVector(TArrayView<const Type> Array)
+	{
+		SetNum(Array.Num());
+		for (int Idx = 0; Idx < Array.Num(); Idx++)
+		{
+			(*this)[Idx] = Array[Idx];
+		}
+	}
+
 	~TDynamicVector() {}
 
 	const TDynamicVector& operator=(const TDynamicVector& Copy);

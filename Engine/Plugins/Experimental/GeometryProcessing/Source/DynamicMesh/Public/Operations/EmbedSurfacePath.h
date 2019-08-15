@@ -10,7 +10,7 @@
 #include "FrameTypes.h"
 #include "GeometryTypes.h"
 #include "Curve/GeneralPolygon2.h"
-
+#include "Selections/MeshFaceSelection.h"
 
 class FDynamicMesh3;
 
@@ -115,7 +115,7 @@ public:
 	///**
 	// * Embed surface path in mesh, such that each point in path is a mesh vertex with a connecting edge.  Note that IsConnected must be true for this to succeed.
 	// *
-	// * @param bUpdatePath Updating the Path array with the new vertices (if false, the path will no longer be valid after running this function)\
+	// * @param bUpdatePath Updating the Path array with the new vertices (if false, the path will no longer be valid after running this function)
 	// * @param PathVertices Indices of the vertices on the path after embedding succeeds; NOTE these will not be 1:1 with the input Path
 	// * @param MeshGraphFn Function to create a mesh from an input 2D graph of labeled edges.
 	// * @return true if embedding succeeded.
@@ -137,5 +137,5 @@ public:
 /**
  * Embed a 2D path into a mesh by projection, starting the walk from a given triangle.
  */
-bool DYNAMICMESH_API EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, bool bClosePath, double PtSnapVertexOrEdgeThresholdSq = FMathd::Epsilon*100);
+bool DYNAMICMESH_API EmbedProjectedPath(FDynamicMesh3* Mesh, int StartTriID, FFrame3d Frame, const TArray<FVector2d>& Path2D, TArray<int>& OutPathVertices, bool bClosePath, FMeshFaceSelection *EnclosedFaces = nullptr, double PtSnapVertexOrEdgeThresholdSq = FMathd::Epsilon*100);
 
