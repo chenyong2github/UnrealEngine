@@ -620,15 +620,16 @@ namespace WindowsMixedReality
 	{
 		OutOrientation = FQuat::Identity;
 		OutPosition = FVector::ZeroVector;
-		if (DeviceId == IXRTrackingSystem::HMDDeviceId && (Eye == eSSP_LEFT_EYE || Eye == eSSP_RIGHT_EYE))
-		{
-			OutPosition = FVector(0, (Eye == EStereoscopicPass::eSSP_LEFT_EYE ? -0.5f : 0.5f) * GetInterpupillaryDistance() * GetWorldToMetersScale(), 0);
-			return true;
-		}
-		else
+		if (Eye != eSSP_LEFT_EYE && Eye != eSSP_RIGHT_EYE)
 		{
 			return false;
 		}
+
+		const FTransform relativeTransform = Eye == eSSP_LEFT_EYE ? LeftTransform * HeadTransform.Inverse() : RightTransform * HeadTransform.Inverse();
+		OutPosition = relativeTransform.GetTranslation();
+		OutOrientation = relativeTransform.GetRotation();
+
+		return true;
 	}
 
 	void FWindowsMixedRealityHMD::ResetOrientationAndPosition(float yaw)
@@ -681,6 +682,10 @@ namespace WindowsMixedReality
 
 			CurrOrientation = HeadRotation;
 			CurrPosition = HeadPosition;
+
+			LeftTransform = FTransform(RotationL, PositionL, FVector::OneVector);
+			RightTransform = FTransform(RotationR, PositionR, FVector::OneVector);
+			HeadTransform = FTransform(CurrOrientation, CurrPosition, FVector::OneVector);
 		}
 #endif
 	}
@@ -843,34 +848,6 @@ namespace WindowsMixedReality
 		{
 			X += SizeX;
 		}
-	}
-
-	void FWindowsMixedRealityHMD::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
-	{
-		if (StereoPassType != eSSP_LEFT_EYE &&
-			StereoPassType != eSSP_RIGHT_EYE)
-		{
-			return;
-		}
-
-		FVector HmdToEyeOffset = FVector::ZeroVector;
-
-		FQuat CurEyeOrient;
-		if (StereoPassType == eSSP_LEFT_EYE)
-		{
-			HmdToEyeOffset = PositionL - CurrPosition;
-			CurEyeOrient = RotationL;
-		}
-		else if (StereoPassType == eSSP_RIGHT_EYE)
-		{
-			HmdToEyeOffset = PositionR - CurrPosition;
-			CurEyeOrient = RotationR;
-		}
-
-		const FQuat ViewOrient = ViewRotation.Quaternion();
-		const FQuat deltaControlOrientation = ViewOrient * CurEyeOrient.Inverse();
-		const FVector vEyePosition = deltaControlOrientation.RotateVector(HmdToEyeOffset);
-		ViewLocation += vEyePosition;
 	}
 
 	FMatrix FWindowsMixedRealityHMD::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
