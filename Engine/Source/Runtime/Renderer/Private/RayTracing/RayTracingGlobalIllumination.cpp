@@ -27,7 +27,7 @@ static FAutoConsoleVariableRef CVarRayTracingGlobalIllumination(
 	TEXT("r.RayTracing.GlobalIllumination"),
 	GRayTracingGlobalIllumination,
 	TEXT("-1: Value driven by postprocess volume (default) \n")
-	TEXT(" 0: ray tracing ray tracing global illumination off \n")
+	TEXT(" 0: ray tracing global illumination off \n")
 	TEXT(" 1: ray tracing global illumination enabled")
 );
 
@@ -187,7 +187,11 @@ void SetupLightParameters(
 
 bool ShouldRenderRayTracingGlobalIllumination(const FViewInfo& View)
 {
-	if (GetForceRayTracingEffectsCVarValue() >= 0)
+	if (!IsRayTracingEnabled())
+	{
+		return (false);
+	}
+	else if (GetForceRayTracingEffectsCVarValue() >= 0)
 	{
 		return GetForceRayTracingEffectsCVarValue() > 0;
 	}
