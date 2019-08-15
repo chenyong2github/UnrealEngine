@@ -3,6 +3,7 @@
 #include "SLiveLinkMessageBusSourceFactory.h"
 
 #include "ILiveLinkClient.h"
+#include "ILiveLinkModule.h"
 #include "LiveLinkMessages.h"
 #include "LiveLinkMessageBusFinder.h"
 #include "LiveLinkMessageBusDiscoveryManager.h"
@@ -65,7 +66,10 @@ private:
 
 SLiveLinkMessageBusSourceFactory::~SLiveLinkMessageBusSourceFactory()
 {
-	FLiveLinkMessageBusDiscoveryManager::Get()->RemoveDiscoveryMessageRequest();
+	if (ILiveLinkModule* ModulePtr = FModuleManager::GetModulePtr<ILiveLinkModule>("LiveLink"))
+	{
+		ModulePtr->GetMessageBusDiscoveryManager().RemoveDiscoveryMessageRequest();
+	}
 }
 
 void SLiveLinkMessageBusSourceFactory::Construct(const FArguments& Args)
@@ -74,7 +78,7 @@ void SLiveLinkMessageBusSourceFactory::Construct(const FArguments& Args)
 	OnSourceSelected = Args._OnSourceSelected;
 	LastUIUpdateSeconds = 0;
 
-	FLiveLinkMessageBusDiscoveryManager::Get()->AddDiscoveryMessageRequest();
+	ILiveLinkModule::Get().GetMessageBusDiscoveryManager().AddDiscoveryMessageRequest();
 
 	ChildSlot
 	[
@@ -111,7 +115,8 @@ void SLiveLinkMessageBusSourceFactory::Tick(const FGeometry& AllottedGeometry, c
 	if (FApp::GetCurrentTime() - LastUIUpdateSeconds > 0.5)
 	{
 		PollData.Reset();
-		PollData.Append(FLiveLinkMessageBusDiscoveryManager::Get()->GetDiscoveryResults());
+		PollData.Append(ILiveLinkModule::Get().GetMessageBusDiscoveryManager().GetDiscoveryResults());
+		PollData.Sort([](const FProviderPollResultPtr& A, const FProviderPollResultPtr& B) { return A->Name < B->Name; });
 		ListView->RequestListRefresh();
 	}
 }
