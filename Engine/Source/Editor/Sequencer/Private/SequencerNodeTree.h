@@ -171,6 +171,9 @@ public:
 
 private:
 
+	/** Returns whether this NodeTree should only display seleected nodes */
+	bool ShowSelectedNodesOnly() const;
+
 	/** Population algorithm utilities */
 	void RefreshNodes(UMovieScene* MovieScene);
 

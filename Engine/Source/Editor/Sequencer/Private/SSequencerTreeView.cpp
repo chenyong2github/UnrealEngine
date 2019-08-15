@@ -437,6 +437,7 @@ void SSequencerTreeView::UpdateTrackArea()
 void SSequencerTreeView::AddSlaveTreeView(TSharedPtr<SSequencerTreeView> SlaveTreeView)
 {
 	SlaveTreeViews.Add(SlaveTreeView);
+	SlaveTreeView->SetMasterTreeView(SharedThis(this));
 }
 
 void SSequencerTreeView::OnRightMouseButtonDown(const FPointerEvent& MouseEvent)
@@ -645,7 +646,7 @@ void SSequencerTreeView::SynchronizeTreeSelectionWithSequencerSelection()
 			FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 			for ( const TSharedRef<FSequencerDisplayNode>& Node : Sequencer.GetSelection().GetSelectedOutlinerNodes() )
 			{
-				if (Node->IsSelectable())
+				if (Node->IsSelectable() && Node->GetOutermostParent()->IsPinned() == bShowPinnedNodes)
 				{
 					Private_SetItemSelection( Node, true, false );
 				}
@@ -739,14 +740,28 @@ void SSequencerTreeView::Private_SignalSelectionChanged(ESelectInfo::Type Select
 
 bool SSequencerTreeView::SynchronizeSequencerSelectionWithTreeSelection()
 {
+	// If this is a slave SSequencerTreeView it only has a partial view of what is selected. The master should handle syncing the entire selection instead.
+	if (MasterTreeView.IsValid())
+	{
+		return MasterTreeView->SynchronizeSequencerSelectionWithTreeSelection();
+	}
+
 	bool bSelectionChanged = false;
 	const TSet<TSharedRef<FSequencerDisplayNode>>& SequencerSelection = SequencerNodeTree->GetSequencer().GetSelection().GetSelectedOutlinerNodes();
-	if ( SelectedItems.Num() != SequencerSelection.Num() || SelectedItems.Difference( SequencerSelection ).Num() != 0 )
+	TSet<TSharedRef<FSequencerDisplayNode> > AllSelectedItems(SelectedItems);
+
+	// If we have slave SSequencerTreeViews, combine their selected items as well
+	for (TSharedPtr<SSequencerTreeView> SlaveTreeView : SlaveTreeViews)
+	{
+		AllSelectedItems.Append(SlaveTreeView->GetSelectedItems());
+	}
+
+	if (AllSelectedItems.Num() != SequencerSelection.Num() || AllSelectedItems.Difference(SequencerSelection).Num() != 0 )
 	{
 		FSequencer& Sequencer = SequencerNodeTree->GetSequencer();
 		FSequencerSelection& Selection = Sequencer.GetSelection();
 		Selection.EmptySelectedOutlinerNodes();
-		for ( const TSharedRef<FSequencerDisplayNode>& Item : GetSelectedItems() )
+		for ( const TSharedRef<FSequencerDisplayNode>& Item : AllSelectedItems)
 		{
 			Selection.AddToSelection( Item );
 		}

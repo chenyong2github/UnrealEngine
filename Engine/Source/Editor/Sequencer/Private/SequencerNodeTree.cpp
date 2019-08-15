@@ -693,6 +693,12 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 				TSharedPtr<const FSequencerDisplayNode> ParentNode = StartNode->GetParent();
 				while (ParentNode.IsValid())
 				{
+					// Pinned tracks should be visible whether selected or not
+					if (ParentNode->IsPinned())
+					{
+						break;
+					}
+
 					if (ParentNode->GetType() == ESequencerNode::Object)
 					{
 						const FSequencerObjectBindingNode* ObjectNode = static_cast<const FSequencerObjectBindingNode*>(ParentNode.Get());
@@ -722,7 +728,7 @@ static void FilterNodesRecursive( FSequencer& Sequencer, const TSharedRef<FSeque
 			}
 		}
 
-		if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly())
+		if (bPasssedAnyFilters && Sequencer.GetSequencerSettings()->GetShowSelectedNodesOnly() && !StartNode->IsPinned())
 		{
 			UMovieScene* MovieScene = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene();
 			const FMovieSceneBinding* Binding = Sequencer.GetFocusedMovieSceneSequence()->GetMovieScene()->FindBinding(ObjectNode.GetObjectBinding());

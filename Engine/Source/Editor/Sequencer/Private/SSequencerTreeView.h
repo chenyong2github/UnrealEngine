@@ -185,7 +185,10 @@ public:
 
 	/** Add a SSequencerTreeView object that should be modified or updated when this Treeview is updated */
 	void AddSlaveTreeView(TSharedPtr<SSequencerTreeView> SlaveTreeView);
-	
+
+	/** Set a SSequencerTreeView object this Treeview is slaved to, for operations that should happen on the master */
+	void SetMasterTreeView(TSharedPtr<SSequencerTreeView> InMasterTreeView) { MasterTreeView = InMasterTreeView; }
+
 	/** Set whether this TreeView should show only pinned nodes or only non-pinned nodes  */
 	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
 
@@ -227,6 +230,9 @@ private:
 
 	/** SSequencerTreeView objects that should be modified or updated when this Treeview is updated */
 	TArray<TSharedPtr<SSequencerTreeView>> SlaveTreeViews;
+
+	/** The SSequencerTreeView object this SSequencerTreeView is slave to, or nullptr if not a slave */
+	TSharedPtr<SSequencerTreeView> MasterTreeView;
 
 	/** When true, the sequencer selection is being updated from a change in the tree seleciton. */
 	bool bUpdatingSequencerSelection;
