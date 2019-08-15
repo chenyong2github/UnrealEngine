@@ -161,7 +161,7 @@ private:
 	static uint16 GetPageHash(const FPageEntry& Entry);
 
 	void UnmapPageMapping(FVirtualTextureSystem* System, uint32 MappingIndex, bool bMapAncestorPage);
-	void UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress);
+	void UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress, bool bMapAncestorPages);
 
 	void RemoveMappingFromList(uint32 Index)
 	{

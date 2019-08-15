@@ -54,14 +54,13 @@ void FTexturePagePool::EvictAllPages(FVirtualTextureSystem* System)
 
 	for (int32 i = 0; i < PagesToEvict.Num(); i++)
 	{
-		UnmapAllPages(System, PagesToEvict[i]);
+		UnmapAllPages(System, PagesToEvict[i], false);
 		FreeHeap.Add(0, PagesToEvict[i]);
 	}
 }
 
 void FTexturePagePool::UnmapAllPagesForSpace(FVirtualTextureSystem* System, uint8 SpaceID)
 {
-
 	// walk through all of our current mapping entries, and unmap any that belong to the current space
 	for (int32 MappingIndex = NumPages + 1; MappingIndex < PageMapping.Num(); ++MappingIndex)
 	{
@@ -82,7 +81,7 @@ void FTexturePagePool::EvictPages(FVirtualTextureSystem* System, const FVirtualT
 		const FPageEntry& PageEntry = Pages[pAddress];
 		if (PageEntry.PackedProducerHandle == ProducerHandle.PackedValue)
 		{
-			UnmapAllPages(System, pAddress);
+			UnmapAllPages(System, pAddress, false);
 			FreeHeap.Update(0, pAddress);
 		}
 	}
@@ -223,7 +222,7 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 	const uint16 pAddress = FreeHeap.Top();
 
 	// Unmap any previous usage
-	UnmapAllPages(System, pAddress);
+	UnmapAllPages(System, pAddress, true);
 
 	// Mark the page as used for the given producer
 	FPageEntry& PageEntry = Pages[pAddress];
@@ -247,7 +246,7 @@ uint32 FTexturePagePool::Alloc(FVirtualTextureSystem* System, uint32 Frame, cons
 
 void FTexturePagePool::Free(FVirtualTextureSystem* System, uint16 pAddress)
 {
-	UnmapAllPages(System, pAddress);
+	UnmapAllPages(System, pAddress, true);
 
 	if (FreeHeap.IsPresent(pAddress))
 	{
@@ -313,7 +312,7 @@ void FTexturePagePool::UnmapPageMapping(FVirtualTextureSystem* System, uint32 Ma
 	ReleaseMapping(MappingIndex);
 }
 
-void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress)
+void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddress, bool bMapAncestorPages)
 {
 	FPageEntry& PageEntry = Pages[pAddress];
 	if (PageEntry.PackedProducerHandle != 0u)
@@ -328,7 +327,7 @@ void FTexturePagePool::UnmapAllPages(FVirtualTextureSystem* System, uint16 pAddr
 	{
 		FPageMapping& Mapping = PageMapping[MappingIndex];
 		const uint32 NextIndex = Mapping.NextIndex;
-		UnmapPageMapping(System, MappingIndex, true);
+		UnmapPageMapping(System, MappingIndex, bMapAncestorPages);
 
 		MappingIndex = NextIndex;
 	}
