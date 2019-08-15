@@ -753,6 +753,7 @@ DECLARE_DWORD_COUNTER_STAT(TEXT("TimerManager Heap Size"),STAT_NumHeapEntries,ST
 
 void FTimerManager::Tick(float DeltaTime)
 {
+	SCOPED_NAMED_EVENT(FTimerManager_Tick, FColor::Orange);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(TimerManager);
 
 #if DO_TIMEGUARD && 0
