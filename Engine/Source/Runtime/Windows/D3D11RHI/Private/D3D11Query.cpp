@@ -305,6 +305,14 @@ bool FD3D11DynamicRHI::GetQueryData(ID3D11Query* Query, void* Data, SIZE_T DataS
 		do
 		{
 			SAFE_GET_QUERY_DATA
+
+			if(Result == S_OK)
+			{
+				return true;
+			}
+
+
+
 			float DeltaTime = FPlatformTime::Seconds() - StartTime;
 			if(DeltaTime > TimeoutWarningLimit)
 			{
