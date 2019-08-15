@@ -122,7 +122,7 @@ public:
 			}
 		}
 	}
-	void Select(TFunction<bool(int)> SelectF)
+	void Select(TFunctionRef<bool(int)> SelectF)
 	{
 		int NT = Mesh->MaxEdgeID();
 		for (int eid = 0; eid < NT; ++eid)

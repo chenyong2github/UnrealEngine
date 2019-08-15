@@ -187,14 +187,14 @@ public:
 	 *  
 	 *  Return false from FilterF to prevent vertices from being included.
 	 */
-	void ExpandToOneRingNeighbours(TFunction<bool(int)> FilterF = nullptr)
+	void ExpandToOneRingNeighbours(const TUniqueFunction<bool(int)>& FilterF = nullptr)
 	{
 		TArray<int> temp;
 
 		for (int vid : Selected) {
 			for (int nbr_vid : Mesh->VtxVerticesItr(vid))
 			{
-				if (FilterF != nullptr && FilterF(nbr_vid) == false)
+				if (FilterF && FilterF(nbr_vid) == false)
 				{
 					continue;
 				}
@@ -213,7 +213,7 @@ public:
 
 
 	// [TODO] should do this more efficiently, like FMeshFaceSelection
-	void ExpandToOneRingNeighbours(int nRings, TFunction<bool(int)> FilterF = nullptr)
+	void ExpandToOneRingNeighbours(int nRings, const TUniqueFunction<bool(int)>& FilterF = nullptr)
 	{
 		for (int k = 0; k < nRings; ++k)
 		{
@@ -228,7 +228,7 @@ public:
 	/**
 	 *  Grow selection outwards from seed vertex, until it hits boundaries defined by vertex filter.
 	 */
-	void FloodFill(int vSeed, TFunction<bool(int)> VertIncludedF = nullptr)
+	void FloodFill(int vSeed, const TUniqueFunction<bool(int)>& VertIncludedF = nullptr)
 	{
 		TArray<int> Seeds = { vSeed };
 		FloodFill(Seeds, VertIncludedF);
@@ -236,7 +236,7 @@ public:
 	/**
 	 *  Grow selection outwards from seed vertex, until it hits boundaries defined by vertex filter.
 	 */
-	void FloodFill(const TArray<int>& Seeds, TFunction<bool(int)> VertIncludedF = nullptr)
+	void FloodFill(const TArray<int>& Seeds, const TUniqueFunction<bool(int)>& VertIncludedF = nullptr)
 	{
 		TDynamicVector<int> stack(Seeds);
 		for (int Seed : Seeds)
@@ -250,7 +250,7 @@ public:
 
 			for (int nbr_vid : Mesh->VtxVerticesItr(vID))
 			{
-				if (IsSelected(nbr_vid) == true || VertIncludedF(nbr_vid) == false)
+				if (IsSelected(nbr_vid) == true || (VertIncludedF && VertIncludedF(nbr_vid) == false))
 				{
 					continue;
 				}
