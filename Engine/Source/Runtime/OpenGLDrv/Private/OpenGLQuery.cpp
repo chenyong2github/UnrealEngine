@@ -614,6 +614,12 @@ bool FOpenGLDynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI,uint64
 
 
 
+FRenderQueryPoolRHIRef FOpenGLDynamicRHI::RHICreateRenderQueryPool(ERenderQueryType QueryType, uint32 /*NumQueries*/)
+{
+	// Workaround to fix UE-77873: pass <QueryType> to primary implementation and ignore <NumQueries> for pre-allocated queries
+	return FDynamicRHI::RHICreateRenderQueryPool(QueryType);
+}
+
 extern void OnQueryCreation( FOpenGLRenderQuery* Query );
 extern void OnQueryDeletion( FOpenGLRenderQuery* Query );
 
