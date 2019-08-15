@@ -19,6 +19,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Types/SlateEnums.h"
 
 template<typename TEnumType>
 class SDecoratedEnumCombo : public SCompoundWidget
@@ -40,10 +41,12 @@ public:
 
 	SLATE_BEGIN_ARGS( SDecoratedEnumCombo )
 		: _ContentPadding(6.f)
+		, _Orientation(Orient_Horizontal)
 	{}
 
 		SLATE_EVENT(FOnEnumChanged, OnEnumChanged)
 		SLATE_ARGUMENT(FMargin, ContentPadding)
+		SLATE_ARGUMENT(EOrientation, Orientation)
 		SLATE_ATTRIBUTE(TEnumType, SelectedEnum)
 
 	SLATE_END_ARGS()
@@ -55,6 +58,7 @@ public:
 		OnEnumChanged = InArgs._OnEnumChanged;
 		Options = MoveTemp(InOptions);
 		SelectedEnum = InArgs._SelectedEnum;
+		Orientation = InArgs._Orientation;
 
 		ChildSlot
 		[
@@ -94,6 +98,7 @@ private:
 	FMargin ContentPadding;
 	FOnEnumChanged OnEnumChanged;
 	TWeakPtr<SWidget> MenuContent;
+	EOrientation Orientation;
 
 	FText GetCurrentText() const
 	{
@@ -133,7 +138,16 @@ private:
 
 	TSharedRef<SWidget> OnGetComboContent()
 	{
-		TSharedRef<SHorizontalBox> HorizontalBox = SNew(SHorizontalBox);
+		TSharedPtr<SVerticalBox> VerticalBox;
+		TSharedPtr<SHorizontalBox> HorizontalBox;
+		if (Orientation == Orient_Vertical)
+		{
+			VerticalBox = SNew(SVerticalBox);
+		}
+		else
+		{
+			HorizontalBox = SNew(SHorizontalBox);
+		}
 
 		for (int32 Index = 0; Index < Options.Num(); ++Index)
 		{
@@ -143,8 +157,17 @@ private:
 				continue;
 			}
 
-			HorizontalBox->AddSlot()
-			.AutoWidth()
+			SBoxPanel::FSlot* Slot;
+			if (Orientation == Orient_Vertical)
+			{
+				Slot = &VerticalBox->AddSlot().AutoHeight();
+			}
+			else
+			{
+				Slot = &HorizontalBox->AddSlot().AutoWidth();
+			}
+			
+			(*Slot)
 			[
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
@@ -172,8 +195,8 @@ private:
 			];
 		}
 
-		MenuContent = HorizontalBox;
+		MenuContent = Orientation == Orient_Vertical ? StaticCastSharedPtr<SWidget>(VerticalBox) : StaticCastSharedPtr<SWidget>(HorizontalBox);
 
-		return HorizontalBox;
+		return MenuContent.Pin().ToSharedRef();
 	}
 };

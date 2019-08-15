@@ -7,6 +7,7 @@
 #include "UObject/WeakObjectPtr.h"
 #include "Modules/ModuleInterface.h"
 #include "HardwareTargetingSettings.h"
+#include "Types/SlateEnums.h"
 
 class SWidget;
 
@@ -40,9 +41,9 @@ public:
 	virtual TArray<FModifiedDefaultConfig> GetPendingSettingsChanges() = 0;
 
 	/** Make a new combo box for choosing a hardware class target */
-	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass::Type> SelectedEnum) = 0;
+	virtual TSharedRef<SWidget> MakeHardwareClassTargetCombo(FOnHardwareClassChanged OnChanged, TAttribute<EHardwareClass::Type> SelectedEnum, EOrientation Orientation) = 0;
 
 	/** Make a new combo box for choosing a graphics preference */
-	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset::Type> SelectedEnum) = 0;
+	virtual TSharedRef<SWidget> MakeGraphicsPresetTargetCombo(FOnGraphicsPresetChanged OnChanged, TAttribute<EGraphicsPreset::Type> SelectedEnum, EOrientation Orientation) = 0;
 };
 
