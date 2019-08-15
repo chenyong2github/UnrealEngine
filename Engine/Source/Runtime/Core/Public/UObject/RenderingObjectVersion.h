@@ -87,6 +87,8 @@ struct CORE_API FRenderingObjectVersion
 		// Lightmaps replace ULightMapVirtualTexture (non-UTexture derived class) with ULightMapVirtualTexture2D (derived from UTexture)
 		VirtualTexturedLightmapsV2,
 
+		SkyAtmosphereStaticLightingVersioning,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

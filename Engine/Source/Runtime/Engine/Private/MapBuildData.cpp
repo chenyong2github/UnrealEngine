@@ -37,6 +37,12 @@ FArchive& operator<<(FArchive& Ar, FMeshMapBuildData& MeshMapBuildData)
 	return Ar;
 }
 
+FArchive& operator<<(FArchive& Ar, FSkyAtmosphereMapBuildData& Data)
+{
+	//Ar << Data.Dummy; // No serialisation needed
+	return Ar;
+}
+
 ULevel* UWorld::GetActiveLightingScenario() const
 {
 	for (int32 LevelIndex = 0; LevelIndex < Levels.Num(); LevelIndex++)
@@ -380,6 +386,11 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 		{
 			Ar << ReflectionCaptureBuildData;
 		}
+
+		if (Ar.CustomVer(FRenderingObjectVersion::GUID) >= FRenderingObjectVersion::SkyAtmosphereStaticLightingVersioning)
+		{
+			Ar << SkyAtmosphereBuildData;
+		}
 	}
 }
 
@@ -613,6 +624,23 @@ const FReflectionCaptureMapBuildData* UMapBuildDataRegistry::GetReflectionCaptur
 FReflectionCaptureMapBuildData* UMapBuildDataRegistry::GetReflectionCaptureBuildData(FGuid CaptureId)
 {
 	return ReflectionCaptureBuildData.Find(CaptureId);
+}
+
+FSkyAtmosphereMapBuildData& UMapBuildDataRegistry::FindOrAllocateSkyAtmosphereBuildData(const FGuid& Guid)
+{
+	check(Guid.IsValid());
+	return SkyAtmosphereBuildData.FindOrAdd(Guid);
+}
+
+const FSkyAtmosphereMapBuildData* UMapBuildDataRegistry::GetSkyAtmosphereBuildData(const FGuid& Guid) const
+{
+	check(Guid.IsValid());
+	return SkyAtmosphereBuildData.Find(Guid);
+}
+
+void UMapBuildDataRegistry::ClearSkyAtmosphereBuildData()
+{
+	SkyAtmosphereBuildData.Empty();
 }
 
 void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecreateRenderState, const TSet<FGuid>* ResourcesToKeep)

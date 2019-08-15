@@ -185,6 +185,7 @@ FSkyLightSceneProxy::FSkyLightSceneProxy(const USkyLightComponent* InLightCompon
 	, IsDirtyImportanceSamplingData(true)
 #endif
 	, LightColor(FLinearColor(InLightComponent->LightColor) * InLightComponent->Intensity)
+	, bMovable(InLightComponent->IsMovable())
 {
 	const FSHVectorRGB3* InIrradianceEnvironmentMap = &InLightComponent->IrradianceEnvironmentMap;
 	const FSHVectorRGB3* BlendDestinationIrradianceEnvironmentMap = &InLightComponent->BlendDestinationIrradianceEnvironmentMap;
