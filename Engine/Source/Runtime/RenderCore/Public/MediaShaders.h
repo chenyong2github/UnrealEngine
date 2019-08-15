@@ -13,34 +13,34 @@
 namespace MediaShaders
 {
 	/** Color transform from YUV to sRGB (using values from MSDN). */
-	UTILITYSHADERS_API extern const FMatrix YuvToSrgbDefault;
+	RENDERCORE_API extern const FMatrix YuvToSrgbDefault;
 
 	/** Color transform from YUV to sRGB (in JPEG color space). */
-	UTILITYSHADERS_API extern const FMatrix YuvToSrgbJpeg;
+	RENDERCORE_API extern const FMatrix YuvToSrgbJpeg;
 
 	/** Color transform from YUV to sRGB (using values from PS4 AvPlayer codec). */
-	UTILITYSHADERS_API extern const FMatrix YuvToSrgbPs4;
+	RENDERCORE_API extern const FMatrix YuvToSrgbPs4;
 
 	/** Color transform from YUV to sRGB (in Rec. 601 color space). */
-	UTILITYSHADERS_API extern const FMatrix YuvToSrgbRec601;
+	RENDERCORE_API extern const FMatrix YuvToSrgbRec601;
 
 	/** Color transform from YUV to sRGB (in Rec. 709 color space). */
-	UTILITYSHADERS_API extern const FMatrix YuvToRgbRec709;
+	RENDERCORE_API extern const FMatrix YuvToRgbRec709;
 
 	/** Color transform from YUV to RGB (in Rec. 709 color space, RGB full range) */
-	UTILITYSHADERS_API extern const FMatrix YuvToRgbRec709Full;
+	RENDERCORE_API extern const FMatrix YuvToRgbRec709Full;
 
 	/** Color transform from RGB to YUV (in Rec. 709 color space, RGB full range) */
-	UTILITYSHADERS_API extern const FMatrix RgbToYuvRec709Full;
+	RENDERCORE_API extern const FMatrix RgbToYuvRec709Full;
 
 	/** YUV Offset for 8 bit conversion (Computed as 16/255, 128/255, 128/255) */
-	UTILITYSHADERS_API extern const FVector YUVOffset8bits;
+	RENDERCORE_API extern const FVector YUVOffset8bits;
 
 	/** YUV Offset for 10 bit conversion (Computed as 64/1023, 512/1023, 512/1023) */
-	UTILITYSHADERS_API extern const FVector YUVOffset10bits;
+	RENDERCORE_API extern const FVector YUVOffset10bits;
 
 	/** Combine color transform matrix with yuv offset in a single matrix */
-	UTILITYSHADERS_API FMatrix CombineColorTransformAndOffset(const FMatrix& InMatrix, const FVector& InYUVOffset);
+	RENDERCORE_API FMatrix CombineColorTransformAndOffset(const FMatrix& InMatrix, const FVector& InYUVOffset);
 }
 
 
@@ -109,7 +109,7 @@ public:
 };
 
 
-UTILITYSHADERS_API extern TGlobalResource<FMediaVertexDeclaration> GMediaVertexDeclaration;
+RENDERCORE_API extern TGlobalResource<FMediaVertexDeclaration> GMediaVertexDeclaration;
 
 
 /**
@@ -118,7 +118,7 @@ UTILITYSHADERS_API extern TGlobalResource<FMediaVertexDeclaration> GMediaVertexD
 class FMediaShadersVS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FMediaShadersVS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FMediaShadersVS, Global, RENDERCORE_API);
 
 public:
 
@@ -153,7 +153,7 @@ public:
 class FAYUVConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FAYUVConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FAYUVConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -174,7 +174,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> AYUVTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> AYUVTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -186,7 +186,7 @@ public:
 class FBMPConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FBMPConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FBMPConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -207,7 +207,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> BMPTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> BMPTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear);
 };
 
 
@@ -221,7 +221,7 @@ public:
 class FNV12ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FNV12ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FNV12ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -242,7 +242,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV12Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -256,7 +256,7 @@ public:
 class FNV21ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FNV21ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FNV21ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -277,7 +277,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> NV21Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -290,7 +290,7 @@ public:
 class FRGBConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FRGBConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FRGBConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -311,7 +311,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBTexture, const FIntPoint& OutputDimensions, bool SrgbToLinear);
 };
 
 
@@ -327,7 +327,7 @@ public:
 class FYCbCrConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -348,12 +348,12 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> LumaTexture, TRefCountPtr<FRHITexture2D> CbCrTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> LumaTexture, TRefCountPtr<FRHITexture2D> CbCrTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 class FYCbCrConvertPS_4x4Matrix : public FYCbCrConvertPS
 {
-    DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS_4x4Matrix, Global, UTILITYSHADERS_API);
+    DECLARE_EXPORTED_SHADER_TYPE(FYCbCrConvertPS_4x4Matrix, Global, RENDERCORE_API);
     
 public:
     
@@ -381,7 +381,7 @@ public:
 class FUYVYConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FUYVYConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FUYVYConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -402,7 +402,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> UYVYTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> UYVYTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -415,7 +415,7 @@ public:
 class FYUVConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FYUVConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FYUVConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -436,7 +436,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YTexture, TRefCountPtr<FRHITexture2D> UTexture, TRefCountPtr<FRHITexture2D> VTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YTexture, TRefCountPtr<FRHITexture2D> UTexture, TRefCountPtr<FRHITexture2D> VTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -448,7 +448,7 @@ public:
 class FYUVv210ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FYUVv210ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FYUVv210ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -469,7 +469,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YUVTexture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -485,7 +485,7 @@ public:
 class FYUY2ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FYUY2ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FYUY2ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -506,7 +506,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YUY2Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YUY2Texture, const FIntPoint& OutputDimensions, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -521,7 +521,7 @@ public:
 class FYVYUConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FYVYUConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FYVYUConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -542,7 +542,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YVYUTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> YVYUTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool SrgbToLinear);
 };
 
 
@@ -554,7 +554,7 @@ public:
 class FRGB8toUYVY8ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FRGB8toUYVY8ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FRGB8toUYVY8ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -575,7 +575,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
 };
 
 
@@ -587,7 +587,7 @@ public:
 class FRGB10toYUVv210ConvertPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FRGB10toYUVv210ConvertPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FRGB10toYUVv210ConvertPS, Global, RENDERCORE_API);
 
 public:
 
@@ -608,7 +608,7 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture, const FMatrix& ColorTransform, const FVector& YUVOffset, bool LinearToSrgb);
 };
 
 
@@ -620,7 +620,7 @@ public:
 class FInvertAlphaPS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FInvertAlphaPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FInvertAlphaPS, Global, RENDERCORE_API);
 
 public:
 
@@ -635,7 +635,7 @@ public:
 		: FGlobalShader(Initializer)
 	{ }
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
 };
 
 
@@ -647,7 +647,7 @@ public:
 class FSetAlphaOnePS
 	: public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FSetAlphaOnePS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FSetAlphaOnePS, Global, RENDERCORE_API);
 
 public:
 
@@ -662,5 +662,5 @@ public:
 		: FGlobalShader(Initializer)
 	{ }
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, TRefCountPtr<FRHITexture2D> RGBATexture);
 };

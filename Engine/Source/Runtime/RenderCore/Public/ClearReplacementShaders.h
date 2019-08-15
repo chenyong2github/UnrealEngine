@@ -10,7 +10,7 @@
 
 class FClearReplacementVS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearReplacementVS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearReplacementVS, Global, RENDERCORE_API);
 public:
 	FClearReplacementVS() {}
 	FClearReplacementVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -33,7 +33,7 @@ public:
 
 class FClearReplacementPS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearReplacementPS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearReplacementPS, Global, RENDERCORE_API);
 public:
 	FClearReplacementPS() {}
 	FClearReplacementPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -68,7 +68,7 @@ protected:
 template< typename T >
 class FClearTexture2DReplacementCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DReplacementCS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DReplacementCS, Global, RENDERCORE_API);
 public:
 	FClearTexture2DReplacementCS() {}
 	FClearTexture2DReplacementCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -86,8 +86,8 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 	
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
+	RENDERCORE_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
 	
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -118,7 +118,7 @@ protected:
 template< typename T >
 class FClearTexture2DArrayReplacementCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DArrayReplacementCS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DArrayReplacementCS, Global, RENDERCORE_API);
 public:
 	FClearTexture2DArrayReplacementCS() {}
 	FClearTexture2DArrayReplacementCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -136,8 +136,8 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
+	RENDERCORE_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -168,7 +168,7 @@ protected:
 template< typename T >
 class FClearVolumeReplacementCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearVolumeReplacementCS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearVolumeReplacementCS, Global, RENDERCORE_API);
 public:
 	FClearVolumeReplacementCS() {}
 	FClearVolumeReplacementCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -186,8 +186,8 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, const T(&Values)[4]);
+	RENDERCORE_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -217,7 +217,7 @@ protected:
 
 class FClearTexture2DReplacementScissorCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DReplacementScissorCS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearTexture2DReplacementScissorCS, Global, RENDERCORE_API);
 public:
 	FClearTexture2DReplacementScissorCS() {}
 	FClearTexture2DReplacementScissorCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -236,8 +236,8 @@ public:
 		return bShaderHasOutdatedParameters;
 	}
 
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, FLinearColor ClearColor, const FVector4& InTargetBounds);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW, FLinearColor ClearColor, const FVector4& InTargetBounds);
+	RENDERCORE_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* TextureRW);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -267,7 +267,7 @@ protected:
 
 class FClearBufferReplacementCS : public FGlobalShader
 {
-	DECLARE_EXPORTED_SHADER_TYPE(FClearBufferReplacementCS, Global, UTILITYSHADERS_API);
+	DECLARE_EXPORTED_SHADER_TYPE(FClearBufferReplacementCS, Global, RENDERCORE_API);
 public:
 	FClearBufferReplacementCS() {}
 	FClearBufferReplacementCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
@@ -277,8 +277,8 @@ public:
 		ClearBufferRW.Bind(Initializer.ParameterMap, TEXT("ClearBufferRW"), SPF_Mandatory);
 	}
 	
-	UTILITYSHADERS_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear, uint32 ClearValue, bool bBarriers = true);
-	UTILITYSHADERS_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, bool bBarriers = true);
+	RENDERCORE_API void SetParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, uint32 NumDWordsToClear, uint32 ClearValue, bool bBarriers = true);
+	RENDERCORE_API void FinalizeParameters(FRHICommandList& RHICmdList, FRHIUnorderedAccessView* BufferRW, bool bBarriers = true);
 	
 	// FShader interface.
 	virtual bool Serialize(FArchive& Ar) override

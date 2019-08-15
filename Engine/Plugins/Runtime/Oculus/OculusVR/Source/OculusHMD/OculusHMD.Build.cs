@@ -49,7 +49,6 @@ namespace UnrealBuildTool.Rules
 					"ImageWrapper",
 					"MediaAssets",
 					"Analytics",
-					"UtilityShaders",
 					"OpenGLDrv",
 					"VulkanRHI",
 					"OVRPlugin",

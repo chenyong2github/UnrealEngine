@@ -17,8 +17,7 @@ public class D3D11RHI : ModuleRules
 				"Core",
 				"Engine",
 				"RHI",
-				"RenderCore",
-				"UtilityShaders",
+				"RenderCore"
 			}
 			);
 

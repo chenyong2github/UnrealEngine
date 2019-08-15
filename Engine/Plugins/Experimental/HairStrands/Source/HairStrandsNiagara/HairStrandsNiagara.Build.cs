@@ -21,7 +21,6 @@ namespace UnrealBuildTool.Rules
 					"NiagaraShader",
                     "RenderCore",
                     "Renderer",
-                    "UtilityShaders",
                     "VectorVM",
 					"RHI",
 					"HairStrandsCore"

@@ -38,7 +38,7 @@ void FOneColorPS::SetColors(FRHICommandList& RHICmdList, const FLinearColor* Col
 
 // #define avoids a lot of code duplication
 #define IMPLEMENT_ONECOLORVS(A,B) typedef TOneColorVS<A,B> TOneColorVS##A##B; \
-	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<> UTILITYSHADERS_API, TOneColorVS##A##B, SF_Vertex);
+	IMPLEMENT_SHADER_TYPE2_WITH_TEMPLATE_PREFIX(template<> RENDERCORE_API, TOneColorVS##A##B, SF_Vertex);
 
 IMPLEMENT_ONECOLORVS(false,false)
 IMPLEMENT_ONECOLORVS(false,true)
@@ -49,13 +49,13 @@ IMPLEMENT_ONECOLORVS(true,false)
 IMPLEMENT_SHADER_TYPE(,FOneColorPS,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShader"),SF_Pixel);
 // Compiling a version for every number of MRT's
 // On AMD PC hardware, outputting to a color index in the shader without a matching render target set has a significant performance hit
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<1>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<2>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<3>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<4>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<5>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<6>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<7>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
-IMPLEMENT_SHADER_TYPE(template<> UTILITYSHADERS_API,TOneColorPixelShaderMRT<8>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<1>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<2>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<3>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<4>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<5>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<6>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<7>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
+IMPLEMENT_SHADER_TYPE(template<> RENDERCORE_API,TOneColorPixelShaderMRT<8>,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainPixelShaderMRT"),SF_Pixel);
 
 IMPLEMENT_SHADER_TYPE(,FFillTextureCS,TEXT("/Engine/Private/OneColorShader.usf"),TEXT("MainFillTextureCS"),SF_Compute);

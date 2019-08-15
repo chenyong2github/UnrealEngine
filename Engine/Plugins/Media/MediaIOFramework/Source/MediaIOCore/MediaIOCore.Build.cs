@@ -32,8 +32,7 @@ namespace UnrealBuildTool.Rules
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {
-                    "RenderCore",
-                    "UtilityShaders",
+                    "RenderCore"
 				});
 
 			if (Target.bBuildEditor == true)

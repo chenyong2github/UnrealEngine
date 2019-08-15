@@ -33,7 +33,6 @@ public class Launch : ModuleRules
 				"Sockets",
 				"TraceLog",
 				"Overlay",
-				"UtilityShaders",
 				"PreLoadScreen",
 				"InstallBundleManager"
 			});

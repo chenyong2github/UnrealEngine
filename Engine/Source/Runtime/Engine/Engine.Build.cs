@@ -73,7 +73,6 @@ public class Engine : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Sockets",
-				"UtilityShaders",
 				"AssetRegistry", // Here until FAssetData is moved to engine
 				"EngineMessages",
 				"EngineSettings",

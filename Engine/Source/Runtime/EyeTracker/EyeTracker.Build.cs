@@ -24,7 +24,6 @@ public class EyeTracker : ModuleRules
 //                 "RHI",
 //                 "Renderer",
 //                 "RenderCore",
-//                 "UtilityShaders",
 //                 "Analytics"
             }
         );

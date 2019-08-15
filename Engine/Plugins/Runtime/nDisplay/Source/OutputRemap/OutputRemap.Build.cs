@@ -23,8 +23,7 @@ public class OutputRemap : ModuleRules
 			{
                 "DisplayCluster",
 				"RenderCore",
-				"RHI",
-				"UtilityShaders"
+				"RHI"
 			}
 		);
 

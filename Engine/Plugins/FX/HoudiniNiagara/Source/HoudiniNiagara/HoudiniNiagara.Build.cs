@@ -42,8 +42,6 @@ public class HoudiniNiagara : ModuleRules
 				"NiagaraCore",
 				"Niagara",
 				"NiagaraShader",
-				"RenderCore",
-				"UtilityShaders",
 				"RenderCore"
 			}
 		);
@@ -59,7 +57,6 @@ public class HoudiniNiagara : ModuleRules
 				"CoreUObject",
 				"VectorVM",
 				"RHI",
-				"UtilityShaders",
 				"NiagaraVertexFactories",
 				"RenderCore"
 			}

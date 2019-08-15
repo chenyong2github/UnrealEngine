@@ -27,8 +27,7 @@ namespace UnrealBuildTool.Rules
                     "Projects",
                     "RenderCore",
                     "RHI",
-                    "UtilityShaders",
-                    "WmfMediaFactory",
+                    "WmfMediaFactory"
                 });
 
             if (Target.Platform != UnrealTargetPlatform.XboxOne)
