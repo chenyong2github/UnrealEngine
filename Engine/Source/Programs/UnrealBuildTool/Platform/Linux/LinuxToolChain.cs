@@ -958,7 +958,14 @@ namespace UnrealBuildTool
 
 				if (bSuppressPIE)
 				{
-					Result += " -Wl,-nopie";
+					if (CompilerVersionGreaterOrEqual(7, 0, 0))
+					{
+						Result += " -Wl,-no-pie";
+					}
+					else
+					{
+						Result += " -Wl,-nopie";
+					}
 				}
 			}
 
