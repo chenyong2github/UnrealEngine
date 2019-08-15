@@ -101,7 +101,7 @@ public:
 		Cur = CurItr;
 		End = EndItr;
 		this->FilterFunc = FilterFuncIn;
-		if (FilterFunc(*Cur) == false)
+		if (Cur != End && FilterFunc(*Cur) == false)
 		{
 			GotoNextElement();
 		}
