@@ -513,6 +513,7 @@ class FMoveWholeIndirectionTextureCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, NumBricks)
 		SHADER_PARAMETER(uint32, StartPosInOldVolume)
 		SHADER_PARAMETER(uint32, StartPosInNewVolume)
+		SHADER_PARAMETER_TEXTURE(Texture3D<uint4>, OldIndirectionTexture)
 		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
 	END_SHADER_PARAMETER_STRUCT()
 };

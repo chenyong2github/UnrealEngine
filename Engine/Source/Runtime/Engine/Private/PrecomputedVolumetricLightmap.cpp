@@ -423,11 +423,16 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::HandleDataMovementInAtlas(in
 
 			TShaderMapRef<FMoveWholeIndirectionTextureCS> ComputeShader(GlobalShaderMap);
 
+			FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
+			NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
+			NewIndirectionTexture.CreateUAV();
+
 			FMoveWholeIndirectionTextureCS::FParameters Parameters;
 			Parameters.NumBricks = NumBricks;
 			Parameters.StartPosInOldVolume = OldOffset;
 			Parameters.StartPosInNewVolume = BrickDataBaseOffsetInAtlas;
-			Parameters.IndirectionTexture = SceneData->IndirectionTexture.UAV;
+			Parameters.OldIndirectionTexture = SceneData->IndirectionTexture.Texture;
+			Parameters.IndirectionTexture = NewIndirectionTexture.UAV;
 
 			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, Parameters,
 				FIntVector(
@@ -435,6 +440,8 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::HandleDataMovementInAtlas(in
 					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Y, 4),
 					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Z, 4))
 			);
+
+			SceneData->IndirectionTexture = NewIndirectionTexture;
 		}
 	}
 	else
@@ -497,22 +504,6 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 		{
 			// GPU Path
 
-			if (GIsEditor)
-			{
-				// If we are in editor, or whenever a persistent level can be assigned to two Worlds (which is only possible when you modify the engine code),
-				// make a copy of the indirection texture
-				SceneData->IndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
-				FRHICopyTextureInfo CopyInfo;
-				RHICmdList.CopyTexture(IndirectionTexture.Texture, SceneData->IndirectionTexture.Texture, CopyInfo);
-			}
-			else
-			{
-				// Steal the indirection texture. When the sublevels are unloaded the values will be restored.
-				SceneData->IndirectionTexture.Texture = IndirectionTexture.Texture;
-			}
-
-			SceneData->IndirectionTexture.CreateUAV();
-
 			const int32 PaddedBrickSize = BrickSize + 1;
 			int32 NumBricks = BrickDataDimensions.X * BrickDataDimensions.Y * BrickDataDimensions.Z / (PaddedBrickSize * PaddedBrickSize * PaddedBrickSize);
 
@@ -520,11 +511,16 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 
 			TShaderMapRef<FMoveWholeIndirectionTextureCS> ComputeShader(GlobalShaderMap);
 
+			FVolumetricLightmapDataLayer NewIndirectionTexture = SceneData->IndirectionTexture;
+			NewIndirectionTexture.CreateTargetTexture(IndirectionTextureDimensions);
+			NewIndirectionTexture.CreateUAV();
+
 			FMoveWholeIndirectionTextureCS::FParameters Parameters;
 			Parameters.NumBricks = NumBricks;
 			Parameters.StartPosInOldVolume = 0;
 			Parameters.StartPosInNewVolume = BrickDataBaseOffsetInAtlas;
-			Parameters.IndirectionTexture = SceneData->IndirectionTexture.UAV;
+			Parameters.OldIndirectionTexture = IndirectionTexture.Texture;
+			Parameters.IndirectionTexture = NewIndirectionTexture.UAV;
 
 			FComputeShaderUtils::Dispatch(RHICmdList, *ComputeShader, Parameters,
 				FIntVector(
@@ -532,6 +528,14 @@ ENGINE_API void FPrecomputedVolumetricLightmapData::AddToSceneData(FPrecomputedV
 					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Y, 4),
 					FMath::DivideAndRoundUp(IndirectionTextureDimensions.Z, 4))
 			);
+
+			SceneData->IndirectionTexture = NewIndirectionTexture;
+
+			if (!GIsEditor)
+			{
+				// Steal the indirection texture. When the sublevels are unloaded the values will be restored.
+				IndirectionTexture = SceneData->IndirectionTexture;
+			}
 		}
 		else
 		{

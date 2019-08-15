@@ -101,6 +101,8 @@ void PatchIndirectionTextureCS(uint3 BrickID : SV_DispatchThreadID)
 	IndirectionTexture[BrickPos] = uint4(NewBrickPos, 1);
 }
 
+Texture3D<uint4> OldIndirectionTexture;
+
 [numthreads(4, 4, 4)]
 void MoveWholeIndirectionTextureCS(uint3 IndirectionTextureCellID : SV_DispatchThreadID) 
 {
@@ -109,11 +111,15 @@ void MoveWholeIndirectionTextureCS(uint3 IndirectionTextureCellID : SV_DispatchT
 	
 	if (any(IndirectionTextureCellID >= IndirectionTextureDimenstions)) return;
 
-	uint4 IndirectionTextureOriginalValue = IndirectionTexture[IndirectionTextureCellID];
+	uint4 IndirectionTextureOriginalValue = OldIndirectionTexture[IndirectionTextureCellID];
 	uint OriginalBrickLinearAddress = IndirectionTextureOriginalValue.x + IndirectionTextureOriginalValue.y * 256 + IndirectionTextureOriginalValue.z * 256 * 256;
 	
 	if (OriginalBrickLinearAddress >= StartPosInOldVolume && OriginalBrickLinearAddress < StartPosInOldVolume + NumBricks)
 	{
 		IndirectionTexture[IndirectionTextureCellID] = uint4(ComputeBrickLayoutPosition(OriginalBrickLinearAddress - StartPosInOldVolume + StartPosInNewVolume, uint3(256, 256, 256)), IndirectionTextureOriginalValue.w);
+	}
+	else
+	{
+		IndirectionTexture[IndirectionTextureCellID] = IndirectionTextureOriginalValue;
 	}
 }
