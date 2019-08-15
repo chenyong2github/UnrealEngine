@@ -1438,10 +1438,16 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.RayTracingGISamplesPerPixel = Src.RayTracingGISamplesPerPixel;
 		}
 
+		if (Src.bOverride_RayTracingAO)
+		{
+			Dest.RayTracingAO = Src.RayTracingAO;
+		}
+
 		if (Src.bOverride_RayTracingAOSamplesPerPixel)
 		{
 			Dest.RayTracingAOSamplesPerPixel = Src.RayTracingAOSamplesPerPixel;
 		}
+
 		if (Src.bOverride_PathTracingMaxBounces)
 		{
 			Dest.PathTracingMaxBounces = Src.PathTracingMaxBounces;
