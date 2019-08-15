@@ -4,6 +4,10 @@
 #include "VirtualTextureSystem.h"
 #include "VirtualTexturePhysicalSpace.h"
 
+FVirtualTextureProducer::~FVirtualTextureProducer()
+{
+}
+
 void FVirtualTextureProducer::Release(FVirtualTextureSystem* System, const FVirtualTextureProducerHandle& HandleToSelf)
 {
 	if (Description.bPersistentHighestMip)

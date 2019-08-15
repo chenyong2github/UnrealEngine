@@ -30,7 +30,7 @@ public:
 
 private:
 	friend class FVirtualTextureProducerCollection;
-	~FVirtualTextureProducer() {}
+	~FVirtualTextureProducer();
 
 	IVirtualTexture* VirtualTexture;
 	TRefCountPtr<FVirtualTexturePhysicalSpace> PhysicalSpace[VIRTUALTEXTURE_SPACE_MAXLAYERS];
