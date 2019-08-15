@@ -6,6 +6,7 @@
 #include "VirtualTextureShared.h"
 #include "RendererInterface.h"
 #include "VirtualTexturing.h"
+#include "VirtualTexturePhysicalSpace.h"
 #include "HAL/ThreadSafeCounter.h"
 
 class FVirtualTextureSpace;
