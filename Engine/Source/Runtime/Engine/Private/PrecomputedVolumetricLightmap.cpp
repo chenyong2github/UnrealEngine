@@ -147,6 +147,29 @@ private:
 
 TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas = TGlobalResource<FVolumetricLightmapBrickAtlas>();
 
+inline void ConvertBGRA8ToRGBA8ForLayer(FVolumetricLightmapDataLayer& Layer)
+{
+	if (Layer.Format == PF_B8G8R8A8)
+	{
+		for (int32 PixelIndex = 0; PixelIndex < Layer.Data.Num() / GPixelFormats[PF_B8G8R8A8].BlockBytes; PixelIndex++)
+		{
+			FColor Color;
+
+			Color.B = Layer.Data[PixelIndex * 4 + 0];
+			Color.G = Layer.Data[PixelIndex * 4 + 1];
+			Color.R = Layer.Data[PixelIndex * 4 + 2];
+			Color.A = Layer.Data[PixelIndex * 4 + 3];
+
+			Layer.Data[PixelIndex * 4 + 0] = Color.R;
+			Layer.Data[PixelIndex * 4 + 1] = Color.G;
+			Layer.Data[PixelIndex * 4 + 2] = Color.B;
+			Layer.Data[PixelIndex * 4 + 3] = Color.A;
+		}
+
+		Layer.Format = PF_R8G8B8A8;
+	}
+}
+
 FArchive& operator<<(FArchive& Ar,FVolumetricLightmapDataLayer& Layer)
 {
 	Ar << Layer.Data;
@@ -163,6 +186,8 @@ FArchive& operator<<(FArchive& Ar,FVolumetricLightmapDataLayer& Layer)
 		FString PixelFormatString;
 		Ar << PixelFormatString;
 		Layer.Format = (EPixelFormat)PixelFormatEnum->GetValueByName(*PixelFormatString);
+
+		ConvertBGRA8ToRGBA8ForLayer(Layer);
 	}
 	else if (Ar.IsSaving())
 	{
