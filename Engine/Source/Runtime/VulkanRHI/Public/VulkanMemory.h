@@ -426,6 +426,21 @@ namespace VulkanRHI
 		}
 
 		static void JoinConsecutiveRanges(TArray<FRange>& Ranges);
+
+		/** Tries to insert the item so it has index ProposedIndex, but may end up merging it with neighbors */
+		static int32 InsertAndTryToMerge(TArray<FRange>& Ranges, const FRange& Item, int32 ProposedIndex);
+
+		/** Tries to append the item to the end but may end up merging it with the neighbor */
+		static int32 AppendAndTryToMerge(TArray<FRange>& Ranges, const FRange& Item);
+
+		/** Attempts to allocate from an entry - can remove it if it was used up*/
+		static void AllocateFromEntry(TArray<FRange>& Ranges, int32 Index, uint32 SizeToAllocate);
+
+		/** Sanity checks an array of ranges */
+		static void SanityCheck(TArray<FRange>& Ranges);
+
+		/** Adds to the array while maintaing the sort. */
+		static int32 Add(TArray<FRange>& Ranges, const FRange& Item);
 	};
 
 	// One device allocation that is shared amongst different resources
