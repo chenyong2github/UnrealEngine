@@ -106,6 +106,9 @@ extern CORE_API bool GAllowActorScriptExecutionInEditor;
 /** Forces use of template names for newly instanced components in a CDO. */
 extern CORE_API bool GCompilingBlueprint;
 
+/** True if we're garbage collecting after a blueprint compilation */
+extern CORE_API bool GIsGCingAfterBlueprintCompile;
+
 /** True if we're reconstructing blueprint instances. Should never be true on cooked builds */
 extern CORE_API bool GIsReconstructingBlueprintInstances;
 
