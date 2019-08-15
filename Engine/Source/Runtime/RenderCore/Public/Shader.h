@@ -506,9 +506,11 @@ private:
 	/** Original bytecode size, before compression */
 	uint32 UncompressedCodeSize = 0;
 
+	//#todo-RemoveStreamOut
 	/** If not NULL, the shader type this resource must be used with. */
 	class FShaderType* SpecificType;
 
+	//#todo-RemoveStreamOut
 	/** Specific permutation identifier of the shader when SpecificType is non null, ignored otherwise. */
 	int32 SpecificPermutationId;
 

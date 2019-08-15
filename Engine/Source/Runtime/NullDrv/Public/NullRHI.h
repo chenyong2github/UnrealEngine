@@ -66,12 +66,6 @@ public:
 		return new FRHIGeometryShader(); 
 	}
 
-
-	virtual FGeometryShaderRHIRef RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) final override
-	{ 
-		return new FRHIGeometryShader(); 
-	}
-
 	virtual FComputeShaderRHIRef RHICreateComputeShader(const TArray<uint8>& Code) final override
 	{ 
 		return new FRHIComputeShader(); 

@@ -62,6 +62,7 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 
 	if (Initializer.BoundShaderState.GeometryShaderRHI)
 	{
+		//#todo-RemoveStreamOut
 		Desc.Desc.StreamOutput = ((FD3D12GeometryShader*) Initializer.BoundShaderState.GeometryShaderRHI)->StreamOutput;
 	}
 

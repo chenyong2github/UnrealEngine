@@ -53,13 +53,6 @@ FGeometryShaderRHIRef FEmptyDynamicRHI::RHICreateGeometryShader(const TArray<uin
 	return Shader;
 }
 
-FGeometryShaderRHIRef FEmptyDynamicRHI::RHICreateGeometryShaderWithStreamOutput(const TArray<uint8>& Code, const FStreamOutElementList& ElementList,
-	uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	checkf(0, TEXT("Not supported yet"));
-	return NULL;
-}
-
 FComputeShaderRHIRef FEmptyDynamicRHI::RHICreateComputeShader(const TArray<uint8>& Code) 
 { 
 	FEmptyComputeShader* Shader = new FEmptyComputeShader(Code);

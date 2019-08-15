@@ -1234,7 +1234,6 @@ private:
 	FHullShaderRHIRef CreateHullShader(const FSHAHash& Hash);
 	FDomainShaderRHIRef CreateDomainShader(const FSHAHash& Hash);
 	FGeometryShaderRHIRef CreateGeometryShader(const FSHAHash& Hash);
-	FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const FSHAHash& Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream);
 	FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash);
 	
 private:

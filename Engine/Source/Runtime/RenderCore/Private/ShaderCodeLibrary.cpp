@@ -707,29 +707,6 @@ public:
 		return Shader;
 	}
 
-	FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(const FSHAHash& Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream) override final
-	{
-		FGeometryShaderRHIRef Shader;
-
-		int32 Size = 0;
-		bool bWasSync = false;
-		TArray<uint8>* Code = LookupShaderCode(Hash, Size, bWasSync);
-		if (Code)
-		{
-			TArray<uint8> UCode;
-			TArray<uint8>& UncompressedCode = FShaderLibraryHelperUncompressCode(Platform, Size, *Code, UCode);
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			Shader = RHICreateGeometryShaderWithStreamOutput(UncompressedCode, ElementList, NumStrides, Strides, RasterizedStream);
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			CheckShaderCreation(Shader.GetReference(), Hash);
-			if (bWasSync)
-			{
-				ReleaseShaderCode(Hash);
-			}
-		}
-		return Shader;
-	}
-
 	FComputeShaderRHIRef CreateComputeShader(const FSHAHash& Hash) override final
 	{
 		FComputeShaderRHIRef Shader;
@@ -1811,28 +1788,6 @@ public:
 		return Result;
 	}
 
-	FGeometryShaderRHIRef CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-	{
-		checkSlow(Platform == GetRuntimeShaderPlatform());
-
-		FGeometryShaderRHIRef Result;
-		FRHIShaderLibrary* ShaderCodeArchive = FindShaderLibrary(Hash);
-		if (ShaderCodeArchive)
-		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			if (bNativeFormat || GRHILazyShaderCodeLoading)
-			{
-				Result = RHICreateGeometryShaderWithStreamOutput(ElementList, NumStrides, Strides, RasterizedStream, ShaderCodeArchive, Hash);
-			}
-			else
-			{
-				Result = ((FShaderCodeArchive*)ShaderCodeArchive)->CreateGeometryShaderWithStreamOutput(Hash, ElementList, NumStrides, Strides, RasterizedStream);
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		}
-		return Result;
-	}
-
 	FHullShaderRHIRef CreateHullShader(EShaderPlatform Platform, FSHAHash Hash)
 	{
 		checkSlow(Platform == GetRuntimeShaderPlatform());
@@ -2339,23 +2294,6 @@ FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShader(EShaderPlatform P
 	if (!IsValidRef(Shader))
 	{
 		Shader = RHICreateGeometryShader(Code);
-	}
-	SafeAssignHash(Shader, Hash);
-	return Shader;
-}
-
-FGeometryShaderRHIRef FShaderCodeLibrary::CreateGeometryShaderWithStreamOutput(EShaderPlatform Platform, FSHAHash Hash, const TArray<uint8>& Code, const FStreamOutElementList& ElementList, uint32 NumStrides, const uint32* Strides, int32 RasterizedStream)
-{
-	FGeometryShaderRHIRef Shader;
-	if (FShaderCodeLibraryImpl::Impl && FPlatformProperties::RequiresCookedData())
-	{
-		Shader = FShaderCodeLibraryImpl::Impl->CreateGeometryShaderWithStreamOutput(Platform, Hash, ElementList, NumStrides, Strides, RasterizedStream);
-	}
-	if (!IsValidRef(Shader))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		Shader = RHICreateGeometryShaderWithStreamOutput(Code, ElementList, NumStrides, Strides, RasterizedStream);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 	SafeAssignHash(Shader, Hash);
 	return Shader;

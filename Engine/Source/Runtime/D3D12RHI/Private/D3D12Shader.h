@@ -68,10 +68,14 @@ public:
 	TArray<uint8> Code;
 
 	/** The shader's stream output description. */
+	//#todo-RemoveStreamOut
 	D3D12_STREAM_OUTPUT_DESC StreamOutput;
+	//#todo-RemoveStreamOut
 	D3D12_SO_DECLARATION_ENTRY* pStreamOutEntries;
+	//#todo-RemoveStreamOut
 	uint32* pStreamOutStrides;
 
+	//#todo-RemoveStreamOut
 	bool bShaderNeedsStreamOutput;
 
 	FShaderCodePackedResourceCounts ResourceCounts;

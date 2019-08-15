@@ -1000,6 +1000,8 @@ void FShaderResource::InitRHI()
 	}
 	else if(Target.Frequency == SF_Geometry)
 	{
+		//#todo-RemoveStreamOut
+/*
 		if (SpecificType)
 		{
 			FStreamOutElementList ElementList;
@@ -1014,6 +1016,7 @@ void FShaderResource::InitRHI()
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		else
+*/
 		{
 			Shader = FShaderCodeLibrary::CreateGeometryShader((EShaderPlatform)Target.Platform, OutputHash, UncompressedCode);
 		}
@@ -1046,6 +1049,7 @@ void FShaderResource::InitRHI()
 		checkNoEntry(); // Unexpected shader target frequency
 	}
 
+		//#todo-RemoveStreamOut
 	if (Target.Frequency != SF_Geometry)
 	{
 		checkf(!SpecificType, TEXT("Only geometry shaders can use GetStreamOutElements, shader type %s"), SpecificType->GetName());
