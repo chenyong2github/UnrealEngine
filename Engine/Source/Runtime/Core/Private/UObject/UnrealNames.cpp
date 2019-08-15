@@ -1696,20 +1696,6 @@ FName::FName(const FNameEntrySerialized& LoadedEntry)
 	: FName(FNameHelper::MakeFromLoaded(LoadedEntry))
 {}
 
-FName::FName(EName Ename, int32 InNumber)
-	: ComparisonIndex(GetNamePool().Find(Ename))
-#if WITH_CASE_PRESERVING_NAME
-	, DisplayIndex(ComparisonIndex)
-#endif
-	, Number(InNumber)
-{
-	check(Ename < NAME_MaxHardcodedNameIndex);
-}
-
-FName::FName(EName Ename)
-	: FName(Ename, NAME_NO_NUMBER_INTERNAL)
-{}
-
 bool FName::operator==(const ANSICHAR* Str) const
 {
 	return FNameHelper::EqualsString(*this, Str);
@@ -2184,6 +2170,11 @@ FArchive& operator<<(FArchive& Ar, FNameEntrySerialized& E)
 	}
 
 	return Ar;
+}
+
+FNameEntryId FNameEntryId::FromValidEName(EName Ename)
+{
+	return GetNamePool().Find(Ename);
 }
 
 #if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
