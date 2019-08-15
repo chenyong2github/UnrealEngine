@@ -1823,7 +1823,7 @@ bool SContentBrowser::OnHasCrumbDelimiterContent(const FString& CrumbData) const
 	return false;
 }
 
-TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& CrumbData) const
+TSharedRef<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& CrumbData) const
 {
 	FSourcesData SourcesData = AssetViewPtr->GetSourcesData();
 
@@ -1929,7 +1929,7 @@ TSharedPtr<SWidget> SContentBrowser::OnGetCrumbDelimiterContent(const FString& C
 			];
 	}
 
-	return Widget;
+	return Widget.ToSharedRef();
 }
 
 TSharedRef<SWidget> SContentBrowser::GetPathPickerContent()

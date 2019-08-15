@@ -61,7 +61,7 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam( bool, FHasCrumbMenuContent, const ItemType& /*CrumbData*/ );
 
 	/** Callback for getting the menu content to be displayed when clicking on a crumb's delimiter arrow */
-	DECLARE_DELEGATE_RetVal_OneParam( TSharedPtr< SWidget >, FGetCrumbMenuContent, const ItemType& /*CrumbData*/ );
+	DECLARE_DELEGATE_RetVal_OneParam( TSharedRef< SWidget >, FGetCrumbMenuContent, const ItemType& /*CrumbData*/ );
 
 	DECLARE_DELEGATE_RetVal_TwoParams( FSlateColor, FOnGetCrumbColor, int32 /*CrumbId*/, bool /*bInvert*/ );
 
@@ -341,11 +341,19 @@ private:
 		{
 			if (CrumbList[CrumbListIdx].CrumbID == CrumbId)
 			{
+				if (HasCrumbMenuContentCallback.IsBound() )
+				{
+					if (!HasCrumbMenuContentCallback.Execute( CrumbList[CrumbListIdx].CrumbData ))
+					{
+						return SNullWidget::NullWidget;
+					}
+				}
+
 				MenuContent = GetCrumbMenuContentCallback.Execute( CrumbList[CrumbListIdx].CrumbData );
 				break;
 			}
 		}
-	
+
 		return MenuContent.ToSharedRef();
 	}
 

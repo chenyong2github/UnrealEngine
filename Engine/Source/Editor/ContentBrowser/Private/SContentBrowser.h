@@ -232,7 +232,7 @@ private:
 	 * @param CrumbData	The current directory path
 	 * @return The directory menu
 	 */
-	TSharedPtr<SWidget> OnGetCrumbDelimiterContent(const FString& CrumbData) const;
+	TSharedRef<SWidget> OnGetCrumbDelimiterContent(const FString& CrumbData) const;
 
 	/** Gets the content for the path picker combo button */
 	TSharedRef<SWidget> GetPathPickerContent();
