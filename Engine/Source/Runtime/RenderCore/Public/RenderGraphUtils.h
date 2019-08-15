@@ -8,11 +8,9 @@
 #include "ShaderParameterStruct.h"
 #include "ShaderParameterMacros.h"
 
-
 /** An empty shader parameter structure ready to be used anywhere. */
 BEGIN_SHADER_PARAMETER_STRUCT(FEmptyShaderParameters, RENDERCORE_API)
 END_SHADER_PARAMETER_STRUCT()
-
 
 /** Useful parameter struct that only have render targets.
  *
@@ -23,7 +21,6 @@ END_SHADER_PARAMETER_STRUCT()
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderTargetParameters, RENDERCORE_API)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
-
 
 /**
  * Clears all render graph tracked resources that are not bound by a shader.
@@ -38,7 +35,7 @@ extern RENDERCORE_API void ClearUnusedGraphResourcesImpl(
 	std::initializer_list< FRDGResourceRef > ExcludeList);
 
 template<typename TShaderClass>
-FORCEINLINE_DEBUGGABLE void ClearUnusedGraphResources(
+void ClearUnusedGraphResources(
 	const TShaderClass* Shader,
 	typename TShaderClass::FParameters* InoutParameters,
 	std::initializer_list< FRDGResourceRef > ExcludeList = {})
@@ -54,7 +51,6 @@ FORCEINLINE_DEBUGGABLE void ClearUnusedGraphResources(
 	return ClearUnusedGraphResourcesImpl(Shader->Bindings, ParametersMetadata, InoutParameters, ExcludeList);
 }
 
-
 /**
  * Register external texture with fallback if the resource is invalid.
  *
@@ -66,7 +62,6 @@ RENDERCORE_API FRDGTextureRef RegisterExternalTextureWithFallback(
 	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
 	const TRefCountPtr<IPooledRenderTarget>& FallbackPooledTexture,
 	const TCHAR* ExternalPooledTextureName = TEXT("External"));
-
 
 /** All utils for compute shaders.
  */
@@ -108,7 +103,7 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
-	static FORCEINLINE_DEBUGGABLE void Dispatch(FRHICommandList& RHICmdList, const TShaderClass* ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
+	static void Dispatch(FRHICommandList& RHICmdList, const TShaderClass* ComputeShader, const typename TShaderClass::FParameters& Parameters, FIntVector GroupCount)
 	{
 		FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 		RHICmdList.SetComputeShader(ShaderRHI);
@@ -119,7 +114,7 @@ struct RENDERCORE_API FComputeShaderUtils
 	
 	/** Indirect dispatch a compute shader to rhi command list with its parameters. */
 	template<typename TShaderClass>
-	static FORCEINLINE_DEBUGGABLE void DispatchIndirect(
+	static void DispatchIndirect(
 		FRHICommandList& RHICmdList,
 		const TShaderClass* ComputeShader,
 		const typename TShaderClass::FParameters& Parameters,
@@ -135,7 +130,7 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
-	static FORCEINLINE_DEBUGGABLE void AddPass(
+	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		const TShaderClass* ComputeShader,
@@ -156,7 +151,7 @@ struct RENDERCORE_API FComputeShaderUtils
 
 	/** Dispatch a compute shader to render graph builder with its parameters. */
 	template<typename TShaderClass>
-	static FORCEINLINE_DEBUGGABLE void AddPass(
+	static void AddPass(
 		FRDGBuilder& GraphBuilder,
 		FRDGEventName&& PassName,
 		const TShaderClass* ComputeShader,
@@ -183,9 +178,8 @@ struct RENDERCORE_API FComputeShaderUtils
 	}
 };
 
-/** Adds a render graph pass that copies a region from one texture to another;
- *  Uses RHICopyTexture under the hood. Formats of the two textures must match.
- *  The output and output texture regions be within the respective extents.
+/** Adds a render graph pass to copy a region from one texture to another. Uses RHICopyTexture under the hood.
+ *  Formats of the two textures must match. The output and output texture regions be within the respective extents.
  */
 RENDERCORE_API void AddCopyTexturePass(
 	FRDGBuilder& GraphBuilder,
@@ -218,3 +212,24 @@ inline void AddCopyTexturePass(
 	}
 	AddCopyTexturePass(GraphBuilder, InputTexture, OutputTexture, CopyInfo);
 }
+
+/** Adds a render graph pass to clear a texture or buffer UAV with a single typed value. */
+RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGBufferUAVRef BufferUAV, uint32 Value);
+
+RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4]);
+
+RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4]);
+
+RENDERCORE_API void AddClearUAVPass(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor);
+
+/** Adds a render graph pass to clear a render target. Prefer to use clear actions if possible. */
+RENDERCORE_API void AddClearRenderTargetPass(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, const FLinearColor& ClearColor);
+
+/** Adds a render graph pass to clear a depth stencil target. Prefer to use clear actions if possible. */
+RENDERCORE_API void AddClearDepthStencilPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGTextureRef Texture,
+	bool bClearDepth,
+	float Depth,
+	bool bClearStencil,
+	uint8 Stencil);

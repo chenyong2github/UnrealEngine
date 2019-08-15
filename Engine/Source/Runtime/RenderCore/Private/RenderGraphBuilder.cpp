@@ -31,19 +31,56 @@ FAutoConsoleVariableRef CVarRDGDebug(
 	TEXT(" 2: emit warning everytime issue is detected."),
 	ECVF_RenderThreadSafe);
 
-static TAutoConsoleVariable<int32> CVarRDGEnableBreakPoint(
-	TEXT("r.RDG.EnableBreakPoint"), 0,
+TAutoConsoleVariable<int32> CVarRDGEnableBreakpoint(
+	TEXT("r.RDG.EnableBreakpoint"), 0,
 	TEXT("Breakpoint in debugger when a warning is raised.\n"),
 	ECVF_RenderThreadSafe);
 
+int32 GRDGClobberResources = 0;
+FAutoConsoleVariableRef CVarRDGClobberResources(
+	TEXT("r.RDG.ClobberResources"),
+	GRDGClobberResources,
+	TEXT("Clears all render targets and texture / buffer UAVs with the requested clear color at allocation time. Useful for debugging.\n")
+	TEXT(" 0:off (default);\n")
+	TEXT(" 1: 1000 on RGBA channels;\n")
+	TEXT(" 2: NaN on RGBA channels;\n")
+	TEXT(" 3: +INFINITY on RGBA channels.\n"),
+	ECVF_Cheat | ECVF_RenderThreadSafe);
+
+FLinearColor GetClobberColor()
+{
+	switch (GRDGClobberResources)
+	{
+	case 2:
+		return FLinearColor(NAN, NAN, NAN, NAN);
+		break;
+	case 3:
+		return FLinearColor(INFINITY, INFINITY, INFINITY, INFINITY);
+		break;
+	default:
+		return FLinearColor(1000, 1000, 1000, 1000);
+	}
+}
+
+uint32 GetClobberBufferValue()
+{
+	return 1000;
+}
 
 #else
 
 const int32 GRDGImmediateMode = 0;
 const int32 GRDGDebug = 0;
+const int32 GRDGClobberResources = 0;
 
 #endif
+
 } //! namespace
+
+bool IsRDGClobberResourcesEnabled()
+{
+	return GRDGClobberResources > 0;
+}
 
 bool GetEmitRDGEvents()
 {
@@ -64,7 +101,6 @@ bool IsRDGImmediateModeEnabled()
 {
 	return GRDGImmediateMode != 0;
 }
-
 
 void InitRenderGraph()
 {
@@ -91,7 +127,7 @@ void EmitRDGWarning(const FString& WarningMessage)
 
 	static TSet<FString> GAlreadyEmittedWarnings;
 
-	const bool bEnableBreakPoint = CVarRDGEnableBreakPoint.GetValueOnRenderThread();
+	const bool bEnableBreakpoint = CVarRDGEnableBreakpoint.GetValueOnRenderThread();
 
 	if (GRDGDebug == kRDGEmitWarningsOnce)
 	{
@@ -99,8 +135,8 @@ void EmitRDGWarning(const FString& WarningMessage)
 		{
 			GAlreadyEmittedWarnings.Add(WarningMessage);
 			UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
-			
-			if (bEnableBreakPoint)
+
+			if (bEnableBreakpoint)
 			{
 				UE_DEBUG_BREAK();
 			}
@@ -109,8 +145,8 @@ void EmitRDGWarning(const FString& WarningMessage)
 	else
 	{
 		UE_LOG(LogRendererCore, Warning, TEXT("%s"), *WarningMessage);
-		
-		if (bEnableBreakPoint)
+
+		if (bEnableBreakpoint)
 		{
 			UE_DEBUG_BREAK();
 		}
@@ -162,7 +198,9 @@ void FRDGBuilder::Execute()
 
 void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 {
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateAddPass(Pass));
+	ClobberPassOutputs(Pass);
+
+	IF_RDG_ENABLE_DEBUG(Validation.ValidateAddPass(Pass, bInDebugPassScope));
 
 	Pass->EventScope = EventScopeStack.GetCurrentScope();
 	Pass->StatScope = StatScopeStack.GetCurrentScope();
@@ -179,7 +217,7 @@ void FRDGBuilder::AddPassInternal(FRDGPass* Pass)
 void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 {
 #if SUPPORTS_VISUALIZE_TEXTURE
-	if (!GVisualizeTexture.bEnabled)
+	if (!GVisualizeTexture.bEnabled || bInDebugPassScope)
 	{
 		return;
 	}
@@ -254,12 +292,116 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 			}
 		}
 		break;
-		default:
-			break;
 		}
 	}
 #endif
 }
+
+#if RDG_ENABLE_DEBUG
+
+void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
+{
+	if (!IsRDGClobberResourcesEnabled())
+	{
+		return;
+	}
+
+	if (bInDebugPassScope)
+	{
+		return;
+	}
+	bInDebugPassScope = true;
+
+	const auto TryMarkForClobber = [](FRDGParentResourceRef Resource) -> bool
+	{
+		const bool bClobber = !Resource->bHasBeenClobbered && !Resource->IsExternal();
+
+		if (bClobber)
+		{
+			Resource->bHasBeenClobbered = true;
+		}
+
+		return bClobber;
+	};
+
+	const FLinearColor ClobberColor = GetClobberColor();
+
+	FRDGPassParameterStruct ParameterStruct = Pass->GetParameters();
+
+	const uint32 ParameterCount = ParameterStruct.GetParameterCount();
+
+	for (uint32 ParameterIndex = 0; ParameterIndex < ParameterCount; ++ParameterIndex)
+	{
+		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
+
+		switch (Parameter.GetType())
+		{
+		case UBMT_RDG_BUFFER_UAV:
+		{
+			if (FRDGBufferUAVRef UAV = Parameter.GetAsBufferUAV())
+			{
+				FRDGBufferRef Buffer = UAV->GetParent();
+
+				if (TryMarkForClobber(Buffer))
+				{
+					AddClearUAVPass(*this, UAV, GetClobberBufferValue());
+				}
+			}
+		}
+		break;
+		case UBMT_RDG_TEXTURE_UAV:
+		{
+			if (FRDGTextureUAVRef UAV = Parameter.GetAsTextureUAV())
+			{
+				FRDGTextureRef Texture = UAV->GetParent();
+
+				if (TryMarkForClobber(Texture))
+				{
+					AddClearUAVPass(*this, UAV, ClobberColor);
+				}
+			}
+		}
+		break;
+		case UBMT_RENDER_TARGET_BINDING_SLOTS:
+		{
+			const FRenderTargetBindingSlots& RenderTargetBindingSlots = Parameter.GetAsRenderTargetBindingSlots();
+			const auto& DepthStencil = RenderTargetBindingSlots.DepthStencil;
+			const auto& RenderTargets = RenderTargetBindingSlots.Output;
+
+			if (FRDGTextureRef Texture = DepthStencil.GetTexture())
+			{
+				if (TryMarkForClobber(Texture))
+				{
+					AddClearDepthStencilPass(*this, Texture, true, 0.0f, true, 0);
+				}
+			}
+
+			const uint32 RenderTargetCount = RenderTargets.Num();
+
+			for (uint32 RenderTargetIndex = 0; RenderTargetIndex < RenderTargetCount; ++RenderTargetIndex)
+			{
+				const FRenderTargetBinding& RenderTarget = RenderTargets[RenderTargetIndex];
+
+				if (FRDGTextureRef Texture = RenderTarget.GetTexture())
+				{
+					if (TryMarkForClobber(Texture))
+					{
+						AddClearRenderTargetPass(*this, Texture, ClobberColor);
+					}
+				}
+				else
+				{
+					break;
+				}
+			}
+		}
+		break;
+		}
+	}
+	bInDebugPassScope = false;
+}
+
+#endif
 
 void FRDGBuilder::WalkGraphDependencies()
 {
@@ -528,7 +670,7 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	{
 		UnbindRenderTargets(RHICmdList);
 	}
-	
+
 	Pass->Execute(RHICmdList);
 
 	if (bHasRenderTargets)

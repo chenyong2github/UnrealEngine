@@ -1908,7 +1908,7 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 				if (BackgroundScatterDrawListBuffer)
 					PassParameters->OutBackgroundScatterDrawList = GraphBuilder.CreateUAV(BackgroundScatterDrawListBuffer);
 
-				ClearUAV(GraphBuilder, RDG_EVENT_NAME("ClearIndirectDraw"), PassParameters->OutScatterDrawIndirectParameters, 0);
+				AddClearUAVPass(GraphBuilder, PassParameters->OutScatterDrawIndirectParameters, 0);
 			}
 
 			TShaderMapRef<FDiaphragmDOFReduceCS> ComputeShader(View.ShaderMap, PermutationVector);

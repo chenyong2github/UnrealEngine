@@ -230,8 +230,11 @@ private:
 	/** Count the number of times it has been used by a pass. */
 	int32 PassAccessCount = 0;
 
-	/** Boolean to track at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
+	/** Tracks at wiring time if a resource has ever been produced by a pass, to error out early if accessing a resource that has not been produced. */
 	bool bHasBeenProduced = false;
+
+	/** Tracks whether this resource was clobbered by the builder prior to use. */
+	bool bHasBeenClobbered = false;
 
 	/** Tracks whether this resource is an externally imported resource. */
 	bool bIsExternal = false;

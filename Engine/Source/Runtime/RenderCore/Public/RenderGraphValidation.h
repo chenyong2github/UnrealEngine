@@ -56,8 +56,12 @@ public:
 	/** Validates a resource extraction operation. */
 	void ValidateExtractResource(FRDGParentResourceRef Resource);
 
-	/** Tracks and validates the addition of a new pass to the graph. */
-	void ValidateAddPass(const FRDGPass* Pass);
+	/** Tracks and validates the addition of a new pass to the graph.
+	 *  @param bSkipPassAccessMarking Skips marking the pass as a producer or incrementing the pass access. Useful when
+	 *      the builder needs to inject a pass for debugging while preserving error messages and warnings for the original
+	 *      graph structure.
+	 */
+	void ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking);
 
 	/** Validate pass state before and after execution. */
 	void ValidateExecutePassBegin(const FRDGPass* Pass);

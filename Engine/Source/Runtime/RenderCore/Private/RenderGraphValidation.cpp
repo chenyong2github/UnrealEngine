@@ -4,6 +4,11 @@
 
 #if RDG_ENABLE_DEBUG
 
+/** Validates that we are only executing a single render graph instance in the callstack. Used to catch if a
+ *  user creates a second FRDGBuilder instance inside of a pass that is executing.
+ */
+static bool GRDGInExecutePassScope = false;
+
 /** This utility class tracks read / write events on individual resources within a pass in order to ensure
  *  that sub-resources are not being simultaneously bound for read / write. The RHI currently only supports
  *  disjoint read-write access on a texture for mip-map generation purposes.
@@ -226,7 +231,6 @@ void FRDGUserValidation::ValidateExtractResource(FRDGParentResourceRef Resource)
 	 *  emitting a 'produced but never used' warning. We don't have the history of registered
 	 *  resources to be able to emit a proper warning.
 	 */
-
 	Resource->PassAccessCount++;
 }
 
@@ -234,10 +238,10 @@ void FRDGUserValidation::RemoveUnusedWarning(FRDGParentResourceRef Resource)
 {
 	check(Resource);
 
-    // Removes 'produced but not used' warning.
+	// Removes 'produced but not used' warning.
 	Resource->PassAccessCount++;
 
-    // Removes 'not used' warning.
+	// Removes 'not used' warning.
 	Resource->bIsActuallyUsedByPass = true;
 }
 
@@ -247,7 +251,7 @@ void FRDGUserValidation::ValidateAllocPassParameters(const void* Parameters)
 	AllocatedUnusedPassParameters.Add(Parameters);
 }
 
-void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
+void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass, bool bSkipPassAccessMarking)
 {
 	checkf(!bHasExecuted, TEXT("Render graph pass %s needs to be added before the builder execution."), Pass->GetName());
 
@@ -266,6 +270,23 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 
 		AllocatedUnusedPassParameters.Remove(ParameterStructData);
 	}
+
+	const auto MarkAsProduced = [Pass, bSkipPassAccessMarking] (FRDGParentResourceRef Resource)
+	{
+		if (!bSkipPassAccessMarking)
+		{
+			Resource->MarkAsProducedBy(Pass);
+			Resource->PassAccessCount++;
+		}
+	};
+
+	const auto MarkAsConsumed = [Pass, bSkipPassAccessMarking] (FRDGParentResourceRef Resource)
+	{
+		if (!bSkipPassAccessMarking)
+		{
+			Resource->PassAccessCount++;
+		}
+	};
 
 	const FRenderTargetBindingSlots* RenderTargetBindingSlots = nullptr;
 
@@ -315,7 +336,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
 					PassName, Texture->Name);
 
-				Texture->PassAccessCount++;
+				MarkAsConsumed(Texture);
 			}
 		}
 		break;
@@ -331,7 +352,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					TEXT("Pass %s has a dependency over the texture %s that has never been produced."),
 					PassName, Texture->Name);
 
-				Texture->PassAccessCount++;
+				MarkAsConsumed(Texture);
 			}
 		}
 		break;
@@ -343,8 +364,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 
 				PassResourceValidator.Write(Texture, UAV->Desc.MipLevel);
 
-				Texture->MarkAsProducedBy(Pass);
-				Texture->PassAccessCount++;
+				MarkAsProduced(Texture);
 			}
 		}
 		break;
@@ -358,7 +378,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
 					PassName, Buffer->Name);
 
-				Buffer->PassAccessCount++;
+				MarkAsConsumed(Buffer);
 			}
 		}
 		break;
@@ -374,7 +394,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					TEXT("Pass %s has a dependency over the buffer %s that has never been produced."),
 					PassName, SRV->Desc.Buffer->Name);
 
-				Buffer->PassAccessCount++;
+				MarkAsConsumed(Buffer);
 			}
 		}
 		break;
@@ -386,8 +406,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 
 				PassResourceValidator.Write(Buffer);
 
-				Buffer->MarkAsProducedBy(Pass);
-				Buffer->PassAccessCount++;
+				MarkAsProduced(Buffer);
 			}
 		}
 		break;
@@ -397,8 +416,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			{
 				PassResourceValidator.Write(Texture);
 
-				Texture->MarkAsProducedBy(Pass);
-				Texture->PassAccessCount++;
+				MarkAsProduced(Texture);
 			}
 		}
 		break;
@@ -408,8 +426,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			{
 				PassResourceValidator.Write(Buffer);
 
-				Buffer->MarkAsProducedBy(Pass);
-				Buffer->PassAccessCount++;
+				MarkAsProduced(Buffer);
 			}
 		}
 		break;
@@ -421,14 +438,10 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 			}
 			else if (IsRDGDebugEnabled())
 			{
-				EmitRDGWarningf(
-					TEXT("Pass %s have duplicated render target binding slots."),
-					PassName);
+				EmitRDGWarningf(TEXT("Pass %s have duplicated render target binding slots."), PassName);
 			}
 		}
 		break;
-		default:
-			break;
 		}
 	}
 
@@ -472,14 +485,13 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 				if (DepthStencil.GetDepthStencilAccess().IsAnyWrite())
 				{
 					PassResourceValidator.Write(Texture, MipLevel);
-					Texture->MarkAsProducedBy(Pass);
+					MarkAsProduced(Texture);
 				}
 				else
 				{
 					PassResourceValidator.Read(Texture, MipLevel);
+					MarkAsConsumed(Texture);
 				}
-
-				Texture->PassAccessCount++;
 			}
 		}
 
@@ -521,21 +533,11 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					 *  which are not actually managed by the render target pool and likely represent the frame buffer.
 					 */
 					{
+						// Ignore external textures which are always marked as produced. We don't need to enforce this warning on them.
+						const bool bHasBeenProduced = Texture->HasBeenProduced() && !Texture->IsExternal();
+
 						// We only validate single-mip textures since we don't track production at the subresource level.
-						const bool bFailedToLoadProducedContent = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
-
-						// Untracked render targets aren't actually managed by the render target pool.
-						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && !Texture->PooledRenderTarget->IsTracked();
-
-						ensureMsgf(!bFailedToLoadProducedContent || bIsUntrackedRenderTarget,
-							TEXT("Pass '%s' attempted to bind texture '%s' as a render target without the 'Load' action specified, despite a prior pass having produced it. It's invalid to completely clobber the contents of a resource. Create a new texture instance instead."),
-							PassName,
-							Texture->Name);
-					}
-
-					{
-						// We only validate single-mip textures since we don't track production at the subresource level.
-						const bool bFailedToLoadProducedContent = !bIsLoadAction && Texture->HasBeenProduced() && Texture->Desc.NumMips == 1;
+						const bool bFailedToLoadProducedContent = !bIsLoadAction && bHasBeenProduced && Texture->Desc.NumMips == 1;
 
 						// Untracked render targets aren't actually managed by the render target pool.
 						const bool bIsUntrackedRenderTarget = Texture->PooledRenderTarget && !Texture->PooledRenderTarget->IsTracked();
@@ -547,9 +549,7 @@ void FRDGUserValidation::ValidateAddPass(const FRDGPass* Pass)
 					}
 
 					/** Mark the pass as a producer for render targets with a store action. */
-					Texture->MarkAsProducedBy(Pass);
-
-					Texture->PassAccessCount++;
+					MarkAsProduced(Texture);
 				}
 				else
 				{
@@ -639,6 +639,10 @@ void FRDGUserValidation::ValidateExecuteEnd()
 
 void FRDGUserValidation::ValidateExecutePassBegin(const FRDGPass* Pass)
 {
+	checkf(!GRDGInExecutePassScope, TEXT("Render graph is being executed recursively. This usually means a separate FRDGBuilder instance was created inside of an executing pass."));
+
+	GRDGInExecutePassScope = true;
+
 	SetAllowRHIAccess(Pass, true);
 
 	if (IsRDGDebugEnabled())
@@ -754,6 +758,8 @@ void FRDGUserValidation::ValidateExecutePassEnd(const FRDGPass* Pass)
 			}
 		}
 	}
+
+	GRDGInExecutePassScope = false;
 }
 
 void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAccess)
@@ -766,19 +772,11 @@ void FRDGUserValidation::SetAllowRHIAccess(const FRDGPass* Pass, bool bAllowAcce
 	{
 		FRDGPassParameter Parameter = ParameterStruct.GetParameter(ParameterIndex);
 
-		if (Parameter.IsParentResource())
+		if (Parameter.IsResource())
 		{
-			if (FRDGParentResourceRef Resource = Parameter.GetAsParentResource())
+			if (FRDGResourceRef Resource = Parameter.GetAsResource())
 			{
 				Resource->bAllowRHIAccess = bAllowAccess;
-			}
-		}
-		else if (Parameter.IsChildResource())
-		{
-			if (FRDGChildResourceRef Resource = Parameter.GetAsChildResource())
-			{
-				Resource->bAllowRHIAccess = bAllowAccess;
-				Resource->GetParent()->bAllowRHIAccess = bAllowAccess;
 			}
 		}
 		else if (Parameter.IsRenderTargetBindingSlots())

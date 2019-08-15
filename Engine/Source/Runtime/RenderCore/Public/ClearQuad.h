@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "RHIDefinitions.h"
 #include "RenderResource.h"
-#include "RenderGraphBuilder.h"
 
 class FRHICommandList;
 struct FRWBufferStructured;
@@ -82,8 +81,3 @@ inline void DrawClearQuad(FRHICommandList& RHICmdList, const FLinearColor& Color
 {
 	DrawClearQuadMRT(RHICmdList, true, 1, &Color, false, 0, false, 0, ClearQuadCallbacks);
 }
-
-extern RENDERCORE_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGBufferUAVRef BufferUAV, uint32 Value);
-extern RENDERCORE_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const float(&ClearValues)[4]);
-extern RENDERCORE_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const uint32(&ClearValues)[4]);
-extern RENDERCORE_API void ClearUAV(FRDGBuilder& GraphBuilder, FRDGEventName&& PassName, FRDGTextureUAVRef TextureUAV, const FLinearColor& ClearColor);

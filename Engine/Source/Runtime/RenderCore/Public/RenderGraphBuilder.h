@@ -204,9 +204,13 @@ private:
 
 #if RDG_ENABLE_DEBUG
 	FRDGUserValidation Validation;
+
+	/** Tracks whether we are in a scope of adding passes to the builder. Used to avoid recursion. */
+	bool bInDebugPassScope = false;
 #endif
 
 	void VisualizePassOutputs(const FRDGPass* Pass);
+	void ClobberPassOutputs(const FRDGPass* Pass);
 
 	void WalkGraphDependencies();
 	

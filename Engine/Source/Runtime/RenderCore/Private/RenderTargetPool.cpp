@@ -7,10 +7,6 @@
 #include "RenderTargetPool.h"
 #include "RHIStaticStates.h"
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 0
-	#include "ClearQuad.h"
-#endif
-
 /** The global render targets pool. */
 TGlobalResource<FRenderTargetPool> GRenderTargetPool;
 
@@ -56,19 +52,6 @@ static FAutoConsoleCommand GRenderTargetPoolEventsCmd(
 	TEXT("To disable the view use the command without any parameter"),
 	FConsoleCommandWithArgsDelegate::CreateStatic(RenderTargetPoolEvents)
 	);
-
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-static TAutoConsoleVariable<int32> CVarClobberRenderTarget(
-	TEXT("r.Test.ClobberRenderRarget"),
-	0,
-	TEXT("Clears the texture returned by the rendertarget pool with a special color\n")
-	TEXT("so we can see better which passes would need to clear. Doesn't work on volume textures and non rendertargets yet.\n")
-	TEXT(" 0:off (default);\n")
-	TEXT(" 1: 1000 on RGBA channels;\n")
-	TEXT(" 2: NaN on RGBA channels;\n")
-	TEXT(" 3: +INFINITY on RGBA channels.\n"),
-	ECVF_Cheat | ECVF_RenderThreadSafe);
-#endif
 
 static TAutoConsoleVariable<int32> CVarAllowMultipleAliasingDiscardsPerFrame(
 	TEXT("r.RenderTargetPool.AllowMultipleAliasingDiscardsPerFrame"),
@@ -229,66 +212,6 @@ void FRenderTargetPool::WaitForTransitionFence()
 	DeferredDeleteArray.Reset();
 }
 
-#if 1 // TODO(RDG): Needs dependency on UtilityShaders to reimplement ClobberAllocatedRenderTarget functionality, or just move the clearing shaders in RenderCore?
-
-static void ClobberAllocatedRenderTarget(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& Desc, IPooledRenderTarget* Out)
-{
-
-}
-
-
-#elif !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-
-static void ClobberAllocatedRenderTarget(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& Desc, IPooledRenderTarget* Out)
-{
-	int32 ClearId = CVarClobberRenderTarget.GetValueOnRenderThread();
-
-	if (!ClearId)
-	{
-		return;
-	}
-	if (Desc.bIsCubemap || Desc.bIsArray)
-	{
-		return;
-	}
-
-	FLinearColor Color = FLinearColor(1000, 1000, 1000, 1000);
-
-	if (ClearId == 2)
-	{
-		Color = FLinearColor(NAN, NAN, NAN, NAN);
-	}
-	else if (ClearId == 3)
-	{
-		Color = FLinearColor(INFINITY, INFINITY, INFINITY, INFINITY);
-	}
-
-	// TODO(RDG): draw events will need to be rewritten with render graph builder instead of RHICmdList.
-	//SCOPED_DRAW_EVENT(RHICmdList, ClobberAllocatedRenderTarget);
-
-	if (Out->GetDesc().TargetableFlags & TexCreate_RenderTargetable)
-	{
-		// Needs conversion to Render Passes
-		check(0);
-		//SetRenderTarget(RHICmdList, Out->GetRenderTargetItem().TargetableTexture, FTextureRHIRef());
-		DrawClearQuad(RHICmdList, Color);
-	}
-	else if (Out->GetDesc().TargetableFlags & TexCreate_UAV)
-	{
-		ClearUAV(RHICmdList, Out->GetRenderTargetItem(), Color);
-	}
-
-	if (Desc.TargetableFlags & TexCreate_DepthStencilTargetable)
-	{
-		// Needs conversion to Render Passes
-		check(0);
-		//SetRenderTarget(RHICmdList, FTextureRHIRef(), Out->GetRenderTargetItem().TargetableTexture);
-		DrawClearQuad(RHICmdList, false, FLinearColor::Black, true, 0.0f, true, 0);
-	}
-}
-
-#endif
-
 bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPooledRenderTargetDesc& InputDesc, TRefCountPtr<IPooledRenderTarget> &Out, const TCHAR* InDebugName, bool bDoWritableBarrier, ERenderTargetTransience TransienceHint, bool bDeferTextureAllocation)
 {
 	check(IsInRenderingThread());
@@ -335,9 +258,6 @@ bool FRenderTargetPool::FindFreeElement(FRHICommandList& RHICmdList, const FPool
 				RHIBindDebugLabelName(Current->GetRenderTargetItem().TargetableTexture, InDebugName);
 			}
 			check(!Out->IsFree());
-			#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-				ClobberAllocatedRenderTarget(RHICmdList, Desc, Out);
-			#endif
 			return true;
 		}
 		else
@@ -591,10 +511,6 @@ Done:
 
 		Found->Desc.DebugName = InDebugName;
 	}
-
-	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		ClobberAllocatedRenderTarget(RHICmdList, Desc, Found);
-	#endif
 
 	check(Found->IsFree());
 	check(!Found->IsSnapshot());
