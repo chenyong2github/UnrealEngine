@@ -357,9 +357,11 @@ namespace WindowsMixedReality
 		bool GetDisplayDimensions(int& width, int& height);
 		const wchar_t* GetDisplayName();
 
+		void BlockUntilNextFrame();
+		void UpdateRenderThreadFrame();
+
 		// Get the latest pose information from our tracking frame.
-		bool UpdateCurrentFrame();
-		bool GetCurrentPose(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
+		bool GetCurrentPoseRenderThread(DirectX::XMMATRIX& leftView, DirectX::XMMATRIX& rightView, HMDTrackingOrigin& trackingOrigin);
 		bool QueryCoordinateSystem(ABI::Windows::Perception::Spatial::ISpatialCoordinateSystem *& pCoordinateSystem, HMDTrackingOrigin& trackingOrigin);
 		
 		DirectX::XMFLOAT4X4 GetProjectionMatrix(HMDEye eye);
