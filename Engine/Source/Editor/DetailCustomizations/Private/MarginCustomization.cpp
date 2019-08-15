@@ -84,6 +84,8 @@ TSharedRef<SEditableTextBox> FMarginStructCustomization::MakePropertyWidget()
 		.OnTextCommitted( this, &FMarginStructCustomization::OnMarginTextCommitted )
 		.Font( IDetailLayoutBuilder::GetDetailFont() )
 		.SelectAllTextWhenFocused( true )
+		.SelectAllTextOnCommit( true )
+		.ClearKeyboardFocusOnCommit( false )
 	;
 }
 
@@ -224,7 +226,7 @@ void FMarginStructCustomization::OnMarginTextCommitted( const FText& InText, ETe
 							}
 						}
 
-						StructPropertyHandle->NotifyPostChange();
+						StructPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
 					}
 				}
 
