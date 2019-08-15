@@ -107,8 +107,6 @@ namespace WindowsMixedReality
 			EStereoscopicPass StereoPass,
 			int32& X, int32& Y,
 			uint32& SizeX, uint32& SizeY) const override;
-		virtual void CalculateStereoViewOffset(const EStereoscopicPass StereoPassType, FRotator& ViewRotation,
-			const float MetersToWorld, FVector& ViewLocation) override;
 		virtual FMatrix GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const override;
 		virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 		virtual class IStereoLayers* GetStereoLayers() override;
@@ -185,6 +183,9 @@ namespace WindowsMixedReality
 		FQuat RotationR = FQuat::Identity;
 		FVector PositionL = FVector::ZeroVector;
 		FVector PositionR = FVector::ZeroVector;
+		FTransform LeftTransform = FTransform::Identity;
+		FTransform RightTransform = FTransform::Identity;
+		FTransform HeadTransform = FTransform::Identity;
 
 		float ipd = 0;
 
