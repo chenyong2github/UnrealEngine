@@ -43,7 +43,7 @@ UENUM()
 	IOS_9 = 9 UMETA(Hidden),
 
 	/** iOS 10 */
-	IOS_10 = 10 UMETA(DisplayName = "10.0"),
+	IOS_10 = 10 UMETA(Hidden),
 
 	/** iOS 11 */
 	IOS_11 = 11 UMETA(DisplayName = "11.0"),
