@@ -230,12 +230,13 @@ public:
 	 */
 	void FloodFill(int vSeed, TFunction<bool(int)> VertIncludedF = nullptr)
 	{
-		FloodFill({ vSeed }, VertIncludedF);
+		TArray<int> Seeds = { vSeed };
+		FloodFill(Seeds, VertIncludedF);
 	}
 	/**
 	 *  Grow selection outwards from seed vertex, until it hits boundaries defined by vertex filter.
 	 */
-	void FloodFill(TArray<int> Seeds, TFunction<bool(int)> VertIncludedF = nullptr)
+	void FloodFill(const TArray<int>& Seeds, TFunction<bool(int)> VertIncludedF = nullptr)
 	{
 		TDynamicVector<int> stack(Seeds);
 		for (int Seed : Seeds)
