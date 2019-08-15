@@ -304,6 +304,8 @@ bool					GIsDemoMode						= false;
 bool					GIsAutomationTesting					= false;
 /** Whether or not messages are being pumped outside of the main loop										*/
 bool					GPumpingMessagesOutsideOfMainLoop = false;
+/** Whether or not messages are being pumped */
+bool					GPumpingMessages = false;
 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 bool					GEnableVREditorHacks = false;
