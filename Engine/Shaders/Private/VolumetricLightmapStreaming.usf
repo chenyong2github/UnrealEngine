@@ -2,6 +2,8 @@
 	VolumetricLightmapStreaming.usf
 =============================================================================*/
 
+#include "/Engine/Public/Platform.ush"
+
 uint3 ComputeBrickLayoutPosition(int BrickLayoutAllocation, uint3 BrickLayoutDimensions)
 {
 	uint3 BrickPosition = uint3(
