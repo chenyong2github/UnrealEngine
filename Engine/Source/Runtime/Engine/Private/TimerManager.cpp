@@ -502,6 +502,10 @@ void FTimerManager::InternalSetTimer(FTimerHandle& InOutHandle, FTimerUnifiedDel
 
 		InOutHandle = NewTimerHandle;
 	}
+	else
+	{
+		InOutHandle.Invalidate();
+	}
 }
 
 FTimerHandle FTimerManager::InternalSetTimerForNextTick(FTimerUnifiedDelegate&& InDelegate)
