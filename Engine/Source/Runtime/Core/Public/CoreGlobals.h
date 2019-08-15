@@ -407,6 +407,9 @@ extern CORE_API bool GIsAutomationTesting;
 /** Whether or not messages are being pumped outside of main loop */
 extern CORE_API bool GPumpingMessagesOutsideOfMainLoop;
 
+/** Whether or not messages are being pumped */
+extern CORE_API bool GPumpingMessages;
+ 
 /** Enables various editor and HMD hacks that allow the experimental VR editor feature to work, perhaps at the expense of other systems */
 extern CORE_API bool GEnableVREditorHacks;
 
