@@ -1056,6 +1056,19 @@ void FLiveLinkClient::ReleaseLock_Deprecation()
 	CollectionAccessCriticalSection.Unlock();
 }
 
+void FLiveLinkClient::ClearFrames_Deprecation(const FLiveLinkSubjectKey& InSubjectKey)
+{
+	FScopeLock Lock(&CollectionAccessCriticalSection);
+
+	if (Collection)
+	{
+		if (FLiveLinkCollectionSubjectItem* SubjectItem = Collection->FindSubject(InSubjectKey))
+		{
+			SubjectItem->GetSubject()->ClearFrames();
+		}
+	}
+}
+
 FLiveLinkSkeletonStaticData* FLiveLinkClient::GetSubjectAnimationStaticData_Deprecation(const FLiveLinkSubjectKey& InSubjectKey)
 {
 	FScopeLock Lock(&CollectionAccessCriticalSection);
@@ -1132,6 +1145,9 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 			NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			if (NumberOfPropertyNames == 0 && InFrameData.CurveElements.Num() > 0)
 			{
+				UE_LOG(LogLiveLink, Warning, TEXT("Upgrade your code. Curve elements count has changed from the previous frame. That will clear the previous frames of that subject."));
+
+				ClearFrames_Deprecation(SubjectKey);
 				UpdateForAnimationStatic(AnimationStaticData->PropertyNames, InFrameData.CurveElements);
 				NumberOfPropertyNames = AnimationStaticData->PropertyNames.Num();
 			}
@@ -1152,6 +1168,10 @@ void FLiveLinkClient_Base_DEPRECATED::PushSubjectData(FGuid InSourceGuid, FName 
 	for (int32 i = 0; i < MaxNumberOfProperties; ++i)
 	{
 		NewData.PropertyValues[i] = InFrameData.CurveElements[i].CurveValue;
+	}
+	for (int32 i = MaxNumberOfProperties; i < NumberOfPropertyNames; ++i)
+	{
+		NewData.PropertyValues[i] = INFINITY;
 	}
 	PushSubjectFrameData_AnyThread(SubjectKey, MoveTemp(AnimationStruct));
 }
