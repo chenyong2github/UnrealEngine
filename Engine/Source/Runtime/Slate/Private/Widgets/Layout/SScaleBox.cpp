@@ -50,8 +50,6 @@ bool SScaleBox::CustomPrepass(float LayoutScaleMultiplier)
 
 	const bool bNeedsNormalizingPrepassOrLocalGeometry = DoesScaleRequireNormalizingPrepassOrLocalGeometry();
 
-	//bool bCanRenderThisFrame = true;
-
 	// If we need a normalizing prepass, or we've yet to give the child a chance to generate a desired
 	// size, do that now.
 	if (bNeedsNormalizingPrepassOrLocalGeometry || !LastAllocatedArea.IsSet())
@@ -203,54 +201,45 @@ void SScaleBox::OnArrangeChildren(const FGeometry& AllottedGeometry, FArrangedCh
 			SlotWidgetDesiredSize = AreaSize;
 		}
 
-		if (ComputedContentScale.IsSet())
+		// This scale may not look right, the item being 
+		// shown may need 2 frames to truly be drawn correctly,
+		// but rather than have a blank frame, it's better for us to try
+		// and fit the contents to our known geometry.
+		const float TempComputedContentScale = ComputedContentScale.IsSet() ? ComputedContentScale.GetValue() : ComputeContentScale(AllottedGeometry);
+
+		LastFinalOffset = FVector2D(0, 0);
+		float FinalScale = TempComputedContentScale;
+
+		// If we're just filling, there's no scale applied, we're just filling the area.
+		if (CurrentStretch != EStretch::Fill)
 		{
-			LastFinalOffset = FVector2D(0, 0);
-			float FinalScale = ComputedContentScale.GetValue();
+			const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
+			AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(AreaSize.X, ChildSlot, SlotPadding, FinalScale, false);
+			AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(AreaSize.Y, ChildSlot, SlotPadding, FinalScale, false);
 
-			// If we're just filling, there's no scale applied, we're just filling the area.
-			if (CurrentStretch != EStretch::Fill)
+			LastFinalOffset = FVector2D(XResult.Offset, YResult.Offset) / FinalScale;
+
+			// If the layout horizontally is fill, then we need the desired size to be the whole size of the widget, 
+			// but scale the inverse of the scale we're applying.
+			if (ChildSlot.HAlignment == HAlign_Fill)
 			{
-				const FMargin SlotPadding(ChildSlot.SlotPadding.Get());
-				AlignmentArrangeResult XResult = AlignChild<Orient_Horizontal>(AreaSize.X, ChildSlot, SlotPadding, FinalScale, false);
-				AlignmentArrangeResult YResult = AlignChild<Orient_Vertical>(AreaSize.Y, ChildSlot, SlotPadding, FinalScale, false);
-
-				LastFinalOffset = FVector2D(XResult.Offset, YResult.Offset) / FinalScale;
-
-				// If the layout horizontally is fill, then we need the desired size to be the whole size of the widget, 
-				// but scale the inverse of the scale we're applying.
-				if (ChildSlot.HAlignment == HAlign_Fill)
-				{
-					SlotWidgetDesiredSize.X = AreaSize.X / FinalScale;
-				}
-
-				// If the layout vertically is fill, then we need the desired size to be the whole size of the widget, 
-				// but scale the inverse of the scale we're applying.
-				if (ChildSlot.VAlignment == VAlign_Fill)
-				{
-					SlotWidgetDesiredSize.Y = AreaSize.Y / FinalScale;
-				}
+				SlotWidgetDesiredSize.X = AreaSize.X / FinalScale;
 			}
 
-			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
-				ChildSlot.GetWidget(),
-				LastFinalOffset,
-				SlotWidgetDesiredSize,
-				FinalScale
-			));
+			// If the layout vertically is fill, then we need the desired size to be the whole size of the widget, 
+			// but scale the inverse of the scale we're applying.
+			if (ChildSlot.VAlignment == VAlign_Fill)
+			{
+				SlotWidgetDesiredSize.Y = AreaSize.Y / FinalScale;
+			}
 		}
-		else if (GSlateIsOnFastUpdatePath)
-		{
-			// If we're unable to draw it at a scale yet, we need to process the draw request anyway
-			// since the object is visible, we can't just ignore the update for paint since we're
-			// on the fast path.
-			ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
-				ChildSlot.GetWidget(),
-				FVector2D(0, 0),
-				FVector2D(0, 0),
-				0
-			));
-		}
+
+		ArrangedChildren.AddWidget(ChildVisibility, AllottedGeometry.MakeChild(
+			ChildSlot.GetWidget(),
+			LastFinalOffset,
+			SlotWidgetDesiredSize,
+			FinalScale
+		));
 	}
 }
 
