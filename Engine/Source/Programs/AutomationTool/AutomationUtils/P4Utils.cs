@@ -3059,6 +3059,7 @@ namespace AutomationTool
 
 			string Output;
 			if(!LogP4Output(out Output, CommandLine, AllowSpew: false) || !Output.Contains("headRev"))
+
 			{
 				return false;
 			}
