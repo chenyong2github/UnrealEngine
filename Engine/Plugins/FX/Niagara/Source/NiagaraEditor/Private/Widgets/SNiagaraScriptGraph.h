@@ -82,6 +82,9 @@ private:
 	FReply HandleGraphSearchBoxKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent);
 
 private:
+	/** The combined commands used by the graph editor. */
+	TSharedPtr<FUICommandList> Commands;
+
 	/** An attribute for the title text of the graph. */
 	TAttribute<FText> GraphTitle;
 
