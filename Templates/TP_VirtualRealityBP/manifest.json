@@ -14,7 +14,7 @@
       "Text": "バーチャルリアリティ"
     },
     {
-      "Language": "zh-CN",
+      "Language": "zh-Hans",
       "Text": "虚拟现实应用"
     }
   ],
@@ -32,7 +32,7 @@
       "Text": "デスクトップ VR と Playstation VR 向け、ブループリントのバーチャルリアリティテンプレートです。テンプレートには二種類のテレポートロコモーションモードがあります。それぞれに ポーンとマップが用意されています。MotionControllerMap ではモーションコントローラーを使ったテレポートが可能です。HMDLocomotionMap ではゲームパッドを使ったテレポート、及び、ヘッドマウントディスプレイを使ったポイントアンドテレポートが可能です。"
     },
     {
-      "Language": "zh-CN",
+      "Language": "zh-Hans",
       "Text": "蓝图虚拟现实应用模板面向台式PC以及Playstation VR设备。模板包含2中传送移动模式，分别拥有独立的Pawn和地图。MotionControllerMap可以让玩家使用体感手柄四处传送，而HMDLocomotionMap可以让玩家使用游戏手柄或头显设备进行“指向-传送”式的传送。"
     }
   ],
