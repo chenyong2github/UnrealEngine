@@ -13,17 +13,18 @@
 #include "Widgets/SWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Navigation/SBreadcrumbTrail.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/SlateDelegates.h"
 
 /**
- * Delegate type for getting a page's enabled state.
+ * Delegate type for getting the next page to show.
  *
- * The first parameter is the page index.
+ * The parameter is the current page index.
+ * The return value should be the next page index.
  */
-DECLARE_DELEGATE_OneParam(FOnWizardPageIsEnabled, int32)
-
+DECLARE_DELEGATE_RetVal_OneParam(int32, FOnGetPageIndex, int32)
 
 /**
  * Implements a wizard widget.
@@ -48,6 +49,9 @@ public:
 
 			/** Holds the content of the button to be shown in the wizard's page selector. */
 			SLATE_NAMED_SLOT(FArguments, ButtonContent)
+			
+			/** Holds the name of the page to be displayed in the breadcrumb trail. */
+			SLATE_ATTRIBUTE(FText, Name)
 
 			/** Holds a flag indicating whether this page can be activated (default = true). */
 			SLATE_ATTRIBUTE(bool, CanShow)
@@ -76,6 +80,7 @@ public:
 			, OnEnterDelegate(InArgs._OnEnter)
 			, OnLeaveDelegate(InArgs._OnLeave)
 			, PageContent(InArgs._PageContent)
+			, Name(InArgs._Name)
 		{ }
 
 	public:
@@ -88,6 +93,12 @@ public:
 		bool CanShow() const
 		{
 			return Showable.Get();
+		}
+
+		/** Gets the display name of the page. */
+		FText GetName() const
+		{
+			return Name.Get();
 		}
 
 		/**
@@ -146,6 +157,9 @@ public:
 
 		// Holds the page content.
 		TAlwaysValidWidget PageContent;
+
+		// Holds the name of the page.
+		TAttribute<FText> Name;
 	};
 
 public:
@@ -163,10 +177,11 @@ public:
 		, _DesiredSize(FVector2D(0, 0))
 		, _ShowPageList(true)
 		, _ShowCancelButton(true)
+		, _ShowBreadcrumbs(false)
 		, _PageFooter()
 	{ }
 
-		SLATE_SUPPORTS_SLOT_WITH_ARGS(FWizardPage)
+	SLATE_SUPPORTS_SLOT_WITH_ARGS(FWizardPage)
 
 		/** The button style used by next and back. */
 		SLATE_STYLE_ARGUMENT(FButtonStyle, ButtonStyle)
@@ -213,11 +228,20 @@ public:
 		/** Exposes a delegate to be invoked when the wizard's 'Previous' button is clicked. */
 		SLATE_EVENT(FOnClicked, OnPrevClicked)
 
+		/** 
+		 * Exposes a delegate to be invoked when the wizard's 'Next' button is clicked.
+		 * Passes in the current page index and expects the next page index to be returned.
+		 */
+		SLATE_EVENT(FOnGetPageIndex, OnGetNextPageIndex)
+
 		/** Holds a flag indicating whether the page list should be shown (default = true). */
 		SLATE_ARGUMENT(bool, ShowPageList)
 
 		/** Holds a flag indicating whether the cancel button should be shown (default = true). */
 		SLATE_ARGUMENT(bool, ShowCancelButton)
+
+		/** Holds a flag indicating whether a breadcrumb trail should be shown (default = false) */
+		SLATE_ARGUMENT(bool, ShowBreadcrumbs)
 
 		/** Holds an optional widget containing the contents to place above the buttons for all wizard pages */
 		SLATE_NAMED_SLOT(FArguments, PageFooter)
@@ -249,12 +273,18 @@ public:
 	int32 GetNumPages() const;
 
 	/**
+	 * Get the index of the current page.
+	 * @return The index of the current page.
+	 */
+	int32 GetCurrentPageIndex() const;
+
+	/**
 	 * Gets the index of the specified wizard page widget.
 	 *
 	 * @param PageWidget The page widget to get the index for.
 	 * @return The index of the page, or INDEX_NONE if not found.
 	 */
-	int32 GetPageIndex( const TSharedRef<SWidget>& PageWidget ) const;
+	int32 GetPageIndex( const TSharedPtr<SWidget>& PageWidget ) const;
 
 	/**
 	 * Attempts to show the page with the specified index.
@@ -262,6 +292,9 @@ public:
 	 * @param PageIndex The index of the page to show.
 	 */
 	void ShowPage( int32 PageIndex );
+
+	/** Shows the page with the specified index, but preserves page history. */
+	void AdvanceToPage( int32 PageIndex );
 
 public:
 
@@ -318,6 +351,15 @@ private:
 	// Callback for getting the visibility of the 'Previous' button.
 	EVisibility HandlePrevButtonVisibility() const;
 
+	// Callback for when a breadcrumb is clicked.
+	void HandleBreadcrumbClicked(const int32& PageIndex);
+
+	// Get the next page index to display.
+	int32 GetNextPageIndex() const;
+
+	// Get the previous page index to display.
+	int32 GetPrevPageIndex() const;
+
 private:
 
 	// Holds the wizard's desired size.
@@ -328,6 +370,9 @@ private:
 
 	// Holds the widget switcher.
 	TSharedPtr<SWidgetSwitcher> WidgetSwitcher;
+
+	// Holds the breadcrumb trail.
+	TSharedPtr<SBreadcrumbTrail<int32>> BreadcrumbTrail;
 
 private:
 
@@ -345,4 +390,7 @@ private:
 
 	// Holds a delegate to be invoked when the 'Previous' button has been clicked on the first page.
 	FOnClicked OnFirstPageBackClicked;
+
+	// Exposes a delegate to be invoked when the wizard's 'Next' button is clicked to fetch the next page index.
+	FOnGetPageIndex OnGetNextPageIndex;
 };

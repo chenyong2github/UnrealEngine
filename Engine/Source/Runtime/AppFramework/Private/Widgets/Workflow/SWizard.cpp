@@ -10,7 +10,6 @@
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 
-
 #define LOCTEXT_NAMESPACE "SWizard"
 
 
@@ -40,6 +39,14 @@ void SWizard::Construct( const FArguments& InArgs )
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(BreadcrumbTrail, SBreadcrumbTrail<int32>)
+			.OnCrumbClicked(this, &SWizard::HandleBreadcrumbClicked)
+			.Visibility(InArgs._ShowBreadcrumbs ? EVisibility::Visible : EVisibility::Collapsed)
+		]
 
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0)
@@ -221,6 +228,8 @@ void SWizard::Construct( const FArguments& InArgs )
 		];
 	}
 
+	OnGetNextPageIndex = InArgs._OnGetNextPageIndex;
+
 	WidgetSwitcher->SetActiveWidgetIndex(INDEX_NONE);
 	ShowPage(InArgs._InitialPageIndex.Get());
 }
@@ -250,6 +259,7 @@ void SWizard::ShowPage( int32 PageIndex )
 	}
 	else
 	{
+		ensure(false);
 		WidgetSwitcher->SetActiveWidgetIndex(INDEX_NONE);
 	}
 }
@@ -287,31 +297,66 @@ FReply SWizard::HandleFinishButtonClicked()
 	return FReply::Handled();
 }
 
+int32 SWizard::GetNextPageIndex() const
+{
+	int32 ActivePage = WidgetSwitcher->GetActiveWidgetIndex();
+	int32 NextPage = ActivePage + 1;
+
+	if (OnGetNextPageIndex.IsBound())
+	{
+		NextPage = OnGetNextPageIndex.Execute(ActivePage);
+	}
+
+	return NextPage;
+}
+
+int32 SWizard::GetPrevPageIndex() const
+{
+	TArray<int32> PageHistory;
+	BreadcrumbTrail->GetAllCrumbData(PageHistory);
+
+	if (PageHistory.Num() < 1)
+	{
+		return INDEX_NONE;
+	}
+
+	return PageHistory[PageHistory.Num() - 1];
+}
+
+void SWizard::AdvanceToPage(int32 PageIndex)
+{
+	int32 CurrentPage = GetCurrentPageIndex();
+	if (CurrentPage != INDEX_NONE)
+	{
+		BreadcrumbTrail->PushCrumb(Pages[CurrentPage].GetName(), CurrentPage);
+	}
+	ShowPage(PageIndex);
+}
 
 FReply SWizard::HandleNextButtonClicked()
 {
-	ShowPage(WidgetSwitcher->GetActiveWidgetIndex() + 1);
+	int32 NextPage = GetNextPageIndex();
+	AdvanceToPage(NextPage);
 
 	return FReply::Handled();
 }
 
-
 bool SWizard::HandleNextButtonIsEnabled() const
 {
-	return CanShowPage(WidgetSwitcher->GetActiveWidgetIndex() + 1);
+	int32 NextPage = GetNextPageIndex();
+	return CanShowPage(NextPage);
 }
-
 
 EVisibility SWizard::HandleNextButtonVisibility() const
 {
-	if (Pages.IsValidIndex(WidgetSwitcher->GetActiveWidgetIndex() + 1))
+	int32 NextPage = GetNextPageIndex();
+	if (Pages.IsValidIndex(NextPage))
 	{
 		return EVisibility::Visible;
 	}
 
 	return EVisibility::Hidden;
 }
-
 
 void SWizard::HandlePageButtonCheckStateChanged( ECheckBoxState NewState, int32 PageIndex )
 {
@@ -320,7 +365,6 @@ void SWizard::HandlePageButtonCheckStateChanged( ECheckBoxState NewState, int32 
 		ShowPage(PageIndex);
 	}
 }
-
 
 ECheckBoxState SWizard::HandlePageButtonIsChecked( int32 PageIndex ) const
 {
@@ -332,12 +376,10 @@ ECheckBoxState SWizard::HandlePageButtonIsChecked( int32 PageIndex ) const
 	return ECheckBoxState::Unchecked;
 }
 
-
 bool SWizard::HandlePageButtonIsEnabled( int32 PageIndex ) const
 {
 	return CanShowPage(PageIndex);
 }
-
 
 FReply SWizard::HandlePrevButtonClicked()
 {
@@ -347,12 +389,13 @@ FReply SWizard::HandlePrevButtonClicked()
 	}
 	else
 	{
-		ShowPage(WidgetSwitcher->GetActiveWidgetIndex() - 1);
+		int32 PrevPage = GetPrevPageIndex();
+		ShowPage(PrevPage);
+		BreadcrumbTrail->PopCrumb();
 	}
 
 	return FReply::Handled();
 }
-
 
 bool SWizard::HandlePrevButtonIsEnabled() const
 {
@@ -361,13 +404,14 @@ bool SWizard::HandlePrevButtonIsEnabled() const
 		return true;
 	}
 
-	return CanShowPage(WidgetSwitcher->GetActiveWidgetIndex() - 1);
+	int32 PrevPage = GetPrevPageIndex();
+	return CanShowPage(PrevPage);
 }
-
 
 EVisibility SWizard::HandlePrevButtonVisibility() const
 {
-	if (WidgetSwitcher->GetActiveWidgetIndex() > 0 || OnFirstPageBackClicked.IsBound())
+	int32 PrevPage = GetPrevPageIndex();
+	if (PrevPage != INDEX_NONE || OnFirstPageBackClicked.IsBound())
 	{
 		return EVisibility::Visible;
 	}
@@ -380,10 +424,32 @@ int32 SWizard::GetNumPages() const
 	return WidgetSwitcher->GetNumWidgets();
 }
 
-int32 SWizard::GetPageIndex(const TSharedRef<SWidget>& PageWidget) const
+int32 SWizard::GetCurrentPageIndex() const
 {
-	return WidgetSwitcher->GetWidgetIndex(PageWidget);
+	return WidgetSwitcher->GetActiveWidgetIndex();
 }
 
+int32 SWizard::GetPageIndex(const TSharedPtr<SWidget>& PageWidget) const
+{
+	if (!PageWidget.IsValid())
+	{
+		return INDEX_NONE;
+	}
+
+	return WidgetSwitcher->GetWidgetIndex(PageWidget.ToSharedRef());
+}
+
+void SWizard::HandleBreadcrumbClicked(const int32& PageIndex)
+{
+	int32 CurrentCrumb = BreadcrumbTrail->PeekCrumb();
+	while (CurrentCrumb != PageIndex)
+	{
+		BreadcrumbTrail->PopCrumb();
+		CurrentCrumb = BreadcrumbTrail->PeekCrumb();
+	}
+
+	BreadcrumbTrail->PopCrumb();
+	ShowPage(PageIndex);
+}
 
 #undef LOCTEXT_NAMESPACE
