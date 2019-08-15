@@ -234,15 +234,18 @@ protected:
 
 
 
-
+	// applies a smoothing pass to the mesh, storing intermediate positions in a buffer and then writing them at the end (so, no order effect)
 	virtual void FullSmoothPass_Buffer(bool bParallel);
 
-	/** computes smoothed vertex position w/ proper constraints/etc. Does not modify mesh. */
+	// computes smoothed vertex position w/ proper constraints/etc. Does not modify mesh. 
 	virtual FVector3d ComputeSmoothedVertexPos(int VertexID,
 		TFunction<FVector3d(const FDynamicMesh3 &, int, double)> SmoothFunc, bool& bModified);
 
+	// FullSmoothPass_Buffer this to calls VertexSmoothFunc for each vertex of the mesh
 	virtual void ApplyToSmoothVertices(const TFunction<void(int)>& VertexSmoothFunc);
 
+	// returns the function we want to use to compute a smoothed vertex position - will be CustomSmoothF if set, otherwise one of cotan/meanvalue/uniform
+	virtual TFunction<FVector3d(const FDynamicMesh3&, int, double)> GetSmoothFunction();
 
 
 
