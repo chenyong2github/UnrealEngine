@@ -208,4 +208,7 @@ private:
 
 	/** Utility member to know if the context menu was opened on the asset view or the path view */
 	EOpenedContextMenuWidget OpenedContextMenuWidget;
+
+	/** Callback for refreshing content */
+	FOnPathSelected OnPathSelected;
 };
