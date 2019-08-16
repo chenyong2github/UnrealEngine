@@ -65,6 +65,7 @@ public:
 		, Flags(TexCreate_None)
 		, TargetableFlags(TexCreate_None)
 		, bForceSeparateTargetAndShaderResource(false)
+		, bForceSharedTargetAndShaderResource(false)
 		, DebugName(TEXT("UnknownTexture"))
 		, AutoWritable(true)
 		, bCreateRenderTargetWriteMask(false)
@@ -209,6 +210,7 @@ public:
 			&& LhsFlags == RhsFlags
 			&& TargetableFlags == rhs.TargetableFlags
 			&& bForceSeparateTargetAndShaderResource == rhs.bForceSeparateTargetAndShaderResource
+			&& bForceSharedTargetAndShaderResource == rhs.bForceSharedTargetAndShaderResource
 			&& ClearValue == rhs.ClearValue
 			&& AutoWritable == rhs.AutoWritable;
 	}
@@ -330,6 +332,7 @@ public:
 		NumSamples = 1;
 
 		bForceSeparateTargetAndShaderResource = false;
+		bForceSharedTargetAndShaderResource = false;
 		AutoWritable = true;
 
 		// Remove UAV flag for rendertargets that don't need it (some formats are incompatible)
@@ -363,6 +366,8 @@ public:
 	uint32 TargetableFlags;
 	/** Whether the shader-resource and targetable texture must be separate textures. */
 	bool bForceSeparateTargetAndShaderResource;
+	/** Whether the shader-resource and targetable texture must be the same resource. */
+	bool bForceSharedTargetAndShaderResource;
 	/** only set a pointer to memory that never gets released */
 	const TCHAR* DebugName;
 	/** automatically set to writable via barrier during */
