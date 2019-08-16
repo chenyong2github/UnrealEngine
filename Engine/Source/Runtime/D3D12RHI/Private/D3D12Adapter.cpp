@@ -8,7 +8,7 @@ D3D12Adapter.cpp:D3D12 Adapter implementation.
 
 static TAutoConsoleVariable<int32> CVarTransientUniformBufferAllocatorSizeKB(
 	TEXT("D3D12.TransientUniformBufferAllocatorSizeKB"),
-	2 * 1024,
+	10 * 1024,
 	TEXT(""),
 	ECVF_ReadOnly
 );
