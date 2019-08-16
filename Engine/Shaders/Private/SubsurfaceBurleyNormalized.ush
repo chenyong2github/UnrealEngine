@@ -357,17 +357,12 @@ bool IsIDInsideLocalShared(float2 GroupThreadId)
 #ifndef TEXTURE_CACHE_DISABLED
 float4 SampleSharedDiffuse(float2 SampleGroupThreadId)
 {
-#if NONSUBSURFACE_SAMPLE_STRATEGY == 0
-#define SAMPLDE_POINT
-#elif NONSUBSURFACE_SAMPLE_STRATEGY == 1
-#define SAMPLE_BILINEAR
-#endif
 
-#ifdef SAMPLDE_POINT
+#if SUBSURFACE_SAMPLER_TYPE == 0
 	// We use point sampling by now
 	int2 Id = SampleGroupThreadId + THREAD_TEXTURE_BOARDER;
 	return SharedSubsurfaceDiffuseLighting[Id.x + Id.y*LARGE_GROUP_TEXTURE_DIMENSION_SIZE];
-#elif defined(SAMPLE_BILINEAR)
+#elif SUBSURFACE_SAMPLER_TYPE == 1
 
 	//ref: https://en.wikipedia.org/wiki/Bilinear_interpolation
 	int2 Id00 = floor(SampleGroupThreadId) + THREAD_TEXTURE_BOARDER;
@@ -389,11 +384,12 @@ float4 SampleSharedDiffuse(float2 SampleGroupThreadId)
 
 float4 SampleSSSColorConsideringLocalShared(float2 CenterUV, float2 UVOffset, uint2 CenterGroupThreadID, float MipLevel)
 {
-
+	float2 ClampedUV = clamp(CenterUV+ UVOffset, SubsurfaceInput0_UVViewportBilinearMin, SubsurfaceInput0_UVViewportBilinearMax);
 #ifdef SUBSURFACE_BURLEY_COMPUTE
 
-#ifdef TEXTURE_CACHE_DISABLED 
-	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+#ifdef TEXTURE_CACHE_DISABLED
+	
+	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, ClampedUV, MipLevel);
 #else
 	float2 SampleGroupThreadId = ConvertUVOffset2GTIDOffsetForInput0(UVOffset) + CenterGroupThreadID; // Subtract 0.5 is to make sampling match. (0,0), samples at 1/w*0.5;
 	bool bUseLocalShared = MipLevel == 0 && IsIDInsideLocalShared(SampleGroupThreadId);// We will have artifacts if we do not limit the miplevel
@@ -405,12 +401,12 @@ float4 SampleSSSColorConsideringLocalShared(float2 CenterUV, float2 UVOffset, ui
 		}
 		else
 		{
-			return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+			return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, ClampedUV, MipLevel);
 		}
 #endif
 
 #else
-	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, CenterUV + UVOffset, MipLevel);
+	return Texture2DSampleLevel(SubsurfaceInput0_Texture, SubsurfaceSampler0, ClampedUV, MipLevel);
 #endif
 }
 
@@ -549,14 +545,6 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 			float3 TintColor = (LocalProfileInt == SubsurfaceProfileInt) ? 1.0f : BoundaryColorBleed;
 			Mask = UseSubsurfaceProfile(GetScreenSpaceDataFromCache(SampledDiscUV).GBuffer.ShadingModelID) ? 1 : 0;
 
-			// 1 considers the non subsurface neighbor (0,0,0) to add shadow.
-#if NONSUBSURFACE_SAMPLE_STRATEGY == 1
-			// The bilinear filtering in Separable looks better. So I added this to simulate the look
-			// With out this, the hair does not have shadow at the edge. 2 is an experimental value
-			RadiusSampled = (Mask == 0) ? BurleySampleInfo.Radius * 2 : RadiusSampled;
-			Mask = 1;
-#endif
-
 			// Step 4: accumulate radiance from the diffusion profile rR(r)
 			// make sure the DiffuseMeanFreePath is not zero and in m.
 			float3 DiffusionProfile = GetDiffuseReflectProfileWithDiffuseMeanFreePath(BurleyParameter.SurfaceAlbedo.xyz, BurleyParameter.DiffuseMeanFreePath.xyz, S3D.xyz, RadiusSampled);
@@ -571,7 +559,7 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 		}
 
 	}
-
+	 
 	// 0.99995f is a compensitation to make it energe conservation.
 	const float EnergyNormalization = 1.0f / 0.99995f;
 

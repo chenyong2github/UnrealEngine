@@ -518,18 +518,10 @@ public:
 		MAX
 	};
 
-	// Need this to make hair denser in Burley to simulate the bilinear effect in Separable.
-	// In bilinear setting, Separable samples horizontally and vertically sequentially on the same texture
-	// This will blur the edge between non-subsurface scattering and subsurface scattering. For hair region
-	// there are many small edges interleaving. Thus Bilinear makes the hair dense with small amount of hairs.
-	// Since Burley only samples in one pass, it yields the correct result but the hair looks less dense.
-	// So, for better appearance quality with less hair, we need to consider the non-subsurface samples, which
-	// is set dark in setup pass, in the weighting function. To achieve a denser look when bilinear is enabled,
-	// we consider the non-subsurface dark samples.
-	enum class ENonSubsurfaceSampleStrategy : uint32
+	enum class ESubsurfaceSamplerType : uint32
 	{
-		Ignore,
-		Considered,
+		PointSampler,
+		NonPointSampler,	//bilinear on LDS or trilinear on texture. 
 		MAX
 	};
 
@@ -542,11 +534,11 @@ public:
 
 	class FSubsurfacePassFunction : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_PASS", ESubsurfacePass);
 	class FDimensionQuality : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_QUALITY", EQuality);
-	class FNonSubsurfaceSamplerStrategy : SHADER_PERMUTATION_ENUM_CLASS("NONSUBSURFACE_SAMPLE_STRATEGY", ENonSubsurfaceSampleStrategy);
+	class FSubsurfaceSamplerType : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_SAMPLER_TYPE", ESubsurfaceSamplerType);
 	class FSubsurfaceType : SHADER_PERMUTATION_ENUM_CLASS("SUBSURFACE_TYPE", ESubsurfaceType);
 	class FDimensionHalfRes : SHADER_PERMUTATION_BOOL("SUBSURFACE_HALF_RES");
 	using FPermutationDomain = TShaderPermutationDomain<FSubsurfacePassFunction, FDimensionQuality,
-		FNonSubsurfaceSamplerStrategy, FSubsurfaceType, FDimensionHalfRes>;
+		FSubsurfaceSamplerType, FSubsurfaceType, FDimensionHalfRes>;
 
 	// Returns the sampler state based on the requested SSS filter CVar setting.
 	static FRHISamplerState* GetSamplerState()
@@ -571,15 +563,15 @@ public:
 				static_cast<int32>(FSubsurfaceIndirectDispatchCS::EQuality::High)));
 	}
 
-	static ENonSubsurfaceSampleStrategy GetStrategy()
+	static ESubsurfaceSamplerType GetSamplerType()
 	{
 		if (GetSSSFilter())
 		{
-			return ENonSubsurfaceSampleStrategy::Considered;
+			return ESubsurfaceSamplerType::NonPointSampler;
 		}
 		else
 		{
-			return ENonSubsurfaceSampleStrategy::Ignore;
+			return ESubsurfaceSamplerType::PointSampler;
 		}
 	}
 };
@@ -775,6 +767,14 @@ void ComputeSubsurfaceForView(
 	const FIntPoint TileDimension = FIntPoint::DivideAndRoundUp(SubsurfaceViewport.Extent, SUBSURFACE_GROUP_SIZE);
 	const int32 MaxGroupCount = TileDimension.X*TileDimension.Y;
 
+	const FRDGTextureDesc SceneTextureDescriptor = FRDGTextureDesc::Create2DDesc(
+		SceneViewport.Extent,
+		PF_FloatRGBA,
+		FClearValueBinding(),
+		TexCreate_None,
+		TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV,
+		false);
+
 	const FRDGTextureDesc SubsurfaceTextureDescriptor = FRDGTextureDesc::Create2DDesc(
 		SubsurfaceViewport.Extent,
 		PF_FloatRGBA,
@@ -808,7 +808,7 @@ void ComputeSubsurfaceForView(
 	TRefCountPtr<IPooledRenderTarget>* QualityHistoryState = ViewState ? &ViewState->SubsurfaceScatteringQualityHistoryRT : NULL;
 
 	//allocate/reallocate the quality history texture. 
-	FRDGTextureRef QualityHistoryTexture = RegisterExternalRenderTarget(GraphBuilder, QualityHistoryState, SubsurfaceTextureDescriptor.Extent, TEXT("QualityHistoryTexture"));
+	FRDGTextureRef QualityHistoryTexture = RegisterExternalRenderTarget(GraphBuilder, QualityHistoryState, SceneTextureDescriptor.Extent, TEXT("QualityHistoryTexture"));
 	FRDGTextureRef NewQualityHistoryTexture = nullptr;
 
 	//-----------------------------------------------------------------------------------------------------------------------------------
@@ -996,7 +996,7 @@ void ComputeSubsurfaceForView(
 				SHADER::FPermutationDomain ComputeShaderPermutationVector;
 				ComputeShaderPermutationVector.Set<SHADER::FSubsurfacePassFunction>(SubsurfacePassFunction);
 				ComputeShaderPermutationVector.Set<SHADER::FDimensionQuality>(SHADER::GetQuality());
-				ComputeShaderPermutationVector.Set<SHADER::FNonSubsurfaceSamplerStrategy>(SHADER::GetStrategy());
+				ComputeShaderPermutationVector.Set<SHADER::FSubsurfaceSamplerType>(SHADER::GetSamplerType());
 				ComputeShaderPermutationVector.Set<SHADER::FSubsurfaceType>(SubsurfaceType);
 				ComputeShaderPermutationVector.Set<SHADER::FDimensionHalfRes>(bHalfRes);
 				TShaderMapRef<SHADER> ComputeShader(View.ShaderMap, ComputeShaderPermutationVector);
@@ -1004,10 +1004,6 @@ void ComputeSubsurfaceForView(
 				FComputeShaderUtils::AddPass(GraphBuilder, FRDGEventName(PassInfo.Name), *ComputeShader, PassParameters, SubsurfaceBufferArgs[SubsurfaceTypeIndex], 0);
 			}
 		}
-
-		// Replace the history
-		if (QualityHistoryState)
-			GraphBuilder.QueueTextureExtraction(NewQualityHistoryTexture, QualityHistoryState, true);
 	}
 
 	// Recombines scattering result with scene color.
@@ -1038,6 +1034,11 @@ void ComputeSubsurfaceForView(
 	 * texture viewport in order to ensure that the correct pixel is sampled for checkerboard rendering.
 	 */
 	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("SubsurfaceRecombine"), ScreenPassView, SceneViewport, SceneViewport, *PixelShader, PassParameters);
+	}
+
+	if (SubsurfaceMode != ESubsurfaceMode::Bypass && QualityHistoryState)
+	{
+		GraphBuilder.QueueTextureExtraction(NewQualityHistoryTexture, QualityHistoryState, true);
 	}
 }
 
