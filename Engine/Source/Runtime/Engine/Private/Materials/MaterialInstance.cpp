@@ -929,18 +929,19 @@ bool UMaterialInstance::GetRefractionSettings(float& OutBiasValue) const
 
 void UMaterialInstance::GetTextureExpressionValues(const FMaterialResource* MaterialResource, TArray<UTexture*>& OutTextures, TArray< TArray<int32> >* OutIndices) const
 {
-	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4];
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5];
 
 	check(MaterialResource);
 
 	ExpressionsByType[0] = &MaterialResource->GetUniform2DTextureExpressions();
 	ExpressionsByType[1] = &MaterialResource->GetUniformCubeTextureExpressions();
-	ExpressionsByType[2] = &MaterialResource->GetUniformVolumeTextureExpressions();
-	ExpressionsByType[3] = &MaterialResource->GetUniformVirtualTextureExpressions();
+	ExpressionsByType[2] = &MaterialResource->GetUniform2DArrayTextureExpressions();
+	ExpressionsByType[3] = &MaterialResource->GetUniformVolumeTextureExpressions();
+	ExpressionsByType[4] = &MaterialResource->GetUniformVirtualTextureExpressions();
 
 	if (OutIndices) // Try to prevent resizing since this would be expensive.
 	{
-		OutIndices->Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num());
+		OutIndices->Empty(ExpressionsByType[0]->Num() + ExpressionsByType[1]->Num() + ExpressionsByType[2]->Num() + ExpressionsByType[3]->Num() + ExpressionsByType[4]->Num());
 	}
 
 	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
@@ -1164,6 +1165,7 @@ void UMaterialInstance::ValidateTextureOverrides(ERHIFeatureLevel::Type InFeatur
 	{
 		&CurrentResource->GetUniform2DTextureExpressions(),
 		&CurrentResource->GetUniformCubeTextureExpressions(),
+		&CurrentResource->GetUniform2DArrayTextureExpressions(),
 		&CurrentResource->GetUniformVolumeTextureExpressions(),
 		&CurrentResource->GetUniformVirtualTextureExpressions(),
 	};
@@ -1272,7 +1274,7 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 #if WITH_EDITOR
 	bool bShouldRecacheMaterialExpressions = false;
 	
-	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[4];
+	const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >* ExpressionsByType[5];
 
 	const FMaterialResource* SourceMaterialResource = NULL;
 	if (bHasStaticPermutationResource)
@@ -1281,8 +1283,9 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		// Iterate over both the 2D textures and cube texture expressions.
 		ExpressionsByType[0] = &SourceMaterialResource->GetUniform2DTextureExpressions();
 		ExpressionsByType[1] = &SourceMaterialResource->GetUniformCubeTextureExpressions();
-		ExpressionsByType[2] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
-		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
+		ExpressionsByType[2] = &SourceMaterialResource->GetUniform2DArrayTextureExpressions();
+		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
+		ExpressionsByType[4] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
 	}
 	else
 	{
@@ -1293,8 +1296,9 @@ void UMaterialInstance::OverrideTexture(const UTexture* InTextureToOverride, UTe
 		// Iterate over both the 2D textures and cube texture expressions.
 		ExpressionsByType[0] = &SourceMaterialResource->GetUniform2DTextureExpressions();
 		ExpressionsByType[1] = &SourceMaterialResource->GetUniformCubeTextureExpressions();
-		ExpressionsByType[2] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
-		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
+		ExpressionsByType[2] = &SourceMaterialResource->GetUniform2DArrayTextureExpressions();
+		ExpressionsByType[3] = &SourceMaterialResource->GetUniformVolumeTextureExpressions();
+		ExpressionsByType[4] = &SourceMaterialResource->GetUniformVirtualTextureExpressions();
 	}
 		
 	for(int32 TypeIndex = 0;TypeIndex < ARRAY_COUNT(ExpressionsByType);TypeIndex++)
@@ -4557,10 +4561,11 @@ void UMaterialInstance::CopyMaterialUniformParametersInternal(UMaterialInterface
 					}
 
 					// Textures
-					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[4] =
+					const TArray<TRefCountPtr<FMaterialUniformExpressionTexture>>* TextureExpressions[5] =
 					{
 						&MaterialResource->GetUniform2DTextureExpressions(),
 						&MaterialResource->GetUniformCubeTextureExpressions(),
+						&MaterialResource->GetUniform2DArrayTextureExpressions(),
 						&MaterialResource->GetUniformVolumeTextureExpressions(),
 						&MaterialResource->GetUniformVirtualTextureExpressions()
 					};

@@ -160,6 +160,7 @@
 #include "Sound/SoundCue.h"
 #include "Sound/SoundMix.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
@@ -2955,6 +2956,12 @@ UTextureCube* UTextureFactory::CreateTextureCube( UObject* InParent, FName Name,
 	return NewObject ? CastChecked<UTextureCube>(NewObject) : nullptr;
 }
 
+UTexture2DArray* UTextureFactory::CreateTexture2DArray(UObject* InParent, FName Name, EObjectFlags Flags) 
+{
+	UObject* NewObject = CreateOrOverwriteAsset(UTexture2DArray::StaticClass(), InParent, Name, Flags);
+	return NewObject ? CastChecked<UTexture2DArray>(NewObject) : nullptr;
+}
+
 void UTextureFactory::SuppressImportOverwriteDialog()
 {
 	bSuppressImportOverwriteDialog = true;
@@ -3798,9 +3805,9 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 		if ( TextureCube )
 		{
 			TextureCube->Source.Init(
-				DDSLoadHelper.DDSHeader->dwWidth, 
-				DDSLoadHelper.DDSHeader->dwHeight,
-				/*NumSlices=*/ 6,
+				DDSLoadHelper.GetSizeX(),
+				DDSLoadHelper.GetSizeY(),
+				DDSLoadHelper.GetSliceCount(),
 				NumMips,
 				Format
 				);
@@ -3839,6 +3846,73 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 		return TextureCube;
 	}
 	
+	// DDS Texture array.
+	if (DDSLoadHelper.IsValidArrayTexture())
+	{
+		if (!IsImportResolutionValid(DDSLoadHelper.DDSHeader->dwWidth, DDSLoadHelper.DDSHeader->dwHeight, bAllowNonPowerOfTwo, Warn))
+		{
+			Warn->Logf(ELogVerbosity::Error, TEXT("DDS uses an unsupported format"));
+			return nullptr;
+		}
+
+		int32 NumMips = DDSLoadHelper.ComputeMipMapCount();
+		ETextureSourceFormat Format = DDSLoadHelper.ComputeSourceFormat();
+		if (Format == TSF_Invalid)
+		{
+			Warn->Logf(ELogVerbosity::Error, TEXT("DDS file contains data in an unsupported format."));
+			return nullptr;
+		}
+
+		// Create the array texture
+		UTexture2DArray* TextureArray = CreateTexture2DArray(InParent, Name, Flags);
+
+		if (TextureArray)
+		{
+			TextureArray->Source.Init(
+				DDSLoadHelper.GetSizeX(),
+				DDSLoadHelper.GetSizeY(),
+				DDSLoadHelper.GetSliceCount(),
+				NumMips,
+				Format
+			);
+			if (Format == TSF_RGBA16F)
+			{
+				TextureArray->CompressionSettings = TC_HDR;
+			}
+
+			uint8* DestMipData[MAX_TEXTURE_MIP_COUNT] = { 0 };
+			int32 MipSize[MAX_TEXTURE_MIP_COUNT] = { 0 };
+			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+			{
+				DestMipData[MipIndex] = TextureArray->Source.LockMip(MipIndex);
+				MipSize[MipIndex] = TextureArray->Source.CalcMipSize(MipIndex) / DDSLoadHelper.GetSliceCount();
+			}
+
+			for (uint32 SliceIndex = 0; SliceIndex < DDSLoadHelper.GetSliceCount(); ++SliceIndex)
+			{
+				const uint8* SrcMipData = DDSLoadHelper.GetDDSDataPointer((ECubeFace)SliceIndex);
+				for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+				{
+					FMemory::Memcpy(DestMipData[MipIndex] + MipSize[MipIndex] * SliceIndex, SrcMipData, MipSize[MipIndex]);
+					SrcMipData += MipSize[MipIndex];
+				}
+			}
+
+			for (int32 MipIndex = 0; MipIndex < NumMips; ++MipIndex)
+			{
+				TextureArray->Source.UnlockMip(MipIndex);
+			}
+
+			if (NumMips > 1)
+			{
+				// If the source has mips we keep the mips by default, unless the user changes that
+				MipGenSettings = TMGS_LeaveExistingMips;
+			}
+		}
+
+		return TextureArray;
+	}
+
 	//
 	// HDR File
 	//
@@ -4328,6 +4402,28 @@ UObject* UTextureFactory::FactoryCreateBinary
 			}
 		}
 	}
+
+	// Invalidate any Texture2DArrays that use the updated texture.
+	if (Texture2D) 
+	{
+		for (TObjectIterator<UTexture2DArray> It; It; ++It) 
+		{
+			UTexture2DArray* TextureArray = *It;
+			if (TextureArray) 
+			{
+				for (int32 SourceIndex = 0; SourceIndex < TextureArray->SourceTextures.Num(); ++SourceIndex) 
+				{
+					if (TextureArray->SourceTextures[SourceIndex] == Texture2D) 
+					{
+						// Update the entire texture array.
+						TextureArray->UpdateSourceFromSourceTextures(false);
+						break;
+					}
+				}
+			}
+		}
+	}
+
 
 	// If we are automatically creating a material for this texture...
 	if( bCreateMaterial )

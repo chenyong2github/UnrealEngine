@@ -5399,6 +5399,7 @@ void ListMapPackageDependencies(const TCHAR* InStr)
 	{
 		FName CheckTexture2DName(TEXT("Texture2D"));
 		FName CheckCubeTextureName(TEXT("TextureCube"));
+		FName CheckTexture2DArrayName(TEXT("Texture2DArray"));
 		FName CheckLightmap2DName(TEXT("Lightmap2D"));
 		FName CheckShadowmap2DName(TEXT("Shadowmap2D"));
 		

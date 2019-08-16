@@ -34,7 +34,7 @@
 #include "Streaming/Texture2DStreamIn_IO_Virtual.h"
 #include "Async/AsyncFileHandle.h"
 #include "EngineModule.h"
-
+#include "Engine/Texture2DArray.h"
 #include "VT/UploadingVirtualTexture.h"
 #include "VT/VirtualTexturePoolConfig.h"
 
@@ -2019,7 +2019,7 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 
 		bIgnoreGammaConversions = !TextureOwner->SRGB && TextureOwner->CompressionSettings != TC_HDR;
 
-		// refactored to ensure this is set earlier...make sure it's correct
+		// re factored to ensure this is set earlier...make sure it's correct
 		ensure(bSRGB == TextureOwner->SRGB);
 		//bSRGB = TextureOwner->SRGB;
 	}
@@ -2246,8 +2246,14 @@ void FTexture2DArrayResource::InitRHI()
 	// Create the RHI texture.
 	const uint32 TexCreateFlags = (bSRGB ? TexCreate_SRGB : 0) | TexCreate_OfflineProcessed;
 	FRHIResourceCreateInfo CreateInfo;
-	FTexture2DArrayRHIRef TextureArray = RHICreateTexture2DArray(SizeX, SizeY, GetNumValidTextures(), Format, NumMips, 1, TexCreateFlags, CreateInfo);
+	TRefCountPtr<FRHITexture2DArray> TextureArray = RHICreateTexture2DArray(SizeX, SizeY, NumSlices, Format, NumMips, 1, TexCreateFlags, CreateInfo);
 	TextureRHI = TextureArray;
+
+	if (Owner)
+	{
+		RHIBindDebugLabelName(TextureRHI, *Owner->GetName());
+		RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, TextureRHI);
+	}
 
 	// Read the mip-levels into the RHI texture.
 	int32 TextureIndex = 0;
@@ -2271,14 +2277,40 @@ void FTexture2DArrayResource::InitRHI()
 		}
 	}
 
-	// Create the sampler state RHI resource.
+	// Read the initial cached mip levels into the RHI texture.
+	for (auto Slice = 0; Slice < CachedInitialData.Num(); ++Slice)
+	{
+		const FTextureArrayDataEntry& CurrentDataEntry = CachedInitialData[Slice];
+		if (CurrentDataEntry.MipData.Num() > 0)
+		{
+			check(CurrentDataEntry.MipData.Num() == NumMips);
+			for (int32 MipIndex = 0; MipIndex < CurrentDataEntry.MipData.Num(); MipIndex++)
+			{
+				if (CurrentDataEntry.MipData[MipIndex].Data.Num() > 0)
+				{
+					uint32 DestStride;
+					void* TheMipData = RHILockTexture2DArray(TextureArray, Slice, MipIndex, RLM_WriteOnly, DestStride, false);
+					GetData(CurrentDataEntry, MipIndex, TheMipData, DestStride);
+					RHIUnlockTexture2DArray(TextureArray, Slice, MipIndex, false);
+				}
+			}
+		}
+	}
+
+#if WITH_EDITORONLY_DATA
+		SamplerXAddress = Owner ? (ESamplerAddressMode)Owner->AddressX.GetValue() : AM_Clamp;
+		SamplerYAddress = Owner ? (ESamplerAddressMode)Owner->AddressY.GetValue() : AM_Clamp;
+		SamplerZAddress = Owner ? (ESamplerAddressMode)Owner->AddressZ.GetValue() : AM_Clamp;
+#endif
+
 	FSamplerStateInitializerRHI SamplerStateInitializer
 	(
 		Filter,
-		AM_Clamp,
-		AM_Clamp,
-		AM_Clamp
+		SamplerXAddress,
+		SamplerYAddress,
+		SamplerZAddress
 	);
+
 	SamplerStateRHI = RHICreateSamplerState(SamplerStateInitializer);
 }
 
@@ -2311,6 +2343,67 @@ FIncomingTextureArrayDataEntry::FIncomingTextureArrayDataEntry(UTexture2D* InTex
 			// Get copy of data, potentially loading array or using already loaded version.
 			void* MipDataPtr = MipData[MipIndex].Data.GetData();
 			Mip.BulkData.GetCopy(&MipDataPtr, false);
+		}
+	}
+}
+
+FTexture2DArrayResource::FTexture2DArrayResource(UTexture2DArray* InOwner) 
+{
+	Owner = InOwner;
+	SizeX = InOwner->GetSizeX();
+	SizeY = InOwner->GetSizeY();
+	NumSlices = InOwner->GetNumSlices();
+	NumMips = InOwner->GetNumMips();
+	Format = InOwner->GetPixelFormat();
+	bDirty = true;
+	bPreventingReallocation = false;
+	bSRGB = InOwner->SRGB;
+	Filter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(InOwner);
+	STAT(LODGroupStatName = TextureGroupStatFNames[InOwner->LODGroup]);
+
+	TIndirectArray<FTexture2DMipMap>& Mips = InOwner->PlatformData->Mips;
+	uint32 Slices = InOwner->GetNumSlices();
+
+	// Create empty data storage.
+	for (uint32 Slice = 0; Slice < Slices; ++Slice)
+	{
+		CachedInitialData.Add(FTextureArrayDataEntry());
+
+		for (int32 MipIndex = 0; MipIndex < Mips.Num(); MipIndex++)
+		{
+			// Add empty mip level entry
+			CachedInitialData[Slice].MipData.Add(FMipMapDataEntry());
+			FMipMapDataEntry& NewEntry = CachedInitialData[Slice].MipData[MipIndex];
+			NewEntry.SizeX = 0;
+			NewEntry.SizeY = 0;
+		}
+	}
+
+	// Making another loop to efficiently copy the mips.
+	for (int32 MipIndex = 0; MipIndex < Mips.Num(); MipIndex++)
+	{
+		FTexture2DMipMap& Mip = Mips[MipIndex];
+		if (Mip.BulkData.GetBulkDataSize() > 0)
+		{
+			uint32 MipSize = Mip.BulkData.GetBulkDataSize() / Slices;
+
+			uint8* In = (uint8*)Mip.BulkData.Lock(LOCK_READ_ONLY);
+
+			for (uint32 Slice = 0; Slice < Slices; ++Slice)
+			{
+				FMipMapDataEntry& NewEntry = CachedInitialData[Slice].MipData[MipIndex];
+				NewEntry.SizeX = Mip.SizeX;
+				NewEntry.SizeY = Mip.SizeY;
+				NewEntry.Data.SetNum(MipSize);
+
+				FMemory::Memcpy(NewEntry.Data.GetData(), In + MipSize * Slice, MipSize);
+			}
+
+			Mip.BulkData.Unlock();
+		}
+		else
+		{
+			UE_LOG(LogTexture, Error, TEXT("Corrupt texture [%s]! Missing bulk data for MipIndex=%d"), *InOwner->GetFullName(), MipIndex);
 		}
 	}
 }
@@ -2487,7 +2580,7 @@ void FTexture2DArrayResource::GetData(const FTextureArrayDataEntry& DataEntry, i
 	NumRows = (DataEntry.MipData[MipIndex].SizeY + BlockSizeY - 1) / BlockSizeY;	// Num-of rows in the source data (in blocks)
 	SrcPitch = NumColumns * BlockBytes;		// Num-of bytes per row in the source data
 
-	if (SrcPitch == DestPitch)
+	if (SrcPitch == DestPitch || DestPitch == 0)
 	{
 		// Copy data, not taking into account stride!
 		FMemory::Memcpy(Dest, DataEntry.MipData[MipIndex].Data.GetData(), DataEntry.MipData[MipIndex].Data.Num());

@@ -123,13 +123,14 @@ enum EMaterialValueType
 	MCT_Float                 = 8|4|2|1,
 	MCT_Texture2D	          = 1 << 4,
 	MCT_TextureCube	          = 1 << 5,
-	MCT_VolumeTexture         = 1 << 6,
-	MCT_StaticBool            = 1 << 7,
-	MCT_Unknown               = 1 << 8,
-	MCT_MaterialAttributes	  = 1 << 9,
-	MCT_TextureExternal       = 1 << 10,
-	MCT_TextureVirtual        = 1 << 11,
-	MCT_Texture               = MCT_Texture2D | MCT_TextureCube | MCT_VolumeTexture | MCT_TextureExternal | MCT_TextureVirtual,
+	MCT_Texture2DArray		  = 1 << 6,
+	MCT_VolumeTexture         = 1 << 7,
+	MCT_StaticBool            = 1 << 8,
+	MCT_Unknown               = 1 << 9,
+	MCT_MaterialAttributes	  = 1 << 10,
+	MCT_TextureExternal       = 1 << 11,
+	MCT_TextureVirtual        = 1 << 12,
+	MCT_Texture               = MCT_Texture2D | MCT_TextureCube | MCT_Texture2DArray |  MCT_VolumeTexture | MCT_TextureExternal | MCT_TextureVirtual,
 
 	/** Used internally when sampling from virtual textures */
 	MCT_VTPageTableResult     = 1 << 13,
@@ -482,6 +483,7 @@ public:
 			+ UniformScalarExpressions.GetAllocatedSize()
 			+ Uniform2DTextureExpressions.GetAllocatedSize()
 			+ UniformCubeTextureExpressions.GetAllocatedSize()
+			+ Uniform2DArrayTextureExpressions.GetAllocatedSize()
 			+ UniformVolumeTextureExpressions.GetAllocatedSize()
 			+ UniformVirtualTextureExpressions.GetAllocatedSize()
 			+ UniformExternalTextureExpressions.GetAllocatedSize()
@@ -509,6 +511,7 @@ protected:
 	TArray<TRefCountPtr<FMaterialUniformExpression> > UniformScalarExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > Uniform2DTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformCubeTextureExpressions;
+	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > Uniform2DArrayTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformVolumeTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > UniformVirtualTextureExpressions;
 	TArray<TRefCountPtr<FMaterialUniformExpressionExternalTexture> > UniformExternalTextureExpressions;
@@ -1569,6 +1572,7 @@ public:
 	// Accessors.
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniform2DTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformCubeTextureExpressions() const;
+	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniform2DArrayTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformVolumeTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& GetUniformVirtualTextureExpressions() const;
 	ENGINE_API const TArray<TRefCountPtr<FMaterialUniformExpression> >& GetUniformVectorParameterExpressions() const;

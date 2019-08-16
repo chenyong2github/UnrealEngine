@@ -24,6 +24,7 @@
 
 class FTexture2DResourceMem;
 class UTexture2D;
+class UTexture2DArray;
 class IVirtualTexture;
 
 /** Maximum number of slices in texture source art. */
@@ -155,7 +156,7 @@ public:
 	 * Minimal initialization constructor.
 	 *
 	 * @param InOwner			UTexture2D which this FTexture2DResource represents.
-	 * @param InitialMipCount	Initial number of miplevels to upload to card
+	 * @param InitialMipCount	Initial number of mip levels to upload to card
 	 * @param InFilename		Filename to read data from
  	 */
 	FTexture2DResource( UTexture2D* InOwner, int32 InitialMipCount );
@@ -169,7 +170,6 @@ public:
 	virtual void RefreshSamplerStates() override;
 
 	// FRenderResource interface.
-
 	/**
 	 * Called when the resource is initialized. This is only called by the rendering thread.
 	 */
@@ -393,6 +393,8 @@ public:
 		bPreventingReallocation(false)
 	{}
 
+	FTexture2DArrayResource(UTexture2DArray* InOwner);
+
 	// Rendering thread functions
 
 	/** 
@@ -431,6 +433,13 @@ public:
 		return SizeY;
 	}
 
+	/** Returns the number of slices(textures) in this array. */
+	uint32 GetNumSlices() const
+	{
+		return NumSlices;
+	}
+
+
 	/** Prevents reallocation from removals of the texture array until EndPreventReallocation is called. */
 	void BeginPreventReallocation();
 
@@ -441,12 +450,20 @@ private:
 
 	/** Texture data, has to persist past the first InitRHI call, because more textures may be added later. */
 	TMap<const UTexture2D*, FTextureArrayDataEntry> CachedData;
+	TArray<FTextureArrayDataEntry>					CachedInitialData;
+	FName LODGroupStatName;
+	UTexture2DArray* Owner;
+
 	uint32 SizeX;
 	uint32 SizeY;
 	uint32 NumMips;
+	uint32 NumSlices;
 	TextureGroup LODGroup;
 	EPixelFormat Format;
 	ESamplerFilter Filter;
+	ESamplerAddressMode SamplerXAddress;
+	ESamplerAddressMode SamplerYAddress;
+	ESamplerAddressMode SamplerZAddress;
 
 	bool bSRGB;
 	bool bDirty;

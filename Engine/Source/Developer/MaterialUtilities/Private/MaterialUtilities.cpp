@@ -17,6 +17,7 @@
 #include "Materials/MaterialExpressionConstant4Vector.h"
 #include "Materials/MaterialExpressionMultiply.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "SceneView.h"
 #include "RendererInterface.h"
 #include "EngineModule.h"
@@ -517,7 +518,7 @@ public:
 
 		int32 Ret = CompilePropertyAndSetMaterialPropertyWithoutCast(Property, Compiler);
 
-		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property));
+		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
 	}
 
 	/** helper for CompilePropertyAndSetMaterialProperty() */
@@ -709,6 +710,11 @@ public:
 			{
 				UTextureCube* TexCube = (UTextureCube*)Texture;
 				LocalSize = FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
+			}
+			else if (Texture->IsA(UTexture2DArray::StaticClass())) 
+			{
+				UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
+				LocalSize = FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
 			}
 
 			int32 LocalBias = GameTextureLODSettings->CalculateLODBias(Texture);

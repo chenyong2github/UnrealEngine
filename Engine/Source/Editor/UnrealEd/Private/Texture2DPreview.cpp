@@ -13,6 +13,7 @@
 #include "TextureResource.h"
 #include "RenderCore.h"
 #include "VirtualTexturing.h"
+#include "Engine/Texture2DArray.h"
 /*------------------------------------------------------------------------------
 	Batched element shaders for previewing 2d textures.
 ------------------------------------------------------------------------------*/
@@ -22,6 +23,7 @@
 namespace
 {
 	class FTexture2DPreviewVirtualTexture : SHADER_PERMUTATION_BOOL("SAMPLE_VIRTUAL_TEXTURE");
+	class FTexture2DPreviewTexture2DArray : SHADER_PERMUTATION_BOOL("TEXTURE_ARRAY");
 }
 
 
@@ -29,7 +31,7 @@ class FSimpleElementTexture2DPreviewPS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FSimpleElementTexture2DPreviewPS);
 
-	using FPermutationDomain = TShaderPermutationDomain<FTexture2DPreviewVirtualTexture>;
+	using FPermutationDomain = TShaderPermutationDomain<FTexture2DPreviewVirtualTexture, FTexture2DPreviewTexture2DArray>;
 
 public:
 
@@ -46,6 +48,7 @@ public:
 		TextureComponentReplicateAlpha.Bind(Initializer.ParameterMap,TEXT("TextureComponentReplicateAlpha"));
 		ColorWeights.Bind(Initializer.ParameterMap,TEXT("ColorWeights"));
 		PackedParameters.Bind(Initializer.ParameterMap,TEXT("PackedParams"));
+		NumSlices.Bind(Initializer.ParameterMap, TEXT("NumSlices"));
 	}
 	FSimpleElementTexture2DPreviewPS() {}
 
@@ -53,14 +56,14 @@ public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) == false && PermutationVector.Get<FTexture2DPreviewVirtualTexture>())
+		if (IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) == false)
 		{
 			return false;
 		}
 		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && !IsConsolePlatform(Parameters.Platform);
 	}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue, float MipLevel, float LayerIndex, bool bIsNormalMap, bool bIsVirtualTexture)
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* TextureValue, const FMatrix& ColorWeightsValue, float GammaValue, float MipLevel, float LayerIndex, bool bIsNormalMap, bool bIsVirtualTexture, bool bIsTextureArray)
 	{
 		if (bIsVirtualTexture)
 		{
@@ -101,6 +104,14 @@ public:
 		FVector4 PackedParametersValue(GammaValue, MipLevel, bIsNormalMap ? 1.0 : -1.0f, LayerIndex);
 		SetShaderValue(RHICmdList, GetPixelShader(), PackedParameters, PackedParametersValue);
 
+		// Store slice count for texture array
+		if (bIsTextureArray)
+		{
+			const FTexture2DArrayResource* TextureValue2DArray = (FTexture2DArrayResource*)(TextureValue);
+			float NumSlicesData = TextureValue2DArray ? float(TextureValue2DArray->GetNumSlices()) : 1;
+			SetShaderValue(RHICmdList, GetPixelShader(), NumSlices, NumSlicesData);
+		}
+
 		SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicate,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,0));
 		SetShaderValue(RHICmdList, GetPixelShader(),TextureComponentReplicateAlpha,TextureValue->bGreyScaleFormat ? FLinearColor(1,0,0,0) : FLinearColor(0,0,0,1));
 	}
@@ -117,6 +128,7 @@ public:
 		Ar << TextureComponentReplicate;
 		Ar << TextureComponentReplicateAlpha;
 		Ar << ColorWeights;
+		Ar << NumSlices;
 		Ar << PackedParameters;
 		return bShaderHasOutdatedParameters;
 	}
@@ -132,6 +144,7 @@ private:
 	FShaderParameter TextureComponentReplicateAlpha;
 	FShaderParameter ColorWeights; 
 	FShaderParameter PackedParameters;
+	FShaderParameter NumSlices;
 };
 
 IMPLEMENT_GLOBAL_SHADER(FSimpleElementTexture2DPreviewPS, "/Engine/Private/SimpleElementTexture2DPreviewPixelShader.usf", "Main", SF_Pixel);
@@ -149,7 +162,8 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(InFeatureLevel));
 
 	FSimpleElementTexture2DPreviewPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FTexture2DPreviewVirtualTexture>(bIsVirtualTexture);	
+	PermutationVector.Set<FTexture2DPreviewVirtualTexture>(bIsVirtualTexture);
+	PermutationVector.Set<FTexture2DPreviewTexture2DArray>(bIsTextureArray);
 	TShaderMapRef<FSimpleElementTexture2DPreviewPS> PixelShader(GetGlobalShaderMap(InFeatureLevel), PermutationVector);
 
 	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GSimpleElementVertexDeclaration.VertexDeclarationRHI;
@@ -165,5 +179,5 @@ void FBatchedElementTexture2DPreviewParameters::BindShaders(
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, EApplyRendertargetOption::ForceApply);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, InGamma, MipLevel, LayerIndex, bIsNormalMap, bIsVirtualTexture);
+	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, InGamma, MipLevel, LayerIndex, bIsNormalMap, bIsVirtualTexture, bIsTextureArray);
 }

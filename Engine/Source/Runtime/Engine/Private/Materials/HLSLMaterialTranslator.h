@@ -1953,6 +1953,7 @@ protected:
 		case MCT_Float:					return TEXT("float");
 		case MCT_Texture2D:				return TEXT("texture2D");
 		case MCT_TextureCube:			return TEXT("textureCube");
+		case MCT_Texture2DArray:		return TEXT("texture2DArray");
 		case MCT_VolumeTexture:			return TEXT("volumeTexture");
 		case MCT_StaticBool:			return TEXT("static bool");
 		case MCT_MaterialAttributes:	return TEXT("MaterialAttributes");
@@ -1976,6 +1977,7 @@ protected:
 		case MCT_Float:					return TEXT("MaterialFloat");
 		case MCT_Texture2D:				return TEXT("texture2D");
 		case MCT_TextureCube:			return TEXT("textureCube");
+		case MCT_Texture2DArray:		return TEXT("texture2DArray");
 		case MCT_VolumeTexture:			return TEXT("volumeTexture");
 		case MCT_StaticBool:			return TEXT("static bool");
 		case MCT_MaterialAttributes:	return TEXT("MaterialAttributes");
@@ -2401,6 +2403,10 @@ protected:
 			case MCT_TextureCube:
 				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.UniformCubeTextureExpressions.AddUnique(TextureUniformExpression);
 				BaseName = TEXT("TextureCube");
+				break;
+			case MCT_Texture2DArray:
+				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.Uniform2DArrayTextureExpressions.AddUnique(TextureUniformExpression);
+				BaseName = TEXT("Texture2DArray");
 				break;
 			case MCT_VolumeTexture:
 				TextureInputIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVolumeTextureExpressions.AddUnique(TextureUniformExpression);
@@ -4325,6 +4331,10 @@ protected:
 		{
 			SampleCode += TEXT("TextureCubeSample");
 		}
+		else if (TextureType == MCT_Texture2DArray) 
+		{
+			SampleCode += TEXT("Texture2DArraySample");
+		}
 		else if (TextureType == MCT_VolumeTexture)
 		{
 			SampleCode += TEXT("Texture3DSample");
@@ -4342,7 +4352,7 @@ protected:
 			SampleCode += TEXT("Texture2DSample");
 		}
 		
-		EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
+		EMaterialValueType UVsType = (TextureType == MCT_TextureCube || TextureType == MCT_Texture2DArray || TextureType == MCT_VolumeTexture) ? MCT_Float3 : MCT_Float2;
 	
 		if (RequiresManualViewMipBias)
 		{
@@ -4497,6 +4507,10 @@ protected:
 		if (TextureType == MCT_TextureCube)
 		{
 			TextureName = CoerceParameter(TextureIndex, MCT_TextureCube);
+		}
+		else if (TextureType == MCT_Texture2DArray)
+		{
+			TextureName = CoerceParameter(TextureIndex, MCT_Texture2DArray);
 		}
 		else if (TextureType == MCT_VolumeTexture)
 		{
@@ -6745,6 +6759,13 @@ protected:
 				InputParamDecl += InputNameStr;
 				InputParamDecl += TEXT("Sampler ");
 				break;
+			case MCT_Texture2DArray:
+				InputParamDecl += TEXT("Texture2DArray ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT(", SamplerState ");
+				InputParamDecl += InputNameStr;
+				InputParamDecl += TEXT("Sampler ");
+				break;
 			case MCT_TextureExternal:
 				InputParamDecl += TEXT("TextureExternal ");
 				InputParamDecl += InputNameStr;
@@ -6792,7 +6813,7 @@ protected:
 
 			CodeChunk += TEXT(",");
 			CodeChunk += *ParamCode;
-			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
+			if (ParamType == MCT_Texture2D || ParamType == MCT_TextureCube || ParamType == MCT_Texture2DArray || ParamType == MCT_TextureExternal || ParamType == MCT_VolumeTexture)
 			{
 				CodeChunk += TEXT(",");
 				CodeChunk += *ParamCode;

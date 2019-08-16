@@ -13,7 +13,7 @@
 #include "Engine/StaticMesh.h"
 #include "UnrealClient.h"
 #include "Engine/TextureCube.h"
-
+#include "Engine/Texture2DArray.h"
 #include "ImageUtils.h"
 
 
@@ -38,6 +38,7 @@ UThumbnailManager::UThumbnailManager(const FObjectInitializer& ObjectInitializer
 			ConstructorHelpers::FObjectFinder<UStaticMesh> EditorSkySphereMesh;
 			ConstructorHelpers::FObjectFinder<UMaterial> FloorPlaneMaterial;
 			ConstructorHelpers::FObjectFinder<UTextureCube> DaylightAmbientCubemap;
+			
 			FConstructorStatics()
 				: EditorCubeMesh(TEXT("/Engine/EditorMeshes/EditorCube"))
 				, EditorSphereMesh(TEXT("/Engine/EditorMeshes/EditorSphere"))

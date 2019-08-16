@@ -1969,7 +1969,8 @@ public:
 		BuildSettings.TopMipSize.X = IntermediateMipChain[0].SizeX;
 		BuildSettings.TopMipSize.Y = IntermediateMipChain[0].SizeY;
 		BuildSettings.VolumeSizeZ = BuildSettings.bVolume ? IntermediateMipChain[0].NumSlices : 1;
-
+		BuildSettings.ArraySlices = BuildSettings.bTextureArray ? IntermediateMipChain[0].NumSlices : 1;
+		
 		return CompressMipChain(IntermediateMipChain, BuildSettings, OutTextureMips);
 	}
 

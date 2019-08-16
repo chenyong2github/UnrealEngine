@@ -43,6 +43,7 @@ public:
 	int32 NumScalarExpressions;
 	int32 Num2DTextureExpressions;
 	int32 NumCubeTextureExpressions;
+	int32 Num2DArrayTextureExpressions;
 	int32 NumVolumeTextureExpressions;
 	int32 NumVirtualTextureExpressions;
 
@@ -51,6 +52,7 @@ public:
 		, NumScalarExpressions(0)
 		, Num2DTextureExpressions(0)
 		, NumCubeTextureExpressions(0)
+		, Num2DArrayTextureExpressions(0)
 		, NumVolumeTextureExpressions(0)
 		, NumVirtualTextureExpressions(0)
 	{
@@ -67,6 +69,7 @@ public:
 		NumVectorExpressions = InUniformExpressionSet.UniformVectorExpressions.Num();
 		NumScalarExpressions = InUniformExpressionSet.UniformScalarExpressions.Num();
 		Num2DTextureExpressions = InUniformExpressionSet.Uniform2DTextureExpressions.Num();
+		Num2DArrayTextureExpressions = InUniformExpressionSet.Uniform2DArrayTextureExpressions.Num();
 		NumCubeTextureExpressions = InUniformExpressionSet.UniformCubeTextureExpressions.Num();
 		NumVolumeTextureExpressions = InUniformExpressionSet.UniformVolumeTextureExpressions.Num();
 		NumVirtualTextureExpressions = InUniformExpressionSet.UniformVirtualTextureExpressions.Num();
@@ -79,6 +82,7 @@ public:
 			&& NumScalarExpressions == InUniformExpressionSet.UniformScalarExpressions.Num()
 			&& Num2DTextureExpressions == InUniformExpressionSet.Uniform2DTextureExpressions.Num()
 			&& NumCubeTextureExpressions == InUniformExpressionSet.UniformCubeTextureExpressions.Num()
+			&& Num2DArrayTextureExpressions == InUniformExpressionSet.Uniform2DArrayTextureExpressions.Num()
 			&& NumVolumeTextureExpressions == InUniformExpressionSet.UniformVolumeTextureExpressions.Num()
 			&& NumVirtualTextureExpressions == InUniformExpressionSet.UniformVirtualTextureExpressions.Num();
 	}
@@ -91,6 +95,7 @@ inline FArchive& operator<<(FArchive& Ar, FDebugUniformExpressionSet& DebugExpre
 	Ar << DebugExpressionSet.NumScalarExpressions;
 	Ar << DebugExpressionSet.Num2DTextureExpressions;
 	Ar << DebugExpressionSet.NumCubeTextureExpressions;
+	Ar << DebugExpressionSet.Num2DArrayTextureExpressions;
 	Ar << DebugExpressionSet.NumVolumeTextureExpressions;
 	Ar << DebugExpressionSet.NumVirtualTextureExpressions;
 	return Ar;

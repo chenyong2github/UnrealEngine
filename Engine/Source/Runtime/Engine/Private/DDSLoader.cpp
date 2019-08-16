@@ -6,7 +6,7 @@
 #include "RenderUtils.h"
 
 FDDSLoadHelper::FDDSLoadHelper(const uint8* Buffer, uint32 Length) 
-	: DDSHeader(0)
+	: DDSHeader(0), DDS10Header(0)
 {
 	check(Buffer);
 
@@ -23,6 +23,11 @@ FDDSLoadHelper::FDDSLoadHelper(const uint8* Buffer, uint32 Length)
 		DDSHeader = DDS;
 	}
 
+	// Check for dx10 dds format
+	if (DDS->ddpf.dwFourCC == DDSPF_DX10)
+	{
+		DDS10Header = (FDDS10FileHeader *)(Buffer + 4 + sizeof(FDDSFileHeader));
+	}
 }
 
 bool FDDSLoadHelper::IsValid() const
@@ -76,7 +81,27 @@ EPixelFormat FDDSLoadHelper::ComputePixelFormat() const
 		{
 			Format = PF_FloatRGBA;
 		}
-
+		else if (DDSHeader->ddpf.dwFourCC == DDSPF_DX10 && DDS10Header)
+		{
+			switch (DDS10Header->format)
+			{
+			case(10): Format = PF_FloatRGBA; break; // DXGI_FORMAT_R16G16B16A16_FLOAT
+			case(87): // DXGI_FORMAT_B8G8R8A8_UNORM
+			case(88): // DXGI_FORMAT_B8G8R8X8_UNORM
+			case(91): // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
+			case(93): Format = PF_B8G8R8A8; break;// DXGI_FORMAT_B8G8R8X8_UNORM_SRGB
+			case(71): // DXGI_FORMAT_BC1_UNORM
+			case(72): Format = PF_DXT1; // DXGI_FORMAT_BC1_UNORM_SRGB
+			case(74): // DXGI_FORMAT_BC2_UNORM
+			case(75): Format = PF_DXT3; // DXGI_FORMAT_BC2_UNORM_SRGB
+			case(77): // DXGI_FORMAT_BC3_UNORM
+			case(78): Format = PF_DXT5; // DXGI_FORMAT_BC3_UNORM_SRGB
+			case(80): // DXGI_FORMAT_BC4_UNORM
+			case(81): Format = PF_BC4; // DXGI_FORMAT_BC4_SNORM
+			case(83): // DXGI_FORMAT_BC4_UNORM
+			case(84): Format = PF_BC5; // DXGI_FORMAT_BC4_SNORM
+			}
+		}
 	}
 	return Format; 
 }
@@ -107,6 +132,19 @@ ETextureSourceFormat FDDSLoadHelper::ComputeSourceFormat() const
 		}
 
 	}
+
+	// Check for dx10 header and extract the format
+	if (DDSHeader->ddpf.dwFourCC == DDSPF_DX10 && DDS10Header)
+	{
+		switch (DDS10Header->format)
+		{
+		case(10): Format = TSF_RGBA16F; break; // DXGI_FORMAT_R16G16B16A16_FLOAT
+		case(87): // DXGI_FORMAT_B8G8R8A8_UNORM
+		case(88): // DXGI_FORMAT_B8G8R8X8_UNORM
+		case(91): // DXGI_FORMAT_B8G8R8A8_UNORM_SRGB
+		case(93): Format = TSF_BGRA8; break;// DXGI_FORMAT_B8G8R8X8_UNORM_SRGB
+		}
+	}
 	return Format; 
 }
 
@@ -117,12 +155,53 @@ bool FDDSLoadHelper::IsValidCubemapTexture() const
 		return true;
 	}
 
+	if (IsValid() && DDS10Header->resourceType == 3 && (DDS10Header->miscFlag & 4))
+	{
+		return true;
+	}
+
+
 	return false;
+}
+
+bool FDDSLoadHelper::IsValidArrayTexture() const
+{
+	if (DDS10Header && DDS10Header->resourceType == 3 && DDS10Header->arraySize > 1 && (DDS10Header->miscFlag & 4) == 0)
+	{
+		return true;
+	}
+	return false;
+}
+
+uint32 FDDSLoadHelper::GetSizeX() const
+{
+	return DDSHeader ? DDSHeader->dwWidth : 0;
+}
+
+uint32 FDDSLoadHelper::GetSizeY() const
+{
+	return DDSHeader ? DDSHeader->dwHeight : 0;
+}
+
+uint32 FDDSLoadHelper::GetSliceCount() const
+{
+	if (IsValidCubemapTexture())
+	{
+		return 6;
+	}
+	else if (IsValidArrayTexture())
+	{
+		return DDS10Header ? DDS10Header->arraySize : 0;
+	}
+	else
+	{
+		return 1;
+	}
 }
 
 bool FDDSLoadHelper::IsValid2DTexture() const
 {
-	if(IsValid() && (DDSHeader->dwCaps2 & DDSC_CubeMap) == 0 && (DDSHeader->dwCaps2 & DDSC_Volume) == 0)
+	if (IsValid() && (DDSHeader->dwCaps2 & DDSC_CubeMap) == 0 && (DDSHeader->dwCaps2 & DDSC_Volume) == 0 && (DDS10Header == nullptr || (DDS10Header->resourceType == 3 && DDS10Header->arraySize == 1)))
 	{
 		return true;
 	}
@@ -140,6 +219,12 @@ const uint8* FDDSLoadHelper::GetDDSDataPointer(ECubeFace Face) const
 	uint32 SliceSize = CalcTextureSize(DDSHeader->dwWidth, DDSHeader->dwHeight, ComputePixelFormat(), ComputeMipMapCount());
 
 	const uint8* Ptr = (const uint8*)DDSHeader + sizeof(FDDSFileHeader);
+
+	// jump over dx10 header if available
+	if (DDS10Header)
+	{
+		Ptr += sizeof(FDDS10FileHeader);
+	}
 
 	// jump over the not requested slices / cube map sides
 	Ptr += SliceSize * Face;

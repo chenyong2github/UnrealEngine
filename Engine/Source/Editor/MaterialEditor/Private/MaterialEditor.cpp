@@ -31,6 +31,7 @@
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialParameterCollection.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 #include "Dialogs/Dialogs.h"
 #include "UnrealEdGlobals.h"
 #include "Editor.h"
@@ -63,6 +64,7 @@
 #include "Materials/MaterialExpressionTextureObject.h"
 #include "Materials/MaterialExpressionTextureSampleParameter2D.h"
 #include "Materials/MaterialExpressionTextureSampleParameterCube.h"
+#include "Materials/MaterialExpressionTextureSampleParameter2DArray.h"
 #include "Materials/MaterialExpressionTextureSampleParameterSubUV.h"
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionVectorParameter.h"
@@ -223,7 +225,7 @@ int32 FMatExpressionPreview::CompilePropertyAndSetMaterialProperty(EMaterialProp
 	}
 
 	// output should always be the right type for this property
-	return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property));
+	return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
 }
 
 void FMatExpressionPreview::NotifyCompilationFinished()
@@ -2859,6 +2861,10 @@ void FMaterialEditor::OnConvertObjects()
 				else if (TextureSampleExpression && TextureSampleExpression->Texture && TextureSampleExpression->Texture->IsA(UTextureCube::StaticClass()))
 				{
 					ClassToCreate = UMaterialExpressionTextureSampleParameterCube::StaticClass();
+				}
+				else if (TextureSampleExpression && TextureSampleExpression->Texture && TextureSampleExpression->Texture->IsA(UTexture2DArray::StaticClass()))
+				{
+					ClassToCreate = UMaterialExpressionTextureSampleParameter2DArray::StaticClass();
 				}
 				else if (TextureObjectExpression)
 				{

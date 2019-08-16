@@ -687,6 +687,19 @@ const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& FMaterial::GetUn
 	return EmptyExpressions;
 }
 
+const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& FMaterial::GetUniform2DArrayTextureExpressions() const
+{
+	const FMaterialShaderMap* ShaderMapToUse = GetShaderMapToUse();
+
+	if (ShaderMapToUse)
+	{
+		return ShaderMapToUse->GetUniformExpressionSet().Uniform2DArrayTextureExpressions;
+	}
+
+	static const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> > EmptyExpressions;
+	return EmptyExpressions;
+}
+
 const TArray<TRefCountPtr<FMaterialUniformExpressionTexture> >& FMaterial::GetUniformVolumeTextureExpressions() const 
 { 
 	const FMaterialShaderMap* ShaderMapToUse = GetShaderMapToUse();

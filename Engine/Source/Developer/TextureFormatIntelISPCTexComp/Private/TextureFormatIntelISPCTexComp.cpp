@@ -814,7 +814,7 @@ public:
 		OutCompressedImage.PixelFormat = CompressedPixelFormat;
 		OutCompressedImage.SizeX = InImage.SizeX;
 		OutCompressedImage.SizeY = InImage.SizeY;
-		OutCompressedImage.SizeZ = BuildSettings.bVolume ? InImage.NumSlices : 1;
+		OutCompressedImage.SizeZ = (BuildSettings.bVolume || BuildSettings.bTextureArray) ? InImage.NumSlices : 1;
 		return bCompressionSucceeded;
 	}
 };

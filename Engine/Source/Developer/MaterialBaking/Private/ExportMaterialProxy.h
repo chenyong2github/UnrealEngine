@@ -10,6 +10,7 @@
 #include "Engine/Texture2D.h"
 #include "Engine/Texture.h"
 #include "Engine/TextureCube.h"
+#include "Engine/Texture2DArray.h"
 
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
@@ -335,7 +336,7 @@ public:
 		// needs to be called in this function!!
 		Compiler->SetMaterialProperty(Property, OverrideShaderFrequency, bUsePreviousFrameTime);
 		const int32 Ret = CompilePropertyAndSetMaterialPropertyWithoutCast(Property, Compiler);
-		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property));
+		return Compiler->ForceCast(Ret, FMaterialAttributeDefinitionMap::GetValueType(Property), MFCF_ExactMatch);
 	}
 
 	/** helper for CompilePropertyAndSetMaterialProperty() */
@@ -532,7 +533,11 @@ public:
 					UTextureCube* TexCube = (UTextureCube*)Texture;
 					return FIntPoint(TexCube->GetSizeX(), TexCube->GetSizeY());
 				}
-
+				else if (Texture->IsA(UTexture2DArray::StaticClass())) 
+				{
+					UTexture2DArray* TexArray = (UTexture2DArray*)Texture;
+					return FIntPoint(TexArray->GetSizeX(), TexArray->GetSizeY());
+				}
 				return FIntPoint(0, 0);
 			}();
 			
