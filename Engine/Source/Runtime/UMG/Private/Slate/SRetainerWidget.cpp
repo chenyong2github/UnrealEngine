@@ -448,7 +448,7 @@ bool SRetainerWidget::PaintRetainedContent(const FSlateInvalidationContext& Cont
 				}
 #endif
 
-				bRenderRequested = true;
+				bRenderRequested = false;
 				Shared_WaitingToRender.Remove(this);
 
 				LastDrawTime = FApp::GetCurrentTime();
@@ -535,13 +535,6 @@ FVector2D SRetainerWidget::ComputeDesiredSize(float LayoutScaleMuliplier) const
 	{
 		return SCompoundWidget::ComputeDesiredSize(LayoutScaleMuliplier);
 	}
-}
-
-bool SRetainerWidget::ComputeVolatility() const
-{
-	// We need to be volatile when global invalidation is turned on so that we have a chance to update
-	// @todo instead of being volatile it may be possible to move this to tick
-	return GSlateEnableGlobalInvalidation != 0;
 }
 
 void SRetainerWidget::OnGlobalInvalidationToggled(bool bGlobalInvalidationEnabled)
