@@ -493,6 +493,8 @@ void APawn::SetPlayerState(APlayerState* NewPlayerState)
 
 void APawn::PossessedBy(AController* NewController)
 {
+	SetOwner(NewController);
+	
 	AController* const OldController = Controller;
 
 	Controller = NewController;
