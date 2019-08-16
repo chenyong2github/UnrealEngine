@@ -1,0 +1,42 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*------------------------------------------------------------------------------
+	Compile time parameters:
+		THREAD_COUNT - The number of threads to launch per workgroup.
+------------------------------------------------------------------------------*/
+
+Buffer<int4> InParticleIDs;
+RWBuffer<int> CellStartIndices;
+RWBuffer<int> CellEndIndices;
+
+// Number of particles
+uint N;
+
+[numthreads(THREAD_COUNT,1,1)]
+void IndexCellsCS(uint ParticleID : SV_DispatchThreadID)
+{
+    if (ParticleID < N)
+    {
+        int CellHash = InParticleIDs[ParticleID][0];
+        if (ParticleID == 0)
+        {
+            CellStartIndices[CellHash] = 0;
+        }
+        else if (ParticleID == N - 1)
+        {
+            CellEndIndices[CellHash] = N - 1;
+        }
+        else
+        {
+			// If this particle's cell and the previous particle's cell are different
+			// this is a cell boundary. It is the previous cell's end index and the
+			// current cell's start index.
+            int PrevCell = InParticleIDs[ParticleID - 1][0];
+            if (PrevCell != CellHash)
+            {
+                CellStartIndices[CellHash] = ParticleID;
+                CellEndIndices[PrevCell] = ParticleID - 1;
+            }
+        }
+    }
+}

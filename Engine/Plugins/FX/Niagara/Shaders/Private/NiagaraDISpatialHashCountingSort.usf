@@ -1,0 +1,35 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*------------------------------------------------------------------------------
+	Compile time parameters:
+		THREAD_COUNT - The number of threads to launch per workgroup.
+------------------------------------------------------------------------------*/
+
+Buffer<int4> InDataToSortID;
+Buffer<float3> InDataToSortPos;
+RWBuffer<int4> OutSortedDataID;
+RWBuffer<float3> OutSortedDataPos;
+
+// Prefix sum of cell counts
+RWBuffer<int> ScannedCounts;
+
+// Number of particles
+int N;
+
+[numthreads(THREAD_COUNT,1,1)]
+void SpatialHashCountingSortCS(uint ParticleID : SV_DispatchThreadID)
+{
+    if (ParticleID < N)
+    {
+		// Grab the particle cell hash
+        int CellHash = InDataToSortID[ParticleID][0];
+	
+		// Compute what index this thread's particle belongs in
+        int SortedIndex;
+        InterlockedAdd(ScannedCounts[CellHash], 1, SortedIndex);
+	
+		// Move the particle ID and position into that index
+        OutSortedDataID[SortedIndex] = InDataToSortID[ParticleID];
+        OutSortedDataPos[SortedIndex] = InDataToSortPos[ParticleID];
+    }
+}
