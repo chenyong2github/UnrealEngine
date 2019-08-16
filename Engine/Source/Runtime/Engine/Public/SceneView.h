@@ -1081,6 +1081,8 @@ public:
 	bool VerifyMembersChecks() const;
 #endif
 
+	FORCEINLINE bool AllowGPUParticleUpdate() const { return !bIsPlanarReflection && !bIsSceneCapture && !bIsReflectionCapture; }
+
 	/** Transforms a point from world-space to the view's screen-space. */
 	FVector4 WorldToScreen(const FVector& WorldPoint) const;
 
