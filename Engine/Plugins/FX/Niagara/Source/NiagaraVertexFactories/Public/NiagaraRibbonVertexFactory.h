@@ -127,25 +127,29 @@ public:
 		FloatDataStride = InFloatDataStride;
 	}
 
-	void SetSortedIndices(const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
+	void SetSortedIndices(const FVertexBufferRHIRef& InSortedIndicesBuffer, const FShaderResourceViewRHIRef& InSortedIndicesSRV, uint32 InSortedIndicesOffset)
 	{
+		SortedIndicesBuffer = InSortedIndicesBuffer;
 		SortedIndicesSRV = InSortedIndicesSRV;
 		SortedIndicesOffset = InSortedIndicesOffset;
 	}
 
-	void SetTangentAndDistances(const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
+	void SetTangentAndDistances(const FVertexBufferRHIRef& InTangentAndDistancesBuffer, const FShaderResourceViewRHIRef& InTangentAndDistancesSRV)
 	{
+		TangentAndDistancesBuffer = InTangentAndDistancesBuffer;
 		TangentAndDistancesSRV = InTangentAndDistancesSRV;
 	}
 
 
-	void SetMultiRibbonIndicesSRV(const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
+	void SetMultiRibbonIndicesSRV(const FVertexBufferRHIRef& InMultiRibbonIndicesBuffer, const FShaderResourceViewRHIRef& InMultiRibbonIndicesSRV)
 	{
+		MultiRibbonIndicesBuffer = InMultiRibbonIndicesBuffer;
 		MultiRibbonIndicesSRV = InMultiRibbonIndicesSRV;
 	}
 
-	void SetPackedPerRibbonDataByIndexSRV(const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
+	void SetPackedPerRibbonDataByIndexSRV(const FVertexBufferRHIRef& InPackedPerRibbonDataByIndexBuffer, const FShaderResourceViewRHIRef& InPackedPerRibbonDataByIndexSRV)
 	{
+		PackedPerRibbonDataByIndexBuffer = InPackedPerRibbonDataByIndexBuffer;
 		PackedPerRibbonDataByIndexSRV = InPackedPerRibbonDataByIndexSRV;
 	}
 
@@ -234,6 +238,11 @@ private:
 	FShaderResourceViewRHIRef ParticleDataFloatSRV;
 	uint32 FloatDataOffset;
 	uint32 FloatDataStride;
+
+	FVertexBufferRHIRef SortedIndicesBuffer;
+	FVertexBufferRHIRef TangentAndDistancesBuffer;
+	FVertexBufferRHIRef MultiRibbonIndicesBuffer;
+	FVertexBufferRHIRef PackedPerRibbonDataByIndexBuffer;
 
 	FShaderResourceViewRHIRef SortedIndicesSRV;
 	FShaderResourceViewRHIRef TangentAndDistancesSRV;
