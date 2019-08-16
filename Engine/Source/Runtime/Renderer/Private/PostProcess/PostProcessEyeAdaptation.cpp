@@ -123,7 +123,7 @@ bool IsExtendLuminanceRangeEnabled()
 
 float GetLuminanceRangeValue(float EV100Value)
 {
-	return IsExtendLuminanceRangeEnabled() ? EV100ToLuminance(EV100Value) : EV100Value;
+	return IsExtendLuminanceRangeEnabled() ? EV100ToLog2(EV100Value) : EV100Value;
 }
 
 float GetBasicAutoExposureFocus()
