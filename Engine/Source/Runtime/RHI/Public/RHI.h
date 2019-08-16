@@ -736,6 +736,7 @@ struct FVertexElement
 typedef TArray<FVertexElement,TFixedAllocator<MaxVertexElementCount> > FVertexDeclarationElementList;
 
 /** RHI representation of a single stream out element. */
+//#todo-RemoveStreamOut
 struct FStreamOutElement
 {
 	/** Index of the output stream from the geometry shader. */
@@ -767,6 +768,7 @@ struct FStreamOutElement
 	{}
 };
 
+//#todo-RemoveStreamOut
 typedef TArray<FStreamOutElement,TFixedAllocator<MaxVertexElementCount> > FStreamOutElementList;
 
 struct FSamplerStateInitializerRHI

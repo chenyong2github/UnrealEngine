@@ -1029,14 +1029,6 @@ public:
 		RHI->RHITick(DeltaTime);
 	}
 
-	/** Sets stream output targets, for use with a geometry shader created with RHICreateGeometryShaderWithStreamOutput. */
-	//@todo this should be a CMDLIST method
-	// FlushType: Flush Immediate (seems wrong)
-	virtual void RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets) override final
-	{
-		RHI->RHISetStreamOutTargets(NumTargets, VertexBuffers, Offsets);
-	}
-
 	// Blocks the CPU until the GPU catches up and goes idle.
 	// FlushType: Flush Immediate (seems wrong)
 	virtual void RHIBlockUntilGPUIdle() override final

@@ -1239,15 +1239,3 @@ void FD3D12StateCacheBase::SetRenderTargets(uint32 NumSimultaneousRenderTargets,
 	}
 	PipelineState.Graphics.CurrentNumberOfRenderTargets = ActiveNumSimultaneousRenderTargets;
 }
-
-void FD3D12StateCacheBase::SetStreamOutTargets(uint32 NumSimultaneousStreamOutTargets, FD3D12Resource** SOArray, const uint32* SOOffsets)
-{
-	PipelineState.Graphics.CurrentNumberOfStreamOutTargets = NumSimultaneousStreamOutTargets;
-	if (PipelineState.Graphics.CurrentNumberOfStreamOutTargets > 0)
-	{
-		FMemory::Memcpy(PipelineState.Graphics.CurrentStreamOutTargets, SOArray, sizeof(FD3D12Resource*)* NumSimultaneousStreamOutTargets);
-		FMemory::Memcpy(PipelineState.Graphics.CurrentSOOffsets, SOOffsets, sizeof(uint32*)* NumSimultaneousStreamOutTargets);
-
-		bNeedSetSOs = true;
-	}
-}

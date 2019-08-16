@@ -67,41 +67,7 @@ public:
 	/** The shader's bytecode, with custom data in the last byte. */
 	TArray<uint8> Code;
 
-	/** The shader's stream output description. */
-	//#todo-RemoveStreamOut
-	D3D12_STREAM_OUTPUT_DESC StreamOutput;
-	//#todo-RemoveStreamOut
-	D3D12_SO_DECLARATION_ENTRY* pStreamOutEntries;
-	//#todo-RemoveStreamOut
-	uint32* pStreamOutStrides;
-
-	//#todo-RemoveStreamOut
-	bool bShaderNeedsStreamOutput;
-
 	FShaderCodePackedResourceCounts ResourceCounts;
-
-	FD3D12GeometryShader()
-		: pStreamOutEntries(nullptr)
-		, pStreamOutStrides(nullptr)
-		, bShaderNeedsStreamOutput(false)
-	{
-		FMemory::Memzero(&StreamOutput, sizeof(StreamOutput));
-	}
-
-	virtual ~FD3D12GeometryShader()
-	{
-		if (pStreamOutEntries)
-		{
-			delete[] pStreamOutEntries;
-			pStreamOutEntries = nullptr;
-		}
-
-		if (pStreamOutStrides)
-		{
-			delete[] pStreamOutStrides;
-			pStreamOutStrides = nullptr;
-		}
-	}
 };
 
 class FD3D12HullShader : public FRHIHullShader

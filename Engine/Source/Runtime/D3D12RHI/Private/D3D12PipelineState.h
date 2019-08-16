@@ -48,8 +48,6 @@ struct FD3D12_GRAPHICS_PIPELINE_STATE_DESC
 	D3D12_SHADER_BYTECODE DS;
 	D3D12_SHADER_BYTECODE HS;
 	D3D12_SHADER_BYTECODE GS;
-	//#todo-RemoveStreamOut
-	D3D12_STREAM_OUTPUT_DESC StreamOutput;
 #if !D3D12_USE_DERIVED_PSO
 	D3D12_BLEND_DESC BlendState;
 	uint32 SampleMask;
@@ -160,9 +158,6 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 #endif
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.IBStripCutValue)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.NodeMask)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.RasterizedStream)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.NumEntries)
-		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.NumStrides)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.SampleDesc.Count)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.SampleDesc.Quality)
 
@@ -179,29 +174,6 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSHash)
 		PSO_IF_NOT_EQUAL_RETURN_FALSE(DSHash)
-
-		if (lhs.Desc.StreamOutput.pSODeclaration != rhs.Desc.StreamOutput.pSODeclaration &&
-			lhs.Desc.StreamOutput.NumEntries)
-		{
-			for (uint32 i = 0; i < lhs.Desc.StreamOutput.NumEntries; i++)
-			{
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].Stream)
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].SemanticIndex)
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].StartComponent)
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].ComponentCount)
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].OutputSlot)
-				PSO_IF_STRING_COMPARE_FAILS_RETURN_FALSE(Desc.StreamOutput.pSODeclaration[i].SemanticName)
-			}
-		}
-
-		if (lhs.Desc.StreamOutput.pBufferStrides != rhs.Desc.StreamOutput.pBufferStrides &&
-			lhs.Desc.StreamOutput.NumStrides)
-		{
-			for (uint32 i = 0; i < lhs.Desc.StreamOutput.NumStrides; i++)
-			{
-				PSO_IF_NOT_EQUAL_RETURN_FALSE(Desc.StreamOutput.pBufferStrides[i])
-			}
-		}
 
 		if (lhs.Desc.InputLayout.pInputElementDescs != rhs.Desc.InputLayout.pInputElementDescs &&
 			lhs.Desc.InputLayout.NumElements)

@@ -513,10 +513,6 @@ public:
 	{
 	}
 
-	virtual void RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers,const uint32* Offsets) final override
-	{
-
-	}
 	virtual void RHISetRasterizerState(FRHIRasterizerState* NewState) final override
 	{
 

@@ -165,21 +165,6 @@ void FD3D11DynamicRHI::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* 
 	StateCache.SetStreamSource(D3DBuffer, StreamIndex, Offset);
 }
 
-void FD3D11DynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
-{
-	ID3D11Buffer* D3DVertexBuffers[D3D11_SO_BUFFER_SLOT_COUNT] = {0};
-
-	if (VertexBuffers)
-	{
-		for (uint32 BufferIndex = 0; BufferIndex < NumTargets; BufferIndex++)
-		{
-			D3DVertexBuffers[BufferIndex] = VertexBuffers[BufferIndex] ? ((FD3D11VertexBuffer*)VertexBuffers[BufferIndex])->Resource : NULL;
-		}
-	}
-
-	Direct3DDeviceIMContext->SOSetTargets(NumTargets, D3DVertexBuffers, Offsets);
-}
-
 // Rasterizer state.
 void FD3D11DynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 {

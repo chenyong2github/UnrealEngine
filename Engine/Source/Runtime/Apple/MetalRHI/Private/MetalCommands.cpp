@@ -96,12 +96,6 @@ void FMetalRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexB
 	}
 }
 
-void FMetalDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const * VertexBuffers, const uint32* Offsets)
-{
-	NOT_SUPPORTED("RHISetStreamOutTargets");
-
-}
-
 void FMetalRHICommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderRHI)
 {
 	@autoreleasepool {

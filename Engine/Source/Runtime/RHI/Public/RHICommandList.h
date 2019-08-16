@@ -4235,6 +4235,7 @@ public:
 		RHITick(DeltaTime);
 	}
 	
+	//#todo-RemoveStreamOut
 	FORCEINLINE void SetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers,const uint32* Offsets)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RHIMETHOD_SetStreamOutTargets_Flush);

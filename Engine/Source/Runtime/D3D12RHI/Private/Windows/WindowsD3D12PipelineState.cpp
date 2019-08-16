@@ -51,7 +51,6 @@ FD3D12_GRAPHICS_PIPELINE_STATE_STREAM FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Pipel
 	Stream.PrimitiveTopologyType = this->PrimitiveTopologyType;
 	Stream.VS = this->VS;
 	Stream.GS = this->GS;
-	Stream.StreamOutput = this->StreamOutput;
 	Stream.HS = this->HS;
 	Stream.DS = this->DS;
 	Stream.PS = this->PS;
@@ -77,7 +76,6 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC FD3D12_GRAPHICS_PIPELINE_STATE_DESC::Graphics
 	D.PrimitiveTopologyType = this->PrimitiveTopologyType;
 	D.VS = this->VS;
 	D.GS = this->GS;
-	D.StreamOutput = this->StreamOutput;
 	D.HS = this->HS;
 	D.DS = this->DS;
 	D.PS = this->PS;
@@ -191,21 +189,6 @@ void FD3D12PipelineStateCache::RebuildFromDiskCache(ID3D12RootSignature* Graphic
 				DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&stringLength, sizeof(uint32));
 				DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->InputLayout.pInputElementDescs[j].SemanticName, *stringLength, true);
 			}
-		}
-		if (PSODesc->StreamOutput.NumEntries)
-		{
-			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->StreamOutput.pSODeclaration, PSODesc->StreamOutput.NumEntries * sizeof(D3D12_SO_DECLARATION_ENTRY), true);
-			for (uint32 j = 0; j < PSODesc->StreamOutput.NumEntries; j++)
-			{
-				//Get the Sematic name string
-				uint32* stringLength = nullptr;
-				DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&stringLength, sizeof(uint32));
-				DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->StreamOutput.pSODeclaration[j].SemanticName, *stringLength, true);
-			}
-		}
-		if (PSODesc->StreamOutput.NumStrides)
-		{
-			DiskCaches[PSO_CACHE_GRAPHICS].SetPointerAndAdvanceFilePosition((void**)&PSODesc->StreamOutput.pBufferStrides, PSODesc->StreamOutput.NumStrides * sizeof(uint32), true);
 		}
 		if (PSODesc->VS.BytecodeLength)
 		{
@@ -348,22 +331,6 @@ void FD3D12PipelineStateCache::AddToDiskCache(const FD3D12LowLevelGraphicsPipeli
 				DiskCache.AppendData((void*)&stringLength, sizeof(stringLength));
 				DiskCache.AppendData((void*)PsoDesc.InputLayout.pInputElementDescs[i].SemanticName, stringLength);
 			}
-		}
-		if (PsoDesc.StreamOutput.NumEntries)
-		{
-			DiskCache.AppendData((void*)&PsoDesc.StreamOutput.pSODeclaration, PsoDesc.StreamOutput.NumEntries * sizeof(D3D12_SO_DECLARATION_ENTRY));
-			for (uint32 i = 0; i < PsoDesc.StreamOutput.NumEntries; i++)
-			{
-				//Save the Sematic name string
-				uint32 stringLength = (uint32)strnlen_s(PsoDesc.StreamOutput.pSODeclaration[i].SemanticName, IL_MAX_SEMANTIC_NAME);
-				stringLength++; // include the NULL char
-				DiskCache.AppendData((void*)&stringLength, sizeof(stringLength));
-				DiskCache.AppendData((void*)PsoDesc.StreamOutput.pSODeclaration[i].SemanticName, stringLength);
-			}
-		}
-		if (PsoDesc.StreamOutput.NumStrides)
-		{
-			DiskCache.AppendData((void*)&PsoDesc.StreamOutput.pBufferStrides, PsoDesc.StreamOutput.NumStrides * sizeof(uint32));
 		}
 		if (PsoDesc.VS.BytecodeLength)
 		{

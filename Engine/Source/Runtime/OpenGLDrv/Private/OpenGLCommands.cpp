@@ -282,11 +282,6 @@ void FOpenGLDynamicRHI::RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer*
 	PendingState.Streams[StreamIndex].Offset = Offset;
 }
 
-void FOpenGLDynamicRHI::RHISetStreamOutTargets(uint32 NumTargets, FRHIVertexBuffer* const* VertexBuffers, const uint32* Offsets)
-{
-	check(0);
-}
-
 // Rasterizer state.
 void FOpenGLDynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 {

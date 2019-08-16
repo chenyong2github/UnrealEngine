@@ -60,12 +60,6 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 		Desc.Desc.InputLayout.pInputElementDescs = InputLayout->VertexElements.GetData();
 	}
 
-	if (Initializer.BoundShaderState.GeometryShaderRHI)
-	{
-		//#todo-RemoveStreamOut
-		Desc.Desc.StreamOutput = ((FD3D12GeometryShader*) Initializer.BoundShaderState.GeometryShaderRHI)->StreamOutput;
-	}
-
 #define COPY_SHADER(Initial, Name) \
 	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
 	{ \
@@ -188,8 +182,6 @@ SIZE_T FD3D12PipelineStateCacheBase::HashPSODesc(const FD3D12LowLevelGraphicsPip
 	Hash.Desc.DS.pShaderBytecode = nullptr;
 	Hash.Desc.GS.pShaderBytecode = nullptr;
 	Hash.Desc.InputLayout.pInputElementDescs = nullptr;
-	Hash.Desc.StreamOutput.pBufferStrides = nullptr;
-	Hash.Desc.StreamOutput.pSODeclaration = nullptr;
 	Hash.Desc.CachedPSO.pCachedBlob = nullptr;
 	Hash.Desc.CachedPSO.CachedBlobSizeInBytes = 0;
 	Hash.CombinedHash = 0;
