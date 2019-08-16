@@ -7,6 +7,8 @@
 #include "Factories/Factory.h"
 #include "Texture2DArrayFactory.generated.h"
 
+class UTexture2D;
+
 /** Factory for creating volume texture */
 UCLASS(hidecategories=Object, MinimalAPI)
 class UTexture2DArrayFactory : public UFactory
