@@ -356,11 +356,11 @@ void FFXSystem::DrawDebug( FCanvas* Canvas )
 	}
 }
 
-void FFXSystem::PreInitViews(FRHICommandListImmediate& RHICmdList)
+void FFXSystem::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
 {
 	if (RHISupportsGPUParticles())
 	{
-		AdvanceGPUParticleFrame();
+		AdvanceGPUParticleFrame(bAllowGPUParticleUpdate);
 	}
 }
 
@@ -416,16 +416,18 @@ void FFXSystem::PostRenderOpaque(
 	FRHICommandListImmediate& RHICmdList, 
 	FRHIUniformBuffer* ViewUniformBuffer,
 	const FShaderParametersMetadata* SceneTexturesUniformBufferStruct,
-	FRHIUniformBuffer* SceneTexturesUniformBuffer)
+	FRHIUniformBuffer* SceneTexturesUniformBuffer,
+	bool bAllowGPUParticleUpdate)
 {
 	if (RHISupportsGPUParticles() && IsParticleCollisionModeSupported(GetShaderPlatform(), PCM_DepthBuffer))
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, GPUParticles_PostRenderOpaque);
-		PrepareGPUSimulation(RHICmdList);
-		
-		SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDepthBuffer, ViewUniformBuffer, NULL, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer);
-		
-		FinalizeGPUSimulation(RHICmdList);
+		if (bAllowGPUParticleUpdate)
+		{
+			PrepareGPUSimulation(RHICmdList);
+			SimulateGPUParticles(RHICmdList, EParticleSimulatePhase::CollisionDepthBuffer, ViewUniformBuffer, NULL, SceneTexturesUniformBufferStruct, SceneTexturesUniformBuffer);
+			FinalizeGPUSimulation(RHICmdList);
+		}
 
 		SortGPUParticles(RHICmdList);		
 	}
