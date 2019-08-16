@@ -586,12 +586,6 @@ namespace Audio
 			}
 		}
 
-		// Get the current capacity of the buffer
-		uint32 GetCapacity()
-		{
-			return Capacity;
-		}
-
 		// Get number of samples that can be pushed onto the buffer before it is full.
 		uint32 Remainder()
 		{
