@@ -1052,6 +1052,8 @@ public:
 	FLinearColor OcclusionTint;
 	int32 SamplesPerPixel;
 
+	bool IsMovable() { return bMovable; }
+
 #if RHI_RAYTRACING
 	bool IsDirtyImportanceSamplingData;
 	bool ShouldRebuildCdf() const;
@@ -1085,6 +1087,7 @@ public:
 
 private:
 	FLinearColor LightColor;
+	const uint8 bMovable : 1;
 };
 
 
@@ -1359,8 +1362,10 @@ public:
 	// Atmosphere / Fog related functions.
 
 	inline bool IsUsedAsAtmosphereSunLight() const { return bUsedAsAtmosphereSunLight; }
+	inline uint8 GetAtmosphereSunLightIndex() const { return AtmosphereSunLightIndex; }
 	virtual void SetAtmosphereRelatedProperties(FLinearColor TransmittanceFactor, FLinearColor SunOuterSpaceLuminance) {}
 	virtual FLinearColor GetOuterSpaceLuminance() const { return FLinearColor::White; }
+	virtual FLinearColor GetTransmittanceFactor() const { return FLinearColor::White; }
 	static float GetSunOnEarthHalfApexAngleRadian() 
 	{ 
 		const float SunOnEarthApexAngleDegree = 0.545f;	// Apex angle == angular diameter
@@ -1511,6 +1516,9 @@ protected:
 
 	/** Whether the light supports rendering in tiled deferred pass */
 	uint8 bTiledDeferredLightingSupported : 1;
+
+	/** The index of the atmospheric light. Multiple lights can be considered when computing the sky/atmospheric scattering. */
+	const uint8 AtmosphereSunLightIndex;
 
 	/** The light type (ELightComponentType) */
 	const uint8 LightType;
@@ -2905,6 +2913,7 @@ struct FReadOnlyCVARCache
 	bool bEnableAtmosphericFog;
 	bool bEnableLowQualityLightmaps;
 	bool bAllowStaticLighting;
+	bool bSupportSkyAtmosphere;
 
 	// Mobile specific
 	bool bMobileAllowMovableDirectionalLights;

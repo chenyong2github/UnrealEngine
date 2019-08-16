@@ -6184,6 +6184,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 		Set("ClassIcon.VectorFieldComponent", new IMAGE_BRUSH("Icons/ActorIcons/VectorFieldVolume_16x", Icon16x16));
 		Set("ClassIcon.ArrowComponent", new IMAGE_BRUSH("Icons/ActorIcons/Arrow_16px", Icon16x16));
 		Set("ClassIcon.AtmosphericFogComponent", new IMAGE_BRUSH("Icons/AssetIcons/AtmosphericFog_16x", Icon16x16));
+		Set("ClassIcon.SkyAtmosphereComponent", new IMAGE_BRUSH("Icons/AssetIcons/AtmosphericFog_16x", Icon16x16));
 		Set("ClassIcon.BoxComponent", new IMAGE_BRUSH("Icons/ActorIcons/Box_16px", Icon16x16));
 		Set("ClassIcon.CapsuleComponent", new IMAGE_BRUSH("Icons/ActorIcons/Capsule_16px", Icon16x16));
 		Set("ClassIcon.InstancedStaticMeshComponent", new IMAGE_BRUSH("Icons/ActorIcons/InstancedStaticMesh_16px", Icon16x16));
@@ -6434,6 +6435,14 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			const TCHAR* Type = AssetTypes[TypeIndex];
 			Set( *FString::Printf(TEXT("ClassIcon.%s"), Type),		new IMAGE_BRUSH(FString::Printf(TEXT("Icons/AssetIcons/%s_%dx"), Type, 16), Icon16x16 ) );
 			Set( *FString::Printf(TEXT("ClassThumbnail.%s"), Type),	new IMAGE_BRUSH(FString::Printf(TEXT("Icons/AssetIcons/%s_%dx"), Type, 64), Icon64x64 ) );
+		}
+
+		{
+			// For now, the SkyAtmosphere component copy the style of the AtmosphericFog component.
+			const TCHAR* Type = TEXT("SkyAtmosphere");
+			const TCHAR* Icon = TEXT("AtmosphericFog");
+			Set(*FString::Printf(TEXT("ClassIcon.%s"), Type), new IMAGE_BRUSH(FString::Printf(TEXT("Icons/AssetIcons/%s_%dx"), Icon, 16), Icon16x16));
+			Set(*FString::Printf(TEXT("ClassThumbnail.%s"), Type), new IMAGE_BRUSH(FString::Printf(TEXT("Icons/AssetIcons/%s_%dx"), Icon, 64), Icon64x64));
 		}
 	}
 #endif

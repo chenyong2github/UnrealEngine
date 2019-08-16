@@ -856,6 +856,10 @@ public:
 	UPROPERTY(EditAnywhere, Category=Translucency, meta=(DisplayName = "Apply Fogging"))
 	uint32 bUseTranslucencyVertexFog:1;
 
+	/** Unlit and Opaque materials can be used as sky material on a sky dome mesh. When IsSky is true, these meshes will not receive any contribution from the aerial perspective. Height and Volumetric fog effects will still be applied. */
+	UPROPERTY(EditAnywhere, Category=Material, AdvancedDisplay)
+	uint32 bIsSky:1;
+
 	/** When true, translucent materials have fog computed for every pixel, which costs more but fixes artifacts due to low tessellation. */
 	UPROPERTY(EditAnywhere, Category=Translucency)
 	uint32 bComputeFogPerPixel:1;
