@@ -439,6 +439,10 @@ public:
 	 */
 	static void ReassignStationaryLightChannels(UWorld* TargetWorld, bool bAssignForLightingBuild, ULevel* LightingScenario);
 
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnUpdateColorAndBrightness, ULightComponent&);
+
+	/** Called When light color or brightness needs update */
+	static FOnUpdateColorAndBrightness UpdateColorAndBrightnessEvent;
 };
 
 
