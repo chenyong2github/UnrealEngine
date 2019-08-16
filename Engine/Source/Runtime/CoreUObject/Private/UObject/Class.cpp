@@ -3228,7 +3228,7 @@ FFeedbackContext& UClass::GetDefaultPropertiesFeedbackContext()
 * Get the name of the CDO for the this class
 * @return The name of the CDO
 */
-FName UClass::GetDefaultObjectName()
+FName UClass::GetDefaultObjectName() const
 {
 	FString DefaultName;
 	DefaultName.Reserve(NAME_SIZE);
@@ -5353,10 +5353,9 @@ void UDynamicClass::PurgeClass(bool bRecompilingOnLoad)
 	AnimClassImplementation = nullptr;
 }
 
-UObject* UDynamicClass::FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const
+UObject* UDynamicClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
 {
-	UDynamicClass* ThisClass = const_cast<UDynamicClass*>(this);
-	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(ThisClass, ArchetypeClass, ArchetypeName));
+	UObject* Archetype = static_cast<UObject*>(FindObjectWithOuter(this, ArchetypeClass, ArchetypeName));
 	if (!Archetype)
 	{
 		// See UBlueprintGeneratedClass::FindArchetype, UE-35259, UE-37480

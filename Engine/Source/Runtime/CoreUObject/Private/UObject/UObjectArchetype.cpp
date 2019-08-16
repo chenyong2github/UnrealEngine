@@ -12,7 +12,7 @@
 #include "UObject/UObjectAnnotation.h"
 #include "Stats/StatsMisc.h"
 
-UObject* GetArchetypeFromRequiredInfoImpl(UClass* Class, UObject* Outer, FName Name, EObjectFlags ObjectFlags, bool bUseUpToDateClass)
+UObject* GetArchetypeFromRequiredInfoImpl(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags, bool bUseUpToDateClass)
 {
 	UObject* Result = NULL;
 	const bool bIsCDO = !!(ObjectFlags&RF_ClassDefaultObject);
@@ -37,8 +37,8 @@ UObject* GetArchetypeFromRequiredInfoImpl(UClass* Class, UObject* Outer, FName N
 			}
 			else if (!!(ObjectFlags&RF_InheritableComponentTemplate) && Outer->IsA<UClass>())
 			{
-				UClass* OuterSuperClass = static_cast<UClass*>(Outer)->GetSuperClass();
-				for (UClass* SuperClassArchetype = bUseUpToDateClass && OuterSuperClass ? OuterSuperClass->GetAuthoritativeClass() : OuterSuperClass;
+				const UClass* OuterSuperClass = static_cast<const UClass*>(Outer)->GetSuperClass();
+				for (const UClass* SuperClassArchetype = bUseUpToDateClass && OuterSuperClass ? OuterSuperClass->GetAuthoritativeClass() : OuterSuperClass;
 					SuperClassArchetype && SuperClassArchetype->HasAllClassFlags(CLASS_CompiledFromBlueprint);
 					SuperClassArchetype = SuperClassArchetype->GetSuperClass())
 				{
@@ -92,7 +92,7 @@ UObject* GetArchetypeFromRequiredInfoImpl(UClass* Class, UObject* Outer, FName N
 	return Result;
 }
 
-UObject* UObject::GetArchetypeFromRequiredInfo(UClass* Class, UObject* Outer, FName Name, EObjectFlags ObjectFlags)
+UObject* UObject::GetArchetypeFromRequiredInfo(const UClass* Class, const UObject* Outer, FName Name, EObjectFlags ObjectFlags)
 {
 	bool bUseUpToDateClass = false;
 #if WITH_EDITOR

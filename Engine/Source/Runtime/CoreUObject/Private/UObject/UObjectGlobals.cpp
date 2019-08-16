@@ -251,7 +251,7 @@ struct FPerClassNumberSuffixAnnotation
 		return false;
 	}
 
-	TMap<UClass*, int32> Suffixes;
+	TMap<const UClass*, int32> Suffixes;
 };
 
 /**
@@ -259,7 +259,7 @@ struct FPerClassNumberSuffixAnnotation
  *
  * Updating is done via a callback because a lock needs to be maintained while this happens.
  */
-int32 UpdateSuffixForNextNewObject(UObject* Parent, UClass* Class, TFunctionRef<void(int32&)> IndexMutator)
+int32 UpdateSuffixForNextNewObject(UObject* Parent, const UClass* Class, TFunctionRef<void(int32&)> IndexMutator)
 {
 	static FCriticalSection PerClassNumberSuffixAnnotationMutex;
 	static FUObjectAnnotationDense<FPerClassNumberSuffixAnnotation, true> PerClassNumberSuffixAnnotation;
@@ -1747,7 +1747,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 	Object name functions.
 -----------------------------------------------------------------------------*/
 
-FName MakeUniqueObjectName( UObject* Parent, UClass* Class, FName InBaseName/*=NAME_None*/ )
+FName MakeUniqueObjectName( UObject* Parent, const UClass* Class, FName InBaseName/*=NAME_None*/ )
 {
 	CSV_SCOPED_TIMING_STAT(UObject, MakeUniqueObjectName);
 	check(Class);
@@ -2171,7 +2171,7 @@ void SnapshotTransactionBuffer(UObject* Object)
 	}
 }
 
-bool StaticAllocateObjectErrorTests( UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags)
+bool StaticAllocateObjectErrorTests( const UClass* InClass, UObject* InOuter, FName InName, EObjectFlags InFlags)
 {
 	// Validation checks.
 	if( !InClass )
@@ -2239,7 +2239,7 @@ COREUOBJECT_API bool GOutputCookingWarnings = false;
 
 UObject* StaticAllocateObject
 (
-	UClass*			InClass,
+	const UClass*	InClass,
 	UObject*		InOuter,
 	FName			InName,
 	EObjectFlags	InFlags,
@@ -2435,7 +2435,7 @@ UObject* StaticAllocateObject
 	if (!bSubObject)
 	{
 		FMemory::Memzero((void *)Obj, TotalSize);
-		new ((void *)Obj) UObjectBase(InClass, InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName);
+		new ((void *)Obj) UObjectBase(const_cast<UClass*>(InClass), InFlags|RF_NeedInitialization, InternalSetFlags, InOuter, InName);
 	}
 	else
 	{
@@ -3086,7 +3086,7 @@ void FObjectInitializer::AssertIfSubobjectSetupIsNotAllowed(const FName Subobjec
 }
 
 #if DO_CHECK
-void CheckIsClassChildOf_Internal(UClass* Parent, UClass* Child)
+void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 {
 	// This is a function to avoid platform compilation issues
 	checkf(Child, TEXT("NewObject called with a nullptr class object"));
@@ -3096,7 +3096,7 @@ void CheckIsClassChildOf_Internal(UClass* Parent, UClass* Child)
 
 UObject* StaticConstructObject_Internal
 (
-	UClass*			InClass,
+	const UClass*	InClass,
 	UObject*		InOuter								/*=GetTransientPackage()*/,
 	FName			InName								/*=NAME_None*/,
 	EObjectFlags	InFlags								/*=0*/,

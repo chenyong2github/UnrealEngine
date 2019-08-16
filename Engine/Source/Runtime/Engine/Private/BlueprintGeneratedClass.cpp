@@ -745,7 +745,7 @@ UInheritableComponentHandler* UBlueprintGeneratedClass::GetInheritableComponentH
 }
 
 
-UObject* UBlueprintGeneratedClass::FindArchetype(UClass* ArchetypeClass, const FName ArchetypeName) const
+UObject* UBlueprintGeneratedClass::FindArchetype(const UClass* ArchetypeClass, const FName ArchetypeName) const
 {
 	UObject* Archetype = nullptr;
 
