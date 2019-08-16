@@ -13,6 +13,6 @@ public:
 	void StopStreaming() {}
 	bool SendAudio(const uint8* Buffer, size_t BufferSize) { return true; }
 
-	bool IsPaused() const { return false; }
+	bool IsPaused(float DeltaTime) const { return false; }
 	void Tick() {}
 };
