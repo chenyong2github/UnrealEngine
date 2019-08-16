@@ -75,7 +75,7 @@ IReplicationProxy* UFlyingMovementComponent::InstantiateNetworkSimulation()
 void UFlyingMovementComponent::InitializeForNetworkRole(ENetRole Role)
 {	
 	check(NetworkSim);
-	NetworkSim->InitializeForNetworkRole(Role, IsLocallyControlled(), GetSimulationInitParameters(Role));
+	NetworkSim->InitializeForNetworkRole(Role, GetSimulationInitParameters(Role));
 }
 
 void UFlyingMovementComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)
@@ -169,4 +169,9 @@ void UFlyingMovementComponent::ProduceInput(const FlyingMovement::TSimTime& SimF
 void UFlyingMovementComponent::FinalizeFrame(const FlyingMovement::FMoveState& SyncState)
 {
 	PreSimSync(SyncState);
+}
+
+FString UFlyingMovementComponent::GetDebugName() const
+{
+	return FString::Printf(TEXT("FlyingMovement. %s. %s"), *UEnum::GetValueAsString(TEXT("Engine.ENetRole"), GetOwnerRole()), *GetName());
 }

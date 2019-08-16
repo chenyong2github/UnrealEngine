@@ -101,6 +101,14 @@ Smoothing: Taking the output of the simulation and applying an additional layer 
 // ----------------------------------------------------------------------------------------------------------
 
 
+Update (8-14-19)
+-Some more cleanup. Cvar fixes and other consolidation. Now time for vacation (2 weeks). 
+TODO still:
+-Improve debugger (has rotted a bit due to refactors)
+-Network fault handling, disable/enable local prediction causes some bad transitions
+-Initialization of system, specifically InitializeForNetworkRole can be much better now.
+	-Consider using templates to inline allocate all memory. Maybe make auto proxy buffers allocated on demant.
+
 Update (8-13-19)
 -Refactor really feeling good, things are falling into place. Still a few things to do and bugs to chase down.
 -Added simulated proxy notes above to detail current plan
