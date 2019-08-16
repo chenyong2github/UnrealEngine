@@ -58,6 +58,9 @@ struct CORE_API FMapErrors
     
 	static FName MultipleSkyLights;
 
+	static FName MultipleSkyAtmospheres;
+	static FName MultipleSkyAtmosphereTypes;
+
 	/** {ActorName} has WorldTrace blocked. It will be considered to be world geometry */
 	static FName InvalidTrace;
 

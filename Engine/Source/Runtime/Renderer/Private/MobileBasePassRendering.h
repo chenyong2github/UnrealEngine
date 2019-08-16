@@ -22,6 +22,7 @@
 #include "FogRendering.h"
 #include "PlanarReflectionRendering.h"
 #include "BasePassRendering.h"
+#include "SkyAtmosphereRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileBasePassUniformParameters, )
 	SHADER_PARAMETER_STRUCT(FFogUniformParameters, Fog)
