@@ -489,3 +489,73 @@ UARCandidateImage* UARBlueprintLibrary::AddRuntimeCandidateImage(UARSessionConfi
 	}
 }
 
+bool UARBlueprintLibrary::IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature)
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->IsSessionTrackingFeatureSupported(SessionType, SessionTrackingFeature);
+	}
+	else
+	{
+		return false;
+	}
+}
+
+TArray<FARPose2D> UARBlueprintLibrary::GetAllTracked2DPoses()
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetTracked2DPose();
+	}
+	else
+	{
+		return {};
+	}
+}
+
+TArray<UARTrackedPose*> UARBlueprintLibrary::GetAllTrackedPoses()
+{
+	TArray<UARTrackedPose*> TrackedPoses;
+	
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		auto PinnedARSystem = ARSystem.Pin();
+		for (UARTrackedGeometry* Geo : PinnedARSystem->GetAllTrackedGeometries())
+		{
+			if (UARTrackedPose* Item = Cast<UARTrackedPose>(Geo))
+			{
+				TrackedPoses.Add(Item);
+			}
+		}
+	}
+	return TrackedPoses;
+}
+
+UARTextureCameraImage* UARBlueprintLibrary::GetPersonSegmentationImage()
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetPersonSegmentationImage();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+UARTextureCameraImage* UARBlueprintLibrary::GetPersonSegmentationDepthImage()
+{
+	auto ARSystem = GetARSystem();
+	if (ARSystem.IsValid())
+	{
+		return ARSystem.Pin()->GetPersonSegmentationDepthImage();
+	}
+	else
+	{
+		return nullptr;
+	}
+}
