@@ -31,8 +31,8 @@ template <
 	typename TRepProxySimulated =	TReplicator_Simulated	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings>,
 
 	// Defines how replication happens on these special channels, but doesn't dictate how simulation evolves
-	typename TRepProxyReplay =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
-	typename TRepProxyDebug =		TReplicator_DynamicSequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug, 3>
+	typename TRepProxyReplay =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Sync,  3>,
+	typename TRepProxyDebug =		TReplicator_Sequence	<TInternalBufferTypes<TUserBufferTypes, InTTickSettings>,	InTTickSettings, ENetworkSimBufferTypeId::Debug, 3>
 >
 class TNetworkedSimulationModel : public IReplicationProxy
 {
@@ -52,6 +52,8 @@ public:
 	class IDriver
 	{
 	public:
+		virtual FString GetDebugName() const = 0; // Used for debugging. Recommended to emit the simulation name and the actor name/role.
+
 		virtual void InitSyncState(TSyncState& OutSyncState) const = 0;	// Called to create initial value of the sync state.
 		virtual void ProduceInput(const TSimTime&, typename TUserBufferTypes::TInputCmd&) = 0; // Called when the sim is ready to process new local input
 		virtual void FinalizeFrame(const TSyncState& SyncState) = 0; // Called from the Network Sim at the end of the sim frame when there is new sync data.
@@ -130,14 +132,14 @@ public:
 		// (E.g, InputCmd @ keyframe=X is used to generate MotionState @ keyframe=X)
 		// This means that SyncedState @ keyframe=0 is always created here via InitSyncState.
 		// This also means that we never actually process InputCmd @ keyframe=0. Which is why LastProcessedInputKeyframe is initialized to 0 ("already processed")
-		// and the buffer has an empty element inserted in InitLocalInputBuffer.
+		// and the buffer has an empty element inserted in InitializeForNetworkRole.
 
 		if (Buffers.Sync.GetHeadKeyframe() != TickInfo.LastProcessedInputKeyframe)
 		{
 			if (TickInfo.LastProcessedInputKeyframe != 0)
 			{
 				// This shouldn't happen, but is not fatal. We are reseting the sync state buffer.
-				UE_LOG(LogNetworkSim, Warning, TEXT("Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d. Role=%d"), TickInfo.LastProcessedInputKeyframe, Buffers.Sync.GetHeadKeyframe(), (int32)Parameters.Role);
+				UE_LOG(LogNetworkSim, Warning, TEXT("%s. Break in SyncState continuity. LastProcessedInputKeyframe: %d. SyncBuffer.GetHeadKeyframe(): %d."), *Driver->GetDebugName() , TickInfo.LastProcessedInputKeyframe, Buffers.Sync.GetHeadKeyframe());
 			}
 
 			// We need an initial/current state. Get this from the sim driver
@@ -227,7 +229,7 @@ public:
 		}
 	}	
 	
-	void InitializeForNetworkRole(const ENetRole Role, const bool IsLocallyControlled, const FNetworkSimulationModelInitParameters& Parameters)
+	void InitializeForNetworkRole(const ENetRole Role, const FNetworkSimulationModelInitParameters& Parameters)
 	{
 		Buffers.Input.SetBufferSize(Parameters.InputBufferSize);
 		Buffers.Sync.SetBufferSize(Parameters.SyncedBufferSize);
@@ -243,13 +245,10 @@ public:
 			MyHistoricBuffers->Input.SetBufferSize(Parameters.HistoricBufferSize);
 			MyHistoricBuffers->Sync.SetBufferSize(Parameters.HistoricBufferSize);
 			MyHistoricBuffers->Aux.SetBufferSize(Parameters.HistoricBufferSize);
-		}
+		}		
 
-		if (IsLocallyControlled)
-		{
-			check(Parameters.InputBufferSize > 0); // If you tell me this is locally controlled, you need to have an input buffer.
-			InitLocalInputBuffer();
-		}
+		// We want to start with an empty command in the input buffer. The sync buffer will be populated @ frame 0 with the "current" state when we actually sim. This keeps them in sync
+		*Buffers.Input.GetWriteNext() = TInputCmd();
 	}
 
 	void NetSerializeProxy(EReplicationProxyTarget Target, const FNetSerializeParams& Params)
@@ -303,15 +302,6 @@ public:
 			return 0;
 		};
 	}
-
-	void InitLocalInputBuffer()
-	{
-		// Buffer should also be empty before calling this
-		check(Buffers.Input.GetHeadKeyframe() == INDEX_NONE);
-
-		// We want to start with an empty command in the input buffer. See notes in input buffer processing function.
-		*Buffers.Input.GetWriteNext() = TInputCmd();
-	}	
 	
 	TSimulationTickState<TTickSettings> TickInfo;	// Manages simulation time and what inputs we are processed
 
