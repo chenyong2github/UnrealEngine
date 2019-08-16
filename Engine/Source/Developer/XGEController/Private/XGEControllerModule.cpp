@@ -295,7 +295,7 @@ bool FXGEControllerModule::IsSupported()
 			}
 			else if (Version < 1002867)
 			{
-				UE_LOG(LogXGEController, Error, TEXT("XGE version 8.01 (build 1867) or higher is required for XGE shader compilation with the interception interface."));
+				UE_LOG(LogXGEController, Warning, TEXT("XGE version 8.01 (build 1867) or higher is required for XGE shader compilation with the interception interface."));
 				XGEControllerVariables::Enabled = 0;
 			}
 		}
