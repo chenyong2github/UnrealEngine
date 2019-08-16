@@ -870,6 +870,13 @@ void FVirtualTextureSystem::Update(FRHICommandListImmediate& RHICmdList, ERHIFea
 
 	DestroyPendingVirtualTextures();
 
+	// Early out when no allocated VTs
+	if (AllocatedVTs.Num() == 0)
+	{
+		MappedTilesToProduce.Reset();
+		return;
+	}
+
 	FMemStack& MemStack = FMemStack::Get();
 	FMemMark Mark(MemStack);
 	FUniquePageList* MergedUniquePageList = new(MemStack) FUniquePageList;
