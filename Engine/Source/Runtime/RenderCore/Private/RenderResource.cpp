@@ -83,6 +83,7 @@ void FRenderResource::InitResource()
 #endif
 		if(GIsRHIInitialized)
 		{
+			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitRenderResource);
 			InitDynamicRHI();
 			InitRHI();
 		}
