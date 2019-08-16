@@ -251,7 +251,7 @@ public:
 
 	TConstParticleIterator(const TConstParticleIterator& Rhs) = default;
 
-	operator bool() const { return TransientHandle.GeometryParticles; }
+	operator bool() const { return TransientHandle.GeometryParticles != nullptr; }
 	TConstParticleIterator<TSOA>& operator++()
 	{
 		RangedForValidation();
