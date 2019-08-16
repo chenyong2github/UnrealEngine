@@ -313,7 +313,7 @@ struct FBuffers
         // This means you will get holes in the slots where we see a typed-resource on the other array.
         // We always leave a hole for BufferSizes at index 31.
         
-        uint32 TypedBuffers = 0;
+        uint32 TypedBuffers = UAVIndices;
         static const uint32 MaxBuffers = 30;
 		check(MaxTextures > 0);
         
