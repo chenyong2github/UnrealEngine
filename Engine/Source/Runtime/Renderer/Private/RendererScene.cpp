@@ -1291,6 +1291,7 @@ static FAutoConsoleVariableRef CVarWarningOnRedundantTransformUpdate(
 
 void FScene::UpdatePrimitiveTransform_RenderThread(FRHICommandListImmediate& RHICmdList, FPrimitiveSceneProxy* PrimitiveSceneProxy, const FBoxSphereBounds& WorldBounds, const FBoxSphereBounds& LocalBounds, const FMatrix& LocalToWorld, const FVector& AttachmentRootPosition)
 {
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(UpdatePrimitiveTransform);
 	SCOPE_CYCLE_COUNTER(STAT_UpdatePrimitiveTransformRenderThreadTime);
 
 	FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();

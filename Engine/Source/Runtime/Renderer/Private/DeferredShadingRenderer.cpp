@@ -1147,7 +1147,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Before starting the render, all async task for the Custom data must be completed
 	if (UpdateViewCustomDataEvents.Num() > 0)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_AsyncUpdateViewCustomData_Wait);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDeferndershaddShadingSceneRenderer_AsyncUpdateViewCustomData_Wait);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncUpdateViewCustomData_Wait);
 		FTaskGraphInterface::Get().WaitUntilTasksComplete(UpdateViewCustomDataEvents, ENamedThreads::GetRenderThread());
 	}
 
@@ -1298,6 +1299,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bDBuffer || IsForwardShadingEnabled(ShaderPlatform))
 	{
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(DeferredShadingSceneRenderer_DBuffer);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_DBuffer);
 
 		// e.g. DBuffer deferred decals
