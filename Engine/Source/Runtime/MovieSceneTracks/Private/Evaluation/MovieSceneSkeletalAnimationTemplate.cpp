@@ -149,9 +149,10 @@ struct FPreAnimatedAnimationTokenProducer : IMovieScenePreAnimatedTokenProducer
 
 struct FMinimalAnimParameters
 {
-	FMinimalAnimParameters(UAnimSequenceBase* InAnimation, float InEvalTime, float InBlendWeight, const FMovieSceneEvaluationScope& InScope, FName InSlotName, FObjectKey InSection, bool InSkipAnimationNotifiers, bool InForceCustomMode)
+	FMinimalAnimParameters(UAnimSequenceBase* InAnimation, float InFromEvalTime, float InToEvalTime, float InBlendWeight, const FMovieSceneEvaluationScope& InScope, FName InSlotName, FObjectKey InSection, bool InSkipAnimationNotifiers, bool InForceCustomMode)
 		: Animation(InAnimation)
-		, EvalTime(InEvalTime)
+		, FromEvalTime(InFromEvalTime)
+		, ToEvalTime(InToEvalTime)
 		, BlendWeight(InBlendWeight)
 		, EvaluationScope(InScope)
 		, SlotName(InSlotName)
@@ -161,7 +162,8 @@ struct FMinimalAnimParameters
 	{}
 	
 	UAnimSequenceBase* Animation;
-	float EvalTime;
+	float FromEvalTime;
+	float ToEvalTime;
 	float BlendWeight;
 	FMovieSceneEvaluationScope EvaluationScope;
 	FName SlotName;
@@ -248,9 +250,10 @@ namespace MovieScene
 
 			const EMovieScenePlayerStatus::Type PlayerStatus = Player.GetPlaybackStatus();
 
-			// If the playback status is jumping, ie. one such occurrence is setting the time for thumbnail generation, disable anim notifies updates because it could fire audio
-			// We now layer this with the passed in notify toggleto force a disable in this case.
-			const bool bFireNotifies = !bPreviewPlayback || (PlayerStatus != EMovieScenePlayerStatus::Jumping && PlayerStatus != EMovieScenePlayerStatus::Stopped);
+			// If the playback status is jumping, ie. one such occurrence is setting the time for thumbnail generation, disable anim notifies updates because it could fire audio.
+			// If the playback status is scrubbing, we disable notifies for now because we can't properly fire them in all cases until we get evaluation range info.
+			// We now layer this with the passed in notify toggle to force a disable in this case.
+			const bool bFireNotifies = !bPreviewPlayback || (PlayerStatus != EMovieScenePlayerStatus::Jumping && PlayerStatus != EMovieScenePlayerStatus::Stopped && PlayerStatus != EMovieScenePlayerStatus::Scrubbing);
 
 			// When jumping from one cut to another cut, the delta time should be 0 so that anim notifies before the current position are not evaluated. Note, anim notifies at the current time should still be evaluated.
 			const double DeltaTime = ( Context.HasJumped() ? FFrameTime(0) : Context.GetRange().Size<FFrameTime>() ) / Context.GetFrameRate();
@@ -350,14 +353,14 @@ namespace MovieScene
 				if (bPreviewPlayback)
 				{
 					PreviewSetAnimPosition(PersistentData, Player, SkeletalMeshComponent,
-						AnimParams.SlotName, AnimParams.Section, AnimParams.Animation, AnimParams.EvalTime, AnimParams.BlendWeight,
+						AnimParams.SlotName, AnimParams.Section, AnimParams.Animation, AnimParams.FromEvalTime, AnimParams.ToEvalTime, AnimParams.BlendWeight,
 						bFireNotifies && !AnimParams.bSkipAnimNotifiers, DeltaTime, PlayerStatus == EMovieScenePlayerStatus::Playing, 
 						bResetDynamics, AnimParams.bForceCustomMode);
 				}
 				else
 				{
 					SetAnimPosition(PersistentData, Player, SkeletalMeshComponent,
-						AnimParams.SlotName, AnimParams.Section, AnimParams.Animation, AnimParams.EvalTime, AnimParams.BlendWeight,
+						AnimParams.SlotName, AnimParams.Section, AnimParams.Animation, AnimParams.FromEvalTime, AnimParams.ToEvalTime, AnimParams.BlendWeight,
 						PlayerStatus == EMovieScenePlayerStatus::Playing, bFireNotifies && !AnimParams.bSkipAnimNotifiers,
 						AnimParams.bForceCustomMode
 					);
@@ -365,7 +368,7 @@ namespace MovieScene
 			}
 		}
 
-		void SetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bPlaying, bool bFireNotifies, bool bForceCustomMode)
+		void SetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bPlaying, bool bFireNotifies, bool bForceCustomMode)
 		{
 			static const bool bLooping = false;
 
@@ -385,14 +388,14 @@ namespace MovieScene
 				Player.SavePreAnimatedState(*SequencerInst, AnimTypeID, FStatelessPreAnimatedTokenProducer(&ResetAnimSequencerInstance));
 
 				// Set position and weight
-				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InPosition, Weight, bFireNotifies);
+				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
 			}
 			else if (UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance())
 			{
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData) ? SectionData->MontageInstanceId : INDEX_NONE;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InPosition, Weight, bLooping, bPlaying);
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bPlaying);
 
 				if (Montage.IsValid())
 				{
@@ -410,7 +413,7 @@ namespace MovieScene
 			}
 		}
 
-		void PreviewSetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bFireNotifies, float DeltaTime, bool bPlaying, bool bResetDynamics, bool bForceCustomMode)
+		void PreviewSetAnimPosition(FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player, USkeletalMeshComponent* SkeletalMeshComponent, FName SlotName, FObjectKey Section, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies, float DeltaTime, bool bPlaying, bool bResetDynamics, bool bForceCustomMode)
 		{
 			static const bool bLooping = false;
 
@@ -430,14 +433,14 @@ namespace MovieScene
 				Player.SavePreAnimatedState(*SequencerInst, AnimTypeID, FStatelessPreAnimatedTokenProducer(&ResetAnimSequencerInstance));
 
 				// Set position and weight
-				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InPosition, Weight, bFireNotifies);
+				SequencerInst->UpdateAnimTrack(InAnimSequence, GetTypeHash(AnimTypeID), InFromPosition, InToPosition, Weight, bFireNotifies);
 			}
 			else if (UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance())
 			{
 				FMontagePlayerPerSectionData* SectionData = MontageData.Find(Section);
 
 				int32 InstanceId = (SectionData)? SectionData->MontageInstanceId : INDEX_NONE;
-				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InPosition, Weight, bLooping, bFireNotifies, bPlaying);
+				TWeakObjectPtr<UAnimMontage> Montage = FAnimMontageInstance::PreviewSequencerMontagePosition(SlotName, SkeletalMeshComponent, InstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bFireNotifies, bPlaying);
 
 				if (Montage.IsValid())
 				{
@@ -481,7 +484,6 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 {
 	if (Params.Animation)
 	{
-
 		FOptionalMovieSceneBlendType BlendType = GetSourceSection()->GetBlendType();
 		check(BlendType.IsValid());
 
@@ -493,8 +495,9 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 			Accumulator.DefineActuator(ActuatorTypeID, MakeShared<MovieScene::FComponentAnimationActuator>());
 		}
 
-		// calculate the time at which to evaluate the animation
+		// Calculate the time at which to evaluate the animation
 		float EvalTime = Params.MapTimeToAnimation(Context.GetTime(), Context.GetFrameRate());
+		float PreviousEvalTime = Params.MapTimeToAnimation(Context.GetPreviousTime(), Context.GetFrameRate());
 
 		float ManualWeight = 1.f;
 		Params.Weight.Evaluate(Context.GetTime(), ManualWeight);
@@ -503,7 +506,7 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 
 		// Add the blendable to the accumulator
 		FMinimalAnimParameters AnimParams(
-			Params.Animation, EvalTime, Weight, ExecutionTokens.GetCurrentScope(), Params.SlotName, GetSourceSection(), Params.bSkipAnimNotifiers, 
+			Params.Animation, PreviousEvalTime, EvalTime, Weight, ExecutionTokens.GetCurrentScope(), Params.SlotName, GetSourceSection(), Params.bSkipAnimNotifiers, 
 			Params.bForceCustomMode
 		);
 		ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<MovieScene::FBlendedAnimation>(AnimParams, BlendType.Get(), 1.f));
@@ -512,7 +515,8 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 		{
 			FFrameTime SimulatedTime = IMovieSceneMotionVectorSimulation::GetSimulationTime(Context);
 
-			// calculate the time at which to evaluate the animation
+			// Calculate the time at which to evaluate the animation
+			float CurrentEvalTime = Params.MapTimeToAnimation(Context.GetTime(), Context.GetFrameRate());
 			float SimulatedEvalTime = Params.MapTimeToAnimation(SimulatedTime, Context.GetFrameRate());
 
 			float SimulatedManualWeight = 1.f;
@@ -521,7 +525,8 @@ void FMovieSceneSkeletalAnimationSectionTemplate::Evaluate(const FMovieSceneEval
 			const float SimulatedWeight = SimulatedManualWeight * EvaluateEasing(SimulatedTime);
 
 			FSimulatedAnimParameters SimulatedAnimParams{ AnimParams };
-			SimulatedAnimParams.AnimParams.EvalTime = SimulatedEvalTime;
+			SimulatedAnimParams.AnimParams.FromEvalTime = CurrentEvalTime;
+			SimulatedAnimParams.AnimParams.ToEvalTime = SimulatedEvalTime;
 			SimulatedAnimParams.AnimParams.BlendWeight = SimulatedWeight;
 			ExecutionTokens.BlendToken(ActuatorTypeID, TBlendableToken<MovieScene::FBlendedAnimation>(SimulatedAnimParams, BlendType.Get(), 1.f));
 		}

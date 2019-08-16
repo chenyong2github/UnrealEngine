@@ -90,4 +90,6 @@ public:
 	virtual void SetAccumulatedTime(const float& NewTime) {ExplicitTime = NewTime;}
 	virtual UAnimationAsset* GetAnimAsset() {return Sequence;}
 	// End of FAnimNode_AssetPlayerBase Interface
+
+	void SetExplicitPreviousTime(float PreviousTime) { InternalTimeAccumulator = PreviousTime; }
 };

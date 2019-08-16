@@ -1828,9 +1828,13 @@ EMontageSubStepResult FMontageSubStepper::Advance(float& InOut_P_Original, const
 
 	// If we're forcing next position, this is our DeltaMove.
 	// We don't use play rate and delta time to move.
-	if (MontageInstance->ForcedNextPosition.IsSet())
+	if (MontageInstance->ForcedNextToPosition.IsSet())
 	{
-		const float NewPosition = MontageInstance->ForcedNextPosition.GetValue();
+		const float NewPosition = MontageInstance->ForcedNextToPosition.GetValue();
+		if (MontageInstance->ForcedNextFromPosition.IsSet())
+		{
+			InOut_P_Original = MontageInstance->ForcedNextFromPosition.GetValue();
+		}
 		DeltaMove = NewPosition - InOut_P_Original;
 		PlayRate = DeltaMove / TimeRemaining;
 		bPlayingForward = (DeltaMove >= 0.f);
@@ -2320,7 +2324,8 @@ void FAnimMontageInstance::Advance(float DeltaTime, struct FRootMotionMovementPa
 			}
 		
 			// if we had a ForcedNextPosition set, reset it.
-			ForcedNextPosition.Reset();
+			ForcedNextToPosition.Reset();
+			ForcedNextFromPosition.Reset();
 		}
 	}
 
@@ -2668,7 +2673,7 @@ UAnimMontage* FAnimMontageInstance::PreviewMatineeSetAnimPositionInner(FName Slo
 	return PlayingMontage;
 }
 
-UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bLooping, bool bInPlaying)
+UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bInPlaying)
 {
 	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
 	if (AnimInst)
@@ -2698,11 +2703,11 @@ UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, 
 			
 			if (bInPlaying)
 			{
-				MontageInstanceToUpdate->SetNextPositionWithEvents(InPosition);
+				MontageInstanceToUpdate->SetNextPositionWithEvents(InFromPosition, InToPosition);
 			}
 			else
 			{
-				MontageInstanceToUpdate->SetPosition(InPosition);
+				MontageInstanceToUpdate->SetPosition(InToPosition);
 			}
 
 			MontageInstanceToUpdate->bPlaying = bInPlaying;
@@ -2717,21 +2722,20 @@ UAnimMontage* FAnimMontageInstance::SetSequencerMontagePosition(FName SlotName, 
 	return nullptr;
 }
 
-UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bLooping, bool bFireNotifies, bool bInPlaying)
+UAnimMontage* FAnimMontageInstance::PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bInPlaying)
 {
 	UAnimInstance* AnimInst = SkeletalMeshComponent->GetAnimInstance();
 	if (AnimInst)
 	{
 		FAnimMontageInstance* MontageInstanceToUpdate = AnimInst->GetMontageInstanceForID(InOutInstanceId);
-		float PreviousPosition = (MontageInstanceToUpdate) ? MontageInstanceToUpdate->GetPosition() : InPosition;
 
-		UAnimMontage* PlayingMontage = SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InOutInstanceId, InAnimSequence, InPosition, Weight, bLooping, bInPlaying);
+		UAnimMontage* PlayingMontage = SetSequencerMontagePosition(SlotName, SkeletalMeshComponent, InOutInstanceId, InAnimSequence, InFromPosition, InToPosition, Weight, bLooping, bInPlaying);
 		if (PlayingMontage)
 		{
 			// we have to get it again in case if this is new
 			MontageInstanceToUpdate = AnimInst->GetMontageInstanceForID(InOutInstanceId);
 			// since we don't advance montage in the tick, we manually have to handle notifies
-			MontageInstanceToUpdate->HandleEvents(PreviousPosition, InPosition, NULL);
+			MontageInstanceToUpdate->HandleEvents(InFromPosition, InToPosition, NULL);
 			if (!bFireNotifies)
 			{
 				AnimInst->NotifyQueue.Reset(SkeletalMeshComponent);

@@ -366,10 +366,11 @@ private:
 	int32 SyncGroupIndex;
 
 	/**
-	 * Optional position to force next update (ignoring the real delta time).
+	 * Optional evaluation range to use next update (ignoring the real delta time).
 	 * Used by external systems that are setting animation times directly. Will fire off notifies and other events provided the animation system is ticking.
 	 */
-	TOptional<float> ForcedNextPosition;
+	TOptional<float> ForcedNextFromPosition;
+	TOptional<float> ForcedNextToPosition;
 
 	UPROPERTY(Transient)
 	int32 DisableRootMotionCount;
@@ -470,8 +471,10 @@ public:
 	void PopDisableRootMotion() { DisableRootMotionCount--; }
 	bool IsRootMotionDisabled() const {	return DisableRootMotionCount > 0; }
 
-	/** Set the position of this animation as part of the next animation update tick. Will trigger events and notifies for the delta time. */
-	void SetNextPositionWithEvents(float InPosition) { ForcedNextPosition = InPosition; }
+	/** Set the next position of this animation for the next animation update tick. Will trigger events and notifies since last position. */
+	void SetNextPositionWithEvents(float InPosition) { ForcedNextFromPosition.Reset();  ForcedNextToPosition = InPosition; }
+	/** Set the evaluation range of this animation for the next animation update tick. Will trigger events and notifies for that range. */
+	void SetNextPositionWithEvents(float InFromPosition, float InToPosition) { ForcedNextFromPosition = InFromPosition; ForcedNextToPosition = InToPosition; }
 
 	/**
 	 * Montage Tick happens in 2 phases
@@ -523,8 +526,8 @@ public:
 	static UAnimMontage* SetMatineeAnimPositionInner(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping);
 	static UAnimMontage* PreviewMatineeSetAnimPositionInner(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, float InPosition, bool bLooping, bool bFireNotifies, float DeltaTime);
 	/** static functions that are used by sequencer montage support*/
-	static UAnimMontage* SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bLooping, bool bPlaying);
-	static UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
+	static UAnimMontage* SetSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bPlaying);
+	static UAnimMontage* PreviewSequencerMontagePosition(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, int32& InOutInstanceId, UAnimSequenceBase* InAnimSequence, float InFromPosition, float InToPosition, float Weight, bool bLooping, bool bFireNotifies, bool bPlaying);
 private:
 	static UAnimMontage* InitializeMatineeControl(FName SlotName, USkeletalMeshComponent* SkeletalMeshComponent, UAnimSequenceBase* InAnimSequence, bool bLooping);
 };

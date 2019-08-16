@@ -20,6 +20,7 @@ public:
 
 	/** Update an animation sequence player in this instance */
 	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InPosition, float Weight, bool bFireNotifies);
+	void UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, int32 SequenceId, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies);
 
 	/** Reset all nodes in this instance */
 	void ResetNodes();
