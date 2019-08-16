@@ -10,7 +10,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "ThumbnailRendering/TextureThumbnailRenderer.h"
-#include "Texture2DArrayThumbnailRenderer.generated.h"
+#include "Texture2dArrayThumbnailRenderer.generated.h"
 
 UCLASS()
 class UTexture2DArrayThumbnailRenderer : public UTextureThumbnailRenderer
