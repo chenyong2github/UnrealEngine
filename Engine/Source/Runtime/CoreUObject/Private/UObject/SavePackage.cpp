@@ -4333,7 +4333,13 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 								continue;
 							}
 
-
+#if WITH_EDITORONLY_DATA
+							// Allow referencing private objects into/from/between owned packages
+							if (ObjPackage->IsOwnedBy(InOuter) || InOuter->IsOwnedBy(ObjPackage) || InOuter->HasSameOwner(ObjPackage))
+							{
+								continue;
+							}
+#endif
 							if( !Obj->HasAnyFlags(RF_Public) && !Obj->HasAnyFlags(RF_Transient))
 							{
 								if (!IsEventDrivenLoaderEnabledInCookedBuilds() || !TargetPlatform || !ObjPackage->HasAnyPackageFlags(PKG_CompiledIn))
@@ -4364,7 +4370,6 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 									LevelObjects.Add(Obj);
 								}
 							}
-
 						}
 					}
 				}
@@ -4505,19 +4510,31 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 				{
 					// Conform to previous generation of file.
 					UE_LOG(LogSavePackage, Log,  TEXT("Conformal save, relative to: %s, Generation %i"), *Conform->Filename, Conform->Summary.Generations.Num()+1 );
-					Linker->Summary.Guid        = Conform->Summary.Guid;
+					Linker->Summary.Guid = Conform->Summary.Guid;
+#if WITH_EDITORONLY_DATA
+					Linker->Summary.PersistentGuid = Conform->Summary.PersistentGuid;
+					Linker->Summary.OwnerPersistentGuid	= Conform->Summary.OwnerPersistentGuid;
+#endif
 					Linker->Summary.Generations = Conform->Summary.Generations;
 				}
 				else if (SaveFlags & SAVE_KeepGUID)
 				{
 					// First generation file, keep existing GUID
 					Linker->Summary.Guid = InOuter->Guid;
+#if WITH_EDITORONLY_DATA
+					Linker->Summary.PersistentGuid = InOuter->PersistentGuid;
+					Linker->Summary.OwnerPersistentGuid = InOuter->OwnerPersistentGuid;
+#endif
 					Linker->Summary.Generations = TArray<FGenerationInfo>();
 				}
 				else
 				{
 					// First generation file.
 					Linker->Summary.Guid = FGuid::NewGuid();
+#if WITH_EDITORONLY_DATA
+					Linker->Summary.PersistentGuid = InOuter->PersistentGuid;
+					Linker->Summary.OwnerPersistentGuid = InOuter->OwnerPersistentGuid;
+#endif
 					Linker->Summary.Generations = TArray<FGenerationInfo>();
 
 					// make sure the UPackage's copy of the GUID is up to date
