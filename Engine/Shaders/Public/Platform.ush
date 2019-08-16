@@ -433,6 +433,10 @@
 #define PLATFORM_SUPPORTS_RECT_LIST 0
 #endif
 
+// Mirrors GRHISupportsAtomicUInt64.
+#ifndef PLATFORM_SUPPORTS_ATOMIC_UINT64
+#define PLATFORM_SUPPORTS_ATOMIC_UINT64 0
+#endif
 
 // ---------------------------------------------------- Compiler attributes
 

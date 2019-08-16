@@ -6,6 +6,7 @@
 
 #include "D3D11RHIPrivate.h"
 #include "Serialization/MemoryReader.h"
+#include "nvapi.h"
 
 template <typename TShaderType>
 static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShaderType& OutShader)
@@ -30,6 +31,59 @@ static inline void ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 		}
 	}
 #endif
+	int32 VendorExtensionTableSize = 0;
+	auto* VendorExtensionData = InShaderCode.FindOptionalDataAndSize(FShaderCodeVendorExtension::Key, VendorExtensionTableSize);
+	if (VendorExtensionData && VendorExtensionTableSize > 0)
+	{
+		FBufferReader Ar((void*)VendorExtensionData, VendorExtensionTableSize, false);
+		Ar << OutShader.VendorExtensions;
+	}
+	OutShader.bShaderNeedsGlobalConstantBuffer = PackedResourceCounts->bGlobalUniformBufferUsed;
+}
+
+static void ApplyVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency Frequency, const TArray<FShaderCodeVendorExtension>& VendorExtensions)
+{
+	for (int32 ExtensionIndex = 0; ExtensionIndex < VendorExtensions.Num(); ++ExtensionIndex)
+	{
+		const FShaderCodeVendorExtension& Extension = VendorExtensions[ExtensionIndex];
+		if (Extension.VendorId == 0x10DE) // NVIDIA
+		{
+			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+			if (Extension.Parameter.Type == EShaderParameterType::UAV)
+			{
+				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, Extension.Parameter.BaseIndex);
+			}
+		}
+		else if (Extension.VendorId == 0x1002) // AMD
+		{
+			// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx11.hlsl
+		}
+		else if (Extension.VendorId == 0x8086) // Intel
+		{
+			// TODO: https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+		}
+	}
+}
+
+static void ResetVendorExtensions(ID3D11Device* Direct3DDevice, EShaderFrequency Frequency, const TArray<FShaderCodeVendorExtension>& VendorExtensions)
+{
+	for (int32 ExtensionIndex = 0; ExtensionIndex < VendorExtensions.Num(); ++ExtensionIndex)
+	{
+		const FShaderCodeVendorExtension& Extension = VendorExtensions[ExtensionIndex];
+		if (Extension.VendorId == 0x10DE)
+		{
+			if (Extension.Parameter.Type == EShaderParameterType::UAV)
+			{
+				NvAPI_D3D11_SetNvShaderExtnSlot(Direct3DDevice, ~uint32(0));
+			}
+		}
+		else if (Extension.VendorId == 0x1002) // AMD
+		{
+		}
+		else if (Extension.VendorId == 0x8086) // Intel
+		{
+		}
+	}
 }
 
 FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>& Code)
@@ -45,7 +99,9 @@ FVertexShaderRHIRef FD3D11DynamicRHI::RHICreateVertexShader(const TArray<uint8>&
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateVertexShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
+	ApplyVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateVertexShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Vertex, Shader->VendorExtensions);
 	
 	// TEMP
 	Shader->Code = Code;
@@ -74,8 +130,9 @@ FGeometryShaderRHIRef FD3D11DynamicRHI::RHICreateGeometryShader(const TArray<uin
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateGeometryShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
-
+	ApplyVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateGeometryShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Geometry, Shader->VendorExtensions);
 
 	return Shader;
 }
@@ -100,7 +157,9 @@ FHullShaderRHIRef FD3D11DynamicRHI::RHICreateHullShader(const TArray<uint8>& Cod
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT( Direct3DDevice->CreateHullShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
+	ApplyVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateHullShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Hull, Shader->VendorExtensions);
 
 	return Shader;
 }
@@ -118,14 +177,16 @@ FDomainShaderRHIRef FD3D11DynamicRHI::RHICreateDomainShader(const TArray<uint8>&
 
 	FD3D11DomainShader* Shader = new FD3D11DomainShader;
 
-	FMemoryReader Ar( Code, true );
+	FMemoryReader Ar(Code, true);
 	Ar << Shader->ShaderResourceTable;
 	int32 Offset = Ar.Tell();
 	const uint8* CodePtr = Code.GetData() + Offset;
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT( Direct3DDevice->CreateDomainShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
+	ApplyVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateDomainShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Domain, Shader->VendorExtensions);
 
 	return Shader;
 }
@@ -150,7 +211,9 @@ FPixelShaderRHIRef FD3D11DynamicRHI::RHICreatePixelShader(const TArray<uint8>& C
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreatePixelShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
+	ApplyVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreatePixelShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Pixel, Shader->VendorExtensions);
 
 	return Shader;
 }
@@ -175,7 +238,9 @@ FComputeShaderRHIRef FD3D11DynamicRHI::RHICreateComputeShader(const TArray<uint8
 	const size_t CodeSize = ShaderCode.GetActualShaderCodeSize() - Offset;
 
 	ReadShaderOptionalData(ShaderCode, *Shader);
-	VERIFYD3D11SHADERRESULT( Direct3DDevice->CreateComputeShader( (void*)CodePtr, CodeSize, NULL, Shader->Resource.GetInitReference() ), Shader, Direct3DDevice);
+	ApplyVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions);
+	VERIFYD3D11SHADERRESULT(Direct3DDevice->CreateComputeShader((void*)CodePtr, CodeSize, nullptr, Shader->Resource.GetInitReference()), Shader, Direct3DDevice);
+	ResetVendorExtensions(Direct3DDevice, SF_Compute, Shader->VendorExtensions);
 
 	return Shader;
 }
@@ -195,8 +260,7 @@ void FD3D11DynamicRHI::RHISetMultipleViewports(uint32 Count, const FViewportBoun
 	// structures are chosen to be directly mappable
 	D3D11_VIEWPORT* D3DData = (D3D11_VIEWPORT*)Data;
 
-	StateCache.SetViewports(Count, D3DData );
-
+	StateCache.SetViewports(Count, D3DData);
 }
 
 FD3D11BoundShaderState::FD3D11BoundShaderState(
@@ -246,10 +310,10 @@ FD3D11BoundShaderState::FD3D11BoundShaderState(
 	}
 
 	VertexShader = InVertexShader->Resource;
-	PixelShader = InPixelShader ? InPixelShader->Resource : NULL;
-	HullShader = InHullShader ? InHullShader->Resource : NULL;
-	DomainShader = InDomainShader ? InDomainShader->Resource : NULL;
-	GeometryShader = InGeometryShader ? InGeometryShader->Resource : NULL;
+	PixelShader = InPixelShader ? InPixelShader->Resource : nullptr;
+	HullShader = InHullShader ? InHullShader->Resource : nullptr;
+	DomainShader = InDomainShader ? InDomainShader->Resource : nullptr;
+	GeometryShader = InGeometryShader ? InGeometryShader->Resource : nullptr;
 
 	FMemory::Memzero(&bShaderNeedsGlobalConstantBuffer,sizeof(bShaderNeedsGlobalConstantBuffer));
 
@@ -266,7 +330,6 @@ FD3D11BoundShaderState::~FD3D11BoundShaderState()
 {
 	DEC_DWORD_STAT(STAT_D3D11NumBoundShaderState);
 }
-
 
 /**
 * Creates a bound shader state instance which encapsulates a decl, vertex shader, and pixel shader

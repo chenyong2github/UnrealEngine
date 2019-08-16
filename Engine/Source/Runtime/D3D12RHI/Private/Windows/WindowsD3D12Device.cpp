@@ -7,9 +7,16 @@
 #include "D3D12RHIPrivate.h"
 #include "Modules/ModuleManager.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
-	#include <delayimp.h>
+#include <delayimp.h>
 #if !PLATFORM_CPU_ARM_FAMILY
-#include "amd_ags.h"
+	#include "amd_ags.h"
+#endif
+#if !PLATFORM_HOLOLENS && !PLATFORM_CPU_ARM_FAMILY
+	#define NV_API_ENABLE 1
+	#include "nvapi.h"
+	#include "nvShaderExtnEnums.h"
+#else
+	#define NV_API_ENABLE 0
 #endif
 #include "Windows/HideWindowsPlatformTypes.h"
 
@@ -521,6 +528,8 @@ void FD3D12DynamicRHI::Init()
 	// Need to set GRHIVendorId before calling IsRHIDevice* functions
 	GRHIVendorId = AdapterDesc.VendorId;
 
+	const bool bAllowVendorDevice = !FParse::Param(FCommandLine::Get(), TEXT("novendordevice"));
+
 #if !PLATFORM_CPU_ARM_FAMILY
 	// Initialize the AMD AGS utility library, when running on an AMD device
 	if (IsRHIDeviceAMD())
@@ -531,7 +540,7 @@ void FD3D12DynamicRHI::Init()
 	}
 #endif
 
-	// Create a device chain for each of the adapters we have choosen. This could be a single discrete card,
+	// Create a device chain for each of the adapters we have chosen. This could be a single discrete card,
 	// a set discrete cards linked together (i.e. SLI/Crossfire) an Integrated device or any combination of the above
 	for (TSharedPtr<FD3D12Adapter>& Adapter : ChosenAdapters)
 	{
@@ -557,6 +566,26 @@ void FD3D12DynamicRHI::Init()
 	else if (GEmitRgpFrameMarkers && (AmdSupportedExtensionFlags & AGS_DX12_EXTENSION_USER_MARKERS) == 0)
 	{
 		UE_LOG(LogD3D12RHI, Warning, TEXT("Attempting to use RGP frame markers without driver support. Update AMD driver."));
+	}
+#endif
+
+#if NV_API_ENABLE
+	if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
+	{
+		NvAPI_Status NvStatus;
+		NvStatus = NvAPI_Initialize();
+		if (NvStatus == NVAPI_OK)
+		{
+			NvStatus = NvAPI_D3D12_IsNvShaderExtnOpCodeSupported(GetAdapter().GetD3DDevice(), NV_EXTN_OP_UINT64_ATOMIC, &GRHISupportsAtomicUInt64);
+			if (NvStatus != NVAPI_OK)
+			{
+				UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to query support for 64 bit atomics"));
+			}
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Warning, TEXT("Failed to initialize NVAPI"));
+		}
 	}
 #endif
 
@@ -638,6 +667,15 @@ void FD3D12DynamicRHI::Init()
 	{
 		UE_LOG(LogD3D12RHI, Log, TEXT("Async texture creation disabled: %s"),
 			D3D12RHI_ShouldAllowAsyncResourceCreation() ? TEXT("no driver support") : TEXT("disabled by user"));
+	}
+
+	if (GRHISupportsAtomicUInt64)
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("RHI has support for 64 bit atomics"));
+	}
+	else
+	{
+		UE_LOG(LogD3D12RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
 	}
 
 	GShaderPlatformForFeatureLevel[ERHIFeatureLevel::ES2] = SP_PCD3D_ES2;

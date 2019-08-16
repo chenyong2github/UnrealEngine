@@ -11,6 +11,7 @@ public class D3D11RHI : ModuleRules
 			PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private/HoloLens");
 		}
 		PrivateIncludePaths.Add("Runtime/Windows/D3D11RHI/Private");
+		PrivateIncludePaths.Add("../Shaders/Shared");
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {

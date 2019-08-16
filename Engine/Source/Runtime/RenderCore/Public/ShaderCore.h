@@ -225,6 +225,17 @@ struct FParameterAllocation
 	}
 };
 
+inline bool operator==(const FParameterAllocation& A, const FParameterAllocation& B)
+{
+	return
+		A.BufferIndex == B.BufferIndex && A.BaseIndex == B.BaseIndex && A.Size == B.Size && A.Type == B.Type && A.bBound == B.bBound;
+}
+
+inline bool operator!=(const FParameterAllocation& A, const FParameterAllocation& B)
+{
+	return !(A == B);
+}
+
 /**
  * A map of shader parameter names to registers allocated to that parameter.
  */
@@ -239,6 +250,7 @@ public:
 	RENDERCORE_API bool ContainsParameterAllocation(const TCHAR* ParameterName) const;
 	RENDERCORE_API void AddParameterAllocation(const TCHAR* ParameterName,uint16 BufferIndex,uint16 BaseIndex,uint16 Size,EShaderParameterType ParameterType);
 	RENDERCORE_API void RemoveParameterAllocation(const TCHAR* ParameterName);
+
 	/** Checks that all parameters are bound and asserts if any aren't in a debug build
 	* @param InVertexFactoryType can be 0
 	*/
@@ -766,6 +778,30 @@ struct FShaderCodePackedResourceCounts
 	uint8 NumCBs;
 	uint8 NumUAVs;
 };
+
+struct FShaderCodeVendorExtension
+{
+	// for FindOptionalData() and AddOptionalData()
+	static const uint8 Key = 'v';
+
+	uint32 VendorId;
+	FParameterAllocation Parameter;
+
+	friend FArchive& operator<<(FArchive& Ar, FShaderCodeVendorExtension& Extension)
+	{
+		return Ar << Extension.VendorId << Extension.Parameter;
+	}
+};
+
+inline bool operator==(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
+{
+	return A.VendorId == B.VendorId && A.Parameter == B.Parameter;
+}
+
+inline bool operator!=(const FShaderCodeVendorExtension& A, const FShaderCodeVendorExtension& B)
+{
+	return !(A == B);
+}
 
 #ifdef __EMSCRIPTEN__
 // Emscripten asm.js is strict and doesn't support unaligned memory load or stores.

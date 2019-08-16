@@ -74,6 +74,23 @@ FD3D12LowLevelGraphicsPipelineStateDesc GetLowLevelGraphicsPipelineStateDesc(con
 #undef COPY_SHADER
 
 #if PLATFORM_WINDOWS
+#define EXT_SHADER(Initial, Name) \
+	if (FD3D12##Name##Shader* Shader = (FD3D12##Name##Shader*) Initializer.BoundShaderState.##Name##ShaderRHI) \
+	{ \
+		if (Shader->VendorExtensions.Num() > 0) \
+		{ \
+			Desc.##Initial##SExtensions = &Shader->VendorExtensions; \
+		} \
+	}
+	EXT_SHADER(V, Vertex);
+	EXT_SHADER(P, Pixel);
+	EXT_SHADER(D, Domain);
+	EXT_SHADER(H, Hull);
+	EXT_SHADER(G, Geometry);
+#undef EXT_SHADER
+#endif
+
+#if PLATFORM_WINDOWS
 	// TODO: [PSO API] For now, keep DBT enabled, if available, until it is added as part of a member to the Initializer's DepthStencilState
 	Desc.Desc.DepthStencilState.DepthBoundsTestEnable = GSupportsDepthBoundsTest && Initializer.bDepthBounds;
 #endif
@@ -91,6 +108,12 @@ FD3D12ComputePipelineStateDesc GetComputePipelineStateDesc(const FD3D12ComputeSh
 	Desc.Desc.pRootSignature = Desc.pRootSignature->GetRootSignature();
 	Desc.Desc.CS = ComputeShader->ShaderBytecode.GetShaderBytecode();
 	Desc.CSHash = ComputeShader->ShaderBytecode.GetHash();
+#if PLATFORM_WINDOWS
+	if (ComputeShader->VendorExtensions.Num() > 0)
+	{
+		Desc.Extensions = &ComputeShader->VendorExtensions;
+	}
+#endif
 
 	return Desc;
 }

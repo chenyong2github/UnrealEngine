@@ -733,7 +733,7 @@ template <typename ID3D1xShaderReflection, typename D3D1x_SHADER_DESC, typename 
 static void ExtractParameterMapFromD3DShader(
 	uint32 TargetPlatform, uint32 BindingSpace, const FString& VirtualSourceFilePath, ID3D1xShaderReflection* Reflector, const D3D1x_SHADER_DESC& ShaderDesc,
 	bool& bGlobalUniformBufferUsed, uint32& NumSamplers, uint32& NumSRVs, uint32& NumCBs, uint32& NumUAVs,
-	FShaderCompilerOutput& Output, TArray<FString>& UniformBufferNames, TBitArray<>& UsedUniformBufferSlots
+	FShaderCompilerOutput& Output, TArray<FString>& UniformBufferNames, TBitArray<>& UsedUniformBufferSlots, TArray<FShaderCodeVendorExtension>& VendorExtensions
 )
 {
 	// Add parameters for shader resources (constant buffers, textures, samplers, etc. */
@@ -802,6 +802,12 @@ static void ExtractParameterMapFromD3DShader(
 		else if (BindDesc.Type == D3D10_SIT_TEXTURE || BindDesc.Type == D3D10_SIT_SAMPLER)
 		{
 			check(BindDesc.BindCount == 1);
+
+			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx11.hlsl
+			const bool bIsAMDTexExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsResource") == 0);
+			const bool bIsAMDSmpExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsSamplerState") == 0);
+			const bool bIsVendorParameter = bIsAMDTexExtension || bIsAMDSmpExtension;
+
 			TCHAR OfficialName[1024];
 			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
 
@@ -818,31 +824,80 @@ static void ExtractParameterMapFromD3DShader(
 				NumSRVs = FMath::Max(NumSRVs, BindDesc.BindPoint + BindCount);
 			}
 
-			// Add a parameter for the texture only, the sampler index will be invalid
-			Output.ParameterMap.AddParameterAllocation(
-				OfficialName,
-				0,
-				BindDesc.BindPoint,
-				BindCount,
-				ParameterType
-			);
+			if (bIsVendorParameter)
+			{
+				FShaderCodeVendorExtension VendorExtension;
+				VendorExtension.VendorId = 0x1002; // AMD
+				VendorExtension.Parameter.BufferIndex = 0;
+				VendorExtension.Parameter.BaseIndex = BindDesc.BindPoint;
+				VendorExtension.Parameter.Size = BindCount;
+				VendorExtension.Parameter.Type = ParameterType;
+				VendorExtensions.Add(VendorExtension);
+			}
+			else
+			{
+				// Add a parameter for the texture only, the sampler index will be invalid
+				Output.ParameterMap.AddParameterAllocation(
+					OfficialName,
+					0,
+					BindDesc.BindPoint,
+					BindCount,
+					ParameterType
+				);
+			}
 		}
 		else if (BindDesc.Type == D3D11_SIT_UAV_RWTYPED || BindDesc.Type == D3D11_SIT_UAV_RWSTRUCTURED ||
 			BindDesc.Type == D3D11_SIT_UAV_RWBYTEADDRESS || BindDesc.Type == D3D11_SIT_UAV_RWSTRUCTURED_WITH_COUNTER ||
 			BindDesc.Type == D3D11_SIT_UAV_APPEND_STRUCTURED)
 		{
 			check(BindDesc.BindCount == 1);
+
+			// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+			const bool bIsNVExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "g_NvidiaExt") == 0);
+
+			// https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+			const bool bIsIntelExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "g_IntelExt") == 0);
+
+			// https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx11.hlsl
+			const bool bIsAMDExtension = (FCStringAnsi::Strcmp(BindDesc.Name, "AmdDxExtShaderIntrinsicsUAV") == 0);
+
+			const bool bIsVendorParameter = bIsNVExtension || bIsIntelExtension || bIsAMDExtension;
+
 			TCHAR OfficialName[1024];
 			FCString::Strcpy(OfficialName, ANSI_TO_TCHAR(BindDesc.Name));
 
 			const uint32 BindCount = 1;
-			Output.ParameterMap.AddParameterAllocation(
-				OfficialName,
-				0,
-				BindDesc.BindPoint,
-				BindCount,
-				EShaderParameterType::UAV
-			);
+			if (bIsVendorParameter)
+			{
+				FShaderCodeVendorExtension VendorExtension;
+				if (bIsNVExtension)
+				{
+					VendorExtension.VendorId = 0x10DE; // NVIDIA
+				}
+				else if (bIsAMDExtension)
+				{
+					VendorExtension.VendorId = 0x1002; // AMD
+				}
+				else if (bIsIntelExtension)
+				{
+					VendorExtension.VendorId = 0x8086; // INTEL
+				}
+				VendorExtension.Parameter.BufferIndex = 0;
+				VendorExtension.Parameter.BaseIndex = BindDesc.BindPoint;
+				VendorExtension.Parameter.Size = BindCount;
+				VendorExtension.Parameter.Type = EShaderParameterType::UAV;
+				VendorExtensions.Add(VendorExtension);
+			}
+			else
+			{
+				Output.ParameterMap.AddParameterAllocation(
+					OfficialName,
+					0,
+					BindDesc.BindPoint,
+					BindCount,
+					EShaderParameterType::UAV
+				);
+			}
 
 			NumUAVs = FMath::Max(NumUAVs, BindDesc.BindPoint + BindCount);
 		}
@@ -1146,6 +1201,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 	int32 NumInterpolants = 0;
 	TIndirectArray<FString> InterpolantNames;
 	TArray<FString> ShaderInputs;
+	TArray<FShaderCodeVendorExtension> VendorExtensions;
 
 	if (SUCCEEDED(Result))
 	{
@@ -1215,7 +1271,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 								ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 								ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
 									Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, FunctionReflection, FunctionDesc, bGlobalUniformBufferUsed, NumSamplers, NumSRVs, NumCBs, NumUAVs,
-									Output, UniformBufferNames, UsedUniformBufferSlots);
+									Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 							NumFoundEntryPoints++;
 						}
@@ -1285,7 +1341,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 					ID3D12ShaderReflectionConstantBuffer, D3D12_SHADER_BUFFER_DESC,
 					ID3D12ShaderReflectionVariable, D3D12_SHADER_VARIABLE_DESC>(
 						Input.Target.Platform, AutoBindingSpace, Input.VirtualSourceFilePath, ShaderReflection, ShaderDesc, bGlobalUniformBufferUsed, NumSamplers, NumSRVs, NumCBs, NumUAVs,
-						Output, UniformBufferNames, UsedUniformBufferSlots);
+						Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 
 				Output.bSucceeded = true;
@@ -1402,7 +1458,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 				ID3D11ShaderReflectionVariable, D3D11_SHADER_VARIABLE_DESC>
 				(Input.Target.Platform, BindingSpace, Input.VirtualSourceFilePath, Reflector, ShaderDesc,
 					bGlobalUniformBufferUsed, NumSamplers, NumSRVs, NumCBs, NumUAVs,
-					Output, UniformBufferNames, UsedUniformBufferSlots);
+					Output, UniformBufferNames, UsedUniformBufferSlots, VendorExtensions);
 
 			NumInstructions = ShaderDesc.InstructionCount;
 
@@ -1520,7 +1576,7 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 
 			Ar.Serialize(CompressedData->GetBufferPointer(), CompressedData->GetBufferSize());
 
-			// append data that is generate from the shader code and assist the usage, mostly needed for DX12 
+			// Append data that is generate from the shader code and assist the usage, mostly needed for DX12 
 			{
 				FShaderCodePackedResourceCounts PackedResourceCounts = { bGlobalUniformBufferUsed, static_cast<uint8>(NumSamplers), static_cast<uint8>(NumSRVs), static_cast<uint8>(NumCBs), static_cast<uint8>(NumUAVs) };
 
@@ -1528,7 +1584,19 @@ static bool CompileAndProcessD3DShader(FString& PreprocessedShaderSource, const 
 				Output.ShaderCode.AddOptionalData('u', UniformBufferNameBytes.GetData(), UniformBufferNameBytes.Num());
 			}
 
-			// store data we can pickup later with ShaderCode.FindOptionalData('n'), could be removed for shipping
+			// Append information about optional hardware vendor extensions
+			if (VendorExtensions.Num() > 0)
+			{
+				TArray<uint8> WriterBytes;
+				FMemoryWriter Writer(WriterBytes);
+				Writer << VendorExtensions;
+				if (WriterBytes.Num() > 0)
+				{
+					Output.ShaderCode.AddOptionalData(FShaderCodeVendorExtension::Key, WriterBytes.GetData(), WriterBytes.Num());
+				}
+			}
+
+			// Store data we can pickup later with ShaderCode.FindOptionalData('n'), could be removed for shipping
 			// Daniel L: This GenerateShaderName does not generate a deterministic output among shaders as the shader code can be shared. 
 			//			uncommenting this will cause the project to have non deterministic materials and will hurt patch sizes
 			//Output.ShaderCode.AddOptionalData('n', TCHAR_TO_UTF8(*Input.GenerateShaderName()));

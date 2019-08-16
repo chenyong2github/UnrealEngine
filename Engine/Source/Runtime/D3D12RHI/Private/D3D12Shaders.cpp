@@ -35,6 +35,13 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	}
 #endif
 #endif
+	int32 VendorExtensionTableSize = 0;
+	auto* VendorExtensionData = InShaderCode.FindOptionalDataAndSize(FShaderCodeVendorExtension::Key, VendorExtensionTableSize);
+	if (VendorExtensionData && VendorExtensionTableSize > 0)
+	{
+		FBufferReader Ar((void*)VendorExtensionData, VendorExtensionTableSize, false);
+		Ar << OutShader.VendorExtensions;
+	}
 	return true;
 }
 

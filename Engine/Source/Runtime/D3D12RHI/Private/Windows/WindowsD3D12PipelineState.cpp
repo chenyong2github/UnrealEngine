@@ -8,6 +8,7 @@
 #include "D3D12RHIPrivate.h"
 #include "Misc/ScopeRWLock.h"
 #include "Stats/StatsMisc.h"
+#include "nvapi.h"
 
 // UE-65533
 // Using asynchronous PSO creation to preload the PSO cache significantly speeds up startup.
@@ -677,10 +678,136 @@ static void CreatePipelineStateWrapper(ID3D12PipelineState** PSO, FD3D12Adapter*
 	}
 }
 
+#if PLATFORM_WINDOWS
+
+static FORCEINLINE NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC GetNVShaderExtensionDesc(uint32 UavSlot)
+{
+	// https://developer.nvidia.com/unlocking-gpu-intrinsics-hlsl
+	NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC ShdExtensionDesc;
+	ShdExtensionDesc.psoExtension = NV_PSO_SET_SHADER_EXTNENSION_SLOT_AND_SPACE;
+	ShdExtensionDesc.baseVersion = NV_PSO_EXTENSION_DESC_VER;
+	ShdExtensionDesc.version = NV_SET_SHADER_EXTENSION_SLOT_DESC_VER;
+	ShdExtensionDesc.uavSlot = UavSlot;
+	ShdExtensionDesc.registerSpace = 0;
+	return ShdExtensionDesc;
+}
+
+static void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs)
+{
+	if (CreationArgs->Desc->HasVendorExtensions())
+	{
+		// Need to merge extensions across all stages for a single PSO
+		TArray<FShaderCodeVendorExtension, TInlineAllocator<2 /* VS + PS */>> MergedExtensions;
+
+	#define MERGE_EXT(Initial) \
+		if (CreationArgs->Desc->##Initial##SExtensions != nullptr) \
+		{ \
+			const TArray<FShaderCodeVendorExtension>& Extensions = *CreationArgs->Desc->##Initial##SExtensions; \
+			for (int32 ExtIndex = 0; ExtIndex < Extensions.Num(); ++ExtIndex) \
+			{ \
+				MergedExtensions.AddUnique(Extensions[ExtIndex]); \
+			} \
+		}
+
+		MERGE_EXT(V);
+		MERGE_EXT(P);
+		MERGE_EXT(D);
+		MERGE_EXT(H);
+		MERGE_EXT(G);
+	#undef MERGE_EXT
+
+		for (int32 ExtIndex = 0; ExtIndex < MergedExtensions.Num(); ++ExtIndex)
+		{
+			const FShaderCodeVendorExtension& Extension = MergedExtensions[ExtIndex];
+			if (Extension.VendorId == 0x10DE) // NVIDIA
+			{
+				if (Extension.Parameter.Type == EShaderParameterType::UAV)
+				{
+					const typename TPSOStreamFunctionMap<GraphicsPipelineCreationArgs_POD>::D3D12PipelineStateDescV0Type PsoDesc
+						= (CreationArgs->Desc->Desc.*TPSOStreamFunctionMap<GraphicsPipelineCreationArgs_POD>::GetPipelineStateDescV0())();
+
+					const NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC ShdExtensionDesc = GetNVShaderExtensionDesc(Extension.Parameter.BaseIndex);
+					const NVAPI_D3D12_PSO_EXTENSION_DESC* NvExtensions[] = { &ShdExtensionDesc };
+					NvAPI_Status NvStatus = NvAPI_D3D12_CreateGraphicsPipelineState(Adapter->GetD3DDevice(), &PsoDesc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
+					check(NvStatus == NVAPI_OK);
+					return;
+				}
+			}
+			else if (Extension.VendorId == 0x1002) // AMD
+			{
+				// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+			}
+			else if (Extension.VendorId == 0x8086) // INTEL
+			{
+				// TODO: https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+			}
+		}
+
+		check(false); // Unimplemented extension path
+	}
+	else
+	{
+		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+	}
+}
+
+static void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs)
+{
+	if (CreationArgs->Desc->HasVendorExtensions())
+	{
+		const TArray<FShaderCodeVendorExtension>& Extensions = *CreationArgs->Desc->Extensions;
+		for (int32 ExtIndex = 0; ExtIndex < Extensions.Num(); ++ExtIndex)
+		{
+			const FShaderCodeVendorExtension& Extension = Extensions[ExtIndex];
+			if (Extension.VendorId == 0x10DE) // NVIDIA
+			{
+				if (Extension.Parameter.Type == EShaderParameterType::UAV)
+				{
+					const typename TPSOStreamFunctionMap<ComputePipelineCreationArgs_POD>::D3D12PipelineStateDescV0Type PsoDesc
+						= (CreationArgs->Desc->Desc.*TPSOStreamFunctionMap<ComputePipelineCreationArgs_POD>::GetPipelineStateDescV0())();
+
+					const NVAPI_D3D12_PSO_SET_SHADER_EXTENSION_SLOT_DESC ShdExtensionDesc = GetNVShaderExtensionDesc(Extension.Parameter.BaseIndex);
+					const NVAPI_D3D12_PSO_EXTENSION_DESC* NvExtensions[] = { &ShdExtensionDesc };
+					NvAPI_Status NvStatus = NvAPI_D3D12_CreateComputePipelineState(Adapter->GetD3DDevice(), &PsoDesc, ARRAYSIZE(NvExtensions), NvExtensions, PSO);
+					check(NvStatus == NVAPI_OK);
+					return;
+				}
+			}
+			else if (Extension.VendorId == 0x1002) // AMD
+			{
+				// TODO: https://github.com/GPUOpen-LibrariesAndSDKs/AGS_SDK/blob/master/ags_lib/hlsl/ags_shader_intrinsics_dx12.hlsl
+			}
+			else if (Extension.VendorId == 0x8086) // INTEL
+			{
+				// TODO: https://github.com/intel/intel-graphics-compiler/blob/master/inc/IntelExtensions.hlsl
+			}
+		}
+
+		check(false); // Unimplemented extension path
+	}
+	else
+	{
+		CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+	}
+}
+#else
+
+static FORCEINLINE void CreateGraphicsPipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const GraphicsPipelineCreationArgs_POD* CreationArgs)
+{
+	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+}
+
+static FORCEINLINE void CreateComputePipelineState(ID3D12PipelineState** PSO, FD3D12Adapter* Adapter, const ComputePipelineCreationArgs_POD* CreationArgs)
+{
+	CreatePipelineStateWrapper(PSO, Adapter, CreationArgs);
+}
+
+#endif
+
 void FD3D12PipelineState::Create(const ComputePipelineCreationArgs& InCreationArgs)
 {
 	check(PipelineState.GetReference() == nullptr);
-	CreatePipelineStateWrapper(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
+	CreateComputePipelineState(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
 }
 
 void FD3D12PipelineState::CreateAsync(const ComputePipelineCreationArgs& InCreationArgs)
@@ -696,7 +823,7 @@ void FD3D12PipelineState::CreateAsync(const ComputePipelineCreationArgs& InCreat
 void FD3D12PipelineState::Create(const GraphicsPipelineCreationArgs& InCreationArgs)
 {
 	check(PipelineState.GetReference() == nullptr);
-	CreatePipelineStateWrapper(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
+	CreateGraphicsPipelineState(PipelineState.GetInitReference(), GetParentAdapter(), &InCreationArgs.Args);
 }
 
 void FD3D12PipelineState::CreateAsync(const GraphicsPipelineCreationArgs& InCreationArgs)
@@ -713,10 +840,10 @@ void FD3D12PipelineStateWorker::DoWork()
 {
 	if (bIsGraphics)
 	{
-		CreatePipelineStateWrapper(PSO.GetInitReference(), GetParentAdapter(), &CreationArgs.GraphicsArgs);
+		CreateGraphicsPipelineState(PSO.GetInitReference(), GetParentAdapter(), &CreationArgs.GraphicsArgs);
 	}
 	else
 	{
-		CreatePipelineStateWrapper(PSO.GetInitReference(), GetParentAdapter(), &CreationArgs.ComputeArgs);
+		CreateComputePipelineState(PSO.GetInitReference(), GetParentAdapter(), &CreationArgs.ComputeArgs);
 	}
 }

@@ -302,6 +302,9 @@ extern RHI_API bool GRHISupportsQuadTopology;
 /** true if the RHI supports rectangular topology (PT_RectList). */
 extern RHI_API bool GRHISupportsRectTopology;
 
+/** true if the RHI supports 64 bit uint atomics. */
+extern RHI_API bool GRHISupportsAtomicUInt64;
+
 /** Temporary. When OpenGL is running in a separate thread, it cannot yet do things like initialize shaders that are first discovered in a rendering task. It is doable, it just isn't done. */
 extern RHI_API bool GSupportsParallelRenderingTasksWithSeparateRHIThread;
 

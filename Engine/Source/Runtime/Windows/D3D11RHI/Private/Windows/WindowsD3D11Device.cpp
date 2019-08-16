@@ -1495,7 +1495,7 @@ void FD3D11DynamicRHI::InitD3DDevice()
 			CreateIntelMetricsDiscovery();
 		}
 #endif
-		
+
 		if (!bDeviceCreated)
 		{
 			// Creating the Direct3D device.
@@ -1540,6 +1540,25 @@ void FD3D11DynamicRHI::InitD3DDevice()
 		}
 
 #ifdef NVAPI_INTERFACE
+
+		if (IsRHIDeviceNVIDIA() && bAllowVendorDevice)
+		{
+			NvAPI_Status NvStatus;
+			NvStatus = NvAPI_Initialize();
+			if (NvStatus == NVAPI_OK)
+			{
+				NvStatus = NvAPI_D3D11_IsNvShaderExtnOpCodeSupported(Direct3DDevice, NV_EXTN_OP_UINT64_ATOMIC, &GRHISupportsAtomicUInt64);
+				if (NvStatus != NVAPI_OK)
+				{
+					UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to query support for 64 bit atomics"));
+				}
+			}
+			else
+			{
+				UE_LOG(LogD3D11RHI, Warning, TEXT("Failed to initialize NVAPI"));
+			}
+		}
+
 		if( IsRHIDeviceNVIDIA() && CVarNVidiaTimestampWorkaround.GetValueOnAnyThread() )
 		{
 			// Workaround for pre-maxwell TDRs with realtime GPU stats (timestamp queries)
@@ -1554,6 +1573,15 @@ void FD3D11DynamicRHI::InitD3DDevice()
 #endif //NVAPI_INTERFACE
 
 		CACHE_NV_AFTERMATH_ENABLED();
+
+		if (GRHISupportsAtomicUInt64)
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("RHI has support for 64 bit atomics"));
+		}
+		else
+		{
+			UE_LOG(LogD3D11RHI, Log, TEXT("RHI does not have support for 64 bit atomics"));
+		}
 
 #if PLATFORM_WINDOWS
 		IUnknown* RenderDoc;

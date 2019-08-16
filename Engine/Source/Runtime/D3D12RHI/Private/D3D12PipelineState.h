@@ -82,6 +82,29 @@ struct FD3D12LowLevelGraphicsPipelineStateDesc
 
 	SIZE_T CombinedHash;
 
+#if PLATFORM_WINDOWS
+	// TODO: Replace with a global hash lookup to reduce overall footprint?
+	// Very few permutations, so a single > 0 u32 hash code would be lower
+	// memory usage, and very rarely cause a look up.
+	const TArray<FShaderCodeVendorExtension>* VSExtensions;
+	const TArray<FShaderCodeVendorExtension>* HSExtensions;
+	const TArray<FShaderCodeVendorExtension>* DSExtensions;
+	const TArray<FShaderCodeVendorExtension>* GSExtensions;
+	const TArray<FShaderCodeVendorExtension>* PSExtensions;
+
+	FORCEINLINE bool HasVendorExtensions() const
+	{
+		return (
+			VSExtensions != nullptr ||
+			PSExtensions != nullptr ||
+			GSExtensions != nullptr ||
+			HSExtensions != nullptr ||
+			DSExtensions != nullptr);
+	}
+#else
+	FORCEINLINE bool HasVendorExtensions() const { return false; }
+#endif
+
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }
 
 #if PLATFORM_XBOXONE
@@ -105,6 +128,13 @@ struct FD3D12ComputePipelineStateDesc
 	ShaderBytecodeHash CSHash;
 
 	SIZE_T CombinedHash;
+
+#if PLATFORM_WINDOWS
+	const TArray<FShaderCodeVendorExtension>* Extensions;
+	FORCEINLINE bool HasVendorExtensions() const { return (Extensions != nullptr); }
+#else
+	FORCEINLINE bool HasVendorExtensions() const { return false; }
+#endif
 
 	FORCEINLINE FString GetName() const { return FString::Printf(TEXT("%llu"), CombinedHash); }
 
@@ -189,6 +219,15 @@ template <> struct equality_pipeline_state_desc<FD3D12LowLevelGraphicsPipelineSt
 				PSO_IF_STRING_COMPARE_FAILS_RETURN_FALSE(Desc.InputLayout.pInputElementDescs[i].SemanticName)
 			}
 		}
+
+	#if PLATFORM_WINDOWS
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(VSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(PSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(GSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(HSExtensions);
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(DSExtensions);
+	#endif
+
 		return true;
 	}
 };
@@ -219,6 +258,10 @@ template <> struct equality_pipeline_state_desc<FD3D12ComputePipelineStateDesc>
 				return false;
 			}
 		}
+#endif
+
+#if PLATFORM_WINDOWS
+		PSO_IF_NOT_EQUAL_RETURN_FALSE(Extensions)
 #endif
 
 		return true;
