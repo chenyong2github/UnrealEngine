@@ -707,6 +707,17 @@ void UGameUserSettings::SetAudioQualityLevel(int32 QualityLevel)
 	}
 }
 
+void UGameUserSettings::EnableHeadphoneMode(bool bEnabled)
+{
+	static IConsoleVariable* BinauralSpatializationDisabledCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("au.DisableBinauralSpatialization"));
+
+	if (BinauralSpatializationDisabledCVar && (bEnabled != bUseHeadphoneMode))
+	{
+		BinauralSpatializationDisabledCVar->Set(!bEnabled, ECVF_SetByGameSetting);
+		bUseHeadphoneMode = bEnabled;
+	}
+}
+
 void UGameUserSettings::SetFrameRateLimit(float NewLimit)
 {
 	FrameRateLimit = NewLimit;
