@@ -23,6 +23,7 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "ShaderPipelineCache.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/CommandLine.h"
 
 #if WITH_EDITORONLY_DATA
 #include "Modules/ModuleManager.h"
@@ -30,6 +31,10 @@ ShaderCodeLibrary.cpp: Bound shader state cache implementation.
 #include "Interfaces/IShaderFormatModule.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#endif
+
+#if PLATFORM_XBOXONE && !UE_BUILD_SHIPPING
+#include "DevkitExtensions.h"
 #endif
 
 // FORT-93125
@@ -51,6 +56,14 @@ static FAutoConsoleVariableRef CVarShaderCodeLibraryAsyncLoadingPriority(
 	TEXT("r.ShaderCodeLibrary.DefaultAsyncIOPriority"),
 	GShaderCodeLibraryAsyncLoadingPriority,
 	TEXT(""),
+	ECVF_Default
+);
+
+int32 GShaderCodeLibrarySeperateLoadingCache = 0;
+static FAutoConsoleVariableRef CVarShaderCodeLibrarySeperateLoadingCache(
+	TEXT("r.ShaderCodeLibrary.SeperateLoadingCache"),
+	GShaderCodeLibraryAsyncLoadingPriority,
+	TEXT("if > 0, each shader code library has it's own loading cache."),
 	ECVF_Default
 );
 
@@ -432,6 +445,31 @@ public:
 			}
 			Ar->Close();
 			delete Ar;
+
+
+			bool ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = false;
+#if PLATFORM_XBOXONE && !UE_BUILD_SHIPPING
+			HSTRING hArgs = nullptr;
+			if (SUCCEEDED(GetLaunchActivationArgs(&hArgs)))
+			{
+				const TCHAR* CommandLine = WindowsGetStringRawBuffer(hArgs, nullptr);
+
+				if (FCString::Stristr(CommandLine, TEXT("ShaderCodeLibrarySeperateLoadingCache")))
+				{
+					ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride = true;
+				}
+				WindowsDeleteString(hArgs);
+				hArgs = nullptr;
+			}
+#endif
+			if (GShaderCodeLibrarySeperateLoadingCache || ShaderCodeLibrarySeperateLoadingCacheCommandLineOverride)
+			{
+
+				TArray<TArray<FString>> FilesToMakeUnique;
+				FilesToMakeUnique.AddDefaulted(1);
+				FilesToMakeUnique[0].Add(DestFilePath);
+				FPlatformFileManager::Get().GetPlatformFile().MakeUniquePakFilesForTheseFiles(FilesToMakeUnique);
+			}
 
 			// Open library for async reads
 			LibraryAsyncFileHandle = FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*DestFilePath);
