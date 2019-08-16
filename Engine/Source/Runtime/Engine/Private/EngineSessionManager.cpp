@@ -69,6 +69,7 @@ namespace SessionManagerDefs
 	static const FString EngineVersionStoreKey(TEXT("EngineVersion"));
 	static const FString TimestampStoreKey(TEXT("Timestamp"));
 	static const FString StartupTimestampStoreKey(TEXT("StartupTimestamp"));
+	static const FString SessionDurationStoreKey(TEXT("SessionDuration"));
 	static const FString Idle1MinStoreKey(TEXT("Idle1Min"));
 	static const FString Idle5MinStoreKey(TEXT("Idle5Min"));
 	static const FString Idle30MinStoreKey(TEXT("Idle30Min"));
@@ -323,13 +324,16 @@ void FEngineSessionManager::Shutdown()
 	FCoreDelegates::ApplicationWillTerminateDelegate.RemoveAll(this);
 	FCoreDelegates::IsVanillaProductChanged.RemoveAll(this);
 
+	if (!CurrentSession.bIsTerminating) // Skip Slate if terminating, since we can't guarantee which thread called us.
+	{
+		FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
+	}
+
 	// Clear the session record for this session
 	if (bInitializedRecords)
 	{
-		if (!CurrentSession.bIsTerminating) // Skip Slate if terminating, since we can't guarantee which thread called us.
+		if (!CurrentSession.bIsTerminating)
 		{
-			FSlateApplication::Get().GetOnModalLoopTickEvent().RemoveAll(this);
-
 			FPlatformMisc::SetStoredValue(SessionManagerDefs::StoreId, CurrentSessionSectionName, SessionManagerDefs::WasShutdownStoreKey, SessionManagerDefs::TrueValueString);
 		}
 
@@ -533,7 +537,8 @@ void FEngineSessionManager::SendSessionRecordEvent(const FString& EventName, con
 #if !PLATFORM_PS4
 	FString ShutdownTypeString = Record.bCrashed ? SessionManagerDefs::CrashSessionToken :
 		(Record.bWasEverDebugger ? SessionManagerDefs::DebuggerSessionToken :
-		(Record.bIsTerminating ? SessionManagerDefs::TerminatedSessionToken : SessionManagerDefs::AbnormalSessionToken));
+		(Record.bIsTerminating ? SessionManagerDefs::TerminatedSessionToken : 
+		(Record.bWasShutdown ? SessionManagerDefs::ShutdownSessionToken : SessionManagerDefs::AbnormalSessionToken)));
 #else
 	// PS4 cannot set the crash flag so report abnormal shutdowns with a specific token meaning "crash or abnormal shutdown".
 	FString ShutdownTypeString = Record.bWasEverDebugger ? SessionManagerDefs::DebuggerSessionToken : SessionManagerDefs::PS4SessionToken;
@@ -560,6 +565,9 @@ void FEngineSessionManager::SendSessionRecordEvent(const FString& EventName, con
 	AnalyticsAttributes.Emplace(SessionManagerDefs::IsInPIEStoreKey, Record.bIsInPIE);
 	AnalyticsAttributes.Emplace(SessionManagerDefs::IsInEnterpriseStoreKey, Record.bIsInEnterprise);
 	AnalyticsAttributes.Emplace(SessionManagerDefs::IsInVRModeStoreKey, Record.bIsInVRMode);
+
+	double SessionDuration = (Record.Timestamp - Record.StartupTimestamp).GetTotalSeconds();
+	AnalyticsAttributes.Emplace(SessionManagerDefs::SessionDurationStoreKey, SessionDuration);
 
 	AnalyticsAttributes.Emplace(TEXT("1MinIdle"), Record.Idle1Min);
 	AnalyticsAttributes.Emplace(TEXT("5MinIdle"), Record.Idle5Min);
