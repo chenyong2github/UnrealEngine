@@ -81,7 +81,7 @@ bool FWidgetProxy::ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWi
 		FVector2D NewDesiredSize = FVector2D::ZeroVector;
 		if (Visibility != EVisibility::Collapsed)
 		{
-			if (Widget->NeedsPrepass())
+			if (Widget->NeedsPrepass() || (!GSlateEnableGlobalInvalidation && Widget->Advanced_IsInvalidationRoot()))
 			{
 				Widget->SlatePrepass(Widget->PrepassLayoutScaleMultiplier.Get(1.0f));
 			}
