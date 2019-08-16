@@ -47,18 +47,16 @@ namespace UnrealBuildTool
 					{
 						if (TargetTypes.Any() && !TargetTypes.Contains(ProjectTarget.TargetRules.Type)) continue;
 
-						switch (ProjectTarget.TargetRules.Type)
+						// Skip Programs for all configs except for current platform + Development configuration
+						if (ProjectTarget.TargetRules.Type == TargetType.Program && (BuildHostPlatform.Current.Platform != Platform || Configuration != UnrealTargetConfiguration.Development))
 						{
-							// Skip Programs for all configs except for current platform + Development configuration
-							case TargetType.Program
-								when (BuildHostPlatform.Current.Platform != Platform ||
-								      Configuration != UnrealTargetConfiguration.Development):
-							// Skip Editor for all platforms except for current platform
-							case TargetType.Editor
-								when (BuildHostPlatform.Current.Platform != Platform ||
-								      (Configuration == UnrealTargetConfiguration.Test ||
-								       Configuration == UnrealTargetConfiguration.Shipping)):
-								continue;
+							continue;
+						}
+
+						// Skip Editor for all platforms except for current platform
+						if (ProjectTarget.TargetRules.Type == TargetType.Editor && (BuildHostPlatform.Current.Platform != Platform || (Configuration == UnrealTargetConfiguration.Test || Configuration == UnrealTargetConfiguration.Shipping)))
+						{
+							continue;
 						}
 
 						DirectoryReference TargetFolder =
@@ -147,7 +145,9 @@ namespace UnrealBuildTool
 			Writer.WriteValue("Directory", Module.ModuleDirectory.FullName);
 			Writer.WriteValue("Rules", Module.RulesFile.FullName);
 			Writer.WriteValue("PCHUsage", Module.Rules.PCHUsage.ToString());
-			if (Module is UEBuildModuleCPP ModuleCPP)
+
+			UEBuildModuleCPP ModuleCPP = Module as UEBuildModuleCPP;
+			if (ModuleCPP != null)
 			{
 				Writer.WriteValue("GeneratedCodeDirectory", ModuleCPP.GeneratedCodeDirectory != null ? ModuleCPP.GeneratedCodeDirectory.FullName : string.Empty);
 			}

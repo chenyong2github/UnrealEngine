@@ -413,7 +413,8 @@ namespace UnrealBuildTool
 		
 		private void SetupSupportedPlatformsAndConfigurations()
 		{
-			SetupSupportedPlatformsAndConfigurations(true, out _);
+			string SupportedPlatformNames;
+			SetupSupportedPlatformsAndConfigurations(true, out SupportedPlatformNames);
 		}
 		
 		public override bool GenerateProjectFiles(PlatformProjectGeneratorCollection PlatformProjectGenerators,
@@ -482,7 +483,8 @@ namespace UnrealBuildTool
 				FileReference ProjectFilePath = FileReference.Combine(IntermediateProjectFilesPath,
 					EngineProjectFileNameBase + ProjectFileExtension);
 
-				EngineProject = FindOrAddProject(ProjectFilePath, UnrealBuildTool.EngineDirectory, true, out _);
+				bool bAlreadyExisted;
+				EngineProject = FindOrAddProject(ProjectFilePath, UnrealBuildTool.EngineDirectory, true, out bAlreadyExisted);
 
 				EngineProject.IsForeignProject = false;
 				EngineProject.IsGeneratedProject = true;

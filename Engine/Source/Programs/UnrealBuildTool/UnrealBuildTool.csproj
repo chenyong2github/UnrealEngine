@@ -48,6 +48,7 @@
     <DocumentationFile>..\..\..\Binaries\DotNET\UnrealBuildTool.xml</DocumentationFile>
     <NoWarn>
     </NoWarn>
+    <LangVersion>6</LangVersion>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>..\..\..\Binaries\DotNET\</OutputPath>
