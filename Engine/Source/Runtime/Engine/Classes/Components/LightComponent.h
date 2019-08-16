@@ -360,6 +360,10 @@ public:
 	{
 		return false;
 	}
+	virtual uint8 GetAtmosphereSunLightIndex() const
+	{
+		return 0;
+	}
 
 	/** Compute current light brightness based on whether there is a valid IES profile texture attached, and whether IES brightness is enabled */
 	virtual float ComputeLightBrightness() const;
