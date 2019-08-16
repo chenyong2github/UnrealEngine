@@ -351,6 +351,17 @@ struct TStructOpsTypeTraits<FGameplayEffectModifierMagnitude> : public TStructOp
 	};
 };
 
+/** Enumeration representing the types of scoped modifier aggregator usages available */
+UENUM()
+enum class EGameplayEffectScopedModifierAggregatorType : uint8
+{
+	/** Aggregator is backed by an attribute capture */
+	CapturedAttributeBacked,
+
+	/** Aggregator is entirely transient (acting as a "temporary variable") and must be identified via gameplay tag */
+	Transient
+};
+
 /** 
  * Struct representing modifier info used exclusively for "scoped" executions that happen instantaneously. These are
  * folded into a calculation only for the extent of the calculation and never permanently added to an aggregator.
@@ -362,11 +373,20 @@ struct FGameplayEffectExecutionScopedModifierInfo
 
 	// Constructors
 	FGameplayEffectExecutionScopedModifierInfo()
-		: ModifierOp(EGameplayModOp::Additive)
+		: AggregatorType(EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+		, ModifierOp(EGameplayModOp::Additive)
 	{}
 
 	FGameplayEffectExecutionScopedModifierInfo(const FGameplayEffectAttributeCaptureDefinition& InCaptureDef)
 		: CapturedAttribute(InCaptureDef)
+		, AggregatorType(EGameplayEffectScopedModifierAggregatorType::CapturedAttributeBacked)
+		, ModifierOp(EGameplayModOp::Additive)
+	{
+	}
+
+	FGameplayEffectExecutionScopedModifierInfo(const FGameplayTag& InTransientAggregatorIdentifier)
+		: TransientAggregatorIdentifier(InTransientAggregatorIdentifier)
+		, AggregatorType(EGameplayEffectScopedModifierAggregatorType::Transient)
 		, ModifierOp(EGameplayModOp::Additive)
 	{
 	}
@@ -374,6 +394,14 @@ struct FGameplayEffectExecutionScopedModifierInfo
 	/** Backing attribute that the scoped modifier is for */
 	UPROPERTY(VisibleDefaultsOnly, Category=Execution)
 	FGameplayEffectAttributeCaptureDefinition CapturedAttribute;
+
+	/** Identifier for aggregator if acting as a transient "temporary variable" aggregator */
+	UPROPERTY(VisibleDefaultsOnly, Category=Execution)
+	FGameplayTag TransientAggregatorIdentifier;
+
+	/** Type of aggregator backing the scoped mod */
+	UPROPERTY(VisibleDefaultsOnly, Category=Execution)
+	EGameplayEffectScopedModifierAggregatorType AggregatorType;
 
 	/** Modifier operation to perform */
 	UPROPERTY(EditDefaultsOnly, Category=Execution)
