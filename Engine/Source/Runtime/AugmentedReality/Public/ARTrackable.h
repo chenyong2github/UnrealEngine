@@ -415,3 +415,21 @@ private:
 	UPROPERTY()
 	UARCandidateObject* DetectedObject;
 };
+
+UCLASS(BlueprintType)
+class AUGMENTEDREALITY_API UARTrackedPose : public UARTrackedGeometry
+{
+	GENERATED_BODY()
+	
+public:
+	virtual void DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds = 0.0f) const override;
+	
+	void UpdateTrackedPose(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, const FARPose3D& InTrackedPose);
+	
+	UFUNCTION(BlueprintPure, Category = "AR AugmentedReality|Pose Tracking")
+	const FARPose3D& GetTrackedPoseData() const { return TrackedPose; };
+	
+private:
+	/** The detailed info of the tracked pose */
+	FARPose3D TrackedPose;
+};

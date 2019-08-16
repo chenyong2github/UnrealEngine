@@ -339,3 +339,60 @@ void UARTrackedObject::UpdateTrackedGeometry(const TSharedRef<FARSupportInterfac
 	ObjectClassification = EARObjectClassification::SceneObject;
 }
 
+void UARTrackedPose::DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds) const
+{
+	if (TrackedPose.JointTransformSpace != EARJointTransformSpace::Model)
+	{
+		// TODO: Support joints defined in the parent space
+		return;
+	}
+	
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+	const FColor OutlineRGB = OutlineColor.ToFColor(false);
+	
+	if (true)
+	{
+		// Draw the entire skeleton
+		for (int Index = 0; Index < TrackedPose.SkeletonDefinition.NumJoints; ++Index)
+		{
+			if (!TrackedPose.IsJointTracked[Index])
+			{
+				continue;
+			}
+			
+			const int ParentIndex = TrackedPose.SkeletonDefinition.ParentIndices[Index];
+			if (ParentIndex >= 0 && ParentIndex < TrackedPose.SkeletonDefinition.NumJoints)
+			{
+				if (TrackedPose.IsJointTracked[ParentIndex])
+				{
+					const FTransform JointWorldTransform = TrackedPose.JointTransforms[Index] * LocalToWorldTransform;
+					const FTransform ParentWorldTransform = TrackedPose.JointTransforms[ParentIndex] * LocalToWorldTransform;
+					DrawDebugLine(World, JointWorldTransform.GetLocation(), ParentWorldTransform.GetLocation(), OutlineRGB, false, PersistForSeconds);
+				}
+			}
+		}
+	}
+	else
+	{
+		// Draw individual joint location and name
+		for (int Index = 0; Index < TrackedPose.SkeletonDefinition.NumJoints; ++Index)
+		{
+			if (!TrackedPose.IsJointTracked[Index])
+			{
+				continue;
+			}
+			
+			const FTransform JointWorldTransform = TrackedPose.JointTransforms[Index] * LocalToWorldTransform;
+			DrawDebugPoint(World, JointWorldTransform.GetLocation(), 0.5f, OutlineRGB, false, PersistForSeconds, 0);
+			ARDebugHelpers::DrawDebugString(World, JointWorldTransform.GetLocation() + FVector(0.f, 0.f, 10.f),
+											TrackedPose.SkeletonDefinition.JointNames[Index].ToString(),
+											0.25f * OutlineThickness, OutlineRGB, PersistForSeconds, true);
+		}
+	}
+}
+
+void UARTrackedPose::UpdateTrackedPose(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, const FARPose3D& InTrackedPose)
+{
+	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
+	TrackedPose = InTrackedPose;
+}
