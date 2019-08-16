@@ -783,7 +783,8 @@ void FDepthPassMeshProcessor::AddMeshBatch(const FMeshBatch& RESTRICT MeshBatch,
 
 		if (!bIsTranslucent
 			&& (!PrimitiveSceneProxy || PrimitiveSceneProxy->ShouldRenderInDepthPass())
-			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain()))
+			&& ShouldIncludeDomainInMeshPass(Material.GetMaterialDomain())
+			&& !Material.IsSky())
 		{
 			if (BlendMode == BLEND_Opaque
 				&& MeshBatch.VertexFactory->SupportsPositionOnlyStream()

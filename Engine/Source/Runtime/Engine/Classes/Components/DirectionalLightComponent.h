@@ -159,6 +159,9 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Light, meta=(DisplayName = "Atmosphere / Fog Sun Light"))
 	uint32 bUsedAsAtmosphereSunLight : 1;
 
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Light, meta = (DisplayName = "Atmosphere Sun Light Index", UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax= "1"))
+	int32 AtmosphereSunLightIndex;
+
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetDynamicShadowDistanceMovableLight(float NewValue);
 
@@ -200,6 +203,10 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	virtual bool IsUsedAsAtmosphereSunLight() const override
 	{
 		return bUsedAsAtmosphereSunLight;
+	}
+	virtual uint8 GetAtmosphereSunLightIndex() const override
+	{
+		return AtmosphereSunLightIndex;
 	}
 	//~ End ULightComponent Interface
 

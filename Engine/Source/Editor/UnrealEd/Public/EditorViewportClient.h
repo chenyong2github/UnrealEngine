@@ -1541,8 +1541,9 @@ protected:
 	int32 CachedLastMouseX = 0;
 	int32 CachedLastMouseY = 0;
 
-	/** True is the use is controling the light via a*/
-	bool bUserIsControllingSunLight = false;
+	/** True is the use is controling the light via a shorcut*/
+	bool bUserIsControllingSunLight0 = false;
+	bool bUserIsControllingSunLight1 = false;
 	float UserIsControllingSunLightTimer = 0.0f;
 	FTransform UserControlledSunLightMatrix;
 

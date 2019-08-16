@@ -1887,6 +1887,7 @@ struct FRelevancePacket
 	bool bUsesLightingChannels;
 	bool bTranslucentSurfaceLighting;
 	bool bUsesSceneDepth;
+	bool bSceneHasSkyMaterial;
 
 	FRelevancePacket(
 		FRHICommandListImmediate& InRHICmdList,
@@ -1923,6 +1924,7 @@ struct FRelevancePacket
 		, bUsesLightingChannels(false)
 		, bTranslucentSurfaceLighting(false)
 		, bUsesSceneDepth(false)
+		, bSceneHasSkyMaterial(false)
 	{
 	}
 
@@ -1935,6 +1937,7 @@ struct FRelevancePacket
 	void ComputeRelevance()
 	{
 		CombinedShadingModelMask = 0;
+		bSceneHasSkyMaterial = 0;
 		bUsesGlobalDistanceField = false;
 		bUsesLightingChannels = false;
 		bTranslucentSurfaceLighting = false;
@@ -2032,6 +2035,7 @@ struct FRelevancePacket
 			bUsesLightingChannels |= ViewRelevance.bUsesLightingChannels;
 			bTranslucentSurfaceLighting |= ViewRelevance.bTranslucentSurfaceLighting;
 			bUsesSceneDepth |= ViewRelevance.bUsesSceneDepth;
+			bSceneHasSkyMaterial |= ViewRelevance.bUsesSkyMaterial;
 
 			if (ViewRelevance.bRenderCustomDepth)
 			{
@@ -2206,7 +2210,7 @@ struct FRelevancePacket
 
 					if (ViewRelevance.bDrawRelevance)
 					{
-						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder) 
+						if ((StaticMeshRelevance.bUseForMaterial || StaticMeshRelevance.bUseAsOccluder)
 							&& (ViewRelevance.bRenderInMainPass || ViewRelevance.bRenderCustomDepth || ViewRelevance.bRenderInDepthPass)
 							&& !bHiddenByHLODFade)
 						{
@@ -2224,6 +2228,11 @@ struct FRelevancePacket
 								if (ShadingPath == EShadingPath::Mobile)
 								{
 									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::MobileBasePassCSM);
+								}
+								else if(StaticMeshRelevance.bUseSkyMaterial)
+								{
+									// Not needed on Mobile path as in this case everything goes into the regular base pass
+									DrawCommandPacket.AddCommandsForMesh(PrimitiveIndex, PrimitiveSceneInfo, StaticMeshRelevance, StaticMesh, Scene, bCanCache, EMeshPass::SkyPass);
 								}
 
 								if (ViewRelevance.bRenderCustomDepth)
@@ -2361,6 +2370,7 @@ struct FRelevancePacket
 		WriteView.bUsesLightingChannels |= bUsesLightingChannels;
 		WriteView.bTranslucentSurfaceLighting |= bTranslucentSurfaceLighting;
 		WriteView.bUsesSceneDepth |= bUsesSceneDepth;
+		WriteView.bSceneHasSkyMaterial |= bSceneHasSkyMaterial;
 		VisibleDynamicPrimitivesWithSimpleLights.AppendTo(WriteView.VisibleDynamicPrimitivesWithSimpleLights);
 		WriteView.NumVisibleDynamicPrimitives += NumVisibleDynamicPrimitives;
 		WriteView.NumVisibleDynamicEditorPrimitives += NumVisibleDynamicEditorPrimitives;
@@ -4159,6 +4169,12 @@ bool FDeferredShadingSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdLi
 	// This has to happen before Scene->IndirectLightingCache.UpdateCache, since primitives in View.IndirectShadowPrimitives need ILC updates
 	CreateIndirectCapsuleShadows();
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);
+
+	// Initialise Sky/View resources before the view global uniform buffer is built.
+	if (Scene && ShouldRenderSkyAtmosphere(Scene->GetSkyAtmosphereSceneInfo(), Scene->GetShaderPlatform()))
+	{
+		InitSkyAtmosphereForViews(RHICmdList);
+	}
 
 	PostVisibilityFrameSetup(ILCTaskData);
 	RHICmdList.ImmediateFlush(EImmediateFlushType::DispatchToRHIThread);

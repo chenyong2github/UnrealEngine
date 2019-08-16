@@ -77,6 +77,8 @@ struct FPrimitiveViewRelevance
 	uint32 bTranslucentSelfShadow : 1;
 	/** Whether the primitive has materials that read the scene depth. */
 	uint32 bUsesSceneDepth : 1;
+	/** Whether the primitive has materials that read the scene depth. */
+	uint32 bUsesSkyMaterial : 1;
 	/** Whether the view use custom data. */
 	uint32 bUseCustomViewData : 1;
 

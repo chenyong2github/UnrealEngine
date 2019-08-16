@@ -16,6 +16,8 @@ FName FMapErrors::VertexColorsNotMatchOriginalMesh(TEXT("VertexColorsNotMatchOri
 FName FMapErrors::CollisionEnabledNoCollisionGeom(TEXT("CollisionEnabledNoCollisionGeom"));
 FName FMapErrors::ShadowCasterUsingBoundsScale(TEXT("ShadowCasterUsingBoundsScale"));
 FName FMapErrors::MultipleSkyLights(TEXT("MultipleSkyLights"));
+FName FMapErrors::MultipleSkyAtmospheres(TEXT("MultipleSkyAtmospheres"));
+FName FMapErrors::MultipleSkyAtmosphereTypes(TEXT("MultipleSkyAtmosphereTypes"));
 FName FMapErrors::InvalidTrace(TEXT("InvalidTrace"));
 FName FMapErrors::BrushZeroPolygons(TEXT("BrushZeroPolygons"));
 FName FMapErrors::CleanBSPMaterials(TEXT("CleanBSPMaterials"));
