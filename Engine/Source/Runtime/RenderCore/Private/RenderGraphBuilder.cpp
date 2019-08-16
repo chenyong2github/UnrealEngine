@@ -297,10 +297,9 @@ void FRDGBuilder::VisualizePassOutputs(const FRDGPass* Pass)
 #endif
 }
 
-#if RDG_ENABLE_DEBUG
-
 void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 {
+#if RDG_ENABLE_DEBUG
 	if (!IsRDGClobberResourcesEnabled())
 	{
 		return;
@@ -403,9 +402,8 @@ void FRDGBuilder::ClobberPassOutputs(const FRDGPass* Pass)
 		}
 	}
 	bInDebugPassScope = false;
-}
-
 #endif
+}
 
 void FRDGBuilder::WalkGraphDependencies()
 {

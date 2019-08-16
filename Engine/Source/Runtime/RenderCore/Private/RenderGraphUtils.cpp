@@ -162,21 +162,21 @@ void AddClearUAVPass_T(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, 
 		ERDGPassFlags::Compute,
 		[&Parameters, TextureUAV, ClearValues](FRHICommandList& RHICmdList)
 	{
-		const FRDGTextureDesc& TextureDesc = TextureUAV->GetParent()->Desc;
+		const FRDGTextureDesc& LocalTextureDesc = TextureUAV->GetParent()->Desc;
 
 		FRHIUnorderedAccessView* RHITextureUAV = TextureUAV->GetRHI();
 
-		if (TextureDesc.Is2DTexture())
+		if (LocalTextureDesc.Is2DTexture())
 		{
-			if (TextureDesc.IsArray())
+			if (LocalTextureDesc.IsArray())
 			{
 				TShaderMapRef<FClearTexture2DArrayReplacementCS<T>> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 				FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 				RHICmdList.SetComputeShader(ShaderRHI);
 				ComputeShader->SetParameters(RHICmdList, RHITextureUAV, ClearValues);
-				uint32 x = (TextureDesc.Extent.X + 7) / 8;
-				uint32 y = (TextureDesc.Extent.Y + 7) / 8;
-				uint32 z = TextureDesc.ArraySize;
+				uint32 x = (LocalTextureDesc.Extent.X + 7) / 8;
+				uint32 y = (LocalTextureDesc.Extent.Y + 7) / 8;
+				uint32 z = LocalTextureDesc.ArraySize;
 				RHICmdList.DispatchComputeShader(x, y, z);
 				ComputeShader->FinalizeParameters(RHICmdList, RHITextureUAV);
 			}
@@ -186,32 +186,32 @@ void AddClearUAVPass_T(FRDGBuilder& GraphBuilder, FRDGTextureUAVRef TextureUAV, 
 				FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 				RHICmdList.SetComputeShader(ShaderRHI);
 				ComputeShader->SetParameters(RHICmdList, RHITextureUAV, ClearValues);
-				const uint32 X = (TextureDesc.Extent.X + 7) / 8;
-				const uint32 Y = (TextureDesc.Extent.Y + 7) / 8;
+				const uint32 X = (LocalTextureDesc.Extent.X + 7) / 8;
+				const uint32 Y = (LocalTextureDesc.Extent.Y + 7) / 8;
 				RHICmdList.DispatchComputeShader(X, Y, 1);
 				ComputeShader->FinalizeParameters(RHICmdList, RHITextureUAV);
 			}
 		}
-		else if (TextureDesc.IsCubemap())
+		else if (LocalTextureDesc.IsCubemap())
 		{
 			TShaderMapRef<FClearTexture2DArrayReplacementCS<T>> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 			FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 			RHICmdList.SetComputeShader(ShaderRHI);
 			ComputeShader->SetParameters(RHICmdList, RHITextureUAV, ClearValues);
-			uint32 x = (TextureDesc.Extent.X + 7) / 8;
-			uint32 y = (TextureDesc.Extent.Y + 7) / 8;
+			uint32 x = (LocalTextureDesc.Extent.X + 7) / 8;
+			uint32 y = (LocalTextureDesc.Extent.Y + 7) / 8;
 			RHICmdList.DispatchComputeShader(x, y, 6);
 			ComputeShader->FinalizeParameters(RHICmdList, RHITextureUAV);
 		}
-		else if (TextureDesc.Is3DTexture())
+		else if (LocalTextureDesc.Is3DTexture())
 		{
 			TShaderMapRef<FClearVolumeReplacementCS<T>> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
 			FRHIComputeShader* ShaderRHI = ComputeShader->GetComputeShader();
 			RHICmdList.SetComputeShader(ShaderRHI);
 			ComputeShader->SetParameters(RHICmdList, RHITextureUAV, ClearValues);
-			uint32 x = (TextureDesc.Extent.X + 3) / 4;
-			uint32 y = (TextureDesc.Extent.Y + 3) / 4;
-			uint32 z = (TextureDesc.Depth + 3) / 4;
+			uint32 x = (LocalTextureDesc.Extent.X + 3) / 4;
+			uint32 y = (LocalTextureDesc.Extent.Y + 3) / 4;
+			uint32 z = (LocalTextureDesc.Depth + 3) / 4;
 			RHICmdList.DispatchComputeShader(x, y, z);
 			ComputeShader->FinalizeParameters(RHICmdList, RHITextureUAV);
 		}

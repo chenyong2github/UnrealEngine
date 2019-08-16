@@ -87,32 +87,23 @@ public:
 	{
 		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 		{
-			if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
+			ForwardLightingResources.ForwardLocalLightBuffer.Initialize(sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
+			ForwardLightingResources.NumCulledLightsGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
+
+			const bool bSupportFormatConversion = RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform);
+
+			if (bSupportFormatConversion)
 			{
-				ForwardLightingResources.ForwardLocalLightBuffer.Initialize(sizeof(FVector4), sizeof(FForwardLocalLightData) / sizeof(FVector4), PF_A32B32G32R32F, BUF_Dynamic);
-				ForwardLightingResources.NumCulledLightsGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
-
-				const bool bSupportFormatConversion = RHISupportsBufferLoadTypeConversion(GMaxRHIShaderPlatform);
-
-				if (bSupportFormatConversion)
-				{
-					ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint16), 1, PF_R16_UINT);
-				}
-				else
-				{
-					ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
-				}
-
-				ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = ForwardLightingResources.ForwardLocalLightBuffer.SRV;
-				ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = ForwardLightingResources.NumCulledLightsGrid.SRV;
-				ForwardLightingResources.ForwardLightData.CulledLightDataGrid = ForwardLightingResources.CulledLightDataGrid.SRV;
+				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint16), 1, PF_R16_UINT);
 			}
 			else
 			{
-				ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = GNullColorVertexBuffer.VertexBufferSRV;
-				ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = GNullColorVertexBuffer.VertexBufferSRV;
-				ForwardLightingResources.ForwardLightData.CulledLightDataGrid = GNullColorVertexBuffer.VertexBufferSRV;
+				ForwardLightingResources.CulledLightDataGrid.Initialize(sizeof(uint32), 1, PF_R32_UINT);
 			}
+
+			ForwardLightingResources.ForwardLightData.ForwardLocalLightBuffer = ForwardLightingResources.ForwardLocalLightBuffer.SRV;
+			ForwardLightingResources.ForwardLightData.NumCulledLightsGrid = ForwardLightingResources.NumCulledLightsGrid.SRV;
+			ForwardLightingResources.ForwardLightData.CulledLightDataGrid = ForwardLightingResources.CulledLightDataGrid.SRV;
 
 			ForwardLightingResources.ForwardLightDataUniformBuffer = TUniformBufferRef<FForwardLightData>::CreateUniformBufferImmediate(ForwardLightingResources.ForwardLightData, UniformBuffer_MultiFrame);
 		}

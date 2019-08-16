@@ -668,14 +668,7 @@ class FPostProcessAmbientOcclusionPSandCS : public FGlobalShader
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		if(bComputeShader)
-		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-		}
-		else
-		{
-			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-		}
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
